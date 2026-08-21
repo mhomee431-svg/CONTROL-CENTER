@@ -1,0 +1,51 @@
+# ── Core Web Framework ─────────────────────────────────────────────────────
+fastapi>=0.115.6
+uvicorn[standard]>=0.34.0
+python-multipart>=0.0.20
+
+# ── Database / ORM (cp314-compatible wheels) ─────────────────────────────
+SQLAlchemy>=2.0.36
+alembic>=1.14.0
+psycopg[binary]>=3.2.10
+asyncpg>=0.30.0
+GeoAlchemy2>=0.15.0
+
+# ── Validation / Settings (cp314-compatible pydantic) ─────────────────────
+pydantic>=2.11.0
+pydantic-settings>=2.7.0
+email-validator>=2.2.0
+python-dotenv>=1.0.1
+
+# ── Auth / Security ────────────────────────────────────────────────────────
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.2.1
+
+# ── Cache / Background Jobs ────────────────────────────────────────────────
+redis>=5.2.1
+celery>=5.4.0
+
+# ── Rate Limiting / Security Headers ───────────────────────────────────────
+slowapi>=0.1.9
+secure>=0.3.0
+
+# ── Storage Providers ──────────────────────────────────────────────────────
+boto3>=1.35.99
+cloudinary>=1.41.0
+
+# ── Email Providers ────────────────────────────────────────────────────────
+aiosmtplib>=3.0.2
+sendgrid>=6.11.0
+
+# ── SMS Providers ──────────────────────────────────────────────────────────
+twilio>=9.3.1
+
+# ── Logging ────────────────────────────────────────────────────────────────
+structlog>=24.4.0
+python-json-logger>=3.2.1
+
+# ── Testing ────────────────────────────────────────────────────────────────
+pytest>=8.3.4
+pytest-asyncio>=0.25.0
+httpx>=0.28.1
+pytest-cov>=6.0.0

@@ -1,0 +1,41 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hyperlocal_customer_app/app.dart';
+import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+
+import 'core_flow_test.mocks.dart';
+
+@GenerateMocks([SecureStorageService])
+void main() {
+  testWidgets(
+    'App initializes, shows splash, and redirects to login for unauthenticated users',
+    (WidgetTester tester) async {
+      final mockStorage = MockSecureStorageService();
+      when(mockStorage.getToken()).thenAnswer((_) async => null);
+      when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
+      when(mockStorage.read(key: 'user_saved_location')).thenAnswer((_) async => null);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            secureStorageProvider.overrideWithValue(mockStorage),
+          ],
+          child: const HyperlocalApp(),
+        ),
+      );
+
+      // Verify Splash Screen
+      expect(find.text('Hyperlocal'), findsOneWidget);
+
+      // Fast forward past splash timer and auth check
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Verify Login Screen is shown for unauthenticated users
+      expect(find.text('Welcome to Hyperlocal'), findsOneWidget);
+      expect(find.text('Send OTP'), findsOneWidget);
+      expect(find.text('Continue as Guest'), findsOneWidget);
+    },
+  );
+}

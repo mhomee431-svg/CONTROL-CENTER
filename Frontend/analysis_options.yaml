@@ -1,0 +1,23 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+    parameter_assignments: warning
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - avoid_print
+    - require_trailing_commas
+    - use_key_in_widget_constructors
