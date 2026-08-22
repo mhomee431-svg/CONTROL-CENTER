@@ -1,169 +1,253 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
+from app.core.dependencies import get_optional_user
 from app.core.responses import success_response
 from app.database.session import get_db
-from app.models.product import ProductMaster, ShopProduct, Inventory
-from app.models.shop import Shop
-from app.schemas.search import SearchResponse, ShopProductResultSchema
-from app.services import inventory_service
+from app.models.user import User
+from app.search import engine as search_engine
+from app.search.indexer import full_rebuild as index_full_rebuild
+from app.search.indexer import incremental_sync as index_incremental_sync
+from app.search.engine import SearchParams
 
 router = APIRouter(prefix="/search", tags=["search"])
 
 
-@router.get("/products")
-async def search_products(
-    q: str = Query("", max_length=200, description="Search query"),
-    latitude: float | None = Query(None, ge=-90, le=90),
-    longitude: float | None = Query(None, ge=-180, le=180),
-    radius_km: float = Query(10.0, gt=0, le=100),
+# ── V2 / Unified product discovery ─────────────────────────────────────────
+@router.get("/v2/products")
+async def v2_search_products(
+    request: Request,
+    q: str = Query("", max_length=200, description="Search query (product, brand, category, variant, barcode)"),
+    latitude: float | None = Query(None, ge=-90, le=90, description="User latitude for geo search"),
+    longitude: float | None = Query(None, ge=-180, le=180, description="User longitude for geo search"),
+    radius_km: float = Query(10.0, gt=0, le=100, description="Search radius in km"),
     category: int | None = Query(None, description="Category ID filter"),
+    brand: int | None = Query(None, description="Brand ID filter"),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
+    min_rating: float | None = Query(None, ge=0, le=5),
     in_stock: bool = Query(False, description="Only show in-stock items"),
-    sort: str = Query("nearest", pattern="^(nearest|lowest_price|highest_rated|recently_updated)$"),
+    exclude_stale: bool = Query(False, description="Exclude stale inventory"),
+    exclude_unavailable: bool = Query(False, description="Exclude unavailable items"),
+    sort: str = Query("relevance", pattern="^(relevance|distance|nearest|lowest_price|price_asc|highest_price|price_desc|highest_rated|rating|availability|freshness|recently_updated)$"),
     page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=50),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_optional_user),
+):
+    """
+    Unified discovery engine — search products across nearby shops.
+
+    Uses the search index (optimized layer) backed by PostgreSQL.
+    Combines text search (with typo tolerance), geo proximity, and
+    all discovery filters in one query.
+    """
+    params = SearchParams(
+        q=q,
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+        category_id=category,
+        brand_id=brand,
+        min_price=min_price,
+        max_price=max_price,
+        min_rating=min_rating,
+        in_stock_only=in_stock,
+        exclude_stale=exclude_stale,
+        exclude_unavailable=exclude_unavailable,
+        sort=sort,
+        page=page,
+        limit=limit,
+    )
+
+    result = search_engine.search_products(db, params)
+
+    # Record search event (fire-and-forget — never blocks the response)
+    search_engine.record_search(
+        db,
+        user_id=user.id if user else None,
+        query=q,
+        result_count=result["total"],
+        is_successful=result["total"] > 0,
+    )
+
+    return success_response(data=result, message="Search complete")
+
+
+# ── Nearby shops ───────────────────────────────────────────────────────────
+@router.get("/v2/nearby-shops")
+def v2_nearby_shops(
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(10.0, gt=0, le=100),
+    category: str | None = Query(None),
+    min_rating: float | None = Query(None, ge=0, le=5),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    """Find nearby shops using PostGIS with distance calculation."""
+    result = search_engine.nearby_shops(
+        db,
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+        category=category,
+        min_rating=min_rating,
+        page=page,
+        limit=limit,
+    )
+    return success_response(data=result, message="Nearby shops")
+
+
+# ── Suggestions ────────────────────────────────────────────────────────────
+@router.get("/v2/suggestions")
+def v2_get_search_suggestions(
+    q: str = Query(..., min_length=1, max_length=100),
+    limit: int = Query(10, ge=1, le=20),
+    db: Session = Depends(get_db),
+):
+    """Typeahead suggestions across products, brands, and categories."""
+    suggestions = search_engine.search_suggestions(db, q, limit=limit)
+    return success_response(data=suggestions, message="Suggestions")
+
+
+# ── Popular searches ───────────────────────────────────────────────────────
+@router.get("/v2/popular")
+def v2_popular_searches(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
-    """
-    Search products across nearby shops.
-
-    Returns a paginated list of product-shop matches including price,
-    availability, stock status, and distance.
-    """
-    # Master product base query
-    product_query = db.query(ProductMaster)
-    if q:
-        search = f"%{q.strip()}%"
-        product_query = product_query.filter(
-            or_(ProductMaster.name.ilike(search), ProductMaster.slug.ilike(search))
-        )
-    if category is not None:
-        product_query = product_query.filter(ProductMaster.category_id == category)
-
-    products = product_query.all()
-
-    results = []
-    for product in products:
-        # Find all shop products for this master product
-        shop_products = (
-            db.query(ShopProduct)
-            .filter(
-                ShopProduct.product_master_id == product.id,
-                ShopProduct.is_visible == True,
-            )
-            .all()
-        )
-        for sp in shop_products:
-            # Price filter (sp.price is the current price)
-            if min_price is not None and float(sp.price) < min_price:
-                continue
-            if max_price is not None and float(sp.price) > max_price:
-                continue
-
-            shop = db.query(Shop).filter(Shop.id == sp.shop_id).first()
-            if shop is None:
-                continue
-
-            # Distance (PostGIS in later phase)
-            distance_km = 0.0
-
-            # Stock filter using inventory
-            inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
-            is_available = inv.is_available if inv else sp.is_available
-            if in_stock and not is_available:
-                continue
-
-            image_url = ""
-            if product.images:
-                primary = [img for img in product.images if img.is_primary]
-                image_url = (primary[0].image_url if primary else product.images[0].image_url) or ""
-
-            # Determine stock status (customer-facing)
-            if inv is not None and hasattr(inv.stock_status, "value"):
-                stock_status = inventory_service.map_to_customer_stock_status(inv.stock_status, inv.quantity).value
-            else:
-                stock_status = "UNKNOWN"
-
-            # Freshness
-            freshness_status = None
-            if inv is not None and inv.freshness_status:
-                freshness_status = inv.freshness_status.value
-            elif sp.freshness_status:
-                freshness_status = sp.freshness_status.value
-
-            # Offer text
-            offer_text = inventory_service.get_offer_text_for_shop_product(db, sp.id)
-
-            results.append(
-                ShopProductResultSchema(
-                    id=f"res_{sp.id}",
-                    product_id=product.id,
-                    product_name=product.name,
-                    product_image_url=image_url,
-                    shop_id=shop.id,
-                    shop_name=shop.name,
-                    price=float(sp.price),
-                    mrp=float(sp.mrp) if sp.mrp is not None else None,
-                    is_available=is_available,
-                    stock_status=stock_status,
-                    freshness_status=freshness_status,
-                    distance_km=round(distance_km, 2),
-                    shop_rating=shop.rating,
-                    last_updated=inv.updated_at if inv else sp.updated_at,
-                    offer_text=offer_text,
-                )
-            )
-
-    # Sort
-    if sort == "nearest":
-        results.sort(key=lambda r: r.distance_km)
-    elif sort == "lowest_price":
-        results.sort(key=lambda r: r.price)
-    elif sort == "highest_rated":
-        results.sort(key=lambda r: r.shop_rating, reverse=True)
-    elif sort == "recently_updated":
-        results.sort(key=lambda r: r.last_updated, reverse=True)
-
-    # Paginate
-    total = len(results)
-    start = (page - 1) * limit
-    end = start + limit
-    paged_results = results[start:end]
-    has_more = end < total
-
-    return success_response(
-        data=SearchResponse(
-            results=paged_results,
-            page=page,
-            limit=limit,
-            has_more=has_more,
-            total=total,
-        ).model_dump()
-    )
+    """Return the most searched queries across the platform."""
+    result = search_engine.popular_searches(db, limit=limit)
+    return success_response(data=result, message="Popular searches")
 
 
-@router.get("/suggestions")
-async def get_search_suggestions(
-    q: str = Query(..., min_length=1, max_length=100),
+# ── Search history ─────────────────────────────────────────────────────────
+@router.get("/v2/history")
+def v2_search_history(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_optional_user),
+):
+    """Return the authenticated user's search history."""
+    if user is None:
+        return success_response(data=[], message="Search history unavailable")
+    result = search_engine.search_history(db, user.id, limit=limit)
+    return success_response(data=result, message="Search history")
+
+
+# ── Barcode lookup ─────────────────────────────────────────────────────────
+@router.get("/v2/barcodes/{barcode}")
+def v2_barcode_lookup(
+    barcode: str,
+    latitude: float | None = Query(None, ge=-90, le=90),
+    longitude: float | None = Query(None, ge=-180, le=180),
+    radius_km: float = Query(10.0, gt=0, le=100),
     db: Session = Depends(get_db),
 ):
-    """Return search suggestions based on product names and brands."""
-    search = f"%{q.strip()}%"
-    products = (
-        db.query(ProductMaster)
-        .filter(ProductMaster.name.ilike(search))
-        .limit(8)
-        .all()
+    """Look up shops selling the product identified by this barcode."""
+    result = search_engine.barcode_lookup(
+        db,
+        barcode,
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
     )
 
-    suggestions = []
-    for p in products:
-        if p.name and q.lower() in p.name.lower():
-            suggestions.append({"text": p.name, "is_category": False, "is_brand": False})
-        if p.brand and p.brand.name and q.lower() in p.brand.name.lower() and not any(s["text"] == p.brand.name for s in suggestions):
-            suggestions.append({"text": p.brand.name, "is_category": False, "is_brand": True})
+    # Record barcode scan
+    from app.models.search import BarcodeScan
+    db.add(BarcodeScan(
+        barcode=barcode,
+        is_match_found=len(result) > 0,
+    ))
+    db.flush()
 
-    return success_response(data=suggestions)
+    return success_response(data=result, message="Barcode lookup")
+
+
+# ── Search events (analytics recording) ────────────────────────────────────
+@router.post("/v2/events")
+def v2_record_search_event(
+    payload: dict,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_optional_user),
+):
+    """Record an analytics search event (SEARCH, SUGGESTION_CLICK, RESULT_CLICK)."""
+    query = payload.get("query", "")
+    event_type = payload.get("event_type", "SEARCH")
+    search_engine.record_search_event(
+        db,
+        user_id=user.id if user else None,
+        session_id=payload.get("session_id"),
+        query=query,
+        event_type=event_type,
+        result_count=payload.get("result_count"),
+        clicked_product_id=payload.get("product_id"),
+        clicked_shop_id=payload.get("shop_id"),
+        clicked_shop_product_id=payload.get("shop_product_id"),
+        device_type=payload.get("device_type"),
+        app_version=payload.get("app_version"),
+    )
+    return success_response(data={"recorded": True}, message="Event recorded")
+
+
+# ── Index management (admin) ───────────────────────────────────────────────
+@router.post("/v2/index/rebuild")
+def v2_index_rebuild(
+    db: Session = Depends(get_db),
+):
+    """Full rebuild of the search index from source-of-truth tables."""
+    run = index_full_rebuild(db)
+    return success_response(
+        data={
+            "sync_id": run.id,
+            "status": run.status.value,
+            "total_processed": run.total_processed,
+            "total_created": run.total_created,
+            "error_count": run.error_count,
+        },
+        message="Search index rebuilt",
+    )
+
+
+@router.post("/v2/index/sync")
+def v2_index_incremental(
+    db: Session = Depends(get_db),
+):
+    """Incremental sync of changed shop products into the search index."""
+    run = index_incremental_sync(db)
+    return success_response(
+        data={
+            "run_id": run.id,
+            "status": run.status.value,
+            "total_processed": run.total_processed,
+            "total_created": run.total_created,
+            "total_updated": run.total_updated,
+            "total_removed": run.total_removed,
+            "error_count": run.error_count,
+        },
+        message="Incremental index sync complete",
+    )
+
+
+@router.get("/v2/index/status")
+def v2_index_status(db: Session = Depends(get_db)):
+    """Return the current state of the search index (counts)."""
+    from app.models.search import SearchIndex, SearchIndexSync
+    total = db.query(SearchIndex).count()
+    synced = db.query(SearchIndex).filter(SearchIndex.is_synced == True).count()  # noqa: E712
+    last_run = (
+        db.query(SearchIndexSync)
+        .order_by(SearchIndexSync.started_at.desc())
+        .first()
+    )
+    last_status = last_run.status.value if last_run else None
+    return success_response(data={
+        "total_indexed": total,
+        "synced": synced,
+        "sync_percentage": round((synced / total * 100), 1) if total > 0 else 0.0,
+        "last_sync_status": last_status,
+        "last_sync_type": last_run.sync_type if last_run else None,
+        "last_sync_at": last_run.completed_at if last_run else None,
+    }, message="Index status")

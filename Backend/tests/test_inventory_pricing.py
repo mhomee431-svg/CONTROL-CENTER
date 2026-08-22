@@ -18,7 +18,6 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
@@ -201,7 +200,6 @@ def test_price_update_schema():
 
 def test_offer_create_schema():
     """OfferCreate schema must validate correctly."""
-    from datetime import datetime, timedelta, timezone
     from app.schemas.inventory import OfferCreate
     from app.models.product import OfferType
 
@@ -341,12 +339,10 @@ class MockDB:
         self.deleted = []
         self._result = None
         self._results_by_model = {}
-        self._query_results = []
 
     def query(self, model):
         result = self._results_by_model.get(model, self._result)
-        mock_q = MockQuery(result)
-        return mock_q
+        return MockQuery(result)
 
     def set_result(self, model, result):
         self._results_by_model[model] = result
@@ -370,22 +366,68 @@ class MockDB:
         pass
 
 
+# ── Instance-based mock models ──────────────────────────────────────────────
+class MockStockStatus:
+    def __init__(self, value):
+        self.value = value
+
+
+class MockInventoryObj:
+    """Instance-based inventory mock so mutations are reflected."""
+
+    def __init__(self, quantity=10, reserved=2, source_value="MANUAL", stock="IN_STOCK"):
+        self.id = 1
+        self.shop_product_id = 1
+        self.quantity = quantity
+        self.reserved_quantity = reserved
+        self.available_quantity = quantity - reserved
+        self.is_available = True
+        self.stock_status = MockStockStatus(stock)
+        self.low_stock_threshold = 5
+        self.last_updated_by = None
+        self.last_updated_source = MockStockStatus(source_value)
+        self.last_synced_at = None
+        self.freshness_status = None
+        self.freshness_checked_at = None
+        self.updated_at = datetime.now(timezone.utc)
+
+
+class MockShopProductObj:
+    """Instance-based shop product mock so mutations are reflected."""
+
+    def __init__(self, price=100.0, mrp=150.0):
+        self.id = 1
+        self.price = price
+        self.mrp = mrp
+        self.stock_status = None
+        self.is_available = None
+        self.last_inventory_update = None
+        self.last_price_update = None
+        self.source = None
+        self.freshness_status = None
+
+
+class MockOfferObj:
+    """Instance-based offer mock so mutations are reflected."""
+
+    def __init__(self, status=None, start=None, end=None):
+        from app.models.product import OfferStatus
+        self.id = 1
+        self.status = status or OfferStatus.DRAFT
+        self.start_date = start or (datetime.now(timezone.utc) - timedelta(days=1))
+        self.end_date = end or (datetime.now(timezone.utc) + timedelta(days=7))
+        self.is_deleted = False
+
+
 # ── Inventory CRUD tests ────────────────────────────────────────────────────
 def test_create_inventory():
     """create_inventory should create inventory and initial movement."""
     from app.services.inventory_service import create_inventory
     from app.models.product import Inventory, InventoryMovement, ShopProduct
 
-    class MockShopProduct:
-        id = 1
-        stock_status = None
-        is_available = None
-        last_inventory_update = None
-        source = None
-        freshness_status = None
-
+    shop_product = MockShopProductObj()
     db = MockDB()
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(ShopProduct, shop_product)
     db.set_result(Inventory, None)  # No existing inventory
 
     inv = create_inventory(db, {"shop_product_id": 1, "quantity": 10, "reserved_quantity": 2})
@@ -408,16 +450,11 @@ def test_create_inventory_duplicate():
     from app.services.inventory_service import create_inventory
     from app.models.product import Inventory, ShopProduct
 
-    class MockShopProduct:
-        id = 1
-
-    class MockExistingInventory:
-        id = 1
-        shop_product_id = 1
-
+    shop_product = MockShopProductObj()
+    existing = MockInventoryObj()
     db = MockDB()
-    db.set_result(ShopProduct, MockShopProduct())
-    db.set_result(Inventory, MockExistingInventory())
+    db.set_result(ShopProduct, shop_product)
+    db.set_result(Inventory, existing)
 
     with pytest.raises(ValueError, match="already exists"):
         create_inventory(db, {"shop_product_id": 1, "quantity": 10})
@@ -428,38 +465,16 @@ def test_update_inventory():
     from app.services.inventory_service import update_inventory
     from app.models.product import Inventory, InventoryMovement, ShopProduct
 
-    class MockInventory:
-        id = 1
-        shop_product_id = 1
-        quantity = 10
-        reserved_quantity = 2
-        available_quantity = 8
-        is_available = True
-        stock_status = type("S", (), {"value": "IN_STOCK"})()
-        low_stock_threshold = 5
-        last_updated_by = None
-        last_updated_source = type("S", (), {"value": "MANUAL"})()
-        last_synced_at = None
-        freshness_status = None
-        freshness_checked_at = None
-        updated_at = datetime.now(timezone.utc)
-
-    class MockShopProduct:
-        id = 1
-        stock_status = None
-        is_available = None
-        last_inventory_update = None
-        source = None
-        freshness_status = None
-
+    inv = MockInventoryObj(quantity=10, reserved=2)
+    shop_product = MockShopProductObj()
     db = MockDB()
-    db.set_result(Inventory, MockInventory())
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(Inventory, inv)
+    db.set_result(ShopProduct, shop_product)
 
-    inv = update_inventory(db, 1, {"quantity": 15})
+    result = update_inventory(db, 1, {"quantity": 15})
 
-    assert inv.quantity == 15
-    assert inv.available_quantity == 13
+    assert result.quantity == 15
+    assert result.available_quantity == 13
 
     # Verify movement was added
     movements = [a for a in db.added if isinstance(a, InventoryMovement)]
@@ -474,39 +489,24 @@ def test_remove_inventory():
     from app.services.inventory_service import remove_inventory
     from app.models.product import Inventory, InventoryMovement, ShopProduct
 
-    class MockInventory:
-        id = 1
-        shop_product_id = 1
-        quantity = 10
-        reserved_quantity = 2
-        available_quantity = 8
-        is_available = True
-        stock_status = type("S", (), {"value": "IN_STOCK"})()
-        low_stock_threshold = 5
-        last_updated_by = None
-        last_updated_source = type("S", (), {"value": "MANUAL"})()
-        last_synced_at = None
-        freshness_status = None
-        freshness_checked_at = None
-        updated_at = datetime.now(timezone.utc)
-
-    class MockShopProduct:
-        id = 1
-        stock_status = None
-        is_available = None
-        last_inventory_update = None
-        freshness_status = None
-
+    inv = MockInventoryObj(quantity=10, reserved=2)
+    shop_product = MockShopProductObj()
     db = MockDB()
-    db.set_result(Inventory, MockInventory())
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(Inventory, inv)
+    db.set_result(ShopProduct, shop_product)
 
     removed = remove_inventory(db, 1)
 
     assert removed is True
-    assert db.added[0].quantity == 0
-    assert db.added[0].is_available is False
-    assert db.added[0].stock_status.value == "OUT_OF_STOCK"
+    assert inv.quantity == 0
+    assert inv.is_available is False
+    assert inv.stock_status.value == "OUT_OF_STOCK"
+
+    # Verify movement was added
+    movements = [a for a in db.added if isinstance(a, InventoryMovement)]
+    assert len(movements) == 1
+    assert movements[0].quantity_change == -10
+    assert movements[0].movement_type == "REMOVE"
 
 
 # ── Price history tests ─────────────────────────────────────────────────────
@@ -515,15 +515,9 @@ def test_update_price():
     from app.services.inventory_service import update_price
     from app.models.product import PriceHistory, ShopProduct
 
-    class MockShopProduct:
-        id = 1
-        price = 100.0
-        mrp = 150.0
-        last_price_update = None
-        source = None
-
+    shop_product = MockShopProductObj(price=100.0, mrp=150.0)
     db = MockDB()
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(ShopProduct, shop_product)
     db.set_result(PriceHistory, None)
 
     history = update_price(db, 1, {"new_price": 120.0, "new_mrp": 160.0})
@@ -532,8 +526,8 @@ def test_update_price():
     assert history.new_price == 120.0
     assert history.old_mrp == 150.0
     assert history.new_mrp == 160.0
-    assert MockShopProduct.price == 120.0
-    assert MockShopProduct.mrp == 160.0
+    assert shop_product.price == 120.0
+    assert shop_product.mrp == 160.0
 
 
 def test_update_price_preserves_history():
@@ -541,26 +535,23 @@ def test_update_price_preserves_history():
     from app.services.inventory_service import update_price
     from app.models.product import PriceHistory, ShopProduct
 
-    class MockShopProduct:
-        id = 1
-        price = 100.0
-        mrp = 150.0
-        last_price_update = None
-        source = None
+    shop_product = MockShopProductObj(price=100.0, mrp=150.0)
 
     class MockOpenRecord:
-        id = 1
-        shop_product_id = 1
-        effective_to = None
+        def __init__(self):
+            self.id = 1
+            self.shop_product_id = 1
+            self.effective_to = None
 
+    open_record = MockOpenRecord()
     db = MockDB()
-    db.set_result(ShopProduct, MockShopProduct())
-    db.set_result(PriceHistory, [MockOpenRecord()])
+    db.set_result(ShopProduct, shop_product)
+    db.set_result(PriceHistory, [open_record])
 
-    history = update_price(db, 1, {"new_price": 120.0})
+    update_price(db, 1, {"new_price": 120.0})
 
     # The open record should be closed
-    assert MockOpenRecord.effective_to is not None
+    assert open_record.effective_to is not None
 
 
 # ── Movement tests ──────────────────────────────────────────────────────────
@@ -569,39 +560,18 @@ def test_record_movement():
     from app.services.inventory_service import record_movement
     from app.models.product import Inventory, InventoryMovement, ShopProduct
 
-    class MockInventory:
-        id = 1
-        shop_product_id = 1
-        quantity = 10
-        reserved_quantity = 2
-        available_quantity = 8
-        is_available = True
-        stock_status = type("S", (), {"value": "IN_STOCK"})()
-        low_stock_threshold = 5
-        last_updated_by = None
-        last_updated_source = type("S", (), {"value": "MANUAL"})()
-        last_synced_at = None
-        freshness_status = None
-        freshness_checked_at = None
-        updated_at = datetime.now(timezone.utc)
-
-    class MockShopProduct:
-        id = 1
-        stock_status = None
-        is_available = None
-        last_inventory_update = None
-        freshness_status = None
-
+    inv = MockInventoryObj(quantity=10, reserved=2)
+    shop_product = MockShopProductObj()
     db = MockDB()
-    db.set_result(Inventory, MockInventory())
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(Inventory, inv)
+    db.set_result(ShopProduct, shop_product)
 
     movement = record_movement(db, {"inventory_id": 1, "quantity_change": -3, "movement_type": "SALE"})
 
     assert movement.quantity_change == -3
     assert movement.quantity_before == 10
     assert movement.quantity_after == 7
-    assert MockInventory.quantity == 7
+    assert inv.quantity == 7
 
 
 def test_record_movement_insufficient():
@@ -609,24 +579,9 @@ def test_record_movement_insufficient():
     from app.services.inventory_service import record_movement
     from app.models.product import Inventory
 
-    class MockInventory:
-        id = 1
-        shop_product_id = 1
-        quantity = 2
-        reserved_quantity = 0
-        available_quantity = 2
-        is_available = True
-        stock_status = type("S", (), {"value": "IN_STOCK"})()
-        low_stock_threshold = 5
-        last_updated_by = None
-        last_updated_source = type("S", (), {"value": "MANUAL"})()
-        last_synced_at = None
-        freshness_status = None
-        freshness_checked_at = None
-        updated_at = datetime.now(timezone.utc)
-
+    inv = MockInventoryObj(quantity=2, reserved=0)
     db = MockDB()
-    db.set_result(Inventory, MockInventory())
+    db.set_result(Inventory, inv)
 
     with pytest.raises(ValueError, match="Insufficient stock"):
         record_movement(db, {"inventory_id": 1, "quantity_change": -5, "movement_type": "SALE"})
@@ -638,32 +593,11 @@ def test_create_adjustment():
     from app.services.inventory_service import create_adjustment
     from app.models.product import Inventory, InventoryAdjustment, InventoryMovement, ShopProduct
 
-    class MockInventory:
-        id = 1
-        shop_product_id = 1
-        quantity = 10
-        reserved_quantity = 0
-        available_quantity = 10
-        is_available = True
-        stock_status = type("S", (), {"value": "IN_STOCK"})()
-        low_stock_threshold = 5
-        last_updated_by = None
-        last_updated_source = type("S", (), {"value": "MANUAL"})()
-        last_synced_at = None
-        freshness_status = None
-        freshness_checked_at = None
-        updated_at = datetime.now(timezone.utc)
-
-    class MockShopProduct:
-        id = 1
-        stock_status = None
-        is_available = None
-        last_inventory_update = None
-        freshness_status = None
-
+    inv = MockInventoryObj(quantity=10, reserved=0)
+    shop_product = MockShopProductObj()
     db = MockDB()
-    db.set_result(Inventory, MockInventory())
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(Inventory, inv)
+    db.set_result(ShopProduct, shop_product)
 
     adjustment = create_adjustment(db, {
         "inventory_id": 1,
@@ -674,7 +608,7 @@ def test_create_adjustment():
 
     assert adjustment.adjustment_type == "DAMAGE"
     assert adjustment.quantity_adjustment == -2
-    assert MockInventory.quantity == 8
+    assert inv.quantity == 8
 
     # Verify movement was added
     movements = [a for a in db.added if isinstance(a, InventoryMovement)]
@@ -686,7 +620,7 @@ def test_create_adjustment():
 def test_create_offer():
     """create_offer should create offer with mappings and conditions."""
     from app.services.inventory_service import create_offer
-    from app.models.product import Offer, OfferCondition, OfferProduct, OfferType
+    from app.models.product import OfferCondition, OfferProduct, OfferType
 
     now = datetime.now(timezone.utc)
     db = MockDB()
@@ -736,18 +670,12 @@ def test_activate_offer():
     from app.services.inventory_service import activate_offer
     from app.models.product import Offer, OfferStatus
 
-    class MockOffer:
-        id = 1
-        status = OfferStatus.DRAFT
-        start_date = datetime.now(timezone.utc) - timedelta(days=1)
-        end_date = datetime.now(timezone.utc) + timedelta(days=7)
-        is_deleted = False
-
+    offer = MockOfferObj(status=OfferStatus.DRAFT)
     db = MockDB()
-    db.set_result(Offer, MockOffer())
+    db.set_result(Offer, offer)
 
-    offer = activate_offer(db, 1)
-    assert offer.status == OfferStatus.ACTIVE
+    result = activate_offer(db, 1)
+    assert result.status == OfferStatus.ACTIVE
 
 
 def test_expire_offer():
@@ -755,16 +683,12 @@ def test_expire_offer():
     from app.services.inventory_service import expire_offer
     from app.models.product import Offer, OfferStatus
 
-    class MockOffer:
-        id = 1
-        status = OfferStatus.ACTIVE
-        is_deleted = False
-
+    offer = MockOfferObj(status=OfferStatus.ACTIVE)
     db = MockDB()
-    db.set_result(Offer, MockOffer())
+    db.set_result(Offer, offer)
 
-    offer = expire_offer(db, 1)
-    assert offer.status == OfferStatus.EXPIRED
+    result = expire_offer(db, 1)
+    assert result.status == OfferStatus.EXPIRED
 
 
 # ── Freshness engine tests ──────────────────────────────────────────────────
@@ -773,26 +697,20 @@ def test_refresh_freshness():
     from app.services.inventory_service import refresh_freshness
     from app.models.product import FreshnessStatus, Inventory, InventorySource, ShopProduct
 
-    class MockInventory:
-        id = 1
-        shop_product_id = 1
-        last_synced_at = datetime.now(timezone.utc) - timedelta(days=2)
-        updated_at = datetime.now(timezone.utc) - timedelta(days=2)
-        last_updated_source = InventorySource.MANUAL
-        freshness_status = FreshnessStatus.RECENTLY_UPDATED
-        freshness_checked_at = None
+    inv = MockInventoryObj()
+    inv.last_synced_at = datetime.now(timezone.utc) - timedelta(days=2)
+    inv.updated_at = datetime.now(timezone.utc) - timedelta(days=2)
+    inv.last_updated_source = InventorySource.MANUAL
+    inv.freshness_status = FreshnessStatus.RECENTLY_UPDATED
 
-    class MockShopProduct:
-        id = 1
-        freshness_status = None
-
+    shop_product = MockShopProductObj()
     db = MockDB()
-    db.set_result(Inventory, [MockInventory()])
-    db.set_result(ShopProduct, MockShopProduct())
+    db.set_result(Inventory, [inv])
+    db.set_result(ShopProduct, shop_product)
 
     count = refresh_freshness(db)
     assert count == 1
-    assert MockInventory.freshness_status == FreshnessStatus.STALE
+    assert inv.freshness_status == FreshnessStatus.STALE
 
 
 # ── API route tests ─────────────────────────────────────────────────────────
@@ -833,20 +751,22 @@ def test_search_schema_has_freshness():
     """Search result schema must include freshness and MRP."""
     from app.schemas.search import ShopProductResultSchema
 
-    assert hasattr(ShopProductResultSchema, "freshness_status")
-    assert hasattr(ShopProductResultSchema, "mrp")
+    fields = ShopProductResultSchema.model_fields
+    assert "freshness_status" in fields
+    assert "mrp" in fields
 
 
 def test_customer_inventory_detail_schema():
     """CustomerInventoryDetail must include all required fields."""
     from app.schemas.inventory import CustomerInventoryDetail
 
-    assert hasattr(CustomerInventoryDetail, "price")
-    assert hasattr(CustomerInventoryDetail, "mrp")
-    assert hasattr(CustomerInventoryDetail, "stock_status")
-    assert hasattr(CustomerInventoryDetail, "freshness_status")
-    assert hasattr(CustomerInventoryDetail, "is_available")
-    assert hasattr(CustomerInventoryDetail, "offer_text")
+    fields = CustomerInventoryDetail.model_fields
+    assert "price" in fields
+    assert "mrp" in fields
+    assert "stock_status" in fields
+    assert "freshness_status" in fields
+    assert "is_available" in fields
+    assert "offer_text" in fields
 
 
 def test_search_uses_inventory_service():

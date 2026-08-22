@@ -45,16 +45,25 @@ celery_app.conf.update(
     },
 )
 
-# ── Periodic beat schedule (optional — enable when needed) ──────────────────
+# ── Periodic beat schedule ─────────────────────────────────────────────────
 celery_app.conf.beat_schedule = {
-    # "cleanup-old-logs": {
-    #     "task": "app.services.tasks.cleanup_old_logs",
-    #     "schedule": crontab(hour=3, minute=0),
-    # },
-    # "daily-popular-searches": {
-    #     "task": "app.services.tasks.compute_popular_searches",
-    #     "schedule": crontab(hour=2, minute=30),
-    # },
+    # Incremental search-index sync every 5 minutes
+    "search-index-incremental-sync": {
+        "task": "app.services.tasks.sync_search_index",
+        "schedule": 300.0,  # seconds
+        "args": [300],      # look back 5 minutes
+    },
+    # Hourly full search-index reconciliation (catches missed changes)
+    "search-index-reconcile": {
+        "task": "app.services.tasks.sync_search_index",
+        "schedule": 3600.0,
+        "args": [3600],  # look back 1 hour
+    },
+    # Daily popular-searches aggregation
+    "daily-popular-searches": {
+        "task": "app.services.tasks.aggregate_popular_searches_task",
+        "schedule": crontab(hour=2, minute=30),
+    },
 }
 
 # Export commonly needed helpers

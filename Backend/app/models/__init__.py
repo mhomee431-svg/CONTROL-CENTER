@@ -58,7 +58,16 @@ from app.models.product import (
 )
 
 # Search
-from app.models.search import SearchHistory, SearchEvent, PopularSearch, BarcodeScan
+from app.models.search import (
+    SearchHistory,
+    SearchEvent,
+    PopularSearch,
+    BarcodeScan,
+    SearchIndex,
+    SearchIndexEntityType,
+    SearchIndexSync,
+    SearchIndexSyncStatus,
+)
 
 # POS
 from app.models.pos import (

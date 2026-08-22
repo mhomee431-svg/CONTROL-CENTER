@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.logging import get_logger
@@ -91,6 +90,18 @@ def derive_stock_status(quantity: int, low_stock_threshold: Optional[int] = None
 
 
 # ── Inventory CRUD ──────────────────────────────────────────────────────────
+def _enqueue_search_index_update(shop_product_id: int) -> None:
+    """Fire-and-forget trigger to update the search index for a shop product."""
+    try:
+        from app.core.celery_app import celery_app
+        celery_app.send_task(
+            "app.services.tasks.index_shop_product",
+            args=[shop_product_id],
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Failed to enqueue search index update for shop_product %s", shop_product_id)
+
+
 def create_inventory(db: Session, data: dict) -> Inventory:
     """Create a new inventory record for a shop product."""
     shop_product = db.query(ShopProduct).filter(ShopProduct.id == data["shop_product_id"]).first()
@@ -148,6 +159,7 @@ def create_inventory(db: Session, data: dict) -> Inventory:
     shop_product.source = source
     shop_product.freshness_status = inv.freshness_status
     db.flush()
+    _enqueue_search_index_update(inv.shop_product_id)
     return inv
 
 
@@ -204,6 +216,7 @@ def update_inventory(db: Session, inventory_id: int, data: dict) -> Optional[Inv
         sp.source = source
         sp.freshness_status = inv.freshness_status
         db.flush()
+    _enqueue_search_index_update(inv.shop_product_id)
     return inv
 
 
@@ -242,6 +255,7 @@ def remove_inventory(db: Session, inventory_id: int) -> bool:
         sp.last_inventory_update = now
         sp.freshness_status = inv.freshness_status
         db.flush()
+    _enqueue_search_index_update(inv.shop_product_id)
     return True
 
 
@@ -286,6 +300,7 @@ def record_movement(db: Session, data: dict) -> InventoryMovement:
         sp.last_inventory_update = now
         sp.freshness_status = inv.freshness_status
         db.flush()
+    _enqueue_search_index_update(inv.shop_product_id)
     return movement
 
 
@@ -337,6 +352,7 @@ def create_adjustment(db: Session, data: dict) -> InventoryAdjustment:
         sp.last_inventory_update = now
         sp.freshness_status = inv.freshness_status
         db.flush()
+    _enqueue_search_index_update(inv.shop_product_id)
     return adjustment
 
 
@@ -384,6 +400,7 @@ def update_price(db: Session, shop_product_id: int, data: dict) -> Optional[Pric
     sp.last_price_update = now
     sp.source = source
     db.flush()
+    _enqueue_search_index_update(shop_product_id)
     return history
 
 

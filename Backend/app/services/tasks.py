@@ -1,9 +1,12 @@
 """Service-layer background tasks — domain-specific job orchestration."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.core.celery_app import celery_app
+from app.database.session import SessionLocal
+from app.search import indexer
+from app.search.engine import aggregate_popular_searches
 
 logger = logging.getLogger("app.services.tasks")
 
@@ -49,3 +52,110 @@ def dispatch_sms(phone_number: str, template_name: str, context: dict) -> dict:
         "template": template_name,
         "queued_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── Search index propagation ───────────────────────────────────────────────
+@celery_app.task(name="app.services.tasks.index_shop_product")
+def index_shop_product(shop_product_id: int) -> dict:
+    """Background task — index or re-index a single shop product."""
+    from app.search.indexer import upsert_shop_product
+
+    with SessionLocal() as db:
+        try:
+            entry = upsert_shop_product(db, shop_product_id)
+            db.commit()
+            return {
+                "status": "success",
+                "shop_product_id": shop_product_id,
+                "indexed": entry.id if entry else None,
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("index_shop_product failed for %s", shop_product_id)
+            return {"status": "error", "shop_product_id": shop_product_id, "error": str(exc)}
+
+
+@celery_app.task(name="app.services.tasks.index_product")
+def index_product(product_id: int) -> dict:
+    """Index (or re-index) all shop products of a product master."""
+    with SessionLocal() as db:
+        try:
+            entries = indexer.upsert_product_index(db, product_id)
+            db.commit()
+            return {"status": "success", "product_id": product_id, "entries": len(entries)}
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("index_product failed for %s", product_id)
+            return {"status": "error", "product_id": product_id, "error": str(exc)}
+
+
+@celery_app.task(name="app.services.tasks.index_shop")
+def index_shop(shop_id: int) -> dict:
+    """Index (or re-index) all products of a shop."""
+    with SessionLocal() as db:
+        try:
+            entries = indexer.upsert_shop_index(db, shop_id)
+            db.commit()
+            return {"status": "success", "shop_id": shop_id, "entries": len(entries)}
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("index_shop failed for %s", shop_id)
+            return {"status": "error", "shop_id": shop_id, "error": str(exc)}
+
+
+@celery_app.task(name="app.services.tasks.sync_search_index")
+def sync_search_index(since_seconds: int = 300) -> dict:
+    """Incremental sync — re-index shop products updated in the last N seconds."""
+    since = datetime.now(timezone.utc) - timedelta(seconds=since_seconds)
+    with SessionLocal() as db:
+        try:
+            run = indexer.incremental_sync(db, since=since)
+            db.commit()
+            return {
+                "status": run.status.value,
+                "run_id": run.id,
+                "processed": run.total_processed,
+                "created": run.total_created,
+                "updated": run.total_updated,
+                "removed": run.total_removed,
+                "errors": run.error_count,
+            }
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("sync_search_index failed")
+            return {"status": "error", "error": str(exc)}
+
+
+@celery_app.task(name="app.services.tasks.full_rebuild_search_index")
+def full_rebuild_search_index() -> dict:
+    """Full rebuild of the entire search index."""
+    with SessionLocal() as db:
+        try:
+            run = indexer.full_rebuild(db)
+            db.commit()
+            return {
+                "status": run.status.value,
+                "run_id": run.id,
+                "processed": run.total_processed,
+                "created": run.total_created,
+                "errors": run.error_count,
+            }
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("full_rebuild_search_index failed")
+            return {"status": "error", "error": str(exc)}
+
+
+@celery_app.task(name="app.services.tasks.aggregate_popular_searches_task")
+def aggregate_popular_searches_task() -> dict:
+    """Aggregate popular searches from search events (foundation for trending)."""
+    with SessionLocal() as db:
+        try:
+            updated = aggregate_popular_searches(db)
+            db.commit()
+            return {"status": "success", "updated": updated}
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("aggregate_popular_searches_task failed")
+            return {"status": "error", "error": str(exc)}

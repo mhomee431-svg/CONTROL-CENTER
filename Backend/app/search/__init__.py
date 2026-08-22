@@ -1,0 +1,1 @@
+"""Search & Geo-Discovery Engine — optimized search layer over PostgreSQL."""
