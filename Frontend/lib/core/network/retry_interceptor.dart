@@ -2,8 +2,12 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import '../security/safe_logger.dart';
 
-/// Interceptor that automatically retries failed GET/POST requests 
-/// for transient failures (timeouts, 5xx server errors, connection drops) with exponential backoff.
+/// Interceptor that automatically retries failed **idempotent** requests
+/// (GET/HEAD) for transient failures (timeouts, 5xx server errors,
+/// connection drops) with exponential backoff.
+///
+/// Non-idempotent requests (POST/PUT/DELETE) are never auto-retried —
+/// see [shouldRetry].
 class ExponentialRetryInterceptor extends Interceptor {
   final Dio dio;
   final int maxRetries;
@@ -41,7 +45,18 @@ class ExponentialRetryInterceptor extends Interceptor {
     return super.onError(err, handler);
   }
 
+  /// Only idempotent requests are eligible for automatic retries.
+  ///
+  /// Retrying POST/PUT/DELETE can duplicate side effects (double OTP sends,
+  /// duplicated saved items) when the first request actually reached the
+  /// server but the response was lost, so those fail through immediately.
+  static const Set<String> _idempotentMethods = {'GET', 'HEAD'};
+
   bool shouldRetry(DioException err) {
+    if (!_idempotentMethods
+        .contains(err.requestOptions.method.toUpperCase())) {
+      return false;
+    }
     if (err.type == DioExceptionType.cancel) return false;
     if (err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout ||

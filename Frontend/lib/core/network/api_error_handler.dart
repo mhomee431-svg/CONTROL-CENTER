@@ -79,3 +79,14 @@ class ApiException implements Exception {
   @override
   String toString() => 'ApiException [$type]: $message (Status Code: $statusCode)';
 }
+
+/// Maps any thrown error into a user-safe message suitable for display.
+///
+/// Raw exception text (`Exception: ...`, stack fragments, internal URLs)
+/// must never reach the UI — it leaks implementation details and reads
+/// badly. Known [ApiException]s already carry human-friendly copy; anything
+/// else collapses to a generic, actionable message.
+String friendlyErrorMessage(Object? error) {
+  if (error is ApiException) return error.message;
+  return 'Something went wrong. Please check your connection and try again.';
+}

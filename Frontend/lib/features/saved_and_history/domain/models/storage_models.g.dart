@@ -68,6 +68,28 @@ Map<String, dynamic> _$RecentlyViewedItemToJson(_RecentlyViewedItem instance) =>
       'viewedAt': instance.viewedAt.toIso8601String(),
     };
 
+_RecentlyViewedShopItem _$RecentlyViewedShopItemFromJson(
+  Map<String, dynamic> json,
+) => _RecentlyViewedShopItem(
+  shopId: json['shopId'] as String,
+  name: json['name'] as String,
+  address: json['address'] as String,
+  imageUrl: json['imageUrl'] as String,
+  rating: (json['rating'] as num).toDouble(),
+  viewedAt: DateTime.parse(json['viewedAt'] as String),
+);
+
+Map<String, dynamic> _$RecentlyViewedShopItemToJson(
+  _RecentlyViewedShopItem instance,
+) => <String, dynamic>{
+  'shopId': instance.shopId,
+  'name': instance.name,
+  'address': instance.address,
+  'imageUrl': instance.imageUrl,
+  'rating': instance.rating,
+  'viewedAt': instance.viewedAt.toIso8601String(),
+};
+
 _RecentSearchItem _$RecentSearchItemFromJson(Map<String, dynamic> json) =>
     _RecentSearchItem(
       query: json['query'] as String,

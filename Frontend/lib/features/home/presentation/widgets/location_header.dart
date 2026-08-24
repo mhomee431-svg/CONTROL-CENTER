@@ -10,14 +10,15 @@ class LocationHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locationState = ref.watch(locationControllerProvider);
-    final String city = locationState.location?.city ?? 'Select Location';
-    final String address = locationState.location?.address ?? 'Tap to set address';
+    final String city = locationState.location?.displayLabel ?? 'Select Location';
+    final String address = locationState.location?.displayAddress ?? 'Tap to set address';
 
     return GestureDetector(
       onTap: () => context.push('/select-location'),
       child: Row(
         children: [
-          const Icon(Icons.location_on, color: AppColors.primary, size: 28),
+          // Current-location indicator
+          const Icon(Icons.my_location, color: AppColors.primary, size: 28),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -41,6 +42,14 @@ class LocationHeader extends ConsumerWidget {
               ],
             ),
           ),
+          // Refresh button (only when a location is already set)
+          if (locationState.status == LocationStatus.success)
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 20, color: AppColors.textMuted),
+              tooltip: 'Refresh location',
+              onPressed: () =>
+                  ref.read(locationControllerProvider.notifier).refreshLocation(),
+            ),
         ],
       ),
     );

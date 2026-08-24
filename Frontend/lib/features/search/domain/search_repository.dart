@@ -19,5 +19,7 @@ abstract class SearchRepository {
     required int limit,
     SortOption sort = SortOption.nearest,
     Map<String, dynamic>? filters, // e.g., {'max_distance': 5.0, 'in_stock': true}
+    double? latitude,
+    double? longitude,
   });
 }

@@ -15,11 +15,16 @@ class LocationPermissionScreen extends ConsumerWidget {
     ref.listen<LocationState>(locationControllerProvider, (previous, next) {
       if (next.status == LocationStatus.success) {
         context.go('/'); // Navigate to Home on success
-      } else if (next.status == LocationStatus.error ||
-          next.status == LocationStatus.permissionDenied) {
+      } else if (next.status == LocationStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.errorMessage ?? 'Error')),
         );
+      } else if (next.status == LocationStatus.permissionDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(next.errorMessage ?? 'Location permission denied')),
+        );
+      } else if (next.status == LocationStatus.permissionPermanentlyDenied) {
+        _showPermanentlyDeniedDialog(context, ref);
       } else if (next.status == LocationStatus.serviceDisabled) {
         _showEnableLocationDialog(context, ref);
       }
@@ -78,6 +83,34 @@ class LocationPermissionScreen extends ConsumerWidget {
         title: const Text('Location Services Disabled'),
         content: const Text(
           'GPS is turned off. Please enable location services to find nearby shops.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              ref
+                  .read(locationRepositoryProvider)
+                  .openLocationSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermanentlyDeniedDialog(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Location Permission Permanently Denied'),
+        content: const Text(
+          'You have permanently denied location access. '
+          'Please enable location permission in your device settings to find nearby shops.',
         ),
         actions: [
           TextButton(

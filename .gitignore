@@ -1,0 +1,8 @@
+﻿# Repo-wide ignores
+.env
+.env.*
+*.log
+.pytest_cache/
+__pycache__/
+
+

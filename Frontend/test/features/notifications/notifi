@@ -1,0 +1,77 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hyperlocal_customer_app/features/notifications/data/mock_notification_repository.dart';
+import 'package:hyperlocal_customer_app/features/notifications/domain/models/app_notification.dart';
+import 'package:hyperlocal_customer_app/features/notifications/presentation/controllers/notifications_controller.dart';
+
+void main() {
+  group('NotificationsController', () {
+    late ProviderContainer container;
+
+    setUp(() {
+      container = ProviderContainer(
+        overrides: [
+          notificationsRepositoryProvider.overrideWithValue(MockNotificationRepository()),
+        ],
+      );
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    Future<List<AppNotification>> waitForLoad() async {
+      // Trigger the provider build and wait for it to complete
+      final provider = notificationsControllerProvider;
+      final completer = Completer<List<AppNotification>>();
+      final sub = container.listen(provider, (prev, next) {
+        if (next.hasValue) {
+          completer.complete(next.value ?? []);
+        }
+      });
+      // Trigger the build
+      container.read(provider);
+      final result = await completer.future.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => container.read(provider).value ?? [],
+      );
+      sub.close();
+      return result;
+    }
+
+    test('initial state contains mock notifications with unread count of 2', () async {
+      final notifications = await waitForLoad();
+      expect(notifications.length, 2);
+      expect(container.read(notificationsControllerProvider.notifier).unreadCount, 2);
+    });
+
+    test('markAsRead updates item state correctly', () async {
+      await waitForLoad();
+      final controller = container.read(notificationsControllerProvider.notifier);
+      await controller.markAsRead('n1');
+
+      final state = container.read(notificationsControllerProvider).value ?? [];
+      expect(state.firstWhere((n) => n.id == 'n1').isRead, isTrue);
+      expect(controller.unreadCount, 1);
+    });
+
+    test('markAllAsRead marks all items as read', () async {
+      await waitForLoad();
+      final controller = container.read(notificationsControllerProvider.notifier);
+      await controller.markAllAsRead();
+
+      final state = container.read(notificationsControllerProvider).value ?? [];
+      expect(state.every((n) => n.isRead), isTrue);
+      expect(controller.unreadCount, 0);
+    });
+
+    test('clearAll removes all items', () async {
+      await waitForLoad();
+      final controller = container.read(notificationsControllerProvider.notifier);
+      controller.clearAll();
+
+      expect(container.read(notificationsControllerProvider).value, isEmpty);
+    });
+  });
+}

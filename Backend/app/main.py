@@ -19,6 +19,7 @@ from app.api.routes import (
     shops,
     users,
 )
+from app.api.routes import shopkeeper_auth, shopkeeper_portal
 from app.core.config import settings
 from app.core.exceptions import setup_exception_handlers
 from app.core.health import router as health_router
@@ -103,6 +104,10 @@ app.include_router(notifications.router, prefix=API_PREFIX)
 app.include_router(profile.router, prefix=API_PREFIX)
 app.include_router(locations.router, prefix=API_PREFIX)
 app.include_router(home.router, prefix=API_PREFIX)
+
+# Phase 22 — Shopkeeper App (isolated module; customer routes untouched)
+app.include_router(shopkeeper_auth.router, prefix=API_PREFIX)
+app.include_router(shopkeeper_portal.router, prefix=API_PREFIX)
 
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])

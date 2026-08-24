@@ -42,12 +42,29 @@ abstract class Category with _$Category {
 }
 
 @freezed
+abstract class Promotion with _$Promotion {
+  const factory Promotion({
+    required String id,
+    required String title,
+    required String subtitle,
+    required String imageUrl,
+    String? ctaLabel,
+    String? ctaTarget,
+  }) = _Promotion;
+
+  factory Promotion.fromJson(Map<String, dynamic> json) => _$PromotionFromJson(json);
+}
+
+@freezed
 abstract class HomeData with _$HomeData {
   const factory HomeData({
     required List<Category> categories,
     required List<Product> popularProducts,
     required List<Shop> nearbyShops,
     required List<String> recentSearches,
+    @Default([]) List<Product> recentlyViewed,
+    @Default([]) List<Product> recommendedProducts,
+    @Default([]) List<Promotion> promotions,
   }) = _HomeData;
 
   factory HomeData.fromJson(Map<String, dynamic> json) => _$HomeDataFromJson(json);

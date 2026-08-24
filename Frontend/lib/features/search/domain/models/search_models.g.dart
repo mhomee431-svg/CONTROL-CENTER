@@ -33,7 +33,25 @@ _ShopProductResult _$ShopProductResultFromJson(Map<String, dynamic> json) =>
       distanceInKm: (json['distanceInKm'] as num).toDouble(),
       shopRating: (json['shopRating'] as num).toDouble(),
       lastUpdated: DateTime.parse(json['lastUpdated'] as String),
+      variant: json['variant'] as String?,
+      mrp: (json['mrp'] as num?)?.toDouble(),
+      shopImageUrl: json['shopImageUrl'] as String?,
       offerText: json['offerText'] as String?,
+      shopAddress: json['shopAddress'] as String?,
+      shopLatitude: (json['shopLatitude'] as num?)?.toDouble(),
+      shopLongitude: (json['shopLongitude'] as num?)?.toDouble(),
+      category: json['category'] as String?,
+      brand: json['brand'] as String?,
+      reviewCount: (json['reviewCount'] as num?)?.toInt(),
+      availability:
+          $enumDecodeNullable(
+            _$InventoryAvailabilityEnumMap,
+            json['availability'],
+          ) ??
+          InventoryAvailability.unknown,
+      freshness:
+          $enumDecodeNullable(_$FreshnessLevelEnumMap, json['freshness']) ??
+          FreshnessLevel.unknown,
     );
 
 Map<String, dynamic> _$ShopProductResultToJson(_ShopProductResult instance) =>
@@ -49,5 +67,30 @@ Map<String, dynamic> _$ShopProductResultToJson(_ShopProductResult instance) =>
       'distanceInKm': instance.distanceInKm,
       'shopRating': instance.shopRating,
       'lastUpdated': instance.lastUpdated.toIso8601String(),
+      'variant': instance.variant,
+      'mrp': instance.mrp,
+      'shopImageUrl': instance.shopImageUrl,
       'offerText': instance.offerText,
+      'shopAddress': instance.shopAddress,
+      'shopLatitude': instance.shopLatitude,
+      'shopLongitude': instance.shopLongitude,
+      'category': instance.category,
+      'brand': instance.brand,
+      'reviewCount': instance.reviewCount,
+      'availability': _$InventoryAvailabilityEnumMap[instance.availability]!,
+      'freshness': _$FreshnessLevelEnumMap[instance.freshness]!,
     };
+
+const _$InventoryAvailabilityEnumMap = {
+  InventoryAvailability.inStock: 'inStock',
+  InventoryAvailability.outOfStock: 'outOfStock',
+  InventoryAvailability.lowStock: 'lowStock',
+  InventoryAvailability.unknown: 'unknown',
+};
+
+const _$FreshnessLevelEnumMap = {
+  FreshnessLevel.fresh: 'fresh',
+  FreshnessLevel.recent: 'recent',
+  FreshnessLevel.stale: 'stale',
+  FreshnessLevel.unknown: 'unknown',
+};

@@ -10,10 +10,13 @@ import 'core_flow_test.mocks.dart';
 @GenerateMocks([SecureStorageService])
 void main() {
   testWidgets(
-    'App initializes, shows splash, and redirects to login for unauthenticated users',
+    'App initializes, shows splash, and redirects to welcome for unauthenticated users',
     (WidgetTester tester) async {
       final mockStorage = MockSecureStorageService();
       when(mockStorage.getToken()).thenAnswer((_) async => null);
+      when(mockStorage.getSessionId()).thenAnswer((_) async => null);
+      when(mockStorage.getRefreshToken()).thenAnswer((_) async => null);
+      when(mockStorage.getDeviceId()).thenAnswer((_) async => null);
       when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
       when(mockStorage.read(key: 'user_saved_location')).thenAnswer((_) async => null);
 
@@ -32,9 +35,9 @@ void main() {
       // Fast forward past splash timer and auth check
       await tester.pumpAndSettle(const Duration(seconds: 3));
 
-      // Verify Login Screen is shown for unauthenticated users
-      expect(find.text('Welcome to Hyperlocal'), findsOneWidget);
-      expect(find.text('Send OTP'), findsOneWidget);
+      // Verify Welcome Screen is shown for unauthenticated users
+      expect(find.text('Discover Local, Shop Local'), findsOneWidget);
+      expect(find.text('Login with Phone'), findsOneWidget);
       expect(find.text('Continue as Guest'), findsOneWidget);
     },
   );

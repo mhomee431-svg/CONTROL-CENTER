@@ -4,6 +4,7 @@ class ApiEndpoints {
   // --- Auth ---
   static const String sendOtp = '/auth/send-otp';
   static const String verifyOtp = '/auth/verify-otp';
+  static const String register = '/auth/register';
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
   static const String sessions = '/auth/sessions';
@@ -33,8 +34,11 @@ class ApiEndpoints {
   static String inventoryByShop(String id) => '/inventory/shop/$id';
 
   // --- Search ---
-  static const String searchProducts = '/search/products';
-  static const String searchSuggestions = '/search/suggestions';
+  // Backend serves the unified discovery engine under /search/v2/*.
+  static const String searchProducts = '/search/v2/products';
+  static const String searchSuggestions = '/search/v2/suggestions';
+  static const String searchPopular = '/search/v2/popular';
+  static const String searchHistory = '/search/v2/history';
 
   // --- Saved Products ---
   static const String savedProducts = '/saved-products';
@@ -44,10 +48,14 @@ class ApiEndpoints {
   static const String savedShops = '/saved-shops';
   static String savedShop(String id) => '/saved-shops/$id';
 
-  // --- Notifications ---
+  // --- Notifications (API_CONTRACT §21) ---
   static const String notifications = '/notifications';
   static String notificationRead(String id) => '/notifications/$id/read';
   static const String notificationsReadAll = '/notifications/read-all';
+  static const String notificationPreferences = '/notifications/preferences';
+  static const String registerDeviceToken = '/notifications/device-token';
+  static String unregisterDeviceToken(String token) =>
+      '/notifications/device-token/$token';
 
   // --- Profile ---
   static const String profile = '/profile';

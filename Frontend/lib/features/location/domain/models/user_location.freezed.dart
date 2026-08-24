@@ -16,7 +16,20 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserLocation {
 
- double get latitude; double get longitude; String get address; String get city; String get state; String get pincode; bool get isManual;
+ double get latitude; double get longitude;/// Human-readable address (e.g. "123 MG Road, Aayakar Bhawan").
+ String get address;/// City / locality name.
+ String get city;/// State / province name.
+ String get state;/// Postal code (PIN code).
+ String get pincode;/// Convenience label (e.g. "Home", "Work", "Patna Center").
+/// Falls back to `city` when empty.
+ String get label;/// True when the user manually picked this location
+/// (instead of it coming from the device GPS).
+ bool get isManual;/// True when coordinates are approximate (e.g. city-centre fallback
+/// when reverse geocoding failed or GPS accuracy is low).
+ bool get isApproximate;/// GPS accuracy in meters (0 = unknown).
+ double get accuracyMeters;/// Whether this is the currently selected/active location.
+ bool get isSelected;/// Epoch milliseconds when this location was captured.
+@JsonKey(name: 'capturedAtMs') int get capturedAtMs;
 /// Create a copy of UserLocation
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +42,16 @@ $UserLocationCopyWith<UserLocation> get copyWith => _$UserLocationCopyWithImpl<U
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserLocation&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.address, address) || other.address == address)&&(identical(other.city, city) || other.city == city)&&(identical(other.state, state) || other.state == state)&&(identical(other.pincode, pincode) || other.pincode == pincode)&&(identical(other.isManual, isManual) || other.isManual == isManual));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserLocation&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.address, address) || other.address == address)&&(identical(other.city, city) || other.city == city)&&(identical(other.state, state) || other.state == state)&&(identical(other.pincode, pincode) || other.pincode == pincode)&&(identical(other.label, label) || other.label == label)&&(identical(other.isManual, isManual) || other.isManual == isManual)&&(identical(other.isApproximate, isApproximate) || other.isApproximate == isApproximate)&&(identical(other.accuracyMeters, accuracyMeters) || other.accuracyMeters == accuracyMeters)&&(identical(other.isSelected, isSelected) || other.isSelected == isSelected)&&(identical(other.capturedAtMs, capturedAtMs) || other.capturedAtMs == capturedAtMs));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,latitude,longitude,address,city,state,pincode,isManual);
+int get hashCode => Object.hash(runtimeType,latitude,longitude,address,city,state,pincode,label,isManual,isApproximate,accuracyMeters,isSelected,capturedAtMs);
 
 @override
 String toString() {
-  return 'UserLocation(latitude: $latitude, longitude: $longitude, address: $address, city: $city, state: $state, pincode: $pincode, isManual: $isManual)';
+  return 'UserLocation(latitude: $latitude, longitude: $longitude, address: $address, city: $city, state: $state, pincode: $pincode, label: $label, isManual: $isManual, isApproximate: $isApproximate, accuracyMeters: $accuracyMeters, isSelected: $isSelected, capturedAtMs: $capturedAtMs)';
 }
 
 
@@ -49,7 +62,7 @@ abstract mixin class $UserLocationCopyWith<$Res>  {
   factory $UserLocationCopyWith(UserLocation value, $Res Function(UserLocation) _then) = _$UserLocationCopyWithImpl;
 @useResult
 $Res call({
- double latitude, double longitude, String address, String city, String state, String pincode, bool isManual
+ double latitude, double longitude, String address, String city, String state, String pincode, String label, bool isManual, bool isApproximate, double accuracyMeters, bool isSelected,@JsonKey(name: 'capturedAtMs') int capturedAtMs
 });
 
 
@@ -66,7 +79,7 @@ class _$UserLocationCopyWithImpl<$Res>
 
 /// Create a copy of UserLocation
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? latitude = null,Object? longitude = null,Object? address = null,Object? city = null,Object? state = null,Object? pincode = null,Object? isManual = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? latitude = null,Object? longitude = null,Object? address = null,Object? city = null,Object? state = null,Object? pincode = null,Object? label = null,Object? isManual = null,Object? isApproximate = null,Object? accuracyMeters = null,Object? isSelected = null,Object? capturedAtMs = null,}) {
   return _then(UserLocation(
 latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
@@ -74,8 +87,13 @@ as double,address: null == address ? _self.address : address // ignore: cast_nul
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
 as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
 as String,pincode: null == pincode ? _self.pincode : pincode // ignore: cast_nullable_to_non_nullable
+as String,label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String,isManual: null == isManual ? _self.isManual : isManual // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,isApproximate: null == isApproximate ? _self.isApproximate : isApproximate // ignore: cast_nullable_to_non_nullable
+as bool,accuracyMeters: null == accuracyMeters ? _self.accuracyMeters : accuracyMeters // ignore: cast_nullable_to_non_nullable
+as double,isSelected: null == isSelected ? _self.isSelected : isSelected // ignore: cast_nullable_to_non_nullable
+as bool,capturedAtMs: null == capturedAtMs ? _self.capturedAtMs : capturedAtMs // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -160,10 +178,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double latitude,  double longitude,  String address,  String city,  String state,  String pincode,  bool isManual)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double latitude,  double longitude,  String address,  String city,  String state,  String pincode,  String label,  bool isManual,  bool isApproximate,  double accuracyMeters,  bool isSelected, @JsonKey(name: 'capturedAtMs')  int capturedAtMs)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserLocation() when $default != null:
-return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.state,_that.pincode,_that.isManual);case _:
+return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.state,_that.pincode,_that.label,_that.isManual,_that.isApproximate,_that.accuracyMeters,_that.isSelected,_that.capturedAtMs);case _:
   return orElse();
 
 }
@@ -181,10 +199,10 @@ return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.st
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double latitude,  double longitude,  String address,  String city,  String state,  String pincode,  bool isManual)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double latitude,  double longitude,  String address,  String city,  String state,  String pincode,  String label,  bool isManual,  bool isApproximate,  double accuracyMeters,  bool isSelected, @JsonKey(name: 'capturedAtMs')  int capturedAtMs)  $default,) {final _that = this;
 switch (_that) {
 case _UserLocation():
-return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.state,_that.pincode,_that.isManual);case _:
+return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.state,_that.pincode,_that.label,_that.isManual,_that.isApproximate,_that.accuracyMeters,_that.isSelected,_that.capturedAtMs);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +219,10 @@ return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.st
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double latitude,  double longitude,  String address,  String city,  String state,  String pincode,  bool isManual)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double latitude,  double longitude,  String address,  String city,  String state,  String pincode,  String label,  bool isManual,  bool isApproximate,  double accuracyMeters,  bool isSelected, @JsonKey(name: 'capturedAtMs')  int capturedAtMs)?  $default,) {final _that = this;
 switch (_that) {
 case _UserLocation() when $default != null:
-return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.state,_that.pincode,_that.isManual);case _:
+return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.state,_that.pincode,_that.label,_that.isManual,_that.isApproximate,_that.accuracyMeters,_that.isSelected,_that.capturedAtMs);case _:
   return null;
 
 }
@@ -215,17 +233,35 @@ return $default(_that.latitude,_that.longitude,_that.address,_that.city,_that.st
 /// @nodoc
 @JsonSerializable()
 
-class _UserLocation implements UserLocation {
-  const _UserLocation({required this.latitude, required this.longitude, required this.address, required this.city, required this.state, required this.pincode, this.isManual = false});
+class _UserLocation extends UserLocation {
+  const _UserLocation({required this.latitude, required this.longitude, this.address = '', this.city = '', this.state = '', this.pincode = '', this.label = '', this.isManual = false, this.isApproximate = false, this.accuracyMeters = 0.0, this.isSelected = false, @JsonKey(name: 'capturedAtMs') this.capturedAtMs = 0}): super._();
   factory _UserLocation.fromJson(Map<String, dynamic> json) => _$UserLocationFromJson(json);
 
 @override final  double latitude;
 @override final  double longitude;
-@override final  String address;
-@override final  String city;
-@override final  String state;
-@override final  String pincode;
+/// Human-readable address (e.g. "123 MG Road, Aayakar Bhawan").
+@override@JsonKey() final  String address;
+/// City / locality name.
+@override@JsonKey() final  String city;
+/// State / province name.
+@override@JsonKey() final  String state;
+/// Postal code (PIN code).
+@override@JsonKey() final  String pincode;
+/// Convenience label (e.g. "Home", "Work", "Patna Center").
+/// Falls back to `city` when empty.
+@override@JsonKey() final  String label;
+/// True when the user manually picked this location
+/// (instead of it coming from the device GPS).
 @override@JsonKey() final  bool isManual;
+/// True when coordinates are approximate (e.g. city-centre fallback
+/// when reverse geocoding failed or GPS accuracy is low).
+@override@JsonKey() final  bool isApproximate;
+/// GPS accuracy in meters (0 = unknown).
+@override@JsonKey() final  double accuracyMeters;
+/// Whether this is the currently selected/active location.
+@override@JsonKey() final  bool isSelected;
+/// Epoch milliseconds when this location was captured.
+@override@JsonKey(name: 'capturedAtMs') final  int capturedAtMs;
 
 /// Create a copy of UserLocation
 /// with the given fields replaced by the non-null parameter values.
@@ -240,16 +276,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserLocation&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.address, address) || other.address == address)&&(identical(other.city, city) || other.city == city)&&(identical(other.state, state) || other.state == state)&&(identical(other.pincode, pincode) || other.pincode == pincode)&&(identical(other.isManual, isManual) || other.isManual == isManual));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserLocation&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.address, address) || other.address == address)&&(identical(other.city, city) || other.city == city)&&(identical(other.state, state) || other.state == state)&&(identical(other.pincode, pincode) || other.pincode == pincode)&&(identical(other.label, label) || other.label == label)&&(identical(other.isManual, isManual) || other.isManual == isManual)&&(identical(other.isApproximate, isApproximate) || other.isApproximate == isApproximate)&&(identical(other.accuracyMeters, accuracyMeters) || other.accuracyMeters == accuracyMeters)&&(identical(other.isSelected, isSelected) || other.isSelected == isSelected)&&(identical(other.capturedAtMs, capturedAtMs) || other.capturedAtMs == capturedAtMs));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,latitude,longitude,address,city,state,pincode,isManual);
+int get hashCode => Object.hash(runtimeType,latitude,longitude,address,city,state,pincode,label,isManual,isApproximate,accuracyMeters,isSelected,capturedAtMs);
 
 @override
 String toString() {
-  return 'UserLocation(latitude: $latitude, longitude: $longitude, address: $address, city: $city, state: $state, pincode: $pincode, isManual: $isManual)';
+  return 'UserLocation(latitude: $latitude, longitude: $longitude, address: $address, city: $city, state: $state, pincode: $pincode, label: $label, isManual: $isManual, isApproximate: $isApproximate, accuracyMeters: $accuracyMeters, isSelected: $isSelected, capturedAtMs: $capturedAtMs)';
 }
 
 
@@ -260,7 +296,7 @@ abstract mixin class _$UserLocationCopyWith<$Res> implements $UserLocationCopyWi
   factory _$UserLocationCopyWith(_UserLocation value, $Res Function(_UserLocation) _then) = __$UserLocationCopyWithImpl;
 @override @useResult
 $Res call({
- double latitude, double longitude, String address, String city, String state, String pincode, bool isManual
+ double latitude, double longitude, String address, String city, String state, String pincode, String label, bool isManual, bool isApproximate, double accuracyMeters, bool isSelected,@JsonKey(name: 'capturedAtMs') int capturedAtMs
 });
 
 
@@ -277,7 +313,7 @@ class __$UserLocationCopyWithImpl<$Res>
 
 /// Create a copy of UserLocation
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? latitude = null,Object? longitude = null,Object? address = null,Object? city = null,Object? state = null,Object? pincode = null,Object? isManual = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? latitude = null,Object? longitude = null,Object? address = null,Object? city = null,Object? state = null,Object? pincode = null,Object? label = null,Object? isManual = null,Object? isApproximate = null,Object? accuracyMeters = null,Object? isSelected = null,Object? capturedAtMs = null,}) {
   return _then(_UserLocation(
 latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
@@ -285,8 +321,13 @@ as double,address: null == address ? _self.address : address // ignore: cast_nul
 as String,city: null == city ? _self.city : city // ignore: cast_nullable_to_non_nullable
 as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
 as String,pincode: null == pincode ? _self.pincode : pincode // ignore: cast_nullable_to_non_nullable
+as String,label: null == label ? _self.label : label // ignore: cast_nullable_to_non_nullable
 as String,isManual: null == isManual ? _self.isManual : isManual // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,isApproximate: null == isApproximate ? _self.isApproximate : isApproximate // ignore: cast_nullable_to_non_nullable
+as bool,accuracyMeters: null == accuracyMeters ? _self.accuracyMeters : accuracyMeters // ignore: cast_nullable_to_non_nullable
+as double,isSelected: null == isSelected ? _self.isSelected : isSelected // ignore: cast_nullable_to_non_nullable
+as bool,capturedAtMs: null == capturedAtMs ? _self.capturedAtMs : capturedAtMs // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

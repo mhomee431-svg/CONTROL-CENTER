@@ -3,12 +3,16 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
 import 'package:hyperlocal_customer_app/features/directions/domain/location_service.dart'
-    as _i3;
+    as _i4;
 import 'package:hyperlocal_customer_app/features/directions/domain/models/location_models.dart'
     as _i2;
+import 'package:hyperlocal_customer_app/features/shop_details/domain/models/shop_details_models.dart'
+    as _i3;
+import 'package:hyperlocal_customer_app/features/shop_details/domain/shop_details_repository.dart'
+    as _i6;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -32,43 +36,48 @@ class _FakeCoordinates_0 extends _i1.SmartFake implements _i2.Coordinates {
     : super(parent, parentInvocation);
 }
 
+class _FakeShopProfile_1 extends _i1.SmartFake implements _i3.ShopProfile {
+  _FakeShopProfile_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [LocationService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockLocationService extends _i1.Mock implements _i3.LocationService {
+class MockLocationService extends _i1.Mock implements _i4.LocationService {
   MockLocationService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<bool> isGpsEnabled() => (super.noSuchMethod(
+  _i5.Future<bool> isGpsEnabled() => (super.noSuchMethod(
     Invocation.method(#isGpsEnabled, []),
-    returnValue: _i4.Future<bool>.value(false),
-  ) as _i4.Future<bool>);
+    returnValue: _i5.Future<bool>.value(false),
+  ) as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> requestPermission() => (super.noSuchMethod(
+  _i5.Future<bool> requestPermission() => (super.noSuchMethod(
     Invocation.method(#requestPermission, []),
-    returnValue: _i4.Future<bool>.value(false),
-  ) as _i4.Future<bool>);
+    returnValue: _i5.Future<bool>.value(false),
+  ) as _i5.Future<bool>);
 
   @override
-  _i4.Future<_i2.Coordinates> getCurrentLocation() => (super.noSuchMethod(
+  _i5.Future<_i2.Coordinates> getCurrentLocation() => (super.noSuchMethod(
     Invocation.method(#getCurrentLocation, []),
-    returnValue: _i4.Future<_i2.Coordinates>.value(
+    returnValue: _i5.Future<_i2.Coordinates>.value(
       _FakeCoordinates_0(this, Invocation.method(#getCurrentLocation, [])),
     ),
-  ) as _i4.Future<_i2.Coordinates>);
+  ) as _i5.Future<_i2.Coordinates>);
 
   @override
-  _i4.Future<void> openExternalNavigation(
+  _i5.Future<void> openExternalNavigation(
     _i2.Coordinates? destination,
     String? label,
   ) => (super.noSuchMethod(
     Invocation.method(#openExternalNavigation, [destination, label]),
-    returnValue: _i4.Future<void>.value(),
-    returnValueForMissingStub: _i4.Future<void>.value(),
-  ) as _i4.Future<void>);
+    returnValue: _i5.Future<void>.value(),
+    returnValueForMissingStub: _i5.Future<void>.value(),
+  ) as _i5.Future<void>);
 
   @override
   double calculateDistance(_i2.Coordinates? start, _i2.Coordinates? end) =>
@@ -76,4 +85,34 @@ class MockLocationService extends _i1.Mock implements _i3.LocationService {
         Invocation.method(#calculateDistance, [start, end]),
         returnValue: 0.0,
       ) as double);
+}
+
+/// A class which mocks [ShopDetailsRepository].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockShopDetailsRepository extends _i1.Mock
+    implements _i6.ShopDetailsRepository {
+  MockShopDetailsRepository() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i3.ShopProfile> getShopProfile(String? shopId) =>
+      (super.noSuchMethod(
+        Invocation.method(#getShopProfile, [shopId]),
+        returnValue: _i5.Future<_i3.ShopProfile>.value(
+          _FakeShopProfile_1(
+            this,
+            Invocation.method(#getShopProfile, [shopId]),
+          ),
+        ),
+      ) as _i5.Future<_i3.ShopProfile>);
+
+  @override
+  _i5.Future<void> toggleSaveShop(String? shopId, bool? save) =>
+      (super.noSuchMethod(
+        Invocation.method(#toggleSaveShop, [shopId, save]),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 }

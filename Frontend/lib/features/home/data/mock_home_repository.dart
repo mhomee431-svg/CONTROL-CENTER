@@ -3,7 +3,8 @@ import '../domain/models/home_data.dart';
 
 class MockHomeRepository implements HomeRepository {
   @override
-  Future<HomeData> fetchHomeFeed() async {
+  @override
+  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
     // Simulate network latency
     await Future.delayed(const Duration(seconds: 2));
 
@@ -71,6 +72,56 @@ class MockHomeRepository implements HomeRepository {
         ),
       ],
       recentSearches: ['Paracetamol 500mg', 'Amul Butter', 'Ceiling Fan'],
+      recentlyViewed: [
+        Product(
+          id: 'rv1',
+          name: 'Colgate MaxFresh',
+          brand: 'Colgate',
+          imageUrl: 'https://via.placeholder.com/300',
+          priceRange: '₹85 - ₹110',
+        ),
+        Product(
+          id: 'rv2',
+          name: 'Tata Salt 1kg',
+          brand: 'Tata',
+          imageUrl: 'https://via.placeholder.com/300',
+          priceRange: '₹25 - ₹30',
+        ),
+      ],
+      recommendedProducts: [
+        Product(
+          id: 'r1',
+          name: 'Nivea Body Lotion',
+          brand: 'Nivea',
+          imageUrl: 'https://via.placeholder.com/300',
+          priceRange: '₹180 - ₹220',
+        ),
+        Product(
+          id: 'r2',
+          name: 'Fortune Sunflower Oil',
+          brand: 'Fortune',
+          imageUrl: 'https://via.placeholder.com/300',
+          priceRange: '₹140 - ₹160',
+        ),
+      ],
+      promotions: [
+        Promotion(
+          id: 'promo1',
+          title: 'Monsoon Mega Sale',
+          subtitle: 'Up to 40% off on electronics & appliances',
+          imageUrl: 'https://via.placeholder.com/600x200',
+          ctaLabel: 'Shop Now',
+          ctaTarget: '/search',
+        ),
+        Promotion(
+          id: 'promo2',
+          title: 'Fresh Groceries',
+          subtitle: 'Daily essentials delivered from nearby stores',
+          imageUrl: 'https://via.placeholder.com/600x200',
+          ctaLabel: 'Explore',
+          ctaTarget: '/search',
+        ),
+      ],
     );
   }
 }

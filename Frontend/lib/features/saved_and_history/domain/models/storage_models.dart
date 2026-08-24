@@ -50,6 +50,21 @@ abstract class RecentlyViewedItem with _$RecentlyViewedItem {
 }
 
 @freezed
+abstract class RecentlyViewedShopItem with _$RecentlyViewedShopItem {
+  const factory RecentlyViewedShopItem({
+    required String shopId,
+    required String name,
+    required String address,
+    required String imageUrl,
+    required double rating,
+    required DateTime viewedAt,
+  }) = _RecentlyViewedShopItem;
+
+  factory RecentlyViewedShopItem.fromJson(Map<String, dynamic> json) =>
+      _$RecentlyViewedShopItemFromJson(json);
+}
+
+@freezed
 abstract class RecentSearchItem with _$RecentSearchItem {
   const factory RecentSearchItem({
     required String query,

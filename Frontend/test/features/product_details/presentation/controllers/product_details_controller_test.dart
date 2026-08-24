@@ -6,6 +6,7 @@ import 'package:mockito/mockito.dart';
 import 'package:hyperlocal_customer_app/features/product_details/domain/product_details_repository.dart';
 import 'package:hyperlocal_customer_app/features/product_details/domain/models/product_details_models.dart';
 import 'package:hyperlocal_customer_app/features/product_details/presentation/controllers/product_details_controller.dart';
+import 'package:hyperlocal_customer_app/features/product_details/presentation/providers/product_details_providers.dart';
 
 import 'product_details_controller_test.mocks.dart';
 
@@ -17,15 +18,16 @@ void main() {
 
     const productId = 'test_product_id';
     const productDetails = ProductDetails(
-      id: productId,
-      name: 'Test Product',
-      brand: 'Test Brand',
-      category: 'Test Category',
-      description: 'Test Description',
-      imageUrls: [],
-      priceRange: '10-20',
-      isAvailableAnywhere: true,
-      nearbyShopsOffers: [],
+      product: ProductMasterDetails(
+        id: productId,
+        name: 'Test Product',
+        brand: 'Test Brand',
+        category: 'Test Category',
+        description: 'Test Description',
+        imageUrls: [],
+        priceRange: '10-20',
+      ),
+      shopOffers: [],
     );
 
     setUp(() {

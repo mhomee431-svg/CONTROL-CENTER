@@ -275,6 +275,8 @@ def _attach_offer_texts(db: Session, results: list[dict]) -> None:
             r["offer_text"] = get_offer_text_for_shop_product(db, sp_id)
         except (ValueError, IndexError):
             pass
+        except Exception:  # noqa: BLE001 — offer lookup is enrichment; never fail the result
+            r["offer_text"] = None
 
 
 # ── Nearby shops ───────────────────────────────────────────────────────────
@@ -547,7 +549,7 @@ def record_search(db: Session, *, user_id: Optional[int], query: str, result_cou
     return history
 
 
-def record_search_event(db: Session, *, user_id: Optional[int], session_id: Optional[str],
+def record_search_event(db: Session, *, user_id: Optional[int], session_id: Optional[str] = None,
                         query: str, event_type: str, result_count: Optional[int] = None,
                         clicked_product_id: Optional[int] = None,
                         clicked_shop_id: Optional[int] = None,

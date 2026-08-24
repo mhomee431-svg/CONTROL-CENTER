@@ -851,6 +851,284 @@ as DateTime,
 
 
 /// @nodoc
+mixin _$RecentlyViewedShopItem {
+
+ String get shopId; String get name; String get address; String get imageUrl; double get rating; DateTime get viewedAt;
+/// Create a copy of RecentlyViewedShopItem
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RecentlyViewedShopItemCopyWith<RecentlyViewedShopItem> get copyWith => _$RecentlyViewedShopItemCopyWithImpl<RecentlyViewedShopItem>(this as RecentlyViewedShopItem, _$identity);
+
+  /// Serializes this RecentlyViewedShopItem to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RecentlyViewedShopItem&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.viewedAt, viewedAt) || other.viewedAt == viewedAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,shopId,name,address,imageUrl,rating,viewedAt);
+
+@override
+String toString() {
+  return 'RecentlyViewedShopItem(shopId: $shopId, name: $name, address: $address, imageUrl: $imageUrl, rating: $rating, viewedAt: $viewedAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $RecentlyViewedShopItemCopyWith<$Res>  {
+  factory $RecentlyViewedShopItemCopyWith(RecentlyViewedShopItem value, $Res Function(RecentlyViewedShopItem) _then) = _$RecentlyViewedShopItemCopyWithImpl;
+@useResult
+$Res call({
+ String shopId, String name, String address, String imageUrl, double rating, DateTime viewedAt
+});
+
+
+
+
+}
+/// @nodoc
+class _$RecentlyViewedShopItemCopyWithImpl<$Res>
+    implements $RecentlyViewedShopItemCopyWith<$Res> {
+  _$RecentlyViewedShopItemCopyWithImpl(this._self, this._then);
+
+  final RecentlyViewedShopItem _self;
+  final $Res Function(RecentlyViewedShopItem) _then;
+
+/// Create a copy of RecentlyViewedShopItem
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? shopId = null,Object? name = null,Object? address = null,Object? imageUrl = null,Object? rating = null,Object? viewedAt = null,}) {
+  return _then(RecentlyViewedShopItem(
+shopId: null == shopId ? _self.shopId : shopId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
+as double,viewedAt: null == viewedAt ? _self.viewedAt : viewedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [RecentlyViewedShopItem].
+extension RecentlyViewedShopItemPatterns on RecentlyViewedShopItem {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _RecentlyViewedShopItem value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _RecentlyViewedShopItem() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _RecentlyViewedShopItem value)  $default,){
+final _that = this;
+switch (_that) {
+case _RecentlyViewedShopItem():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _RecentlyViewedShopItem value)?  $default,){
+final _that = this;
+switch (_that) {
+case _RecentlyViewedShopItem() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime viewedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _RecentlyViewedShopItem() when $default != null:
+return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.viewedAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime viewedAt)  $default,) {final _that = this;
+switch (_that) {
+case _RecentlyViewedShopItem():
+return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.viewedAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime viewedAt)?  $default,) {final _that = this;
+switch (_that) {
+case _RecentlyViewedShopItem() when $default != null:
+return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.viewedAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _RecentlyViewedShopItem implements RecentlyViewedShopItem {
+  const _RecentlyViewedShopItem({required this.shopId, required this.name, required this.address, required this.imageUrl, required this.rating, required this.viewedAt});
+  factory _RecentlyViewedShopItem.fromJson(Map<String, dynamic> json) => _$RecentlyViewedShopItemFromJson(json);
+
+@override final  String shopId;
+@override final  String name;
+@override final  String address;
+@override final  String imageUrl;
+@override final  double rating;
+@override final  DateTime viewedAt;
+
+/// Create a copy of RecentlyViewedShopItem
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$RecentlyViewedShopItemCopyWith<_RecentlyViewedShopItem> get copyWith => __$RecentlyViewedShopItemCopyWithImpl<_RecentlyViewedShopItem>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$RecentlyViewedShopItemToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RecentlyViewedShopItem&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.viewedAt, viewedAt) || other.viewedAt == viewedAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,shopId,name,address,imageUrl,rating,viewedAt);
+
+@override
+String toString() {
+  return 'RecentlyViewedShopItem(shopId: $shopId, name: $name, address: $address, imageUrl: $imageUrl, rating: $rating, viewedAt: $viewedAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$RecentlyViewedShopItemCopyWith<$Res> implements $RecentlyViewedShopItemCopyWith<$Res> {
+  factory _$RecentlyViewedShopItemCopyWith(_RecentlyViewedShopItem value, $Res Function(_RecentlyViewedShopItem) _then) = __$RecentlyViewedShopItemCopyWithImpl;
+@override @useResult
+$Res call({
+ String shopId, String name, String address, String imageUrl, double rating, DateTime viewedAt
+});
+
+
+
+
+}
+/// @nodoc
+class __$RecentlyViewedShopItemCopyWithImpl<$Res>
+    implements _$RecentlyViewedShopItemCopyWith<$Res> {
+  __$RecentlyViewedShopItemCopyWithImpl(this._self, this._then);
+
+  final _RecentlyViewedShopItem _self;
+  final $Res Function(_RecentlyViewedShopItem) _then;
+
+/// Create a copy of RecentlyViewedShopItem
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? shopId = null,Object? name = null,Object? address = null,Object? imageUrl = null,Object? rating = null,Object? viewedAt = null,}) {
+  return _then(_RecentlyViewedShopItem(
+shopId: null == shopId ? _self.shopId : shopId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
+as double,viewedAt: null == viewedAt ? _self.viewedAt : viewedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$RecentSearchItem {
 
  String get query; DateTime get searchedAt;

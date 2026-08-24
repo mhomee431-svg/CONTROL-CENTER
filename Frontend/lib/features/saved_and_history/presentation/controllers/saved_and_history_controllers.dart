@@ -25,6 +25,13 @@ class SavedProductsNotifier extends AsyncNotifier<List<SavedProductItem>> {
     }
     state = AsyncData(await repo.getSavedProducts());
   }
+
+  /// Clear-all support for the saved products list.
+  Future<void> clearAll() async {
+    final repo = ref.read(savedAndHistoryRepositoryProvider);
+    await repo.clearSavedProducts();
+    state = const AsyncData([]);
+  }
 }
 
 // --- SAVED SHOPS NOTIFIER ---
@@ -49,6 +56,13 @@ class SavedShopsNotifier extends AsyncNotifier<List<SavedShopItem>> {
       await repo.saveShop(shop);
     }
     state = AsyncData(await repo.getSavedShops());
+  }
+
+  /// Clear-all support for the saved shops list.
+  Future<void> clearAll() async {
+    final repo = ref.read(savedAndHistoryRepositoryProvider);
+    await repo.clearSavedShops();
+    state = const AsyncData([]);
   }
 }
 
@@ -99,9 +113,51 @@ class RecentlyViewedNotifier extends AsyncNotifier<List<RecentlyViewedItem>> {
     state = AsyncData(await repo.getRecentlyViewed());
   }
 
+  /// Remove-one-item support for the viewed products history.
+  Future<void> removeProduct(String productId) async {
+    final repo = ref.read(savedAndHistoryRepositoryProvider);
+    await repo.removeRecentlyViewed(productId);
+    state = AsyncData(await repo.getRecentlyViewed());
+  }
+
   Future<void> clearAll() async {
     final repo = ref.read(savedAndHistoryRepositoryProvider);
     await repo.clearRecentlyViewed();
+    state = const AsyncData([]);
+  }
+}
+
+// --- RECENTLY VIEWED SHOPS NOTIFIER ---
+final recentlyViewedShopsNotifierProvider =
+    AsyncNotifierProvider<RecentlyViewedShopsNotifier, List<RecentlyViewedShopItem>>(
+  RecentlyViewedShopsNotifier.new,
+);
+
+class RecentlyViewedShopsNotifier
+    extends AsyncNotifier<List<RecentlyViewedShopItem>> {
+  @override
+  Future<List<RecentlyViewedShopItem>> build() async {
+    return ref.watch(savedAndHistoryRepositoryProvider).getRecentlyViewedShops();
+  }
+
+  /// Called when a shop details page is opened. Deduping and the
+  /// recency cap are handled by the repository.
+  Future<void> addShop(RecentlyViewedShopItem shop) async {
+    final repo = ref.read(savedAndHistoryRepositoryProvider);
+    await repo.addRecentlyViewedShop(shop);
+    state = AsyncData(await repo.getRecentlyViewedShops());
+  }
+
+  /// Remove-one-item support for the viewed shops history.
+  Future<void> removeShop(String shopId) async {
+    final repo = ref.read(savedAndHistoryRepositoryProvider);
+    await repo.removeRecentlyViewedShop(shopId);
+    state = AsyncData(await repo.getRecentlyViewedShops());
+  }
+
+  Future<void> clearAll() async {
+    final repo = ref.read(savedAndHistoryRepositoryProvider);
+    await repo.clearRecentlyViewedShops();
     state = const AsyncData([]);
   }
 }

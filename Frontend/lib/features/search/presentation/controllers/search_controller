@@ -1,0 +1,357 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../domain/search_repository.dart';
+import '../../domain/search_state.dart';
+import '../../domain/search_event_tracker.dart';
+import '../../domain/models/search_models.dart';
+
+// --- DEBOUNCER ---
+class Debouncer {
+  final int milliseconds;
+  Timer? _timer;
+
+  Debouncer({required this.milliseconds});
+
+  void run(void Function() action) {
+    _timer?.cancel();
+    _timer = Timer(Duration(milliseconds: milliseconds), action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
+  }
+}
+
+final debouncerProvider = Provider<Debouncer>((ref) {
+  final debouncer = Debouncer(milliseconds: 500);
+  ref.onDispose(debouncer.dispose);
+  return debouncer;
+});
+
+/// Override this provider to plug in real analytics (Phase 20+).
+final searchEventTrackerProvider = Provider<SearchEventTracker>((ref) {
+  return NoopSearchEventTracker();
+});
+
+// --- QUERY + STAGE STATE ---
+/// Tracks the current query text and the search lifecycle stage.
+class SearchQueryState {
+  final String query;
+  final SearchStage stage;
+
+  const SearchQueryState({this.query = '', this.stage = SearchStage.idle});
+
+  SearchQueryState copyWith({String? query, SearchStage? stage}) {
+    return SearchQueryState(
+      query: query ?? this.query,
+      stage: stage ?? this.stage,
+    );
+  }
+}
+
+final searchQueryProvider =
+    NotifierProvider<SearchQueryNotifier, SearchQueryState>(SearchQueryNotifier.new);
+
+class SearchQueryNotifier extends Notifier<SearchQueryState> {
+  @override
+  SearchQueryState build() => const SearchQueryState();
+
+  void onTextChanged(String value) {
+    state = SearchQueryState(query: value, stage: SearchStage.typing);
+  }
+
+  void debouncedTextChanged(String value) {
+    state = SearchQueryState(
+      query: value,
+      stage: value.trim().isEmpty ? SearchStage.idle : SearchStage.typing,
+    );
+  }
+
+  void clear() {
+    state = const SearchQueryState();
+  }
+}
+
+// --- SUGGESTIONS STATE ---
+final suggestionsProvider =
+    FutureProvider.autoDispose<List<SearchSuggestion>>((ref) async {
+  final queryState = ref.watch(searchQueryProvider);
+  final query = queryState.query;
+  if (query.trim().length < 2) return [];
+  return ref.watch(searchRepositoryProvider).getSuggestions(query.trim());
+});
+
+// --- SEARCH HISTORY (local persistence via SharedPreferences) ---
+class SearchHistoryStore {
+  static const String _key = 'search_history_v1';
+  static const int _maxEntries = 10;
+
+  Future<List<String>> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_key) ?? [];
+  }
+
+  Future<void> add(String query) async {
+    if (query.trim().isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList(_key) ?? [];
+    final cleaned = query.trim();
+    final updated = [
+      cleaned,
+      ...current.where((e) => e.toLowerCase() != cleaned.toLowerCase()),
+    ].take(_maxEntries).toList();
+    await prefs.setStringList(_key, updated);
+  }
+
+  Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
+}
+
+final searchHistoryStoreProvider = Provider<SearchHistoryStore>((ref) {
+  return SearchHistoryStore();
+});
+
+class RecentSearchesVersion extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final recentSearchesVersionProvider =
+    NotifierProvider<RecentSearchesVersion, int>(RecentSearchesVersion.new);
+
+final recentSearchesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
+  ref.watch(recentSearchesVersionProvider);
+  return ref.watch(searchHistoryStoreProvider).load();
+});
+
+Future<void> saveRecentSearch(WidgetRef ref, String query) async {
+  await ref.read(searchHistoryStoreProvider).add(query);
+  ref.read(recentSearchesVersionProvider.notifier).bump();
+}
+
+// --- POPULAR SEARCHES ---
+final popularSearchesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
+  return ref.watch(searchRepositoryProvider).getPopularSearches();
+});
+
+// --- RESULTS PAGINATION STATE ---
+class SearchPaginationState {
+  final SearchStage stage;
+  final List<ShopProductResult> results;
+  final bool isLoading;
+  final bool isFetchingMore;
+  final bool hasReachedMax;
+  final String? error;
+  final SortOption sort;
+  final int currentPage;
+  final int totalResults;
+  final Map<String, dynamic> filters;
+
+  const SearchPaginationState({
+    this.stage = SearchStage.idle,
+    this.results = const [],
+    this.isLoading = false,
+    this.isFetchingMore = false,
+    this.hasReachedMax = false,
+    this.error,
+    this.sort = SortOption.nearest,
+    this.currentPage = 1,
+    this.totalResults = 0,
+    this.filters = const {},
+  });
+
+  SearchPaginationState copyWith({
+    SearchStage? stage,
+    List<ShopProductResult>? results,
+    bool? isLoading,
+    bool? isFetchingMore,
+    bool? hasReachedMax,
+    String? error,
+    bool clearError = false,
+    SortOption? sort,
+    int? currentPage,
+    int? totalResults,
+    Map<String, dynamic>? filters,
+  }) {
+    return SearchPaginationState(
+      stage: stage ?? this.stage,
+      results: results ?? this.results,
+      isLoading: isLoading ?? this.isLoading,
+      isFetchingMore: isFetchingMore ?? this.isFetchingMore,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
+      error: clearError ? null : (error ?? this.error),
+      sort: sort ?? this.sort,
+      currentPage: currentPage ?? this.currentPage,
+      totalResults: totalResults ?? this.totalResults,
+      filters: filters ?? this.filters,
+    );
+  }
+
+  bool get hasActiveFilters =>
+      _isFilterActive('in_stock') ||
+      _isFilterActive('max_distance') ||
+      _isFilterActive('max_price') ||
+      _getFilterDouble('min_rating', 0) > 0 ||
+      _getFilterString('category') != null ||
+      _getFilterString('brand') != null;
+
+  bool get inStockOnly => _getFilterBool('in_stock', false);
+
+  double get maxDistance => _getFilterDouble('max_distance', 10.0);
+
+  double get maxPrice => _getFilterDouble('max_price', 5000.0);
+
+  double get minRating => _getFilterDouble('min_rating', 0);
+
+  String? get categoryFilter => _getFilterString('category');
+
+  String? get brandFilter => _getFilterString('brand');
+
+  bool _isFilterActive(String key) {
+    final value = filters[key];
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return false;
+  }
+
+  bool _getFilterBool(String key, bool fallback) {
+    final value = filters[key];
+    return value is bool ? value : fallback;
+  }
+
+  double _getFilterDouble(String key, double fallback) {
+    final value = filters[key];
+    return value is num ? value.toDouble() : fallback;
+  }
+
+  String? _getFilterString(String key) {
+    final value = filters[key];
+    return value is String && value.isNotEmpty ? value : null;
+  }
+}
+
+final searchResultsProvider =
+    NotifierProvider.family<SearchResultsController, SearchPaginationState, String>(
+  SearchResultsController.new,
+);
+
+class SearchResultsController extends Notifier<SearchPaginationState> {
+  SearchResultsController(this.query);
+
+  final String query;
+  int _page = 1;
+  static const int _limit = 10;
+  SortOption _currentSort = SortOption.nearest;
+  Map<String, dynamic>? _currentFilters;
+
+  @override
+  SearchPaginationState build() {
+    _fetchInitial();
+    return const SearchPaginationState(
+      stage: SearchStage.loading,
+    );
+  }
+
+  SearchRepository get _repo => ref.read(searchRepositoryProvider);
+  SearchEventTracker get _tracker => ref.read(searchEventTrackerProvider);
+
+  Future<void> _fetchInitial() async {
+    state = const SearchPaginationState(
+      stage: SearchStage.loading,
+    );
+    try {
+      final results = await _repo.searchProducts(
+        query: query,
+        page: _page,
+        limit: _limit,
+        sort: _currentSort,
+        filters: _currentFilters,
+      );
+      final stage = results.isEmpty ? SearchStage.empty : SearchStage.results;
+      state = SearchPaginationState(
+        stage: stage,
+        results: results,
+        hasReachedMax: results.length < _limit,
+        sort: _currentSort,
+        currentPage: _page,
+        totalResults: results.length,
+      );
+      _tracker.track(ResultsShownEvent(
+        query: query,
+        resultCount: results.length,
+        sort: _currentSort,
+      ));
+    } catch (e) {
+      state = SearchPaginationState(
+        stage: SearchStage.error,
+        error: e.toString(),
+      );
+      _tracker.track(SearchErrorEvent(query: query, error: e.toString()));
+    }
+  }
+
+  Future<void> fetchNextPage() async {
+    if (state.isFetchingMore || state.hasReachedMax || state.isLoading) return;
+
+    state = state.copyWith(isFetchingMore: true, clearError: true);
+    try {
+      _page++;
+      final moreResults = await _repo.searchProducts(
+        query: query,
+        page: _page,
+        limit: _limit,
+        sort: _currentSort,
+        filters: _currentFilters,
+      );
+      final allResults = [...state.results, ...moreResults];
+      state = SearchPaginationState(
+        stage: allResults.isEmpty ? SearchStage.empty : SearchStage.results,
+        results: allResults,
+        hasReachedMax: moreResults.length < _limit,
+        sort: _currentSort,
+        currentPage: _page,
+        totalResults: allResults.length,
+      );
+      _tracker.track(PaginationLoadedEvent(query: query, page: _page));
+    } catch (e) {
+      state = state.copyWith(isFetchingMore: false, error: e.toString());
+    }
+  }
+
+  void updateSort(SortOption sort) {
+    if (_currentSort == sort) return;
+    _currentSort = sort;
+    _page = 1;
+    _fetchInitial();
+  }
+
+  void updateFilters(Map<String, dynamic> filters) {
+    _currentFilters = filters;
+    _page = 1;
+    _fetchInitial();
+  }
+
+  void retry() {
+    _page = 1;
+    _fetchInitial();
+  }
+
+  void cancel() {
+    ref.read(searchQueryProvider.notifier).clear();
+    _page = 1;
+    _currentSort = SortOption.nearest;
+    _currentFilters = null;
+    state = const SearchPaginationState(
+      stage: SearchStage.idle,
+    );
+  }
+}

@@ -691,3 +691,298 @@ def test_low_relevance_for_unavailable():
     available = compute_relevance_score(is_available=True, is_in_stock=True)
     unavailable = compute_relevance_score(is_available=False, is_in_stock=False)
     assert available > unavailable
+# ── Engine-level coverage: mapping, filters, sorting, pagination ──────────
+class _DistanceExpr:
+    """Stand-in for a SQL expression supporting .asc() ordering."""
+
+    def asc(self):
+        return ("distance_expr", "asc")
+
+
+class _TrackingQuery:
+    """Query mock that records filter/order calls and applies offset/limit."""
+
+    def __init__(self, rows=None):
+        self._rows = rows or []
+        self.filter_calls = []
+        self.order_calls = []
+        self._offset = None
+        self._limit = None
+
+    def filter(self, *args, **kwargs):
+        self.filter_calls.append(args)
+        return self
+
+    def add_columns(self, *args):
+        return self
+
+    @property
+    def column_descriptions(self):
+        # Mimic SQLAlchemy: last column is the added distance expression.
+        return [{"expr": _DistanceExpr()}]
+
+    def order_by(self, *args):
+        self.order_calls.append(args)
+        return self
+
+    def offset(self, value):
+        self._offset = value
+        return self
+
+    def limit(self, value):
+        self._limit = value
+        return self
+
+    def count(self):
+        return len(self._rows)
+
+    def all(self):
+        rows = self._rows
+        if self._offset is not None:
+            rows = rows[self._offset:]
+        if self._limit is not None:
+            rows = rows[:self._limit]
+        return rows
+
+
+class _InertQuery:
+    """Inert query for non-SearchIndex lookups (e.g., offer enrichment)."""
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def join(self, *args, **kwargs):
+        return self
+
+    def all(self):
+        return []
+
+
+class _TrackingDB:
+    """DB mock tracking the SearchIndex query (other models get inert mocks)."""
+
+    def __init__(self, rows=None):
+        self.rows = rows or [MockSearchIndexEntry()]
+        self.last_query = None
+
+    def query(self, model):
+        if getattr(model, "__name__", str(model)) != "SearchIndex":
+            return _InertQuery()
+        self.last_query = _TrackingQuery(self.rows)
+        return self.last_query
+
+    def add(self, obj):
+        pass
+
+    def flush(self):
+        pass
+
+
+def _make_entries():
+    """Three entries with distinct prices/ratings/freshness for sort tests."""
+    fresh_now = datetime.now(timezone.utc)
+    old = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    return [
+        MockSearchIndexEntry(shop_product_id=1, price=30.0, shop_rating=3.0,
+                             freshness_status="STALE", last_inventory_update=old),
+        MockSearchIndexEntry(shop_product_id=2, price=20.0, shop_rating=4.9,
+                             freshness_status="RECENTLY_UPDATED", last_inventory_update=fresh_now),
+        MockSearchIndexEntry(shop_product_id=3, price=10.0, shop_rating=4.0,
+                             is_available=False,
+                             freshness_status="RECENTLY_UPDATED", last_inventory_update=fresh_now),
+    ]
+
+
+def test_exact_product_match_content():
+    """Exact product search maps index fields into the result payload."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB([MockSearchIndexEntry()])
+    result = search_products(db, SearchParams(q="Lays Classic"))
+    assert result["total"] == 1
+    r = result["results"][0]
+    assert r["product_name"] == "Lays Classic"
+    assert r["brand_name"] == "PepsiCo"
+    assert r["category_name"] == "Snacks"
+    assert r["price"] == 10.0
+    assert r["mrp"] == 15.0
+    assert r["is_available"] is True
+    assert r["shop_name"] == "Neighbour Market"
+    assert r["relevance_score"] > 0
+
+
+def test_partial_brand_category_variant_mapping():
+    """Partial query still carries brand/category/variant metadata through."""
+    from app.search.engine import SearchParams, search_products
+
+    entry = MockSearchIndexEntry(variant_name="Family Pack")
+    db = _TrackingDB([entry])
+    result = search_products(db, SearchParams(q="lay"))  # partial token
+    r = result["results"][0]
+    assert r["variant_name"] == "Family Pack"
+    assert r["brand_name"] == "PepsiCo"
+    assert r["category_name"] == "Snacks"
+
+
+def test_barcode_query_routes_to_exact_lookup():
+    """Numeric barcode queries bypass text matching and hit the barcode column."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB()
+    search_products(db, SearchParams(q="8901234567890"))
+    # One filter call for the barcode equality + one visibility block
+    assert len(db.last_query.filter_calls) >= 2
+
+
+def test_filters_are_applied_to_query():
+    """Every supported discovery filter adds its predicate to the SQL query."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    params = SearchParams(
+        q="lays",
+        category_id=7,
+        brand_id=5,
+        min_price=5.0,
+        max_price=50.0,
+        min_rating=3.5,
+        in_stock_only=True,
+        exclude_stale=True,
+        exclude_unavailable=True,
+    )
+    result = search_products(db, params)
+    # category+brand+min_price+max_price+min_rating+in_stock+exclude_stale
+    # +exclude_unavailable+visibility block = 9 filter invocations
+    assert len(db.last_query.filter_calls) >= 9
+    assert "results" in result
+
+
+def test_default_params_use_single_visibility_filter():
+    """With no q and no geo/filters, only the visibility block filter applies."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    search_products(db, SearchParams())
+    assert len(db.last_query.filter_calls) == 1
+
+
+def test_pagination_first_page_has_more():
+    """Page 1 of 3 rows @ limit 2 → two results and has_more=True."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    result = search_products(db, SearchParams(page=1, limit=2))
+    assert len(result["results"]) == 2
+    assert result["total"] == 3
+    assert result["has_more"] is True
+    assert db.last_query._offset == 0
+
+
+def test_pagination_last_page_no_more():
+    """Page 2 of 3 rows @ limit 2 → one result, offset applied, has_more=False."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    result = search_products(db, SearchParams(page=2, limit=2))
+    assert len(result["results"]) == 1
+    assert result["total"] == 3
+    assert result["has_more"] is False
+    assert db.last_query._offset == 2
+    assert result["page"] == 2
+
+
+def test_relevance_sort_orders_by_score():
+    """Python-side relevance ordering puts the highest score first."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    result = search_products(db, SearchParams(sort="relevance"))
+    scores = [r["relevance_score"] for r in result["results"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_distance_sort_sql_ordering_applied():
+    """Distance sort issues an ORDER BY on the computed distance column."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    search_products(db, SearchParams(latitude=25.5941, longitude=85.1376, sort="distance"))
+    assert len(db.last_query.order_calls) >= 1
+
+
+def test_price_and_rating_sql_ordering_applied():
+    """Price and rating sorts issue ORDER BY clauses server-side."""
+    from app.search.engine import SearchParams, search_products
+
+    db = _TrackingDB(_make_entries())
+    search_products(db, SearchParams(sort="lowest_price"))
+    assert len(db.last_query.order_calls) == 1
+
+    db2 = _TrackingDB(_make_entries())
+    search_products(db2, SearchParams(sort="highest_rated"))
+    assert len(db2.last_query.order_calls) == 1
+
+
+def test_freshness_python_sort_puts_fresh_first():
+    """FRESHNESS python-side sort must rank recently-updated before stale."""
+    from app.search.ranking import default_sort_key, SearchSort
+
+    items = [
+        {"freshness_status": "STALE"},
+        {"freshness_status": "RECENTLY_UPDATED"},
+        {"freshness_status": "STALE"},
+        {"freshness_status": "RECENTLY_UPDATED"},
+    ]
+    ordered = sorted(items, key=default_sort_key(SearchSort.FRESHNESS))
+    statuses = [i["freshness_status"] for i in ordered]
+    assert statuses == ["RECENTLY_UPDATED", "RECENTLY_UPDATED", "STALE", "STALE"]
+
+
+def test_availability_python_sort_puts_available_first():
+    """AVAILABILITY sort ranks available items before unavailable ones."""
+    from app.search.ranking import default_sort_key, SearchSort
+
+    items = [{"is_available": False}, {"is_available": True}, {"is_available": False}]
+    ordered = sorted(items, key=default_sort_key(SearchSort.AVAILABILITY))
+    flags = [i["is_available"] for i in ordered]
+    assert flags == [True, False, False]
+
+
+def test_index_sync_run_lifecycle_fields():
+    """A sync run tracks processed/created/updated/removed/error counters."""
+    from app.models.search import SearchIndexSync
+
+    cols = SearchIndexSync.__table__.columns
+    # Counters default to zero (applied at insert time by SQLAlchemy)
+    for name in ("total_processed", "total_created", "total_updated",
+                 "total_removed", "error_count"):
+        assert cols[name].default is not None
+        assert cols[name].default.arg == 0
+    # Lifecycle transitions on the status enum
+    from app.models.search import SearchIndexSyncStatus
+    run = SearchIndexSync(sync_type="INCREMENTAL", status=SearchIndexSyncStatus.RUNNING)
+    assert run.status == SearchIndexSyncStatus.RUNNING
+    run.status = SearchIndexSyncStatus.COMPLETED
+    assert run.status == SearchIndexSyncStatus.COMPLETED
+
+
+def test_popularity_score_bounded_0_1():
+    """Indexer popularity helper must stay within 0..1."""
+    from app.search.indexer import _popularity
+
+    class _CountOnly:
+        def __init__(self, n):
+            self._n = n
+
+        def filter(self, *a, **k):
+            return self
+
+        def count(self):
+            return self._n
+
+    class _DB:
+        def query(self, model):
+            return _CountOnly(1000)  # huge click/view count
+
+    score = _popularity(_DB(), product_id=1)
+    assert 0.0 <= score <= 1.0

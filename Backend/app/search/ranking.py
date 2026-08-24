@@ -121,7 +121,9 @@ def default_sort_key(mode: SearchSort):
         if mode == SearchSort.AVAILABILITY:
             return ("avail", not item.get("is_available", False))
         if mode == SearchSort.FRESHNESS:
-            return ("fresh", (item.get("freshness_status") or "") != "STALE")
+            # Ascending sort puts False first — map fresh→False, stale→True
+            # so recently-updated inventory ranks before stale.
+            return ("fresh", (item.get("freshness_status") or "") == "STALE")
         # RELEVANCE
         return ("rel", -item.get("relevance_score", 0.0))
     return key

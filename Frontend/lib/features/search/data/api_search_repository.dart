@@ -17,6 +17,25 @@ class ApiSearchRepository implements SearchRepository {
 
   @override
   Future<List<String>> getPopularSearches() async {
+    // Real popularity comes from aggregated platform searches
+    // (GET /search/v2/popular). Falls back to a static starter list when the
+    // platform has no history yet or the call fails.
+    try {
+      final data = await _apiClient.get(
+        ApiEndpoints.searchPopular,
+        requiresAuth: false,
+      );
+      if (data is List) {
+        final queries = data
+            .whereType<Map<String, dynamic>>()
+            .map((e) => e['query']?.toString() ?? '')
+            .where((q) => q.isNotEmpty)
+            .toList();
+        if (queries.isNotEmpty) return queries;
+      }
+    } catch (_) {
+      // Fall through to the static starter list.
+    }
     return ['Samsung Galaxy', 'Aashirvaad Atta', 'Dettol', 'Bajaj'];
   }
 
@@ -43,12 +62,16 @@ class ApiSearchRepository implements SearchRepository {
     required int limit,
     SortOption sort = SortOption.nearest,
     Map<String, dynamic>? filters,
+    double? latitude,
+    double? longitude,
   }) async {
     final sortValue = switch (sort) {
       SortOption.nearest => 'nearest',
       SortOption.lowestPrice => 'lowest_price',
       SortOption.highestRated => 'highest_rated',
       SortOption.recentlyUpdated => 'recently_updated',
+      SortOption.relevance => 'relevance',
+      SortOption.availability => 'availability',
     };
 
     final queryParameters = <String, dynamic>{
@@ -56,9 +79,17 @@ class ApiSearchRepository implements SearchRepository {
       'page': page,
       'limit': limit,
       'sort': sortValue,
+      'latitude': ?latitude,
+      'longitude': ?longitude,
       if (filters?['in_stock'] == true) 'in_stock': true,
       if (filters?['max_distance'] is num)
         'radius_km': (filters!['max_distance'] as num).toDouble(),
+      if (filters?['min_rating'] is num)
+        'min_rating': (filters!['min_rating'] as num).toDouble(),
+      if (filters?['max_price'] is num)
+        'max_price': (filters!['max_price'] as num).toDouble(),
+      if (filters?['category'] != null) 'category': filters!['category'],
+      if (filters?['brand'] != null) 'brand': filters!['brand'],
     };
 
     final data = await _apiClient.get(
@@ -77,8 +108,16 @@ class ApiSearchRepository implements SearchRepository {
   }
 
   ShopProductResult _mapResult(Map<String, dynamic> json) {
+    final lastUpdated =
+        DateTime.tryParse(json['last_updated']?.toString() ?? '');
+    final availability = _parseAvailability(json);
+    final freshness = lastUpdated != null
+        ? _deriveFreshness(lastUpdated)
+        : _parseFreshnessStatus(json);
+
     return ShopProductResult(
-      id: json['id']?.toString() ?? '',
+      // The search index exposes the offer-level id as shop_product_id.
+      id: (json['id'] ?? json['shop_product_id'])?.toString() ?? '',
       productId: json['product_id']?.toString() ?? '',
       productName: json['product_name']?.toString() ?? '',
       productImageUrl: json['product_image_url']?.toString() ?? '',
@@ -88,9 +127,62 @@ class ApiSearchRepository implements SearchRepository {
       isAvailable: json['is_available'] == true,
       distanceInKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
       shopRating: (json['shop_rating'] as num?)?.toDouble() ?? 0,
-      lastUpdated: DateTime.tryParse(json['last_updated']?.toString() ?? '') ??
-          DateTime.now(),
+      lastUpdated: lastUpdated ?? DateTime.now(),
+      variant: json['variant']?.toString(),
+      mrp: (json['mrp'] as num?)?.toDouble(),
+      shopImageUrl: json['shop_image_url']?.toString(),
       offerText: json['offer_text']?.toString(),
+      shopAddress: json['shop_address']?.toString(),
+      shopLatitude: (json['shop_latitude'] as num?)?.toDouble(),
+      shopLongitude: (json['shop_longitude'] as num?)?.toDouble(),
+      category:
+          (json['category'] ?? json['category_name'])?.toString(),
+      brand: (json['brand'] ?? json['brand_name'])?.toString(),
+      reviewCount: (json['review_count'] as num?)?.toInt(),
+      availability: availability,
+      freshness: freshness,
     );
+  }
+
+  InventoryAvailability _parseAvailability(Map<String, dynamic> json) {
+    final raw = json['availability']?.toString().toLowerCase();
+    if (raw != null) {
+      switch (raw) {
+        case 'in_stock':
+        case 'in-stock':
+        case 'available':
+          return InventoryAvailability.inStock;
+        case 'out_of_stock':
+        case 'out-of-stock':
+        case 'unavailable':
+          return InventoryAvailability.outOfStock;
+        case 'low_stock':
+        case 'low-stock':
+        case 'limited':
+          return InventoryAvailability.lowStock;
+        default:
+          break;
+      }
+    }
+    if (json['is_available'] == true) return InventoryAvailability.inStock;
+    if (json['is_available'] == false) return InventoryAvailability.outOfStock;
+    return InventoryAvailability.unknown;
+  }
+
+  FreshnessLevel _deriveFreshness(DateTime lastUpdated) {
+    final age = DateTime.now().difference(lastUpdated);
+    if (age.inMinutes <= 30) return FreshnessLevel.fresh;
+    if (age.inHours <= 6) return FreshnessLevel.recent;
+    return FreshnessLevel.stale;
+  }
+
+  /// Maps the backend's inventory freshness classification
+  /// (RECENTLY_UPDATED / STALE) onto the UI freshness levels.
+  FreshnessLevel _parseFreshnessStatus(Map<String, dynamic> json) {
+    final raw = json['freshness_status']?.toString().toLowerCase();
+    if (raw == 'recently_updated') return FreshnessLevel.fresh;
+    if (raw == 'stale') return FreshnessLevel.stale;
+    // Unknown freshness is treated as stale so the UI never over-promises.
+    return FreshnessLevel.stale;
   }
 }

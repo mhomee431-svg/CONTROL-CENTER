@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/location_controller.dart';
+import '../../domain/models/saved_address.dart';
 import '../../domain/models/user_location.dart';
 import '../../domain/location_repository.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -16,7 +17,20 @@ class SelectLocationScreen extends ConsumerStatefulWidget {
 class _SelectLocationScreenState extends ConsumerState<SelectLocationScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<UserLocation> _results = [];
+  List<SavedAddress> _savedAddresses = [];
   bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load saved addresses for the "Saved Addresses" section.
+    Future.microtask(() async {
+      final controller = ref.read(locationControllerProvider.notifier);
+      final addresses = await controller.loadSavedAddresses();
+      if (!mounted) return;
+      setState(() => _savedAddresses = addresses);
+    });
+  }
 
   @override
   void dispose() {
@@ -48,15 +62,92 @@ class _SelectLocationScreenState extends ConsumerState<SelectLocationScreen> {
     context.go('/');
   }
 
+  void _selectSavedAddress(SavedAddress address) {
+    ref.read(locationControllerProvider.notifier).selectSavedAddress(address);
+    context.go('/');
+  }
+
+  void _useCurrentLocation() {
+    ref.read(locationControllerProvider.notifier).fetchCurrentLocation(force: true);
+    context.go('/');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final locationState = ref.watch(locationControllerProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Your City'),
+        title: const Text('Select Your Location'),
       ),
       body: SafeArea(
         child: Column(
           children: [
+            // Current location indicator
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.my_location, color: Colors.white),
+                ),
+                title: const Text(
+                  'Use My Current Location',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  locationState.status == LocationStatus.success
+                      ? locationState.location?.displayAddress ?? 'Tap to refresh'
+                      : 'Tap to detect your location',
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
+                trailing: locationState.status == LocationStatus.loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location, color: AppColors.primary),
+                onTap: _useCurrentLocation,
+              ),
+            ),
+            const Divider(height: 1),
+
+            // Saved addresses section
+            if (_savedAddresses.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.md),
+                child: Text(
+                  'Saved Addresses',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ..._savedAddresses.map(
+                (address) => ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.primary,
+                    child: Icon(Icons.location_city, color: Colors.white),
+                  ),
+                  title: Text(
+                    address.label,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    address.location.displayAddress,
+                    style: const TextStyle(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: address.isSelected
+                      ? const Icon(Icons.check_circle, color: AppColors.primary)
+                      : const Icon(Icons.chevron_right),
+                  onTap: () => _selectSavedAddress(address),
+                ),
+              ),
+              const Divider(height: 1),
+            ],
+
+            // Search field
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: TextField(

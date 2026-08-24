@@ -1,0 +1,261 @@
+00:00 +0: loading c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart
+00:00 +0: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses connection timeout
+00:00 +1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses connection error as offline
+00:00 +2: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses cancelled request
+00:00 +3: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 401 unauthorized
+00:00 +4: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 404 not found
+00:00 +5: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 500 server error
+00:00 +6: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly handles unknown error
+00:00 +7: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor does not retry cancelled requests
+00:00 +8: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor retries connection timeouts
+00:00 +9: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor retries 5xx server errors
+00:00 +10: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor does not retry 400 bad request
+00:00 +11: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor never retries non-idempotent POST requests on timeouts
+00:00 +12: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor never retries non-idempotent POST requests on 5xx errors
+00:00 +13: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/debouncer_test.dart: Debouncer cancels rapid consecutive triggers and executes only once
+00:01 +14: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState initial state has correct defaults
+00:01 +15: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState copyWith updates fields correctly
+00:01 +16: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedNotifier loads initial page on build
+00:01 +17: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart: Input Validation Tests validateEmail accurately validates emails
+00:01 +18: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart: Input Validation Tests sanitizeQuery strips harmful HTML tags
+00:02 +19: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger sanitizes sensitive data from log messages
+[DEBUG] Request: authorization=[REDACTED] abc123.def456
+[WARN] Retrying with token=[REDACTED]
+[ERROR] Failed request with password=[REDACTED]
+00:02 +20: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger handles plain messages without sensitive keys
+[DEBUG] Simple log message
+[WARN] Another warning
+[ERROR] An error occurred
+00:02 +21: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver writes and reads data correctly
+00:02 +22: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver returns null for missing keys
+00:02 +23: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deletes data correctly
+00:02 +24: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deleteAll clears all data
+00:03 +25: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true
+00:04 +26: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true
+00:04 +27: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +28: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +29: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +30: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +31: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +32: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +33: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +34: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +35: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:04 +36: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +37: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +38: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +39: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +40: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +41: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +42: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +43: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +44: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +45: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +46: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +47: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +48: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +49: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +50: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +51: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +52: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:05 +53: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:06 +54: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users
+00:06 +55: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController initial state is loading
+00:07 +56: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController handles No GPS error properly
+00:07 +57: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController handles Permission Denied error properly
+00:07 +58: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController successfully loads route with distance
+00:07 +59: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController marks shop as closed when shop is not open
+00:07 +60: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController handles invalid shop coordinates
+00:07 +61: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: DirectionsController retry re-initializes the route after no GPS
+00:08 +62: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +63: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +64: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +65: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +66: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +66 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +66 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/location/address_book_repository_test.dart: LocalAddressBookRepository removeAddress deletes only the matching entry [E]
+  Expected: <1>
+    Actual: <0>
+  
+  package:matcher                                                expect
+  package:flutter_test/src/widget_tester.dart 473:18             expect
+  test\features\location\address_book_repository_test.dart 75:7  main.<fn>.<fn>
+  
+00:08 +67 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +68 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +69 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +70 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +71 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +72 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +73 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +74 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +75 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +76 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +77 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +78 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +79 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +80 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +81 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +82 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +83 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +84 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:08 +85 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +86 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +87 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +88 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +89 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +90 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +91 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +92 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +93 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +94 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +95 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +96 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +97 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +98 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +99 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +100 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:10 +101 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +102 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +103 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +104 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +105 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +106 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +107 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +108 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +109 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +110 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +111 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +112 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +113 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +114 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +115 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +116 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +117 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +118 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +119 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +120 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +121 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows loading skeleton initially, then renders data
+00:11 +122 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/deep_link_handler_test.dart: resolveNotificationDeepLink expired links degrade to unavailable with message
+00:11 +123 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows promotion banner, categories, recent searches, and recommended sections
+00:11 +124 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows promotion banner, categories, recent searches, and recommended sections
+00:11 +125 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen shows promotion banner, categories, recent searches, and recommended sections
+00:12 +126 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen
+00:13 +127 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen
+00:13 +128 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen
+00:13 +129 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen
+00:13 +130 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen
+00:13 +131 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen
+00:13 +132 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController load failure surfaces an error state (not a fake empty list)
+00:13 +133 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController load failure surfaces an error state (not a fake empty list)
+00:13 +134 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController load failure surfaces an error state (not a fake empty list)
+00:13 +135 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController load failure surfaces an error state (not a fake empty list)
+00:13 +136 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController load failure surfaces an error state (not a fake empty list)
+00:14 +137 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling
+00:14 +138 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling
+00:15 +139 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling
+00:15 +139 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling
+00:15 +140 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling
+00:15 +141 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: tapping a product notification navigates and marks it read
+00:15 +142 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +143 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +144 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +145 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +146 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +147 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +148 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +149 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:16 +150 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:17 +151 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:17 +152 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:17 +153 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:17 +154 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:17 +155 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:17 +156 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen renders product info and price comparison offers
+00:18 +157 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/product_details/presentation/screens/product_details_screen_test.dart: ProductDetailsScreen shows error state on repository failure
+00:19 +158 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +159 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +160 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +161 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +162 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +163 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +164 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +165 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +166 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +167 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +168 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:19 +169 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:20 +170 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:20 +171 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:20 +172 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:20 +173 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:20 +174 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:20 +175 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data
+00:21 +176 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/saved_and_history/saved_and_history_repository_test.dart: Saved Products Persistence saveProduct adds item and retrieves it correctly
+00:21 +177 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +178 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +179 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +180 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +181 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +182 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +183 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +184 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +185 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +186 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +187 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +188 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +189 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +190 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +191 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +192 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +193 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +194 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +195 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +196 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: authenticated user sees profile info and account sections
+00:21 +197 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +198 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +199 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +200 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +201 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +202 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +203 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:21 +204 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller
+00:22 +205 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: addresses tile navigates to the address book
+00:22 +206 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: Debouncer cancels previous timers and only runs the latest action
+00:22 +207 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:22 +208 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:22 +209 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:22 +210 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:22 +211 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:22 +212 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:22 +213 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +214 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +215 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +216 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +217 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +218 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +219 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +220 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +221 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +222 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:23 +223 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: edit profile rejects invalid email and saves valid input
+00:24 +224 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController loads initial results and appends next page on fetchNextPage
+00:25 +225 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: renders all settings sections
+00:25 +226 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/shop_details/presentation/screens/shop_details_screen_test.dart: ShopDetailsScreen renders full shop profile with new fields
+00:25 +227 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:26 +228 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:26 +229 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:26 +230 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:26 +231 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:26 +232 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:27 +233 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:27 +234 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:27 +235 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController sets hasReachedMax when results are fewer than limit
+00:31 +236 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController preserves existing results when fetchNextPage fails
+00:32 +237 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController empty results transition to empty stage
+00:33 +238 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchResultsController updateSort triggers a fresh fetch
+00:35 +239 ~1 -1: c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: SearchEventTracker tracks results shown and error events
+00:36 +240 ~1 -1: Some tests failed.
+
+Failing tests:
+  c:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/location/address_book_repository_test.dart: LocalAddressBookRepository removeAddress deletes only the matching entry

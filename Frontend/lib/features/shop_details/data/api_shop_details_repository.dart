@@ -48,6 +48,14 @@ class ApiShopDetailsRepository implements ShopDetailsRepository {
               .toList(),
           availableProducts: products,
           isSaved: data['is_saved'] == true,
+          categories: (data['categories'] as List<dynamic>? ?? [])
+              .map((e) => e.toString())
+              .toList(),
+          isVerified: data['is_verified'] == true,
+          latitude: (data['latitude'] as num?)?.toDouble() ?? 0,
+          longitude: (data['longitude'] as num?)?.toDouble() ?? 0,
+          secondaryPhone: data['secondary_phone']?.toString() ?? '',
+          email: data['email']?.toString() ?? '',
         );
 
         // Cache shop profile (non-inventory data) for offline use
@@ -78,6 +86,14 @@ class ApiShopDetailsRepository implements ShopDetailsRepository {
           activeOffers: [],
           availableProducts: [],
           isSaved: data['is_saved'] == true,
+          categories: (data['categories'] as List<dynamic>? ?? [])
+              .map((e) => e.toString())
+              .toList(),
+          isVerified: data['is_verified'] == true,
+          latitude: (data['latitude'] as num?)?.toDouble() ?? 0,
+          longitude: (data['longitude'] as num?)?.toDouble() ?? 0,
+          secondaryPhone: data['secondary_phone']?.toString() ?? '',
+          email: data['email']?.toString() ?? '',
         );
       }
       rethrow;

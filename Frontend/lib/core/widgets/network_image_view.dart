@@ -19,6 +19,16 @@ class NetworkImageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Memory hardening: bound the decoded (in-memory) image size to what the
+    // slot actually needs at device pixel ratio. Without this, a 4000px hero
+    // photo decoded into a 100px card can cost ~60MB of RAM per image and
+    // quickly OOMs image-heavy screens.
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final int? memCacheWidth =
+        width.isFinite && width > 0 ? (width * dpr).round() : null;
+    final int? memCacheHeight =
+        height.isFinite && height > 0 ? (height * dpr).round() : null;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: CachedNetworkImage(
@@ -26,6 +36,9 @@ class NetworkImageView extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        memCacheWidth: memCacheWidth,
+        memCacheHeight: memCacheHeight,
+        fadeInDuration: const Duration(milliseconds: 200),
         placeholder: (context, url) => Container(color: Colors.grey.shade200),
         errorWidget: (context, url, error) => Container(
           color: Colors.grey.shade300,

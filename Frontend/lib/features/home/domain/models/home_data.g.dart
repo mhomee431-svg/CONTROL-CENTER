@@ -52,6 +52,25 @@ Map<String, dynamic> _$CategoryToJson(_Category instance) => <String, dynamic>{
   'iconUrl': instance.iconUrl,
 };
 
+_Promotion _$PromotionFromJson(Map<String, dynamic> json) => _Promotion(
+  id: json['id'] as String,
+  title: json['title'] as String,
+  subtitle: json['subtitle'] as String,
+  imageUrl: json['imageUrl'] as String,
+  ctaLabel: json['ctaLabel'] as String?,
+  ctaTarget: json['ctaTarget'] as String?,
+);
+
+Map<String, dynamic> _$PromotionToJson(_Promotion instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'title': instance.title,
+      'subtitle': instance.subtitle,
+      'imageUrl': instance.imageUrl,
+      'ctaLabel': instance.ctaLabel,
+      'ctaTarget': instance.ctaTarget,
+    };
+
 _HomeData _$HomeDataFromJson(Map<String, dynamic> json) => _HomeData(
   categories: (json['categories'] as List<dynamic>)
       .map((e) => Category.fromJson(e as Map<String, dynamic>))
@@ -65,6 +84,21 @@ _HomeData _$HomeDataFromJson(Map<String, dynamic> json) => _HomeData(
   recentSearches: (json['recentSearches'] as List<dynamic>)
       .map((e) => e as String)
       .toList(),
+  recentlyViewed:
+      (json['recentlyViewed'] as List<dynamic>?)
+          ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+  recommendedProducts:
+      (json['recommendedProducts'] as List<dynamic>?)
+          ?.map((e) => Product.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+  promotions:
+      (json['promotions'] as List<dynamic>?)
+          ?.map((e) => Promotion.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$HomeDataToJson(_HomeData instance) => <String, dynamic>{
@@ -72,4 +106,7 @@ Map<String, dynamic> _$HomeDataToJson(_HomeData instance) => <String, dynamic>{
   'popularProducts': instance.popularProducts,
   'nearbyShops': instance.nearbyShops,
   'recentSearches': instance.recentSearches,
+  'recentlyViewed': instance.recentlyViewed,
+  'recommendedProducts': instance.recommendedProducts,
+  'promotions': instance.promotions,
 };

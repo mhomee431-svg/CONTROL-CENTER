@@ -1,13 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/location_service.dart';
 import '../../domain/models/location_models.dart';
+import '../../../../features/shop_details/domain/shop_details_repository.dart';
 
+/// Immutable state for the Directions feature.
 class DirectionsState {
   final bool isLoading;
   final LocationErrorType? error;
   final Coordinates? userLocation;
   final Coordinates? shopLocation;
   final double? distanceInKm;
+  final bool isShopClosed;
 
   const DirectionsState({
     this.isLoading = true,
@@ -15,6 +18,7 @@ class DirectionsState {
     this.userLocation,
     this.shopLocation,
     this.distanceInKm,
+    this.isShopClosed = false,
   });
 }
 
@@ -59,20 +63,23 @@ class DirectionsController extends Notifier<DirectionsState> {
         return;
       }
 
+      // Fetch shop profile to get real shop coordinates.
+      final shopRepo = ref.read(shopDetailsRepositoryProvider);
+      final shopProfile = await shopRepo.getShopProfile(shopId);
+      if (!ref.mounted) return;
+
+      if (!shopProfile.hasValidCoordinates) {
+        state = const DirectionsState(
+          isLoading: false,
+          error: LocationErrorType.invalidCoordinates,
+        );
+        return;
+      }
+
       final userLoc = await locationService.getCurrentLocation();
       if (!ref.mounted) return;
 
-      // In a real app, fetch this via a ShopRepository.
-      // Mocking shop coordinates for now.
-      const shopLoc = Coordinates(28.7150, 77.1150);
-
-      if (shopLoc.latitude == 0 && shopLoc.longitude == 0) {
-        throw const LocationException(
-          LocationErrorType.invalidCoordinates,
-          'Invalid shop coordinates',
-        );
-      }
-
+      final shopLoc = Coordinates(shopProfile.latitude, shopProfile.longitude);
       final distance = locationService.calculateDistance(userLoc, shopLoc);
 
       state = DirectionsState(
@@ -80,6 +87,7 @@ class DirectionsController extends Notifier<DirectionsState> {
         userLocation: userLoc,
         shopLocation: shopLoc,
         distanceInKm: double.parse(distance.toStringAsFixed(2)),
+        isShopClosed: !shopProfile.isOpenNow,
       );
     } on LocationException catch (e) {
       if (!ref.mounted) return;

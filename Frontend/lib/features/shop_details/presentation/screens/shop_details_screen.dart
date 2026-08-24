@@ -8,6 +8,7 @@ import '../../domain/models/shop_details_models.dart';
 import '../widgets/shop_header.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/widgets/empty_state_view.dart';
 
 class ShopDetailsScreen extends ConsumerWidget {
   final String shopId;
@@ -16,6 +17,20 @@ class ShopDetailsScreen extends ConsumerWidget {
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _shareShop(ShopProfile shop) async {
+    final text =
+        'Check out ${shop.name} on Hyperlocal!\n'
+        '${shop.address}\n'
+        'Rating: ${shop.rating} (${shop.reviewCount} reviews)';
+    await SharePlus.instance.share(ShareParams(text: text));
+  }
+
+  void _openDirections(BuildContext context, ShopProfile shop) {
+    context.push(
+      '/directions?shopId=${shop.id}&name=${Uri.encodeComponent(shop.name)}',
+    );
   }
 
   @override
@@ -36,11 +51,12 @@ class ShopDetailsScreen extends ConsumerWidget {
             ),
             orElse: () => const SizedBox.shrink(),
           ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () => SharePlus.instance.share(
-              ShareParams(text: 'Check out this shop on Hyperlocal! ID: $shopId'),
+          shopAsync.maybeWhen(
+            data: (shop) => IconButton(
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () => _shareShop(shop),
             ),
+            orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -76,7 +92,8 @@ class ShopDetailsScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _launchUrl('tel:${shop.phone}'),
+                    onPressed:
+                        shop.phone.isNotEmpty ? () => _launchUrl('tel:${shop.phone}') : null,
                     icon: const Icon(Icons.call),
                     label: const Text('Call'),
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
@@ -85,9 +102,7 @@ class ShopDetailsScreen extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => context.push(
-                      '/directions?shopId=${shop.id}&name=${Uri.encodeComponent(shop.name)}',
-                    ),
+                    onPressed: () => _openDirections(context, shop),
                     icon: const Icon(Icons.directions),
                     label: const Text('Directions'),
                   ),
@@ -103,8 +118,25 @@ class ShopDetailsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildContactSection(shop),
+                const SizedBox(height: AppSpacing.lg),
+
                 _buildSectionTitle('Operating Hours'),
                 Text(shop.openingHours, style: const TextStyle(color: AppColors.textMuted)),
+                if (!shop.isOpenNow) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'This shop is currently closed. Check opening hours before you visit.',
+                      style: TextStyle(fontSize: 12, color: AppColors.error),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
 
                 if (shop.activeOffers.isNotEmpty) ...[
@@ -142,6 +174,29 @@ class ShopDetailsScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
+
+                // SHOP COORDINATES UNAVAILABLE WARNING
+                if (!shop.hasValidCoordinates)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      border: Border.all(color: Colors.orange.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.location_off, size: 20, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Shop coordinates are temporarily unavailable. You can still call the shop for directions.',
+                            style: TextStyle(fontSize: 12, color: Colors.orange),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -155,25 +210,91 @@ class ShopDetailsScreen extends ConsumerWidget {
               children: [
                 _buildSectionTitle('Available Products'),
                 const SizedBox(height: AppSpacing.sm),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
+                if (shop.availableProducts.isEmpty)
+                  const EmptyStateView(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'No products available',
+                    message: 'This shop has no products listed right now.',
+                  )
+                else
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.75,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: AppSpacing.md,
+                    ),
+                    itemCount: shop.availableProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = shop.availableProducts[index];
+                      return _ProductSummaryCard(product: product);
+                    },
                   ),
-                  itemCount: shop.availableProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = shop.availableProducts[index];
-                    return _ProductSummaryCard(product: product);
-                  },
-                ),
               ],
             ),
           )
         ],
+      ),
+    );
+  }
+
+  Widget _buildContactSection(ShopProfile shop) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Contact'),
+        if (shop.phone.isNotEmpty)
+          _buildContactRow(
+            icon: Icons.call_outlined,
+            text: shop.phone,
+            onTap: () => _launchUrl('tel:${shop.phone}'),
+          ),
+        if (shop.secondaryPhone.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _buildContactRow(
+            icon: Icons.phone_android_outlined,
+            text: shop.secondaryPhone,
+            onTap: () => _launchUrl('tel:${shop.secondaryPhone}'),
+          ),
+        ],
+        if (shop.email.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _buildContactRow(
+            icon: Icons.email_outlined,
+            text: shop.email,
+            onTap: () => _launchUrl('mailto:${shop.email}'),
+          ),
+        ],
+        if (shop.phone.isEmpty && shop.secondaryPhone.isEmpty && shop.email.isEmpty)
+          const Text('No contact info available',
+              style: TextStyle(color: AppColors.textMuted)),
+      ],
+    );
+  }
+
+  Widget _buildContactRow({
+    required IconData icon,
+    required String text,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text, style: const TextStyle(fontSize: 14)),
+            ),
+            if (onTap != null)
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+          ],
+        ),
       ),
     );
   }

@@ -19,9 +19,9 @@ void main() {
   setUpAll(() {
     provideDummy<AuthResult>(
       const AuthResult(
-        accessToken: 'dummy-token',
-        refreshToken: 'dummy-refresh',
-        sessionId: 'dummy-session',
+        accessToken: 'dummy',
+        refreshToken: 'dummy',
+        sessionId: 'dummy',
       ),
     );
   });
@@ -29,6 +29,22 @@ void main() {
   setUp(() {
     mockRepo = MockAuthRepository();
     mockStorage = MockSecureStorageService();
+
+    // Stub common storage calls
+    when(mockStorage.getToken()).thenAnswer((_) async => null);
+    when(mockStorage.getSessionId()).thenAnswer((_) async => null);
+    when(mockStorage.getRefreshToken()).thenAnswer((_) async => null);
+    when(mockStorage.getDeviceId()).thenAnswer((_) async => null);
+    when(mockStorage.saveDeviceId(any)).thenAnswer((_) async => {});
+    when(mockStorage.saveToken(any)).thenAnswer((_) async => {});
+    when(mockStorage.saveRefreshToken(any)).thenAnswer((_) async => {});
+    when(mockStorage.saveSessionId(any)).thenAnswer((_) async => {});
+    when(mockStorage.setGuestMode(any)).thenAnswer((_) async => {});
+    when(mockStorage.clearAll()).thenAnswer((_) async => {});
+    when(mockStorage.write(key: anyNamed('key'), value: anyNamed('value')))
+        .thenAnswer((_) async => {});
+    when(mockStorage.read(key: anyNamed('key'))).thenAnswer((_) async => null);
+    when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
 
     container = ProviderContainer(
       overrides: [
@@ -44,80 +60,87 @@ void main() {
     container.dispose();
   });
 
-  test('Initial state should be AuthStatus.initial', () {
+  test('Initial state is AuthStatus.initial', () {
     expect(container.read(authControllerProvider).status, AuthStatus.initial);
   });
 
-  test('checkAuthStatus with no token and no guest mode sets unauthenticated', () async {
-    when(mockStorage.getToken()).thenAnswer((_) async => null);
-    when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
-
-    await controller.checkAuthStatus();
-
+  test('checkAuthStatus: no session -> unauthenticated', () async {
+    final restored = await controller.checkAuthStatus();
+    expect(restored, isFalse);
     expect(container.read(authControllerProvider).status, AuthStatus.unauthenticated);
   });
 
-  test('checkAuthStatus with token sets authenticated', () async {
-    when(mockStorage.getToken()).thenAnswer((_) async => 'mock_jwt_token');
-    when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
+  test('checkAuthStatus: guest mode -> guest', () async {
+    when(mockStorage.isGuestMode()).thenAnswer((_) async => true);
+    final restored = await controller.checkAuthStatus();
+    expect(restored, isFalse);
+    expect(container.read(authControllerProvider).status, AuthStatus.guest);
+  });
 
-    await controller.checkAuthStatus();
+  test('checkAuthStatus: valid session -> authenticated', () async {
+    when(mockStorage.getToken()).thenAnswer((_) async => 'jwt');
+    when(mockStorage.getSessionId()).thenAnswer((_) async => 's1');
+    when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'rt');
+    when(mockStorage.getDeviceId()).thenAnswer((_) async => 'd1');
+    when(mockRepo.refreshToken('rt', deviceId: 'd1')).thenAnswer(
+      (_) async => const AuthResult(
+        accessToken: 'new-jwt',
+        refreshToken: 'rotated-rt',
+        sessionId: 's1',
+      ),
+    );
 
+    final restored = await controller.checkAuthStatus();
+    expect(restored, isTrue);
     expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
   });
 
-  test('checkAuthStatus with guest mode sets guest', () async {
-    when(mockStorage.getToken()).thenAnswer((_) async => null);
-    when(mockStorage.isGuestMode()).thenAnswer((_) async => true);
+  test('checkAuthStatus: expired session -> sessionExpired', () async {
+    when(mockStorage.getToken()).thenAnswer((_) async => 'jwt');
+    when(mockStorage.getSessionId()).thenAnswer((_) async => 's1');
+    when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'rt');
+    when(mockStorage.getDeviceId()).thenAnswer((_) async => 'd1');
+    when(mockRepo.refreshToken('rt', deviceId: 'd1'))
+        .thenThrow(const SessionExpiredFailure());
 
-    await controller.checkAuthStatus();
-
-    expect(container.read(authControllerProvider).status, AuthStatus.guest);
+    final restored = await controller.checkAuthStatus();
+    expect(restored, isFalse);
+    expect(container.read(authControllerProvider).status, AuthStatus.sessionExpired);
   });
 
-  test('Guest mode updates state to guest correctly', () async {
-    when(mockStorage.setGuestMode(true)).thenAnswer((_) async => {});
-
-    await controller.continueAsGuest();
-
-    expect(container.read(authControllerProvider).status, AuthStatus.guest);
-    verify(mockStorage.setGuestMode(true)).called(1);
-  });
-
-  test('sendOtp success returns true and sets unauthenticated', () async {
+  test('sendOtp: success -> otpSent with phone', () async {
     when(mockRepo.sendOtp('9999999999')).thenAnswer((_) async => {});
-
-    final success = await controller.sendOtp('9999999999');
-
-    expect(success, isTrue);
-    expect(container.read(authControllerProvider).status, AuthStatus.unauthenticated);
-    verify(mockRepo.sendOtp('9999999999')).called(1);
+    final ok = await controller.sendOtp('9999999999');
+    expect(ok, isTrue);
+    final state = container.read(authControllerProvider);
+    expect(state.status, AuthStatus.otpSent);
+    expect(state.phoneNumber, '9999999999');
   });
 
-  test('sendOtp failure sets error state', () async {
-    when(mockRepo.sendOtp('123'))
-        .thenThrow(const ServerFailure('Invalid phone number format'));
-
-    final success = await controller.sendOtp('123');
-
-    expect(success, isFalse);
+  test('sendOtp: invalid phone -> error state', () async {
+    when(mockRepo.sendOtp('123')).thenThrow(const InvalidPhoneNumberFailure());
+    final ok = await controller.sendOtp('123');
+    expect(ok, isFalse);
     expect(container.read(authControllerProvider).status, AuthStatus.error);
-    expect(container.read(authControllerProvider).errorMessage, 'Invalid phone number format');
   });
 
-  test('verifyOtp success saves tokens and sets authenticated', () async {
-    const authResult = AuthResult(
-      accessToken: 'mock_jwt_token_header.payload.signature',
-      refreshToken: 'mock_refresh_token',
-      sessionId: 'mock-session-id',
+  test('sendOtp: network failure -> error state', () async {
+    when(mockRepo.sendOtp('9999999999')).thenThrow(const NetworkFailure());
+    final ok = await controller.sendOtp('9999999999');
+    expect(ok, isFalse);
+    expect(container.read(authControllerProvider).status, AuthStatus.error);
+  });
+
+  test('verifyOtp: success -> authenticated + session persisted', () async {
+    const result = AuthResult(
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      sessionId: 'sid',
       userId: 1,
       phoneNumber: '9999999999',
-      name: 'Test User',
+      name: 'Test',
       role: 'customer',
     );
-
-    when(mockStorage.getDeviceId()).thenAnswer((_) async => null);
-    when(mockStorage.saveDeviceId(any)).thenAnswer((_) async => {});
     when(mockRepo.verifyOtp(
       phoneNumber: '9999999999',
       otpCode: '123456',
@@ -125,28 +148,22 @@ void main() {
       deviceName: anyNamed('deviceName'),
       deviceType: anyNamed('deviceType'),
       appVersion: anyNamed('appVersion'),
-    )).thenAnswer((_) async => authResult);
-    when(mockStorage.saveToken('mock_jwt_token_header.payload.signature'))
-        .thenAnswer((_) async => {});
-    when(mockStorage.saveRefreshToken('mock_refresh_token'))
-        .thenAnswer((_) async => {});
-    when(mockStorage.saveSessionId('mock-session-id'))
-        .thenAnswer((_) async => {});
-    when(mockStorage.setGuestMode(false)).thenAnswer((_) async => {});
+    )).thenAnswer((_) async => result);
 
-    final success = await controller.verifyOtp('9999999999', '123456');
+    final ok = await controller.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '123456',
+      isNewUser: false,
+    );
 
-    expect(success, isTrue);
+    expect(ok, isTrue);
     expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
-    verify(mockStorage.saveToken('mock_jwt_token_header.payload.signature')).called(1);
-    verify(mockStorage.saveRefreshToken('mock_refresh_token')).called(1);
-    verify(mockStorage.saveSessionId('mock-session-id')).called(1);
-    verify(mockStorage.setGuestMode(false)).called(1);
+    verify(mockStorage.saveToken('access')).called(1);
+    verify(mockStorage.saveRefreshToken('refresh')).called(1);
+    verify(mockStorage.saveSessionId('sid')).called(1);
   });
 
-  test('Failed OTP verification sets error state', () async {
-    when(mockStorage.getDeviceId()).thenAnswer((_) async => null);
-    when(mockStorage.saveDeviceId(any)).thenAnswer((_) async => {});
+  test('verifyOtp: invalid OTP -> error with message', () async {
     when(mockRepo.verifyOtp(
       phoneNumber: '9999999999',
       otpCode: '000000',
@@ -154,18 +171,110 @@ void main() {
       deviceName: anyNamed('deviceName'),
       deviceType: anyNamed('deviceType'),
       appVersion: anyNamed('appVersion'),
-    )).thenThrow(const ServerFailure('Invalid OTP entered'));
+    )).thenThrow(const InvalidOtpFailure());
 
-    await controller.verifyOtp('9999999999', '000000');
+    final ok = await controller.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '000000',
+      isNewUser: false,
+    );
 
-    expect(container.read(authControllerProvider).status, AuthStatus.error);
-    expect(container.read(authControllerProvider).errorMessage, 'Invalid OTP entered');
+    expect(ok, isFalse);
+    final state = container.read(authControllerProvider);
+    expect(state.status, AuthStatus.error);
+    expect(state.errorMessage, contains('Invalid OTP'));
   });
 
-  test('logout clears storage and sets unauthenticated', () async {
-    when(mockStorage.getRefreshToken()).thenAnswer((_) async => null);
-    when(mockStorage.getSessionId()).thenAnswer((_) async => null);
-    when(mockStorage.clearAll()).thenAnswer((_) async => {});
+  test('verifyOtp: expired OTP -> error with message', () async {
+    when(mockRepo.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '111111',
+      deviceId: anyNamed('deviceId'),
+      deviceName: anyNamed('deviceName'),
+      deviceType: anyNamed('deviceType'),
+      appVersion: anyNamed('appVersion'),
+    )).thenThrow(const ExpiredOtpFailure());
+
+    final ok = await controller.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '111111',
+      isNewUser: false,
+    );
+
+    expect(ok, isFalse);
+    final state = container.read(authControllerProvider);
+    expect(state.status, AuthStatus.error);
+    expect(state.errorMessage, contains('expired'));
+  });
+
+  test('verifyOtp: too many attempts -> error', () async {
+    when(mockRepo.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '222222',
+      deviceId: anyNamed('deviceId'),
+      deviceName: anyNamed('deviceName'),
+      deviceType: anyNamed('deviceType'),
+      appVersion: anyNamed('appVersion'),
+    )).thenThrow(const TooManyAttemptsFailure());
+
+    final ok = await controller.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '222222',
+      isNewUser: false,
+    );
+
+    expect(ok, isFalse);
+    expect(container.read(authControllerProvider).status, AuthStatus.error);
+  });
+
+  test('verifyOtp: new user -> register flow used', () async {
+    when(mockRepo.register(
+      phoneNumber: '9999999999',
+      otpCode: '444444',
+      name: anyNamed('name'),
+      deviceId: anyNamed('deviceId'),
+      deviceName: anyNamed('deviceName'),
+      deviceType: anyNamed('deviceType'),
+      appVersion: anyNamed('appVersion'),
+    )).thenAnswer(
+      (_) async => const AuthResult(
+        accessToken: 'at',
+        refreshToken: 'rt',
+        sessionId: 'sid',
+        userId: 2,
+        phoneNumber: '9999999999',
+        name: 'New User',
+        role: 'customer',
+        isNewUser: true,
+      ),
+    );
+
+    final ok = await controller.verifyOtp(
+      phoneNumber: '9999999999',
+      otpCode: '444444',
+      isNewUser: true,
+    );
+
+    expect(ok, isTrue);
+    expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
+    verify(mockRepo.register(
+      phoneNumber: '9999999999',
+      otpCode: '444444',
+      name: anyNamed('name'),
+      deviceId: anyNamed('deviceId'),
+      deviceName: anyNamed('deviceName'),
+      deviceType: anyNamed('deviceType'),
+      appVersion: anyNamed('appVersion'),
+    )).called(1);
+  });
+
+  test('logout: clears session -> unauthenticated', () async {
+    when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'rt');
+    when(mockStorage.getSessionId()).thenAnswer((_) async => 'sid');
+    when(mockRepo.logout(
+      refreshToken: 'rt',
+      sessionId: 'sid',
+    )).thenAnswer((_) async => {});
 
     await controller.logout();
 
@@ -173,26 +282,9 @@ void main() {
     verify(mockStorage.clearAll()).called(1);
   });
 
-  test('refreshAccessToken with valid refresh token updates token', () async {
-    when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'old-refresh');
-    when(mockStorage.getDeviceId()).thenAnswer((_) async => 'dev-123');
-    when(mockRepo.refreshToken('old-refresh', deviceId: 'dev-123'))
-        .thenAnswer((_) async => 'new-access-token');
-    when(mockStorage.saveToken('new-access-token')).thenAnswer((_) async => {});
-
-    final success = await controller.refreshAccessToken();
-
-    expect(success, isTrue);
-    expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
-    verify(mockStorage.saveToken('new-access-token')).called(1);
-  });
-
-  test('refreshAccessToken with no refresh token sets unauthenticated', () async {
-    when(mockStorage.getRefreshToken()).thenAnswer((_) async => null);
-
-    final success = await controller.refreshAccessToken();
-
-    expect(success, isFalse);
-    expect(container.read(authControllerProvider).status, AuthStatus.unauthenticated);
+  test('continueAsGuest: sets guest mode', () async {
+    await controller.continueAsGuest();
+    expect(container.read(authControllerProvider).status, AuthStatus.guest);
+    verify(mockStorage.setGuestMode(true)).called(1);
   });
 }

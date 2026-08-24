@@ -132,6 +132,14 @@ void main() {
   });
 
   group('Recently Viewed & History Limits', () {
+    RecentlyViewedItem viewedItem(String id) => RecentlyViewedItem(
+          productId: id,
+          name: 'Product $id',
+          imageUrl: 'https://via.placeholder.com/150',
+          price: 1000,
+          viewedAt: DateTime.now(),
+        );
+
     test('addRecentlyViewed caps history to maximum 20 items', () async {
       for (int i = 0; i < 25; i++) {
         await repo.addRecentlyViewed(
@@ -150,6 +158,27 @@ void main() {
       expect(viewed.first.productId, equals('p24'));
     });
 
+    test('re-viewing bumps the product to the front without duplicating',
+        () async {
+      await repo.addRecentlyViewed(viewedItem('p1'));
+      await repo.addRecentlyViewed(viewedItem('p2'));
+      await repo.addRecentlyViewed(viewedItem('p1'));
+
+      final viewed = await repo.getRecentlyViewed();
+      expect(viewed.length, equals(2));
+      expect(viewed.first.productId, equals('p1'));
+    });
+
+    test('removeRecentlyViewed removes a single viewed product', () async {
+      await repo.addRecentlyViewed(viewedItem('p1'));
+      await repo.addRecentlyViewed(viewedItem('p2'));
+      await repo.removeRecentlyViewed('p1');
+
+      final viewed = await repo.getRecentlyViewed();
+      expect(viewed.length, equals(1));
+      expect(viewed.first.productId, equals('p2'));
+    });
+
     test('clearRecentlyViewed empties view history', () async {
       await repo.addRecentlyViewed(
         RecentlyViewedItem(
@@ -166,4 +195,159 @@ void main() {
       expect(viewed, isEmpty);
     });
   });
+
+  group('Recently Viewed Shops', () {
+    RecentlyViewedShopItem viewedShop(String id) => RecentlyViewedShopItem(
+          shopId: id,
+          name: 'Shop $id',
+          address: 'MG Road, Delhi',
+          imageUrl: 'https://via.placeholder.com/150',
+          rating: 4.5,
+          viewedAt: DateTime.now(),
+        );
+
+    test('addRecentlyViewedShop records a shop visit', () async {
+      await repo.addRecentlyViewedShop(viewedShop('s1'));
+      final viewed = await repo.getRecentlyViewedShops();
+
+      expect(viewed.length, equals(1));
+      expect(viewed.first.shopId, equals('s1'));
+    });
+
+    test('re-visiting a shop does not duplicate it', () async {
+      await repo.addRecentlyViewedShop(viewedShop('s1'));
+      await repo.addRecentlyViewedShop(viewedShop('s2'));
+      await repo.addRecentlyViewedShop(viewedShop('s1'));
+
+      final viewed = await repo.getRecentlyViewedShops();
+      expect(viewed.length, equals(2));
+      expect(viewed.first.shopId, equals('s1'));
+    });
+
+    test('addRecentlyViewedShop caps history to maximum 20 shops', () async {
+      for (int i = 0; i < 25; i++) {
+        await repo.addRecentlyViewedShop(RecentlyViewedShopItem(
+          shopId: 's$i',
+          name: 'Shop $i',
+          address: 'Address $i',
+          imageUrl: 'https://via.placeholder.com/150',
+          rating: 4,
+          viewedAt: DateTime.now(),
+        ));
+      }
+
+      final viewed = await repo.getRecentlyViewedShops();
+      expect(viewed.length, equals(20));
+      expect(viewed.first.shopId, equals('s24'));
+    });
+
+    test('removeRecentlyViewedShop removes one shop', () async {
+      await repo.addRecentlyViewedShop(viewedShop('s1'));
+      await repo.addRecentlyViewedShop(viewedShop('s2'));
+      await repo.removeRecentlyViewedShop('s1');
+
+      final viewed = await repo.getRecentlyViewedShops();
+      expect(viewed.length, equals(1));
+      expect(viewed.first.shopId, equals('s2'));
+    });
+
+    test('clearRecentlyViewedShops empties shop history', () async {
+      await repo.addRecentlyViewedShop(viewedShop('s1'));
+      await repo.clearRecentlyViewedShops();
+
+      expect(await repo.getRecentlyViewedShops(), isEmpty);
+    });
+  });
+
+  group('App restart persistence', () {
+    test('data survives creating a new repository over the same storage',
+        () async {
+      // Simulate a first session.
+      await repo.saveProduct(SavedProductItem(
+        productId: 'p100',
+        name: 'Wireless Earbuds',
+        brand: 'SoundBrand',
+        lowestPrice: 2999,
+        imageUrl: 'https://via.placeholder.com/150',
+        savedAt: DateTime.now(),
+      ));
+      await repo.saveShop(SavedShopItem(
+        shopId: 's100',
+        name: 'Gupta Mobile & Electronics',
+        address: 'MG Road, Delhi',
+        imageUrl: 'https://via.placeholder.com/150',
+        rating: 4.5,
+        savedAt: DateTime.now(),
+      ));
+      await repo.addRecentSearch('headphones');
+      await repo.addRecentlyViewed(RecentlyViewedItem(
+        productId: 'p1',
+        name: 'Product p1',
+        imageUrl: 'https://via.placeholder.com/150',
+        price: 999,
+        viewedAt: DateTime.now(),
+      ));
+      await repo.addRecentlyViewedShop(RecentlyViewedShopItem(
+        shopId: 's1',
+        name: 'Shop s1',
+        address: 'Address',
+        imageUrl: 'https://via.placeholder.com/150',
+        rating: 4,
+        viewedAt: DateTime.now(),
+      ));
+
+      // "Restart": brand-new repository instance, same underlying storage.
+      final restarted = LocalSavedAndHistoryRepository(driver);
+
+      expect((await restarted.getSavedProducts()).first.productId, 'p100');
+      expect((await restarted.getSavedShops()).first.shopId, 's100');
+      expect((await restarted.getRecentSearches()).first.query, 'headphones');
+      expect((await restarted.getRecentlyViewed()).first.productId, 'p1');
+      expect((await restarted.getRecentlyViewedShops()).first.shopId, 's1');
+    });
+  });
+
+  group('Logout hygiene', () {
+    test('purgeSyncedEntries drops mirrored items and keeps guest queue',
+        () async {
+      await repo.saveProduct(SavedProductItem(
+        productId: 'synced',
+        name: 'Synced Product',
+        brand: 'Brand',
+        lowestPrice: 100,
+        imageUrl: '',
+        savedAt: DateTime.now(),
+        isSynced: true,
+      ));
+      await repo.saveProduct(SavedProductItem(
+        productId: 'pending',
+        name: 'Pending Product',
+        brand: 'Brand',
+        lowestPrice: 200,
+        imageUrl: '',
+        savedAt: DateTime.now(),
+      ));
+      await repo.saveShop(SavedShopItem(
+        shopId: 'synced-shop',
+        name: 'Synced Shop',
+        address: 'Addr',
+        imageUrl: '',
+        rating: 4,
+        savedAt: DateTime.now(),
+        isSynced: true,
+      ));
+
+      await repo.purgeSyncedEntries();
+
+      final products = await repo.getSavedProducts();
+      expect(products.map((p) => p.productId), ['pending']);
+      expect(await repo.getSavedShops(), isEmpty);
+
+      // Device-level history is intentionally retained across logout.
+      await repo.addRecentSearch('history keeper');
+      await repo.purgeSyncedEntries();
+      expect((await repo.getRecentSearches()).first.query, 'history keeper');
+    });
+  });
 }
+

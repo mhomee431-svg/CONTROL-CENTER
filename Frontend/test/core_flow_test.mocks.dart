@@ -55,6 +55,47 @@ class MockSecureStorageService extends _i1.Mock
   ) as _i3.Future<void>);
 
   @override
+  _i3.Future<void> saveRefreshToken(String? refreshToken) =>
+      (super.noSuchMethod(
+        Invocation.method(#saveRefreshToken, [refreshToken]),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<String?> getRefreshToken() => (super.noSuchMethod(
+    Invocation.method(#getRefreshToken, []),
+    returnValue: _i3.Future<String?>.value(),
+  ) as _i3.Future<String?>);
+
+  @override
+  _i3.Future<void> deleteRefreshToken() => (super.noSuchMethod(
+    Invocation.method(#deleteRefreshToken, []),
+    returnValue: _i3.Future<void>.value(),
+    returnValueForMissingStub: _i3.Future<void>.value(),
+  ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> saveSessionId(String? sessionId) => (super.noSuchMethod(
+    Invocation.method(#saveSessionId, [sessionId]),
+    returnValue: _i3.Future<void>.value(),
+    returnValueForMissingStub: _i3.Future<void>.value(),
+  ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<String?> getSessionId() => (super.noSuchMethod(
+    Invocation.method(#getSessionId, []),
+    returnValue: _i3.Future<String?>.value(),
+  ) as _i3.Future<String?>);
+
+  @override
+  _i3.Future<void> deleteSessionId() => (super.noSuchMethod(
+    Invocation.method(#deleteSessionId, []),
+    returnValue: _i3.Future<void>.value(),
+    returnValueForMissingStub: _i3.Future<void>.value(),
+  ) as _i3.Future<void>);
+
+  @override
   _i3.Future<void> setGuestMode(bool? isGuest) => (super.noSuchMethod(
     Invocation.method(#setGuestMode, [isGuest]),
     returnValue: _i3.Future<void>.value(),
@@ -66,6 +107,19 @@ class MockSecureStorageService extends _i1.Mock
     Invocation.method(#isGuestMode, []),
     returnValue: _i3.Future<bool>.value(false),
   ) as _i3.Future<bool>);
+
+  @override
+  _i3.Future<void> saveDeviceId(String? deviceId) => (super.noSuchMethod(
+    Invocation.method(#saveDeviceId, [deviceId]),
+    returnValue: _i3.Future<void>.value(),
+    returnValueForMissingStub: _i3.Future<void>.value(),
+  ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<String?> getDeviceId() => (super.noSuchMethod(
+    Invocation.method(#getDeviceId, []),
+    returnValue: _i3.Future<String?>.value(),
+  ) as _i3.Future<String?>);
 
   @override
   _i3.Future<void> write({required String? key, required String? value}) =>

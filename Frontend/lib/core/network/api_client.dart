@@ -1,22 +1,39 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../env/env_config.dart';
 import '../security/safe_logger.dart';
 import '../storage/secure_storage_service.dart';
+import 'api_endpoints.dart';
 import 'api_error_handler.dart';
 import 'retry_interceptor.dart';
 
 /// A thin wrapper around Dio that:
 /// - Injects the auth token on every request
-/// - Handles token refresh on 401
+/// - Handles token refresh on 401 (see [TokenRefreshInterceptor])
 /// - Unwraps the common `{success, message, data}` response envelope
 /// - Maps Dio errors to [ApiException]
 class ApiClient {
   final Dio _dio;
   final SecureStorageService _storage;
 
+  final StreamController<void> _sessionExpiredController =
+      StreamController<void>.broadcast();
+
   ApiClient(this._dio, this._storage);
+
+  /// Broadcast stream emitting whenever the stored session could not be
+  /// recovered after a 401 (refresh rejected / revoked). The app listens to
+  /// this to transition the customer into the signed-out state.
+  Stream<void> get sessionExpiredEvents => _sessionExpiredController.stream;
+
+  /// Flags the session as unrecoverable (called by [TokenRefreshInterceptor]).
+  void notifySessionExpired() {
+    SafeLogger.warning('Session expired — notifying listeners.');
+    _sessionExpiredController.add(null);
+  }
 
   /// Performs a GET request and returns the `data` field of the envelope.
   Future<dynamic> get(
@@ -121,6 +138,137 @@ class ApiClient {
   }
 }
 
+/// Transparently refreshes an expired access token after a 401 and replays
+/// the failed request once.
+///
+/// - **Single-flight**: concurrent 401s share one in-flight refresh call.
+/// - Auth endpoints (`/auth/*`) never trigger a refresh — that would loop.
+/// - On refresh failure the stored tokens are cleared and
+///   [onSessionExpired] fires so the app can sign the customer out.
+class TokenRefreshInterceptor extends Interceptor {
+  final Dio _dio;
+  final SecureStorageService _storage;
+  final void Function()? _onSessionExpired;
+
+  /// Shared, in-flight refresh future (single-flight guard).
+  Future<bool>? _refreshing;
+
+  TokenRefreshInterceptor(
+    this._dio,
+    this._storage,
+    this._onSessionExpired,
+  );
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final options = err.requestOptions;
+    final isUnauthorized = err.response?.statusCode == 401;
+    final alreadyRetried = options.extra['retried_after_refresh'] == true;
+    final isAuthCall = options.path.startsWith('/auth/');
+
+    if (!isUnauthorized || alreadyRetried || isAuthCall) {
+      return handler.next(err);
+    }
+
+    SafeLogger.debug('401 received — attempting token refresh.');
+    final refreshed = await _refreshSingleFlight();
+    if (!refreshed) {
+      return handler.next(err);
+    }
+
+    try {
+      final token = await _storage.getToken();
+      if (token == null || token.isEmpty) {
+        return handler.next(err);
+      }
+      options
+        ..extra['retried_after_refresh'] = true
+        ..headers['Authorization'] = 'Bearer $token';
+      final replay = await _dio.fetch(options);
+      return handler.resolve(replay);
+    } on DioException catch (replayError) {
+      return handler.next(replayError);
+    }
+  }
+
+  /// Runs at most one refresh at a time; all callers await the same result.
+  Future<bool> _refreshSingleFlight() {
+    return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<bool> _doRefresh() async {
+    final refreshToken = await _storage.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      _clearAndNotify();
+      return false;
+    }
+    final deviceId = await _storage.getDeviceId();
+
+    // A bare Dio instance without interceptors: a failing refresh must never
+    // recurse into this interceptor again.
+    final authDio = Dio(BaseOptions(
+      baseUrl: EnvConfig.apiBaseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      responseType: ResponseType.json,
+    ));
+
+    try {
+      final response = await authDio.post(
+        ApiEndpoints.refreshToken,
+        data: {
+          'refresh_token': refreshToken,
+          'device_id': deviceId,
+        },
+        options: Options(headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }),
+      );
+
+      final body = response.data;
+      if (body is! Map<String, dynamic> || body['success'] != true) {
+        _clearAndNotify();
+        return false;
+      }
+      final data = body['data'];
+      if (data is! Map<String, dynamic>) {
+        _clearAndNotify();
+        return false;
+      }
+
+      final accessToken = data['access_token'] as String?;
+      final newRefreshToken = data['refresh_token'] as String?;
+      if (accessToken == null || accessToken.isEmpty) {
+        _clearAndNotify();
+        return false;
+      }
+
+      // Persist BOTH tokens: the backend rotates the refresh token on every
+      // use; keeping the stale one would trip reuse-detection next time.
+      await _storage.saveToken(accessToken);
+      if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+        await _storage.saveRefreshToken(newRefreshToken);
+      }
+      SafeLogger.debug('Token refresh succeeded.');
+      return true;
+    } catch (e) {
+      SafeLogger.error('Token refresh failed.', e);
+      _clearAndNotify();
+      return false;
+    } finally {
+      authDio.close();
+    }
+  }
+
+  Future<void> _clearAndNotify() async {
+    await _storage.deleteToken();
+    await _storage.deleteRefreshToken();
+    await _storage.deleteSessionId();
+    _onSessionExpired?.call();
+  }
+}
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = Dio(
     BaseOptions(
@@ -131,6 +279,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
       responseType: ResponseType.json,
     ),
   );
+
+  final storage = ref.watch(secureStorageProvider);
 
   dio.interceptors.addAll([
     ExponentialRetryInterceptor(dio: dio),
@@ -150,6 +300,16 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     ),
   ]);
 
-  final storage = ref.watch(secureStorageProvider);
-  return ApiClient(dio, storage);
+  final client = ApiClient(dio, storage);
+
+  // Registered last so it sees errors only after logging/retry decided not
+  // to handle them (Dio runs error interceptors in registration order).
+  dio.interceptors.add(TokenRefreshInterceptor(
+    dio,
+    storage,
+    client.notifySessionExpired,
+  ));
+
+  ref.onDispose(client._sessionExpiredController.close);
+  return client;
 });

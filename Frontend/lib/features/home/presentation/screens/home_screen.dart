@@ -5,12 +5,13 @@ import '../controllers/home_controller.dart';
 import '../widgets/location_header.dart';
 import '../widgets/home_search_bar.dart';
 import '../widgets/home_skeleton_loader.dart';
-import '../../../../core/widgets/product_card.dart';
-import '../../../../core/widgets/shop_card.dart';
-import '../../../../core/widgets/category_card.dart';
-import '../../../../core/widgets/section_header.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../domain/models/home_data.dart';
+import '../widgets/promotion_banner.dart';
+import '../widgets/category_section.dart';
+import '../widgets/recent_searches_section.dart';
+import '../widgets/product_row_section.dart';
+import '../widgets/nearby_shops_section.dart';
+import '../../../../core/network/api_error_handler.dart';
+import '../../../../core/widgets/empty_state_view.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -43,19 +44,30 @@ class HomeScreen extends ConsumerWidget {
                     (context, index) {
                       switch (index) {
                         case 0:
-                          return _buildCategories(context, data.categories);
+                          return PromotionBanner(promotions: data.promotions);
                         case 1:
-                          return _buildSectionHeader(context, 'Recent Searches');
+                          return CategorySection(categories: data.categories);
                         case 2:
-                          return _buildRecentSearches(context, data.recentSearches);
+                          return RecentSearchesSection(recentSearches: data.recentSearches);
                         case 3:
-                          return _buildSectionHeader(context, 'Popular Nearby');
+                          return ProductRowSection(
+                            title: 'Popular Nearby',
+                            products: data.popularProducts,
+                            actionLabel: 'View All',
+                            onActionTap: () => context.push('/search'),
+                          );
                         case 4:
-                          return _buildPopularProducts(context, data.popularProducts);
+                          return ProductRowSection(
+                            title: 'Recently Viewed',
+                            products: data.recentlyViewed,
+                          );
                         case 5:
-                          return _buildSectionHeader(context, 'Trusted Local Shops');
+                          return ProductRowSection(
+                            title: 'Recommended For You',
+                            products: data.recommendedProducts,
+                          );
                         case 6:
-                          return _buildNearbyShops(context, data.nearbyShops);
+                          return NearbyShopsSection(shops: data.nearbyShops);
                         case 7:
                           return const SizedBox(height: 40);
                         default:
@@ -67,33 +79,9 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 loading: () => const SliverToBoxAdapter(child: HomeSkeletonLoader()),
                 error: (error, stack) => SliverToBoxAdapter(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.cloud_off, size: 64, color: AppColors.textMuted),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load feed',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '$error',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () => ref.refresh(homeControllerProvider.future),
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Try Again'),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: _HomeErrorView(
+                    error: error,
+                    onRetry: () => ref.refresh(homeControllerProvider.future),
                   ),
                 ),
               ),
@@ -103,101 +91,23 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildCategories(BuildContext context, List<Category> categories) {
-    return SizedBox(
-      height: 90,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          return Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: CategoryCard(
-              category: category,
-              onTap: () => context.push('/search'),
-            ),
-          );
-        },
-      ),
-    );
-  }
+class _HomeErrorView extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return SectionHeader(title: title);
-  }
+  const _HomeErrorView({required this.error, required this.onRetry});
 
-  Widget _buildRecentSearches(BuildContext context, List<String> recentSearches) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Wrap(
-        spacing: AppSpacing.sm,
-        runSpacing: AppSpacing.sm,
-        children: recentSearches
-            .map(
-              (search) => GestureDetector(
-                onTap: () => context.push('/search'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.history, size: 16, color: AppColors.textMuted),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        search,
-                        style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildPopularProducts(BuildContext context, List<Product> products) {
-    return SizedBox(
-      height: 240,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          final product = products[index];
-          return ProductCard(
-            product: product,
-            onTap: () => context.push('/search'),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildNearbyShops(BuildContext context, List<Shop> shops) {
-    return SizedBox(
-      height: 180,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        itemCount: shops.length,
-        itemBuilder: (context, index) {
-          final shop = shops[index];
-          return ShopCard(
-            shop: shop,
-            onTap: () => context.push('/search'),
-          );
-        },
-      ),
+  @override
+  Widget build(BuildContext context) {
+    return EmptyStateView(
+      icon: Icons.cloud_off,
+      title: 'Failed to load feed',
+      // User-safe copy; raw exception text never reaches the UI.
+      message: friendlyErrorMessage(error),
+      actionLabel: 'Try Again',
+      onActionTap: onRetry,
     );
   }
 }

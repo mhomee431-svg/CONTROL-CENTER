@@ -16,28 +16,19 @@ class ApiHomeRepository implements HomeRepository {
   ApiHomeRepository(this._apiClient, this._cache);
 
   @override
-  Future<HomeData> fetchHomeFeed() async {
+  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
     try {
       final data = await _apiClient.get(
         ApiEndpoints.homeFeed,
+        queryParameters: {
+          'latitude': ?latitude,
+          'longitude': ?longitude,
+        },
         requiresAuth: false,
       );
 
       if (data is Map<String, dynamic>) {
-        final homeData = HomeData(
-          categories: (data['categories'] as List<dynamic>? ?? [])
-              .map((e) => Category.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          popularProducts: (data['popular_products'] as List<dynamic>? ?? [])
-              .map((e) => Product.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          nearbyShops: (data['nearby_shops'] as List<dynamic>? ?? [])
-              .map((e) => Shop.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          recentSearches: (data['recent_searches'] as List<dynamic>? ?? [])
-              .map((e) => e.toString())
-              .toList(),
-        );
+        final homeData = _parseHomeData(data);
 
         // Cache the home feed for offline use (non-inventory data only)
         await _cache.put(_cacheKey, data);
@@ -48,23 +39,37 @@ class ApiHomeRepository implements HomeRepository {
       // On failure, try to serve cached data
       final cached = await _cache.get(_cacheKey);
       if (cached != null && cached.data is Map<String, dynamic>) {
-        final data = cached.data as Map<String, dynamic>;
-        return HomeData(
-          categories: (data['categories'] as List<dynamic>? ?? [])
-              .map((e) => Category.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          popularProducts: (data['popular_products'] as List<dynamic>? ?? [])
-              .map((e) => Product.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          nearbyShops: (data['nearby_shops'] as List<dynamic>? ?? [])
-              .map((e) => Shop.fromJson(e as Map<String, dynamic>))
-              .toList(),
-          recentSearches: (data['recent_searches'] as List<dynamic>? ?? [])
-              .map((e) => e.toString())
-              .toList(),
-        );
+        return _parseHomeData(cached.data as Map<String, dynamic>);
       }
       rethrow;
     }
+  }
+
+  HomeData _parseHomeData(Map<String, dynamic> data) {
+    List<Product> parseProducts(String key) =>
+        (data[key] as List<dynamic>? ?? [])
+            .map((e) => Product.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+    List<Promotion> parsePromotions(String key) =>
+        (data[key] as List<dynamic>? ?? [])
+            .map((e) => Promotion.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+    return HomeData(
+      categories: (data['categories'] as List<dynamic>? ?? [])
+          .map((e) => Category.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      popularProducts: parseProducts('popular_products'),
+      nearbyShops: (data['nearby_shops'] as List<dynamic>? ?? [])
+          .map((e) => Shop.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      recentSearches: (data['recent_searches'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      recentlyViewed: parseProducts('recently_viewed'),
+      recommendedProducts: parseProducts('recommended_products'),
+      promotions: parsePromotions('promotions'),
+    );
   }
 }

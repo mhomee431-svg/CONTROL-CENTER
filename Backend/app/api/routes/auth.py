@@ -13,6 +13,7 @@ from app.models.user import User, UserStatus
 from app.schemas.auth import (
     LogoutRequest,
     RefreshTokenRequest,
+    RegisterRequest,
     SendOTPRequest,
     VerifyOTPRequest,
 )
@@ -155,6 +156,81 @@ async def verify_otp_endpoint(
     return success_response(
         data=token_data,
         message="Login successful",
+    )
+
+
+@router.post("/register")
+@auth_rate_limit()
+async def register_endpoint(
+    payload: RegisterRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Register a new customer account with a display name.
+
+    Verifies the OTP, creates the user (with the chosen name) and the
+    customer profile, then issues access + refresh tokens. Existing
+    accounts are rejected — they must sign in via /verify-otp instead.
+    """
+    # Verify OTP (handles expiry, max attempts, correct/incorrect)
+    if not verify_otp(payload.phone_number, payload.otp):
+        return error_response(
+            message="Invalid or expired OTP",
+            error_code="INVALID_OTP",
+            status_code=400,
+        )
+
+    # Normalize phone for lookup (matches OTP service normalization)
+    phone = payload.phone_number.strip()
+    if not phone.startswith("+"):
+        phone = "+" + phone
+
+    user = db.query(User).filter(User.phone_number == phone).first()
+
+    if user is not None:
+        clear_otp(phone)  # OTP was consumed; invalidate it either way
+        return error_response(
+            message="Account already exists. Please sign in instead.",
+            error_code="ACCOUNT_EXISTS",
+            status_code=409,
+        )
+
+    # ── Create the account with the provided display name ────────────────
+    default_role = _default_role(db)
+    user = User(
+        phone_number=phone,
+        name=payload.name.strip(),
+        role_id=default_role.id if default_role else None,
+        status=UserStatus.ACTIVE,
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()
+
+    # Create customer profile
+    customer = Customer(user_id=user.id)
+    db.add(customer)
+    db.flush()
+
+    # Issue tokens with session
+    meta = _get_client_meta(request)
+    token_data = issue_tokens(
+        user,
+        db,
+        device_id=payload.device_id,
+        device_name=payload.device_name,
+        device_type=payload.device_type,
+        platform=payload.platform,
+        app_version=payload.app_version,
+        ip_address=meta["ip_address"],
+        user_agent=meta["user_agent"],
+    )
+
+    db.commit()
+
+    return success_response(
+        data=token_data,
+        message="Registration successful",
     )
 
 

@@ -1,91 +1,279 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../../core/network/api_error_handler.dart';
+import '../../../../core/performance/debouncer.dart';
+import '../../../location/presentation/controllers/location_controller.dart';
+import '../../../saved_and_history/domain/saved_and_history_repository.dart';
 import '../../domain/search_repository.dart';
+import '../../domain/search_state.dart';
+import '../../domain/search_event_tracker.dart';
 import '../../domain/models/search_models.dart';
 
 // --- DEBOUNCER ---
-class Debouncer {
-  final int milliseconds;
-  Timer? _timer;
-
-  Debouncer({required this.milliseconds});
-
-  void run(void Function() action) {
-    _timer?.cancel();
-    _timer = Timer(Duration(milliseconds: milliseconds), action);
-  }
-
-  void dispose() {
-    _timer?.cancel();
-  }
-}
-
+/// Single shared [Debouncer] (core/performance). Consolidated here so search
+/// does not carry a second, diverging implementation.
 final debouncerProvider = Provider<Debouncer>((ref) {
-  final debouncer = Debouncer(milliseconds: 500);
+  final debouncer = Debouncer(delay: const Duration(milliseconds: 500));
   ref.onDispose(debouncer.dispose);
   return debouncer;
 });
 
-// --- SUGGESTIONS STATE ---
-final queryProvider = NotifierProvider<QueryNotifier, String>(QueryNotifier.new);
+/// Override this provider to plug in real analytics (Phase 20+).
+final searchEventTrackerProvider = Provider<SearchEventTracker>((ref) {
+  return NoopSearchEventTracker();
+});
 
-class QueryNotifier extends Notifier<String> {
-  @override
-  String build() => '';
+// --- QUERY + STAGE STATE ---
+/// Tracks the current query text and the search lifecycle stage.
+///
+/// [query] mirrors every keystroke for immediate UI echo (clear button,
+/// idle/typing view switch). [debouncedQuery] only advances once the input
+/// debounce fires and is the ONLY field suggestion fetches should watch —
+/// otherwise every keystroke would fire a network request.
+class SearchQueryState {
+  final String query;
 
-  void update(String value) => state = value;
+  /// Debounce-settled query that drives suggestion requests.
+  final String debouncedQuery;
+  final SearchStage stage;
+
+  const SearchQueryState({
+    this.query = '',
+    this.debouncedQuery = '',
+    this.stage = SearchStage.idle,
+  });
+
+  SearchQueryState copyWith({
+    String? query,
+    String? debouncedQuery,
+    SearchStage? stage,
+  }) {
+    return SearchQueryState(
+      query: query ?? this.query,
+      debouncedQuery: debouncedQuery ?? this.debouncedQuery,
+      stage: stage ?? this.stage,
+    );
+  }
 }
 
-final suggestionsProvider = FutureProvider.autoDispose<List<SearchSuggestion>>((ref) async {
-  final query = ref.watch(queryProvider);
+final searchQueryProvider =
+    NotifierProvider<SearchQueryNotifier, SearchQueryState>(SearchQueryNotifier.new);
+
+class SearchQueryNotifier extends Notifier<SearchQueryState> {
+  @override
+  SearchQueryState build() => const SearchQueryState();
+
+  /// Called on every keystroke. Puts the flow into [SearchStage.typing]
+  /// while the debounce determines whether a suggestion fetch fires.
+  /// Does NOT advance [debouncedQuery].
+  void onTextChanged(String value) {
+    state = state.copyWith(query: value, stage: SearchStage.typing);
+  }
+
+  /// Debounced update that triggers suggestions. Called after the debounce
+  /// interval so we avoid firing a request on every keystroke.
+  void debouncedTextChanged(String value) {
+    state = SearchQueryState(
+      query: value,
+      debouncedQuery: value,
+      stage: value.trim().isEmpty ? SearchStage.idle : SearchStage.typing,
+    );
+  }
+
+  /// Clears the query and returns to idle.
+  void clear() {
+    state = const SearchQueryState();
+  }
+}
+
+// --- SUGGESTIONS STATE ---
+/// Watches ONLY the debounce-settled query. Selecting the single string field
+/// means keystrokes that merely echo text do not re-trigger this provider.
+final suggestionsProvider =
+    FutureProvider.autoDispose<List<SearchSuggestion>>((ref) async {
+  final query =
+      ref.watch(searchQueryProvider.select((s) => s.debouncedQuery)).trim();
   if (query.length < 2) return [];
   return ref.watch(searchRepositoryProvider).getSuggestions(query);
 });
 
-// --- RECENT & POPULAR SEARCHES ---
-final recentSearchesProvider = FutureProvider.autoDispose<List<String>>((ref) async {
-  return ref.watch(searchRepositoryProvider).getRecentSearches();
+// --- SEARCH HISTORY (delegates to the unified saved-and-history store) ---
+/// Single source of truth for search history is
+/// [SavedAndHistoryRepository] (recent searches are capped at 10 and
+/// de-duplicated there). This wrapper keeps the search UI API intact,
+/// migrates the legacy SharedPreferences list once, and never stores a
+/// second, diverging copy of the same history.
+class SearchHistoryStore {
+  static const String _legacyKey = 'search_history_v1';
+
+  final SavedAndHistoryRepository _repo;
+  SearchHistoryStore(this._repo);
+
+  Future<List<String>> load() async {
+    await _migrateLegacyHistory();
+    final items = await _repo.getRecentSearches();
+    return items.map((e) => e.query).toList();
+  }
+
+  /// One-time migration of the old SharedPreferences-based history so no
+  /// entries are lost or duplicated when switching to the unified store.
+  Future<void> _migrateLegacyHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getStringList(_legacyKey);
+      if (legacy == null || legacy.isEmpty) return;
+      for (final query in legacy) {
+        await _repo.addRecentSearch(query);
+      }
+      await prefs.remove(_legacyKey);
+    } catch (_) {
+      // Migration is best-effort; never block loading history.
+    }
+  }
+
+  Future<void> add(String query) => _repo.addRecentSearch(query);
+
+  Future<void> remove(String query) => _repo.removeRecentSearch(query);
+
+  Future<void> clear() => _repo.clearRecentSearches();
+}
+
+final searchHistoryStoreProvider = Provider<SearchHistoryStore>((ref) {
+  return SearchHistoryStore(ref.watch(savedAndHistoryRepositoryProvider));
 });
 
-final popularSearchesProvider = FutureProvider.autoDispose<List<String>>((ref) async {
+
+/// Version counter used to invalidate the cached [recentSearchesProvider].
+class RecentSearchesVersion extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final recentSearchesVersionProvider =
+    NotifierProvider<RecentSearchesVersion, int>(RecentSearchesVersion.new);
+
+/// Loads persisted recent searches. Re-runs whenever the version bumps.
+final recentSearchesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
+  ref.watch(recentSearchesVersionProvider);
+  return ref.watch(searchHistoryStoreProvider).load();
+});
+
+/// Convenience helper to persist a query and bump the version so the
+/// UI re-fetches the latest history.
+Future<void> saveRecentSearch(WidgetRef ref, String query) async {
+  await ref.read(searchHistoryStoreProvider).add(query);
+  ref.read(recentSearchesVersionProvider.notifier).bump();
+}
+
+// --- POPULAR SEARCHES ---
+final popularSearchesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
   return ref.watch(searchRepositoryProvider).getPopularSearches();
 });
 
 // --- RESULTS PAGINATION STATE ---
 class SearchPaginationState {
+  final SearchStage stage;
   final List<ShopProductResult> results;
   final bool isLoading;
   final bool isFetchingMore;
   final bool hasReachedMax;
   final String? error;
+  final SortOption sort;
+  final int currentPage;
+  final int totalResults;
+  final Map<String, dynamic> filters;
 
   const SearchPaginationState({
+    this.stage = SearchStage.idle,
     this.results = const [],
     this.isLoading = false,
     this.isFetchingMore = false,
     this.hasReachedMax = false,
     this.error,
+    this.sort = SortOption.nearest,
+    this.currentPage = 1,
+    this.totalResults = 0,
+    this.filters = const {},
   });
 
   SearchPaginationState copyWith({
+    SearchStage? stage,
     List<ShopProductResult>? results,
     bool? isLoading,
     bool? isFetchingMore,
     bool? hasReachedMax,
     String? error,
     bool clearError = false,
+    SortOption? sort,
+    int? currentPage,
+    int? totalResults,
+    Map<String, dynamic>? filters,
   }) {
     return SearchPaginationState(
+      stage: stage ?? this.stage,
       results: results ?? this.results,
       isLoading: isLoading ?? this.isLoading,
       isFetchingMore: isFetchingMore ?? this.isFetchingMore,
       hasReachedMax: hasReachedMax ?? this.hasReachedMax,
       error: clearError ? null : (error ?? this.error),
+      sort: sort ?? this.sort,
+      currentPage: currentPage ?? this.currentPage,
+      totalResults: totalResults ?? this.totalResults,
+      filters: filters ?? this.filters,
     );
+  }
+
+  /// Whether the current applied filters are anything other than defaults.
+  bool get hasActiveFilters =>
+      _isFilterActive('in_stock') ||
+      _isFilterActive('max_distance') ||
+      _isFilterActive('max_price') ||
+      _getFilterDouble('min_rating', 0) > 0 ||
+      _getFilterString('category') != null ||
+      _getFilterString('brand') != null;
+
+  bool get inStockOnly => _getFilterBool('in_stock', false);
+
+  double get maxDistance => _getFilterDouble('max_distance', 10.0);
+
+  double get maxPrice => _getFilterDouble('max_price', 5000.0);
+
+  double get minRating => _getFilterDouble('min_rating', 0);
+
+  String? get categoryFilter => _getFilterString('category');
+
+  String? get brandFilter => _getFilterString('brand');
+
+  bool _isFilterActive(String key) {
+    final value = filters[key];
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return false;
+  }
+
+  bool _getFilterBool(String key, bool fallback) {
+    final value = filters[key];
+    return value is bool ? value : fallback;
+  }
+
+  double _getFilterDouble(String key, double fallback) {
+    final value = filters[key];
+    return value is num ? value.toDouble() : fallback;
+  }
+
+  String? _getFilterString(String key) {
+    final value = filters[key];
+    return value is String && value.isNotEmpty ? value : null;
   }
 }
 
-final searchResultsProvider = NotifierProvider.family<SearchResultsController, SearchPaginationState, String>(
+final searchResultsProvider =
+    NotifierProvider.family<SearchResultsController, SearchPaginationState, String>(
   SearchResultsController.new,
 );
 
@@ -101,27 +289,59 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   @override
   SearchPaginationState build() {
     _fetchInitial();
-    return const SearchPaginationState();
+    return const SearchPaginationState(
+      stage: SearchStage.loading,
+    );
   }
 
   SearchRepository get _repo => ref.read(searchRepositoryProvider);
+  SearchEventTracker get _tracker => ref.read(searchEventTrackerProvider);
+
+  /// Best-effort user coordinates for geo-ranked results. Absent when the
+  /// customer has not granted/selected a location yet — the backend then
+  /// ranks by relevance alone.
+  ({double latitude, double longitude})? get _coords {
+    final location = ref.read(locationControllerProvider).location;
+    if (location == null || !location.hasValidCoordinates) return null;
+    return (latitude: location.latitude, longitude: location.longitude);
+  }
 
   Future<void> _fetchInitial() async {
-    state = const SearchPaginationState(isLoading: true);
+    state = const SearchPaginationState(
+      stage: SearchStage.loading,
+    );
     try {
+      final coords = _coords;
       final results = await _repo.searchProducts(
         query: query,
         page: _page,
         limit: _limit,
         sort: _currentSort,
         filters: _currentFilters,
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
       );
+      final stage = results.isEmpty ? SearchStage.empty : SearchStage.results;
       state = SearchPaginationState(
+        stage: stage,
         results: results,
         hasReachedMax: results.length < _limit,
+        sort: _currentSort,
+        currentPage: _page,
+        totalResults: results.length,
       );
+      _tracker.track(ResultsShownEvent(
+        query: query,
+        resultCount: results.length,
+        sort: _currentSort,
+      ));
     } catch (e) {
-      state = SearchPaginationState(error: e.toString());
+      state = SearchPaginationState(
+        stage: SearchStage.error,
+        // User-safe copy; raw exception text never reaches the UI.
+        error: friendlyErrorMessage(e),
+      );
+      _tracker.track(SearchErrorEvent(query: query, error: e.toString()));
     }
   }
 
@@ -131,20 +351,32 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
     state = state.copyWith(isFetchingMore: true, clearError: true);
     try {
       _page++;
+      final coords = _coords;
       final moreResults = await _repo.searchProducts(
         query: query,
         page: _page,
         limit: _limit,
         sort: _currentSort,
         filters: _currentFilters,
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
       );
+      final allResults = [...state.results, ...moreResults];
       state = SearchPaginationState(
-        results: [...state.results, ...moreResults],
+        stage: allResults.isEmpty ? SearchStage.empty : SearchStage.results,
+        results: allResults,
         hasReachedMax: moreResults.length < _limit,
+        sort: _currentSort,
+        currentPage: _page,
+        totalResults: allResults.length,
       );
+      _tracker.track(PaginationLoadedEvent(query: query, page: _page));
     } catch (e) {
-      // Revert fetching state but keep results, allow retry
-      state = state.copyWith(isFetchingMore: false, error: e.toString());
+      state = state.copyWith(
+        isFetchingMore: false,
+        // User-safe copy; raw exception text never reaches the UI.
+        error: friendlyErrorMessage(e),
+      );
     }
   }
 
@@ -164,5 +396,16 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   void retry() {
     _page = 1;
     _fetchInitial();
+  }
+
+  /// Cancel a pending search in the UI (e.g., user pressed back/escape).
+  void cancel() {
+    ref.read(searchQueryProvider.notifier).clear();
+    _page = 1;
+    _currentSort = SortOption.nearest;
+    _currentFilters = null;
+    state = const SearchPaginationState(
+      stage: SearchStage.idle,
+    );
   }
 }

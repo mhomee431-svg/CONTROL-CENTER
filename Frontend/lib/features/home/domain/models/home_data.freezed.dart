@@ -836,9 +836,287 @@ as String,
 
 
 /// @nodoc
+mixin _$Promotion {
+
+ String get id; String get title; String get subtitle; String get imageUrl; String? get ctaLabel; String? get ctaTarget;
+/// Create a copy of Promotion
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PromotionCopyWith<Promotion> get copyWith => _$PromotionCopyWithImpl<Promotion>(this as Promotion, _$identity);
+
+  /// Serializes this Promotion to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Promotion&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.subtitle, subtitle) || other.subtitle == subtitle)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.ctaLabel, ctaLabel) || other.ctaLabel == ctaLabel)&&(identical(other.ctaTarget, ctaTarget) || other.ctaTarget == ctaTarget));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,title,subtitle,imageUrl,ctaLabel,ctaTarget);
+
+@override
+String toString() {
+  return 'Promotion(id: $id, title: $title, subtitle: $subtitle, imageUrl: $imageUrl, ctaLabel: $ctaLabel, ctaTarget: $ctaTarget)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PromotionCopyWith<$Res>  {
+  factory $PromotionCopyWith(Promotion value, $Res Function(Promotion) _then) = _$PromotionCopyWithImpl;
+@useResult
+$Res call({
+ String id, String title, String subtitle, String imageUrl, String? ctaLabel, String? ctaTarget
+});
+
+
+
+
+}
+/// @nodoc
+class _$PromotionCopyWithImpl<$Res>
+    implements $PromotionCopyWith<$Res> {
+  _$PromotionCopyWithImpl(this._self, this._then);
+
+  final Promotion _self;
+  final $Res Function(Promotion) _then;
+
+/// Create a copy of Promotion
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? subtitle = null,Object? imageUrl = null,Object? ctaLabel = freezed,Object? ctaTarget = freezed,}) {
+  return _then(Promotion(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,subtitle: null == subtitle ? _self.subtitle : subtitle // ignore: cast_nullable_to_non_nullable
+as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String,ctaLabel: freezed == ctaLabel ? _self.ctaLabel : ctaLabel // ignore: cast_nullable_to_non_nullable
+as String?,ctaTarget: freezed == ctaTarget ? _self.ctaTarget : ctaTarget // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [Promotion].
+extension PromotionPatterns on Promotion {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _Promotion value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _Promotion() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _Promotion value)  $default,){
+final _that = this;
+switch (_that) {
+case _Promotion():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _Promotion value)?  $default,){
+final _that = this;
+switch (_that) {
+case _Promotion() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String subtitle,  String imageUrl,  String? ctaLabel,  String? ctaTarget)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _Promotion() when $default != null:
+return $default(_that.id,_that.title,_that.subtitle,_that.imageUrl,_that.ctaLabel,_that.ctaTarget);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String subtitle,  String imageUrl,  String? ctaLabel,  String? ctaTarget)  $default,) {final _that = this;
+switch (_that) {
+case _Promotion():
+return $default(_that.id,_that.title,_that.subtitle,_that.imageUrl,_that.ctaLabel,_that.ctaTarget);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String subtitle,  String imageUrl,  String? ctaLabel,  String? ctaTarget)?  $default,) {final _that = this;
+switch (_that) {
+case _Promotion() when $default != null:
+return $default(_that.id,_that.title,_that.subtitle,_that.imageUrl,_that.ctaLabel,_that.ctaTarget);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _Promotion implements Promotion {
+  const _Promotion({required this.id, required this.title, required this.subtitle, required this.imageUrl, this.ctaLabel, this.ctaTarget});
+  factory _Promotion.fromJson(Map<String, dynamic> json) => _$PromotionFromJson(json);
+
+@override final  String id;
+@override final  String title;
+@override final  String subtitle;
+@override final  String imageUrl;
+@override final  String? ctaLabel;
+@override final  String? ctaTarget;
+
+/// Create a copy of Promotion
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$PromotionCopyWith<_Promotion> get copyWith => __$PromotionCopyWithImpl<_Promotion>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$PromotionToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Promotion&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.subtitle, subtitle) || other.subtitle == subtitle)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.ctaLabel, ctaLabel) || other.ctaLabel == ctaLabel)&&(identical(other.ctaTarget, ctaTarget) || other.ctaTarget == ctaTarget));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,title,subtitle,imageUrl,ctaLabel,ctaTarget);
+
+@override
+String toString() {
+  return 'Promotion(id: $id, title: $title, subtitle: $subtitle, imageUrl: $imageUrl, ctaLabel: $ctaLabel, ctaTarget: $ctaTarget)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$PromotionCopyWith<$Res> implements $PromotionCopyWith<$Res> {
+  factory _$PromotionCopyWith(_Promotion value, $Res Function(_Promotion) _then) = __$PromotionCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String title, String subtitle, String imageUrl, String? ctaLabel, String? ctaTarget
+});
+
+
+
+
+}
+/// @nodoc
+class __$PromotionCopyWithImpl<$Res>
+    implements _$PromotionCopyWith<$Res> {
+  __$PromotionCopyWithImpl(this._self, this._then);
+
+  final _Promotion _self;
+  final $Res Function(_Promotion) _then;
+
+/// Create a copy of Promotion
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? subtitle = null,Object? imageUrl = null,Object? ctaLabel = freezed,Object? ctaTarget = freezed,}) {
+  return _then(_Promotion(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,subtitle: null == subtitle ? _self.subtitle : subtitle // ignore: cast_nullable_to_non_nullable
+as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String,ctaLabel: freezed == ctaLabel ? _self.ctaLabel : ctaLabel // ignore: cast_nullable_to_non_nullable
+as String?,ctaTarget: freezed == ctaTarget ? _self.ctaTarget : ctaTarget // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$HomeData {
 
- List<Category> get categories; List<Product> get popularProducts; List<Shop> get nearbyShops; List<String> get recentSearches;
+ List<Category> get categories; List<Product> get popularProducts; List<Shop> get nearbyShops; List<String> get recentSearches; List<Product> get recentlyViewed; List<Product> get recommendedProducts; List<Promotion> get promotions;
 /// Create a copy of HomeData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -851,16 +1129,16 @@ $HomeDataCopyWith<HomeData> get copyWith => _$HomeDataCopyWithImpl<HomeData>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HomeData&&const DeepCollectionEquality().equals(other.categories, categories)&&const DeepCollectionEquality().equals(other.popularProducts, popularProducts)&&const DeepCollectionEquality().equals(other.nearbyShops, nearbyShops)&&const DeepCollectionEquality().equals(other.recentSearches, recentSearches));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HomeData&&const DeepCollectionEquality().equals(other.categories, categories)&&const DeepCollectionEquality().equals(other.popularProducts, popularProducts)&&const DeepCollectionEquality().equals(other.nearbyShops, nearbyShops)&&const DeepCollectionEquality().equals(other.recentSearches, recentSearches)&&const DeepCollectionEquality().equals(other.recentlyViewed, recentlyViewed)&&const DeepCollectionEquality().equals(other.recommendedProducts, recommendedProducts)&&const DeepCollectionEquality().equals(other.promotions, promotions));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(categories),const DeepCollectionEquality().hash(popularProducts),const DeepCollectionEquality().hash(nearbyShops),const DeepCollectionEquality().hash(recentSearches));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(categories),const DeepCollectionEquality().hash(popularProducts),const DeepCollectionEquality().hash(nearbyShops),const DeepCollectionEquality().hash(recentSearches),const DeepCollectionEquality().hash(recentlyViewed),const DeepCollectionEquality().hash(recommendedProducts),const DeepCollectionEquality().hash(promotions));
 
 @override
 String toString() {
-  return 'HomeData(categories: $categories, popularProducts: $popularProducts, nearbyShops: $nearbyShops, recentSearches: $recentSearches)';
+  return 'HomeData(categories: $categories, popularProducts: $popularProducts, nearbyShops: $nearbyShops, recentSearches: $recentSearches, recentlyViewed: $recentlyViewed, recommendedProducts: $recommendedProducts, promotions: $promotions)';
 }
 
 
@@ -871,7 +1149,7 @@ abstract mixin class $HomeDataCopyWith<$Res>  {
   factory $HomeDataCopyWith(HomeData value, $Res Function(HomeData) _then) = _$HomeDataCopyWithImpl;
 @useResult
 $Res call({
- List<Category> categories, List<Product> popularProducts, List<Shop> nearbyShops, List<String> recentSearches
+ List<Category> categories, List<Product> popularProducts, List<Shop> nearbyShops, List<String> recentSearches, List<Product> recentlyViewed, List<Product> recommendedProducts, List<Promotion> promotions
 });
 
 
@@ -888,13 +1166,16 @@ class _$HomeDataCopyWithImpl<$Res>
 
 /// Create a copy of HomeData
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? categories = null,Object? popularProducts = null,Object? nearbyShops = null,Object? recentSearches = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? categories = null,Object? popularProducts = null,Object? nearbyShops = null,Object? recentSearches = null,Object? recentlyViewed = null,Object? recommendedProducts = null,Object? promotions = null,}) {
   return _then(HomeData(
 categories: null == categories ? _self.categories : categories // ignore: cast_nullable_to_non_nullable
 as List<Category>,popularProducts: null == popularProducts ? _self.popularProducts : popularProducts // ignore: cast_nullable_to_non_nullable
 as List<Product>,nearbyShops: null == nearbyShops ? _self.nearbyShops : nearbyShops // ignore: cast_nullable_to_non_nullable
 as List<Shop>,recentSearches: null == recentSearches ? _self.recentSearches : recentSearches // ignore: cast_nullable_to_non_nullable
-as List<String>,
+as List<String>,recentlyViewed: null == recentlyViewed ? _self.recentlyViewed : recentlyViewed // ignore: cast_nullable_to_non_nullable
+as List<Product>,recommendedProducts: null == recommendedProducts ? _self.recommendedProducts : recommendedProducts // ignore: cast_nullable_to_non_nullable
+as List<Product>,promotions: null == promotions ? _self.promotions : promotions // ignore: cast_nullable_to_non_nullable
+as List<Promotion>,
   ));
 }
 
@@ -979,10 +1260,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Category> categories,  List<Product> popularProducts,  List<Shop> nearbyShops,  List<String> recentSearches)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Category> categories,  List<Product> popularProducts,  List<Shop> nearbyShops,  List<String> recentSearches,  List<Product> recentlyViewed,  List<Product> recommendedProducts,  List<Promotion> promotions)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HomeData() when $default != null:
-return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.recentSearches);case _:
+return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.recentSearches,_that.recentlyViewed,_that.recommendedProducts,_that.promotions);case _:
   return orElse();
 
 }
@@ -1000,10 +1281,10 @@ return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.r
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Category> categories,  List<Product> popularProducts,  List<Shop> nearbyShops,  List<String> recentSearches)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Category> categories,  List<Product> popularProducts,  List<Shop> nearbyShops,  List<String> recentSearches,  List<Product> recentlyViewed,  List<Product> recommendedProducts,  List<Promotion> promotions)  $default,) {final _that = this;
 switch (_that) {
 case _HomeData():
-return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.recentSearches);case _:
+return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.recentSearches,_that.recentlyViewed,_that.recommendedProducts,_that.promotions);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1020,10 +1301,10 @@ return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.r
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Category> categories,  List<Product> popularProducts,  List<Shop> nearbyShops,  List<String> recentSearches)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Category> categories,  List<Product> popularProducts,  List<Shop> nearbyShops,  List<String> recentSearches,  List<Product> recentlyViewed,  List<Product> recommendedProducts,  List<Promotion> promotions)?  $default,) {final _that = this;
 switch (_that) {
 case _HomeData() when $default != null:
-return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.recentSearches);case _:
+return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.recentSearches,_that.recentlyViewed,_that.recommendedProducts,_that.promotions);case _:
   return null;
 
 }
@@ -1035,7 +1316,7 @@ return $default(_that.categories,_that.popularProducts,_that.nearbyShops,_that.r
 @JsonSerializable()
 
 class _HomeData implements HomeData {
-  const _HomeData({required  List<Category> categories, required  List<Product> popularProducts, required  List<Shop> nearbyShops, required  List<String> recentSearches}): _categories = categories,_popularProducts = popularProducts,_nearbyShops = nearbyShops,_recentSearches = recentSearches;
+  const _HomeData({required  List<Category> categories, required  List<Product> popularProducts, required  List<Shop> nearbyShops, required  List<String> recentSearches,  List<Product> recentlyViewed = const [],  List<Product> recommendedProducts = const [],  List<Promotion> promotions = const []}): _categories = categories,_popularProducts = popularProducts,_nearbyShops = nearbyShops,_recentSearches = recentSearches,_recentlyViewed = recentlyViewed,_recommendedProducts = recommendedProducts,_promotions = promotions;
   factory _HomeData.fromJson(Map<String, dynamic> json) => _$HomeDataFromJson(json);
 
  final  List<Category> _categories;
@@ -1066,6 +1347,27 @@ class _HomeData implements HomeData {
   return EqualUnmodifiableListView(_recentSearches);
 }
 
+ final  List<Product> _recentlyViewed;
+@override@JsonKey() List<Product> get recentlyViewed {
+  if (_recentlyViewed is EqualUnmodifiableListView) return _recentlyViewed;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_recentlyViewed);
+}
+
+ final  List<Product> _recommendedProducts;
+@override@JsonKey() List<Product> get recommendedProducts {
+  if (_recommendedProducts is EqualUnmodifiableListView) return _recommendedProducts;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_recommendedProducts);
+}
+
+ final  List<Promotion> _promotions;
+@override@JsonKey() List<Promotion> get promotions {
+  if (_promotions is EqualUnmodifiableListView) return _promotions;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_promotions);
+}
+
 
 /// Create a copy of HomeData
 /// with the given fields replaced by the non-null parameter values.
@@ -1080,16 +1382,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HomeData&&const DeepCollectionEquality().equals(other._categories, _categories)&&const DeepCollectionEquality().equals(other._popularProducts, _popularProducts)&&const DeepCollectionEquality().equals(other._nearbyShops, _nearbyShops)&&const DeepCollectionEquality().equals(other._recentSearches, _recentSearches));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HomeData&&const DeepCollectionEquality().equals(other._categories, _categories)&&const DeepCollectionEquality().equals(other._popularProducts, _popularProducts)&&const DeepCollectionEquality().equals(other._nearbyShops, _nearbyShops)&&const DeepCollectionEquality().equals(other._recentSearches, _recentSearches)&&const DeepCollectionEquality().equals(other._recentlyViewed, _recentlyViewed)&&const DeepCollectionEquality().equals(other._recommendedProducts, _recommendedProducts)&&const DeepCollectionEquality().equals(other._promotions, _promotions));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_popularProducts),const DeepCollectionEquality().hash(_nearbyShops),const DeepCollectionEquality().hash(_recentSearches));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_popularProducts),const DeepCollectionEquality().hash(_nearbyShops),const DeepCollectionEquality().hash(_recentSearches),const DeepCollectionEquality().hash(_recentlyViewed),const DeepCollectionEquality().hash(_recommendedProducts),const DeepCollectionEquality().hash(_promotions));
 
 @override
 String toString() {
-  return 'HomeData(categories: $categories, popularProducts: $popularProducts, nearbyShops: $nearbyShops, recentSearches: $recentSearches)';
+  return 'HomeData(categories: $categories, popularProducts: $popularProducts, nearbyShops: $nearbyShops, recentSearches: $recentSearches, recentlyViewed: $recentlyViewed, recommendedProducts: $recommendedProducts, promotions: $promotions)';
 }
 
 
@@ -1100,7 +1402,7 @@ abstract mixin class _$HomeDataCopyWith<$Res> implements $HomeDataCopyWith<$Res>
   factory _$HomeDataCopyWith(_HomeData value, $Res Function(_HomeData) _then) = __$HomeDataCopyWithImpl;
 @override @useResult
 $Res call({
- List<Category> categories, List<Product> popularProducts, List<Shop> nearbyShops, List<String> recentSearches
+ List<Category> categories, List<Product> popularProducts, List<Shop> nearbyShops, List<String> recentSearches, List<Product> recentlyViewed, List<Product> recommendedProducts, List<Promotion> promotions
 });
 
 
@@ -1117,13 +1419,16 @@ class __$HomeDataCopyWithImpl<$Res>
 
 /// Create a copy of HomeData
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? categories = null,Object? popularProducts = null,Object? nearbyShops = null,Object? recentSearches = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? categories = null,Object? popularProducts = null,Object? nearbyShops = null,Object? recentSearches = null,Object? recentlyViewed = null,Object? recommendedProducts = null,Object? promotions = null,}) {
   return _then(_HomeData(
 categories: null == categories ? _self._categories : categories // ignore: cast_nullable_to_non_nullable
 as List<Category>,popularProducts: null == popularProducts ? _self._popularProducts : popularProducts // ignore: cast_nullable_to_non_nullable
 as List<Product>,nearbyShops: null == nearbyShops ? _self._nearbyShops : nearbyShops // ignore: cast_nullable_to_non_nullable
 as List<Shop>,recentSearches: null == recentSearches ? _self._recentSearches : recentSearches // ignore: cast_nullable_to_non_nullable
-as List<String>,
+as List<String>,recentlyViewed: null == recentlyViewed ? _self._recentlyViewed : recentlyViewed // ignore: cast_nullable_to_non_nullable
+as List<Product>,recommendedProducts: null == recommendedProducts ? _self._recommendedProducts : recommendedProducts // ignore: cast_nullable_to_non_nullable
+as List<Product>,promotions: null == promotions ? _self._promotions : promotions // ignore: cast_nullable_to_non_nullable
+as List<Promotion>,
   ));
 }
 

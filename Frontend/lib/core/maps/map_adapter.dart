@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../env/env.dart';
+import '../env/env_config.dart';
+import '../theme/app_theme.dart';
 
 /// Abstraction layer for Map Providers (Google Maps, Mapbox, OSM, etc.)
 ///
@@ -15,6 +16,12 @@ abstract class MapAdapter {
     required double destLng,
     required String destName,
   });
+
+  /// Builds a loading placeholder while the map is initializing.
+  Widget buildLoading();
+
+  /// Builds an error placeholder when the map fails to load.
+  Widget buildError({required String message, VoidCallback? onRetry});
 }
 
 // In a real app, this would return GoogleMapAdapter or MapboxAdapter.
@@ -56,7 +63,7 @@ class StubMapAdapter implements MapAdapter {
             child: Icon(Icons.location_on, color: Colors.red, size: 40),
           ),
           // Show API key presence (empty = not configured)
-          if (Env.mapsApiKey.isEmpty)
+          if (EnvConfig.mapsApiKey.isEmpty)
             const Positioned(
               bottom: 8,
               left: 0,
@@ -68,6 +75,48 @@ class StubMapAdapter implements MapAdapter {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget buildLoading() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator.adaptive(),
+            SizedBox(height: 16),
+            Text('Loading map...'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget buildError({required String message, VoidCallback? onRetry}) {
+    return Container(
+      color: Colors.grey.shade200,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.map_outlined, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
+          ],
+        ),
       ),
     );
   }

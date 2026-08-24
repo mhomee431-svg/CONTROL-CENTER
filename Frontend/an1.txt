@@ -1,0 +1,8 @@
+Analyzing Frontend...                                           
+
+   info - Uses 'await' on an instance of 'void', which is not a subtype of 'Future'. Try removing the 'await' or changing the expression - test\features\notifications\notification_preferences_controller_test.dart:58:7 - await_only_futures
+  error - This expression has a type of 'void' so its value can't be used. Try checking to see if you're using the correct API; there might be a function or call that returns void you didn't expect. Also check type parameters and variables which might also be void - test\features\notifications\notification_preferences_controller_test.dart:60:12 - use_of_void_result
+   info - Uses 'await' on an instance of 'void', which is not a subtype of 'Future'. Try removing the 'await' or changing the expression - test\features\notifications\notification_preferences_controller_test.dart:85:7 - await_only_futures
+  error - This expression has a type of 'void' so its value can't be used. Try checking to see if you're using the correct API; there might be a function or call that returns void you didn't expect. Also check type parameters and variables which might also be void - test\features\notifications\notification_preferences_controller_test.dart:87:12 - use_of_void_result
+
+4 issues found. (ran in 14.2s)

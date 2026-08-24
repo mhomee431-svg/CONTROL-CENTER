@@ -21,6 +21,24 @@ class VerifyOTPRequest(BaseModel):
     app_version: str | None = None
 
 
+class RegisterRequest(BaseModel):
+    """Explicit first-time registration with a display name.
+
+    The customer app sends this after the OTP screen when the user is new.
+    Behaves like verify-otp but also persists the chosen display name and
+    rejects accounts that already exist (those should sign in instead).
+    """
+
+    phone_number: str = Field(..., min_length=10, max_length=15)
+    otp: str = Field(..., min_length=4, max_length=8)
+    name: str = Field(..., min_length=1, max_length=100)
+    device_id: str | None = Field(None, description="Stable device identifier")
+    device_name: str | None = None
+    device_type: str | None = Field(None, description="android, ios, web")
+    platform: str | None = Field(None, description="OS version / platform info")
+    app_version: str | None = None
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
     device_id: str | None = None

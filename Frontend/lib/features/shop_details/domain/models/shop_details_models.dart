@@ -34,7 +34,33 @@ abstract class ShopProfile with _$ShopProfile {
     required List<String> activeOffers,
     required List<ShopProductSummary> availableProducts,
     @Default(false) bool isSaved,
+
+    /// Categories the shop belongs to (e.g. "Electronics", "Mobile").
+    @Default([]) List<String> categories,
+
+    /// Whether the shop is verified by the platform.
+    @Default(false) bool isVerified,
+
+    /// Shop latitude coordinate (0 = unavailable).
+    @Default(0.0) double latitude,
+
+    /// Shop longitude coordinate (0 = unavailable).
+    @Default(0.0) double longitude,
+
+    /// Secondary contact (e.g. WhatsApp) if available.
+    @Default('') String secondaryPhone,
+
+    /// Email contact if available.
+    @Default('') String email,
   }) = _ShopProfile;
 
+  const ShopProfile._();
+
   factory ShopProfile.fromJson(Map<String, dynamic> json) => _$ShopProfileFromJson(json);
+
+  /// Whether the shop has usable coordinates for map/directions.
+  bool get hasValidCoordinates =>
+      latitude != 0 && longitude != 0 &&
+      latitude >= -90 && latitude <= 90 &&
+      longitude >= -180 && longitude <= 180;
 }

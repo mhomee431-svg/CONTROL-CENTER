@@ -12,5 +12,7 @@ final homeRepositoryProvider = Provider<HomeRepository>((ref) {
 });
 
 abstract class HomeRepository {
-  Future<HomeData> fetchHomeFeed();
+  /// Fetches the home feed. Coordinates are optional: when supplied, the
+  /// backend ranks/sorts nearby content by distance.
+  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude});
 }

@@ -285,7 +285,7 @@ as bool,
 /// @nodoc
 mixin _$ShopProductResult {
 
- String get id; String get productId; String get productName; String get productImageUrl; String get shopId; String get shopName; double get price; bool get isAvailable; double get distanceInKm; double get shopRating; DateTime get lastUpdated; String? get offerText;
+ String get id; String get productId; String get productName; String get productImageUrl; String get shopId; String get shopName; double get price; bool get isAvailable; double get distanceInKm; double get shopRating; DateTime get lastUpdated; String? get variant; double? get mrp; String? get shopImageUrl; String? get offerText; String? get shopAddress; double? get shopLatitude; double? get shopLongitude; String? get category; String? get brand; int? get reviewCount; InventoryAvailability get availability; FreshnessLevel get freshness;
 /// Create a copy of ShopProductResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -298,16 +298,16 @@ $ShopProductResultCopyWith<ShopProductResult> get copyWith => _$ShopProductResul
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShopProductResult&&(identical(other.id, id) || other.id == id)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&(identical(other.productImageUrl, productImageUrl) || other.productImageUrl == productImageUrl)&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.price, price) || other.price == price)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.shopRating, shopRating) || other.shopRating == shopRating)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.offerText, offerText) || other.offerText == offerText));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShopProductResult&&(identical(other.id, id) || other.id == id)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&(identical(other.productImageUrl, productImageUrl) || other.productImageUrl == productImageUrl)&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.price, price) || other.price == price)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.shopRating, shopRating) || other.shopRating == shopRating)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.variant, variant) || other.variant == variant)&&(identical(other.mrp, mrp) || other.mrp == mrp)&&(identical(other.shopImageUrl, shopImageUrl) || other.shopImageUrl == shopImageUrl)&&(identical(other.offerText, offerText) || other.offerText == offerText)&&(identical(other.shopAddress, shopAddress) || other.shopAddress == shopAddress)&&(identical(other.shopLatitude, shopLatitude) || other.shopLatitude == shopLatitude)&&(identical(other.shopLongitude, shopLongitude) || other.shopLongitude == shopLongitude)&&(identical(other.category, category) || other.category == category)&&(identical(other.brand, brand) || other.brand == brand)&&(identical(other.reviewCount, reviewCount) || other.reviewCount == reviewCount)&&(identical(other.availability, availability) || other.availability == availability)&&(identical(other.freshness, freshness) || other.freshness == freshness));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,productId,productName,productImageUrl,shopId,shopName,price,isAvailable,distanceInKm,shopRating,lastUpdated,offerText);
+int get hashCode => Object.hashAll([runtimeType,id,productId,productName,productImageUrl,shopId,shopName,price,isAvailable,distanceInKm,shopRating,lastUpdated,variant,mrp,shopImageUrl,offerText,shopAddress,shopLatitude,shopLongitude,category,brand,reviewCount,availability,freshness]);
 
 @override
 String toString() {
-  return 'ShopProductResult(id: $id, productId: $productId, productName: $productName, productImageUrl: $productImageUrl, shopId: $shopId, shopName: $shopName, price: $price, isAvailable: $isAvailable, distanceInKm: $distanceInKm, shopRating: $shopRating, lastUpdated: $lastUpdated, offerText: $offerText)';
+  return 'ShopProductResult(id: $id, productId: $productId, productName: $productName, productImageUrl: $productImageUrl, shopId: $shopId, shopName: $shopName, price: $price, isAvailable: $isAvailable, distanceInKm: $distanceInKm, shopRating: $shopRating, lastUpdated: $lastUpdated, variant: $variant, mrp: $mrp, shopImageUrl: $shopImageUrl, offerText: $offerText, shopAddress: $shopAddress, shopLatitude: $shopLatitude, shopLongitude: $shopLongitude, category: $category, brand: $brand, reviewCount: $reviewCount, availability: $availability, freshness: $freshness)';
 }
 
 
@@ -318,7 +318,7 @@ abstract mixin class $ShopProductResultCopyWith<$Res>  {
   factory $ShopProductResultCopyWith(ShopProductResult value, $Res Function(ShopProductResult) _then) = _$ShopProductResultCopyWithImpl;
 @useResult
 $Res call({
- String id, String productId, String productName, String productImageUrl, String shopId, String shopName, double price, bool isAvailable, double distanceInKm, double shopRating, DateTime lastUpdated, String? offerText
+ String id, String productId, String productName, String productImageUrl, String shopId, String shopName, double price, bool isAvailable, double distanceInKm, double shopRating, DateTime lastUpdated, String? variant, double? mrp, String? shopImageUrl, String? offerText, String? shopAddress, double? shopLatitude, double? shopLongitude, String? category, String? brand, int? reviewCount, InventoryAvailability availability, FreshnessLevel freshness
 });
 
 
@@ -335,7 +335,7 @@ class _$ShopProductResultCopyWithImpl<$Res>
 
 /// Create a copy of ShopProductResult
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? productId = null,Object? productName = null,Object? productImageUrl = null,Object? shopId = null,Object? shopName = null,Object? price = null,Object? isAvailable = null,Object? distanceInKm = null,Object? shopRating = null,Object? lastUpdated = null,Object? offerText = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? productId = null,Object? productName = null,Object? productImageUrl = null,Object? shopId = null,Object? shopName = null,Object? price = null,Object? isAvailable = null,Object? distanceInKm = null,Object? shopRating = null,Object? lastUpdated = null,Object? variant = freezed,Object? mrp = freezed,Object? shopImageUrl = freezed,Object? offerText = freezed,Object? shopAddress = freezed,Object? shopLatitude = freezed,Object? shopLongitude = freezed,Object? category = freezed,Object? brand = freezed,Object? reviewCount = freezed,Object? availability = null,Object? freshness = null,}) {
   return _then(ShopProductResult(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
@@ -348,8 +348,19 @@ as double,isAvailable: null == isAvailable ? _self.isAvailable : isAvailable // 
 as bool,distanceInKm: null == distanceInKm ? _self.distanceInKm : distanceInKm // ignore: cast_nullable_to_non_nullable
 as double,shopRating: null == shopRating ? _self.shopRating : shopRating // ignore: cast_nullable_to_non_nullable
 as double,lastUpdated: null == lastUpdated ? _self.lastUpdated : lastUpdated // ignore: cast_nullable_to_non_nullable
-as DateTime,offerText: freezed == offerText ? _self.offerText : offerText // ignore: cast_nullable_to_non_nullable
-as String?,
+as DateTime,variant: freezed == variant ? _self.variant : variant // ignore: cast_nullable_to_non_nullable
+as String?,mrp: freezed == mrp ? _self.mrp : mrp // ignore: cast_nullable_to_non_nullable
+as double?,shopImageUrl: freezed == shopImageUrl ? _self.shopImageUrl : shopImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,offerText: freezed == offerText ? _self.offerText : offerText // ignore: cast_nullable_to_non_nullable
+as String?,shopAddress: freezed == shopAddress ? _self.shopAddress : shopAddress // ignore: cast_nullable_to_non_nullable
+as String?,shopLatitude: freezed == shopLatitude ? _self.shopLatitude : shopLatitude // ignore: cast_nullable_to_non_nullable
+as double?,shopLongitude: freezed == shopLongitude ? _self.shopLongitude : shopLongitude // ignore: cast_nullable_to_non_nullable
+as double?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as String?,brand: freezed == brand ? _self.brand : brand // ignore: cast_nullable_to_non_nullable
+as String?,reviewCount: freezed == reviewCount ? _self.reviewCount : reviewCount // ignore: cast_nullable_to_non_nullable
+as int?,availability: null == availability ? _self.availability : availability // ignore: cast_nullable_to_non_nullable
+as InventoryAvailability,freshness: null == freshness ? _self.freshness : freshness // ignore: cast_nullable_to_non_nullable
+as FreshnessLevel,
   ));
 }
 
@@ -434,10 +445,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String productId,  String productName,  String productImageUrl,  String shopId,  String shopName,  double price,  bool isAvailable,  double distanceInKm,  double shopRating,  DateTime lastUpdated,  String? offerText)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String productId,  String productName,  String productImageUrl,  String shopId,  String shopName,  double price,  bool isAvailable,  double distanceInKm,  double shopRating,  DateTime lastUpdated,  String? variant,  double? mrp,  String? shopImageUrl,  String? offerText,  String? shopAddress,  double? shopLatitude,  double? shopLongitude,  String? category,  String? brand,  int? reviewCount,  InventoryAvailability availability,  FreshnessLevel freshness)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ShopProductResult() when $default != null:
-return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl,_that.shopId,_that.shopName,_that.price,_that.isAvailable,_that.distanceInKm,_that.shopRating,_that.lastUpdated,_that.offerText);case _:
+return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl,_that.shopId,_that.shopName,_that.price,_that.isAvailable,_that.distanceInKm,_that.shopRating,_that.lastUpdated,_that.variant,_that.mrp,_that.shopImageUrl,_that.offerText,_that.shopAddress,_that.shopLatitude,_that.shopLongitude,_that.category,_that.brand,_that.reviewCount,_that.availability,_that.freshness);case _:
   return orElse();
 
 }
@@ -455,10 +466,10 @@ return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String productId,  String productName,  String productImageUrl,  String shopId,  String shopName,  double price,  bool isAvailable,  double distanceInKm,  double shopRating,  DateTime lastUpdated,  String? offerText)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String productId,  String productName,  String productImageUrl,  String shopId,  String shopName,  double price,  bool isAvailable,  double distanceInKm,  double shopRating,  DateTime lastUpdated,  String? variant,  double? mrp,  String? shopImageUrl,  String? offerText,  String? shopAddress,  double? shopLatitude,  double? shopLongitude,  String? category,  String? brand,  int? reviewCount,  InventoryAvailability availability,  FreshnessLevel freshness)  $default,) {final _that = this;
 switch (_that) {
 case _ShopProductResult():
-return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl,_that.shopId,_that.shopName,_that.price,_that.isAvailable,_that.distanceInKm,_that.shopRating,_that.lastUpdated,_that.offerText);case _:
+return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl,_that.shopId,_that.shopName,_that.price,_that.isAvailable,_that.distanceInKm,_that.shopRating,_that.lastUpdated,_that.variant,_that.mrp,_that.shopImageUrl,_that.offerText,_that.shopAddress,_that.shopLatitude,_that.shopLongitude,_that.category,_that.brand,_that.reviewCount,_that.availability,_that.freshness);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -475,10 +486,10 @@ return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String productId,  String productName,  String productImageUrl,  String shopId,  String shopName,  double price,  bool isAvailable,  double distanceInKm,  double shopRating,  DateTime lastUpdated,  String? offerText)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String productId,  String productName,  String productImageUrl,  String shopId,  String shopName,  double price,  bool isAvailable,  double distanceInKm,  double shopRating,  DateTime lastUpdated,  String? variant,  double? mrp,  String? shopImageUrl,  String? offerText,  String? shopAddress,  double? shopLatitude,  double? shopLongitude,  String? category,  String? brand,  int? reviewCount,  InventoryAvailability availability,  FreshnessLevel freshness)?  $default,) {final _that = this;
 switch (_that) {
 case _ShopProductResult() when $default != null:
-return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl,_that.shopId,_that.shopName,_that.price,_that.isAvailable,_that.distanceInKm,_that.shopRating,_that.lastUpdated,_that.offerText);case _:
+return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl,_that.shopId,_that.shopName,_that.price,_that.isAvailable,_that.distanceInKm,_that.shopRating,_that.lastUpdated,_that.variant,_that.mrp,_that.shopImageUrl,_that.offerText,_that.shopAddress,_that.shopLatitude,_that.shopLongitude,_that.category,_that.brand,_that.reviewCount,_that.availability,_that.freshness);case _:
   return null;
 
 }
@@ -489,8 +500,8 @@ return $default(_that.id,_that.productId,_that.productName,_that.productImageUrl
 /// @nodoc
 @JsonSerializable()
 
-class _ShopProductResult implements ShopProductResult {
-  const _ShopProductResult({required this.id, required this.productId, required this.productName, required this.productImageUrl, required this.shopId, required this.shopName, required this.price, required this.isAvailable, required this.distanceInKm, required this.shopRating, required this.lastUpdated, this.offerText});
+class _ShopProductResult extends ShopProductResult {
+  const _ShopProductResult({required this.id, required this.productId, required this.productName, required this.productImageUrl, required this.shopId, required this.shopName, required this.price, required this.isAvailable, required this.distanceInKm, required this.shopRating, required this.lastUpdated, this.variant, this.mrp, this.shopImageUrl, this.offerText, this.shopAddress, this.shopLatitude, this.shopLongitude, this.category, this.brand, this.reviewCount, this.availability = InventoryAvailability.unknown, this.freshness = FreshnessLevel.unknown}): super._();
   factory _ShopProductResult.fromJson(Map<String, dynamic> json) => _$ShopProductResultFromJson(json);
 
 @override final  String id;
@@ -504,7 +515,18 @@ class _ShopProductResult implements ShopProductResult {
 @override final  double distanceInKm;
 @override final  double shopRating;
 @override final  DateTime lastUpdated;
+@override final  String? variant;
+@override final  double? mrp;
+@override final  String? shopImageUrl;
 @override final  String? offerText;
+@override final  String? shopAddress;
+@override final  double? shopLatitude;
+@override final  double? shopLongitude;
+@override final  String? category;
+@override final  String? brand;
+@override final  int? reviewCount;
+@override@JsonKey() final  InventoryAvailability availability;
+@override@JsonKey() final  FreshnessLevel freshness;
 
 /// Create a copy of ShopProductResult
 /// with the given fields replaced by the non-null parameter values.
@@ -519,16 +541,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShopProductResult&&(identical(other.id, id) || other.id == id)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&(identical(other.productImageUrl, productImageUrl) || other.productImageUrl == productImageUrl)&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.price, price) || other.price == price)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.shopRating, shopRating) || other.shopRating == shopRating)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.offerText, offerText) || other.offerText == offerText));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShopProductResult&&(identical(other.id, id) || other.id == id)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&(identical(other.productImageUrl, productImageUrl) || other.productImageUrl == productImageUrl)&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.price, price) || other.price == price)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.shopRating, shopRating) || other.shopRating == shopRating)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.variant, variant) || other.variant == variant)&&(identical(other.mrp, mrp) || other.mrp == mrp)&&(identical(other.shopImageUrl, shopImageUrl) || other.shopImageUrl == shopImageUrl)&&(identical(other.offerText, offerText) || other.offerText == offerText)&&(identical(other.shopAddress, shopAddress) || other.shopAddress == shopAddress)&&(identical(other.shopLatitude, shopLatitude) || other.shopLatitude == shopLatitude)&&(identical(other.shopLongitude, shopLongitude) || other.shopLongitude == shopLongitude)&&(identical(other.category, category) || other.category == category)&&(identical(other.brand, brand) || other.brand == brand)&&(identical(other.reviewCount, reviewCount) || other.reviewCount == reviewCount)&&(identical(other.availability, availability) || other.availability == availability)&&(identical(other.freshness, freshness) || other.freshness == freshness));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,productId,productName,productImageUrl,shopId,shopName,price,isAvailable,distanceInKm,shopRating,lastUpdated,offerText);
+int get hashCode => Object.hashAll([runtimeType,id,productId,productName,productImageUrl,shopId,shopName,price,isAvailable,distanceInKm,shopRating,lastUpdated,variant,mrp,shopImageUrl,offerText,shopAddress,shopLatitude,shopLongitude,category,brand,reviewCount,availability,freshness]);
 
 @override
 String toString() {
-  return 'ShopProductResult(id: $id, productId: $productId, productName: $productName, productImageUrl: $productImageUrl, shopId: $shopId, shopName: $shopName, price: $price, isAvailable: $isAvailable, distanceInKm: $distanceInKm, shopRating: $shopRating, lastUpdated: $lastUpdated, offerText: $offerText)';
+  return 'ShopProductResult(id: $id, productId: $productId, productName: $productName, productImageUrl: $productImageUrl, shopId: $shopId, shopName: $shopName, price: $price, isAvailable: $isAvailable, distanceInKm: $distanceInKm, shopRating: $shopRating, lastUpdated: $lastUpdated, variant: $variant, mrp: $mrp, shopImageUrl: $shopImageUrl, offerText: $offerText, shopAddress: $shopAddress, shopLatitude: $shopLatitude, shopLongitude: $shopLongitude, category: $category, brand: $brand, reviewCount: $reviewCount, availability: $availability, freshness: $freshness)';
 }
 
 
@@ -539,7 +561,7 @@ abstract mixin class _$ShopProductResultCopyWith<$Res> implements $ShopProductRe
   factory _$ShopProductResultCopyWith(_ShopProductResult value, $Res Function(_ShopProductResult) _then) = __$ShopProductResultCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String productId, String productName, String productImageUrl, String shopId, String shopName, double price, bool isAvailable, double distanceInKm, double shopRating, DateTime lastUpdated, String? offerText
+ String id, String productId, String productName, String productImageUrl, String shopId, String shopName, double price, bool isAvailable, double distanceInKm, double shopRating, DateTime lastUpdated, String? variant, double? mrp, String? shopImageUrl, String? offerText, String? shopAddress, double? shopLatitude, double? shopLongitude, String? category, String? brand, int? reviewCount, InventoryAvailability availability, FreshnessLevel freshness
 });
 
 
@@ -556,7 +578,7 @@ class __$ShopProductResultCopyWithImpl<$Res>
 
 /// Create a copy of ShopProductResult
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? productId = null,Object? productName = null,Object? productImageUrl = null,Object? shopId = null,Object? shopName = null,Object? price = null,Object? isAvailable = null,Object? distanceInKm = null,Object? shopRating = null,Object? lastUpdated = null,Object? offerText = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? productId = null,Object? productName = null,Object? productImageUrl = null,Object? shopId = null,Object? shopName = null,Object? price = null,Object? isAvailable = null,Object? distanceInKm = null,Object? shopRating = null,Object? lastUpdated = null,Object? variant = freezed,Object? mrp = freezed,Object? shopImageUrl = freezed,Object? offerText = freezed,Object? shopAddress = freezed,Object? shopLatitude = freezed,Object? shopLongitude = freezed,Object? category = freezed,Object? brand = freezed,Object? reviewCount = freezed,Object? availability = null,Object? freshness = null,}) {
   return _then(_ShopProductResult(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
@@ -569,8 +591,19 @@ as double,isAvailable: null == isAvailable ? _self.isAvailable : isAvailable // 
 as bool,distanceInKm: null == distanceInKm ? _self.distanceInKm : distanceInKm // ignore: cast_nullable_to_non_nullable
 as double,shopRating: null == shopRating ? _self.shopRating : shopRating // ignore: cast_nullable_to_non_nullable
 as double,lastUpdated: null == lastUpdated ? _self.lastUpdated : lastUpdated // ignore: cast_nullable_to_non_nullable
-as DateTime,offerText: freezed == offerText ? _self.offerText : offerText // ignore: cast_nullable_to_non_nullable
-as String?,
+as DateTime,variant: freezed == variant ? _self.variant : variant // ignore: cast_nullable_to_non_nullable
+as String?,mrp: freezed == mrp ? _self.mrp : mrp // ignore: cast_nullable_to_non_nullable
+as double?,shopImageUrl: freezed == shopImageUrl ? _self.shopImageUrl : shopImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,offerText: freezed == offerText ? _self.offerText : offerText // ignore: cast_nullable_to_non_nullable
+as String?,shopAddress: freezed == shopAddress ? _self.shopAddress : shopAddress // ignore: cast_nullable_to_non_nullable
+as String?,shopLatitude: freezed == shopLatitude ? _self.shopLatitude : shopLatitude // ignore: cast_nullable_to_non_nullable
+as double?,shopLongitude: freezed == shopLongitude ? _self.shopLongitude : shopLongitude // ignore: cast_nullable_to_non_nullable
+as double?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as String?,brand: freezed == brand ? _self.brand : brand // ignore: cast_nullable_to_non_nullable
+as String?,reviewCount: freezed == reviewCount ? _self.reviewCount : reviewCount // ignore: cast_nullable_to_non_nullable
+as int?,availability: null == availability ? _self.availability : availability // ignore: cast_nullable_to_non_nullable
+as InventoryAvailability,freshness: null == freshness ? _self.freshness : freshness // ignore: cast_nullable_to_non_nullable
+as FreshnessLevel,
   ));
 }
 

@@ -1,34 +1,36 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hyperlocal_customer_app/core/performance/debouncer.dart';
+import 'package:hyperlocal_customer_app/features/search/data/mock_search_repository.dart';
+import 'package:hyperlocal_customer_app/features/search/domain/models/search_models.dart';
+import 'package:hyperlocal_customer_app/features/search/domain/search_event_tracker.dart';
+import 'package:hyperlocal_customer_app/features/search/domain/search_repository.dart';
+import 'package:hyperlocal_customer_app/features/search/domain/search_state.dart';
 import 'package:hyperlocal_customer_app/features/search/presentation/controllers/search_controller.dart';
 
 void main() {
   group('Debouncer', () {
     test('cancels previous timers and only runs the latest action', () async {
-      final debouncer = Debouncer(milliseconds: 100);
+      final debouncer = Debouncer(delay: const Duration(milliseconds: 100));
       var callCount = 0;
 
-      // Fire multiple actions quickly
       debouncer.run(() => callCount++);
       debouncer.run(() => callCount++);
       debouncer.run(() => callCount++);
 
-      // Wait for the debounce period to elapse
       await Future.delayed(const Duration(milliseconds: 200));
 
-      // Only the last action should have executed
       expect(callCount, 1);
 
       debouncer.dispose();
     });
 
     test('executes action after the debounce period', () async {
-      final debouncer = Debouncer(milliseconds: 50);
+      final debouncer = Debouncer(delay: const Duration(milliseconds: 50));
       var executed = false;
 
       debouncer.run(() => executed = true);
 
-      // Before the debounce period, action should not have run
       expect(executed, false);
 
       await Future.delayed(const Duration(milliseconds: 100));
@@ -39,24 +41,86 @@ void main() {
     });
   });
 
-  group('SearchResultsController', () {
-    test('loads initial results and appends next page on fetchNextPage', () async {
+  group('SearchQueryNotifier', () {
+    test('starts in idle stage with empty query', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Watch the provider to trigger initial load
+      final state = container.read(searchQueryProvider);
+      expect(state.query, '');
+      expect(state.stage, SearchStage.idle);
+    });
+
+    test('onTextChanged sets typing stage', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container.read(searchQueryProvider.notifier).onTextChanged('par');
+      final state = container.read(searchQueryProvider);
+      expect(state.query, 'par');
+      expect(state.stage, SearchStage.typing);
+    });
+
+    test('onTextChanged does not advance the debounced query', () {
+      // Suggestion fetches key off [SearchQueryState.debouncedQuery]; raw
+      // keystrokes must never trigger them.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container.read(searchQueryProvider.notifier).onTextChanged('para');
+      container.read(searchQueryProvider.notifier).onTextChanged('parac');
+
+      final state = container.read(searchQueryProvider);
+      expect(state.query, 'parac');
+      expect(state.debouncedQuery, '');
+    });
+
+    test('debouncedTextChanged advances both query values', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container
+          .read(searchQueryProvider.notifier)
+          .debouncedTextChanged('paracetamol');
+
+      final state = container.read(searchQueryProvider);
+      expect(state.query, 'paracetamol');
+      expect(state.debouncedQuery, 'paracetamol');
+      expect(state.stage, SearchStage.typing);
+    });
+
+    test('clear resets to idle', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container.read(searchQueryProvider.notifier).onTextChanged('par');
+      container.read(searchQueryProvider.notifier).clear();
+      final state = container.read(searchQueryProvider);
+      expect(state.query, '');
+      expect(state.stage, SearchStage.idle);
+    });
+  });
+
+  group('SearchResultsController', () {
+    test('loads initial results and appends next page on fetchNextPage', () async {
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+
       final provider = searchResultsProvider('Paracetamol');
       final controller = container.read(provider.notifier);
 
-      // Wait for initial load to complete
       await Future.delayed(const Duration(milliseconds: 900));
 
       var state = container.read(provider);
       expect(state.isLoading, false);
       expect(state.results.length, 10);
       expect(state.hasReachedMax, false);
+      expect(state.stage, SearchStage.results);
 
-      // Fetch next page
       await controller.fetchNextPage();
       await Future.delayed(const Duration(milliseconds: 900));
 
@@ -66,16 +130,18 @@ void main() {
     });
 
     test('sets hasReachedMax when results are fewer than limit', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final provider = searchResultsProvider('Test');
       container.read(provider.notifier);
 
-      // Wait for initial load
       await Future.delayed(const Duration(milliseconds: 900));
 
-      // Fetch pages until we hit the max (page > 3 returns empty)
       final controller = container.read(provider.notifier);
       await controller.fetchNextPage();
       await Future.delayed(const Duration(milliseconds: 900));
@@ -89,18 +155,95 @@ void main() {
     });
 
     test('preserves existing results when fetchNextPage fails', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final provider = searchResultsProvider('error');
       container.read(provider.notifier);
 
-      // Wait for initial load to fail
       await Future.delayed(const Duration(milliseconds: 900));
 
       var state = container.read(provider);
       expect(state.error, isNotNull);
       expect(state.results, isEmpty);
+      expect(state.stage, SearchStage.error);
+    });
+
+    test('empty results transition to empty stage', () async {
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final provider = searchResultsProvider('no-results');
+      container.read(provider.notifier);
+
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      final state = container.read(provider);
+      expect(state.stage, SearchStage.empty);
+    });
+
+    test('updateSort triggers a fresh fetch', () async {
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final provider = searchResultsProvider('Paracetamol');
+      final controller = container.read(provider.notifier);
+
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      controller.updateSort(SortOption.lowestPrice);
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      final state = container.read(provider);
+      expect(state.sort, SortOption.lowestPrice);
     });
   });
+
+  group('SearchEventTracker', () {
+    test('tracks results shown and error events', () async {
+      final events = <SearchEvent>[];
+      final tracker = _RecordingTracker(events);
+
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+          searchEventTrackerProvider.overrideWithValue(tracker),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(searchResultsProvider('Paracetamol').notifier);
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      expect(events.any((e) => e is ResultsShownEvent), isTrue);
+
+      container.read(searchResultsProvider('error').notifier);
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      expect(events.any((e) => e is SearchErrorEvent), isTrue);
+    });
+  });
+}
+
+class _RecordingTracker implements SearchEventTracker {
+  final List<SearchEvent> events;
+
+  _RecordingTracker(this.events);
+
+  @override
+  void track(SearchEvent event) {
+    events.add(event);
+  }
 }

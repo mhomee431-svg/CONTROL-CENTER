@@ -291,7 +291,13 @@ as bool,
 /// @nodoc
 mixin _$ShopProfile {
 
- String get id; String get name; String get imageUrl; double get rating; int get reviewCount; String get address; double get distanceInKm; String get openingHours; bool get isOpenNow; String get phone; String get about; DateTime get lastInventoryUpdate; List<String> get activeOffers; List<ShopProductSummary> get availableProducts; bool get isSaved;
+ String get id; String get name; String get imageUrl; double get rating; int get reviewCount; String get address; double get distanceInKm; String get openingHours; bool get isOpenNow; String get phone; String get about; DateTime get lastInventoryUpdate; List<String> get activeOffers; List<ShopProductSummary> get availableProducts; bool get isSaved;/// Categories the shop belongs to (e.g. "Electronics", "Mobile").
+ List<String> get categories;/// Whether the shop is verified by the platform.
+ bool get isVerified;/// Shop latitude coordinate (0 = unavailable).
+ double get latitude;/// Shop longitude coordinate (0 = unavailable).
+ double get longitude;/// Secondary contact (e.g. WhatsApp) if available.
+ String get secondaryPhone;/// Email contact if available.
+ String get email;
 /// Create a copy of ShopProfile
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -304,16 +310,16 @@ $ShopProfileCopyWith<ShopProfile> get copyWith => _$ShopProfileCopyWithImpl<Shop
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShopProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviewCount, reviewCount) || other.reviewCount == reviewCount)&&(identical(other.address, address) || other.address == address)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.openingHours, openingHours) || other.openingHours == openingHours)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.about, about) || other.about == about)&&(identical(other.lastInventoryUpdate, lastInventoryUpdate) || other.lastInventoryUpdate == lastInventoryUpdate)&&const DeepCollectionEquality().equals(other.activeOffers, activeOffers)&&const DeepCollectionEquality().equals(other.availableProducts, availableProducts)&&(identical(other.isSaved, isSaved) || other.isSaved == isSaved));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShopProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviewCount, reviewCount) || other.reviewCount == reviewCount)&&(identical(other.address, address) || other.address == address)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.openingHours, openingHours) || other.openingHours == openingHours)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.about, about) || other.about == about)&&(identical(other.lastInventoryUpdate, lastInventoryUpdate) || other.lastInventoryUpdate == lastInventoryUpdate)&&const DeepCollectionEquality().equals(other.activeOffers, activeOffers)&&const DeepCollectionEquality().equals(other.availableProducts, availableProducts)&&(identical(other.isSaved, isSaved) || other.isSaved == isSaved)&&const DeepCollectionEquality().equals(other.categories, categories)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.secondaryPhone, secondaryPhone) || other.secondaryPhone == secondaryPhone)&&(identical(other.email, email) || other.email == email));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,imageUrl,rating,reviewCount,address,distanceInKm,openingHours,isOpenNow,phone,about,lastInventoryUpdate,const DeepCollectionEquality().hash(activeOffers),const DeepCollectionEquality().hash(availableProducts),isSaved);
+int get hashCode => Object.hashAll([runtimeType,id,name,imageUrl,rating,reviewCount,address,distanceInKm,openingHours,isOpenNow,phone,about,lastInventoryUpdate,const DeepCollectionEquality().hash(activeOffers),const DeepCollectionEquality().hash(availableProducts),isSaved,const DeepCollectionEquality().hash(categories),isVerified,latitude,longitude,secondaryPhone,email]);
 
 @override
 String toString() {
-  return 'ShopProfile(id: $id, name: $name, imageUrl: $imageUrl, rating: $rating, reviewCount: $reviewCount, address: $address, distanceInKm: $distanceInKm, openingHours: $openingHours, isOpenNow: $isOpenNow, phone: $phone, about: $about, lastInventoryUpdate: $lastInventoryUpdate, activeOffers: $activeOffers, availableProducts: $availableProducts, isSaved: $isSaved)';
+  return 'ShopProfile(id: $id, name: $name, imageUrl: $imageUrl, rating: $rating, reviewCount: $reviewCount, address: $address, distanceInKm: $distanceInKm, openingHours: $openingHours, isOpenNow: $isOpenNow, phone: $phone, about: $about, lastInventoryUpdate: $lastInventoryUpdate, activeOffers: $activeOffers, availableProducts: $availableProducts, isSaved: $isSaved, categories: $categories, isVerified: $isVerified, latitude: $latitude, longitude: $longitude, secondaryPhone: $secondaryPhone, email: $email)';
 }
 
 
@@ -324,7 +330,7 @@ abstract mixin class $ShopProfileCopyWith<$Res>  {
   factory $ShopProfileCopyWith(ShopProfile value, $Res Function(ShopProfile) _then) = _$ShopProfileCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String imageUrl, double rating, int reviewCount, String address, double distanceInKm, String openingHours, bool isOpenNow, String phone, String about, DateTime lastInventoryUpdate, List<String> activeOffers, List<ShopProductSummary> availableProducts, bool isSaved
+ String id, String name, String imageUrl, double rating, int reviewCount, String address, double distanceInKm, String openingHours, bool isOpenNow, String phone, String about, DateTime lastInventoryUpdate, List<String> activeOffers, List<ShopProductSummary> availableProducts, bool isSaved, List<String> categories, bool isVerified, double latitude, double longitude, String secondaryPhone, String email
 });
 
 
@@ -341,7 +347,7 @@ class _$ShopProfileCopyWithImpl<$Res>
 
 /// Create a copy of ShopProfile
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? rating = null,Object? reviewCount = null,Object? address = null,Object? distanceInKm = null,Object? openingHours = null,Object? isOpenNow = null,Object? phone = null,Object? about = null,Object? lastInventoryUpdate = null,Object? activeOffers = null,Object? availableProducts = null,Object? isSaved = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? rating = null,Object? reviewCount = null,Object? address = null,Object? distanceInKm = null,Object? openingHours = null,Object? isOpenNow = null,Object? phone = null,Object? about = null,Object? lastInventoryUpdate = null,Object? activeOffers = null,Object? availableProducts = null,Object? isSaved = null,Object? categories = null,Object? isVerified = null,Object? latitude = null,Object? longitude = null,Object? secondaryPhone = null,Object? email = null,}) {
   return _then(ShopProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -358,7 +364,13 @@ as String,lastInventoryUpdate: null == lastInventoryUpdate ? _self.lastInventory
 as DateTime,activeOffers: null == activeOffers ? _self.activeOffers : activeOffers // ignore: cast_nullable_to_non_nullable
 as List<String>,availableProducts: null == availableProducts ? _self.availableProducts : availableProducts // ignore: cast_nullable_to_non_nullable
 as List<ShopProductSummary>,isSaved: null == isSaved ? _self.isSaved : isSaved // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,categories: null == categories ? _self.categories : categories // ignore: cast_nullable_to_non_nullable
+as List<String>,isVerified: null == isVerified ? _self.isVerified : isVerified // ignore: cast_nullable_to_non_nullable
+as bool,latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double,secondaryPhone: null == secondaryPhone ? _self.secondaryPhone : secondaryPhone // ignore: cast_nullable_to_non_nullable
+as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -443,10 +455,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double rating,  int reviewCount,  String address,  double distanceInKm,  String openingHours,  bool isOpenNow,  String phone,  String about,  DateTime lastInventoryUpdate,  List<String> activeOffers,  List<ShopProductSummary> availableProducts,  bool isSaved)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double rating,  int reviewCount,  String address,  double distanceInKm,  String openingHours,  bool isOpenNow,  String phone,  String about,  DateTime lastInventoryUpdate,  List<String> activeOffers,  List<ShopProductSummary> availableProducts,  bool isSaved,  List<String> categories,  bool isVerified,  double latitude,  double longitude,  String secondaryPhone,  String email)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ShopProfile() when $default != null:
-return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCount,_that.address,_that.distanceInKm,_that.openingHours,_that.isOpenNow,_that.phone,_that.about,_that.lastInventoryUpdate,_that.activeOffers,_that.availableProducts,_that.isSaved);case _:
+return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCount,_that.address,_that.distanceInKm,_that.openingHours,_that.isOpenNow,_that.phone,_that.about,_that.lastInventoryUpdate,_that.activeOffers,_that.availableProducts,_that.isSaved,_that.categories,_that.isVerified,_that.latitude,_that.longitude,_that.secondaryPhone,_that.email);case _:
   return orElse();
 
 }
@@ -464,10 +476,10 @@ return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCoun
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double rating,  int reviewCount,  String address,  double distanceInKm,  String openingHours,  bool isOpenNow,  String phone,  String about,  DateTime lastInventoryUpdate,  List<String> activeOffers,  List<ShopProductSummary> availableProducts,  bool isSaved)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double rating,  int reviewCount,  String address,  double distanceInKm,  String openingHours,  bool isOpenNow,  String phone,  String about,  DateTime lastInventoryUpdate,  List<String> activeOffers,  List<ShopProductSummary> availableProducts,  bool isSaved,  List<String> categories,  bool isVerified,  double latitude,  double longitude,  String secondaryPhone,  String email)  $default,) {final _that = this;
 switch (_that) {
 case _ShopProfile():
-return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCount,_that.address,_that.distanceInKm,_that.openingHours,_that.isOpenNow,_that.phone,_that.about,_that.lastInventoryUpdate,_that.activeOffers,_that.availableProducts,_that.isSaved);case _:
+return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCount,_that.address,_that.distanceInKm,_that.openingHours,_that.isOpenNow,_that.phone,_that.about,_that.lastInventoryUpdate,_that.activeOffers,_that.availableProducts,_that.isSaved,_that.categories,_that.isVerified,_that.latitude,_that.longitude,_that.secondaryPhone,_that.email);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -484,10 +496,10 @@ return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCoun
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String imageUrl,  double rating,  int reviewCount,  String address,  double distanceInKm,  String openingHours,  bool isOpenNow,  String phone,  String about,  DateTime lastInventoryUpdate,  List<String> activeOffers,  List<ShopProductSummary> availableProducts,  bool isSaved)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String imageUrl,  double rating,  int reviewCount,  String address,  double distanceInKm,  String openingHours,  bool isOpenNow,  String phone,  String about,  DateTime lastInventoryUpdate,  List<String> activeOffers,  List<ShopProductSummary> availableProducts,  bool isSaved,  List<String> categories,  bool isVerified,  double latitude,  double longitude,  String secondaryPhone,  String email)?  $default,) {final _that = this;
 switch (_that) {
 case _ShopProfile() when $default != null:
-return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCount,_that.address,_that.distanceInKm,_that.openingHours,_that.isOpenNow,_that.phone,_that.about,_that.lastInventoryUpdate,_that.activeOffers,_that.availableProducts,_that.isSaved);case _:
+return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCount,_that.address,_that.distanceInKm,_that.openingHours,_that.isOpenNow,_that.phone,_that.about,_that.lastInventoryUpdate,_that.activeOffers,_that.availableProducts,_that.isSaved,_that.categories,_that.isVerified,_that.latitude,_that.longitude,_that.secondaryPhone,_that.email);case _:
   return null;
 
 }
@@ -498,8 +510,8 @@ return $default(_that.id,_that.name,_that.imageUrl,_that.rating,_that.reviewCoun
 /// @nodoc
 @JsonSerializable()
 
-class _ShopProfile implements ShopProfile {
-  const _ShopProfile({required this.id, required this.name, required this.imageUrl, required this.rating, required this.reviewCount, required this.address, required this.distanceInKm, required this.openingHours, required this.isOpenNow, required this.phone, required this.about, required this.lastInventoryUpdate, required  List<String> activeOffers, required  List<ShopProductSummary> availableProducts, this.isSaved = false}): _activeOffers = activeOffers,_availableProducts = availableProducts;
+class _ShopProfile extends ShopProfile {
+  const _ShopProfile({required this.id, required this.name, required this.imageUrl, required this.rating, required this.reviewCount, required this.address, required this.distanceInKm, required this.openingHours, required this.isOpenNow, required this.phone, required this.about, required this.lastInventoryUpdate, required  List<String> activeOffers, required  List<ShopProductSummary> availableProducts, this.isSaved = false,  List<String> categories = const [], this.isVerified = false, this.latitude = 0.0, this.longitude = 0.0, this.secondaryPhone = '', this.email = ''}): _activeOffers = activeOffers,_availableProducts = availableProducts,_categories = categories,super._();
   factory _ShopProfile.fromJson(Map<String, dynamic> json) => _$ShopProfileFromJson(json);
 
 @override final  String id;
@@ -529,6 +541,25 @@ class _ShopProfile implements ShopProfile {
 }
 
 @override@JsonKey() final  bool isSaved;
+/// Categories the shop belongs to (e.g. "Electronics", "Mobile").
+ final  List<String> _categories;
+/// Categories the shop belongs to (e.g. "Electronics", "Mobile").
+@override@JsonKey() List<String> get categories {
+  if (_categories is EqualUnmodifiableListView) return _categories;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_categories);
+}
+
+/// Whether the shop is verified by the platform.
+@override@JsonKey() final  bool isVerified;
+/// Shop latitude coordinate (0 = unavailable).
+@override@JsonKey() final  double latitude;
+/// Shop longitude coordinate (0 = unavailable).
+@override@JsonKey() final  double longitude;
+/// Secondary contact (e.g. WhatsApp) if available.
+@override@JsonKey() final  String secondaryPhone;
+/// Email contact if available.
+@override@JsonKey() final  String email;
 
 /// Create a copy of ShopProfile
 /// with the given fields replaced by the non-null parameter values.
@@ -543,16 +574,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShopProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviewCount, reviewCount) || other.reviewCount == reviewCount)&&(identical(other.address, address) || other.address == address)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.openingHours, openingHours) || other.openingHours == openingHours)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.about, about) || other.about == about)&&(identical(other.lastInventoryUpdate, lastInventoryUpdate) || other.lastInventoryUpdate == lastInventoryUpdate)&&const DeepCollectionEquality().equals(other._activeOffers, _activeOffers)&&const DeepCollectionEquality().equals(other._availableProducts, _availableProducts)&&(identical(other.isSaved, isSaved) || other.isSaved == isSaved));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShopProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviewCount, reviewCount) || other.reviewCount == reviewCount)&&(identical(other.address, address) || other.address == address)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.openingHours, openingHours) || other.openingHours == openingHours)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.about, about) || other.about == about)&&(identical(other.lastInventoryUpdate, lastInventoryUpdate) || other.lastInventoryUpdate == lastInventoryUpdate)&&const DeepCollectionEquality().equals(other._activeOffers, _activeOffers)&&const DeepCollectionEquality().equals(other._availableProducts, _availableProducts)&&(identical(other.isSaved, isSaved) || other.isSaved == isSaved)&&const DeepCollectionEquality().equals(other._categories, _categories)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.secondaryPhone, secondaryPhone) || other.secondaryPhone == secondaryPhone)&&(identical(other.email, email) || other.email == email));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,imageUrl,rating,reviewCount,address,distanceInKm,openingHours,isOpenNow,phone,about,lastInventoryUpdate,const DeepCollectionEquality().hash(_activeOffers),const DeepCollectionEquality().hash(_availableProducts),isSaved);
+int get hashCode => Object.hashAll([runtimeType,id,name,imageUrl,rating,reviewCount,address,distanceInKm,openingHours,isOpenNow,phone,about,lastInventoryUpdate,const DeepCollectionEquality().hash(_activeOffers),const DeepCollectionEquality().hash(_availableProducts),isSaved,const DeepCollectionEquality().hash(_categories),isVerified,latitude,longitude,secondaryPhone,email]);
 
 @override
 String toString() {
-  return 'ShopProfile(id: $id, name: $name, imageUrl: $imageUrl, rating: $rating, reviewCount: $reviewCount, address: $address, distanceInKm: $distanceInKm, openingHours: $openingHours, isOpenNow: $isOpenNow, phone: $phone, about: $about, lastInventoryUpdate: $lastInventoryUpdate, activeOffers: $activeOffers, availableProducts: $availableProducts, isSaved: $isSaved)';
+  return 'ShopProfile(id: $id, name: $name, imageUrl: $imageUrl, rating: $rating, reviewCount: $reviewCount, address: $address, distanceInKm: $distanceInKm, openingHours: $openingHours, isOpenNow: $isOpenNow, phone: $phone, about: $about, lastInventoryUpdate: $lastInventoryUpdate, activeOffers: $activeOffers, availableProducts: $availableProducts, isSaved: $isSaved, categories: $categories, isVerified: $isVerified, latitude: $latitude, longitude: $longitude, secondaryPhone: $secondaryPhone, email: $email)';
 }
 
 
@@ -563,7 +594,7 @@ abstract mixin class _$ShopProfileCopyWith<$Res> implements $ShopProfileCopyWith
   factory _$ShopProfileCopyWith(_ShopProfile value, $Res Function(_ShopProfile) _then) = __$ShopProfileCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String imageUrl, double rating, int reviewCount, String address, double distanceInKm, String openingHours, bool isOpenNow, String phone, String about, DateTime lastInventoryUpdate, List<String> activeOffers, List<ShopProductSummary> availableProducts, bool isSaved
+ String id, String name, String imageUrl, double rating, int reviewCount, String address, double distanceInKm, String openingHours, bool isOpenNow, String phone, String about, DateTime lastInventoryUpdate, List<String> activeOffers, List<ShopProductSummary> availableProducts, bool isSaved, List<String> categories, bool isVerified, double latitude, double longitude, String secondaryPhone, String email
 });
 
 
@@ -580,7 +611,7 @@ class __$ShopProfileCopyWithImpl<$Res>
 
 /// Create a copy of ShopProfile
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? rating = null,Object? reviewCount = null,Object? address = null,Object? distanceInKm = null,Object? openingHours = null,Object? isOpenNow = null,Object? phone = null,Object? about = null,Object? lastInventoryUpdate = null,Object? activeOffers = null,Object? availableProducts = null,Object? isSaved = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? rating = null,Object? reviewCount = null,Object? address = null,Object? distanceInKm = null,Object? openingHours = null,Object? isOpenNow = null,Object? phone = null,Object? about = null,Object? lastInventoryUpdate = null,Object? activeOffers = null,Object? availableProducts = null,Object? isSaved = null,Object? categories = null,Object? isVerified = null,Object? latitude = null,Object? longitude = null,Object? secondaryPhone = null,Object? email = null,}) {
   return _then(_ShopProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -597,7 +628,13 @@ as String,lastInventoryUpdate: null == lastInventoryUpdate ? _self.lastInventory
 as DateTime,activeOffers: null == activeOffers ? _self._activeOffers : activeOffers // ignore: cast_nullable_to_non_nullable
 as List<String>,availableProducts: null == availableProducts ? _self._availableProducts : availableProducts // ignore: cast_nullable_to_non_nullable
 as List<ShopProductSummary>,isSaved: null == isSaved ? _self.isSaved : isSaved // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,categories: null == categories ? _self._categories : categories // ignore: cast_nullable_to_non_nullable
+as List<String>,isVerified: null == isVerified ? _self.isVerified : isVerified // ignore: cast_nullable_to_non_nullable
+as bool,latitude: null == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
+as double,longitude: null == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
+as double,secondaryPhone: null == secondaryPhone ? _self.secondaryPhone : secondaryPhone // ignore: cast_nullable_to_non_nullable
+as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

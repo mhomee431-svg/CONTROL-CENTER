@@ -6,9 +6,11 @@
 import 'dart:async' as _i4;
 
 import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart'
-    as _i5;
+    as _i6;
 import 'package:hyperlocal_customer_app/features/location/domain/location_repository.dart'
     as _i3;
+import 'package:hyperlocal_customer_app/features/location/domain/models/location_permission_status.dart'
+    as _i5;
 import 'package:hyperlocal_customer_app/features/location/domain/models/user_location.dart'
     as _i2;
 import 'package:mockito/mockito.dart' as _i1;
@@ -44,6 +46,30 @@ class MockLocationRepository extends _i1.Mock
   }
 
   @override
+  _i4.Future<bool> isLocationServiceEnabled() => (super.noSuchMethod(
+    Invocation.method(#isLocationServiceEnabled, []),
+    returnValue: _i4.Future<bool>.value(false),
+  ) as _i4.Future<bool>);
+
+  @override
+  _i4.Future<_i5.LocationPermissionStatus> checkPermission() =>
+      (super.noSuchMethod(
+        Invocation.method(#checkPermission, []),
+        returnValue: _i4.Future<_i5.LocationPermissionStatus>.value(
+          _i5.LocationPermissionStatus.granted,
+        ),
+      ) as _i4.Future<_i5.LocationPermissionStatus>);
+
+  @override
+  _i4.Future<_i5.LocationPermissionStatus> requestPermission() =>
+      (super.noSuchMethod(
+        Invocation.method(#requestPermission, []),
+        returnValue: _i4.Future<_i5.LocationPermissionStatus>.value(
+          _i5.LocationPermissionStatus.granted,
+        ),
+      ) as _i4.Future<_i5.LocationPermissionStatus>);
+
+  @override
   _i4.Future<_i2.UserLocation> getCurrentLocation() => (super.noSuchMethod(
     Invocation.method(#getCurrentLocation, []),
     returnValue: _i4.Future<_i2.UserLocation>.value(
@@ -52,22 +78,10 @@ class MockLocationRepository extends _i1.Mock
   ) as _i4.Future<_i2.UserLocation>);
 
   @override
-  _i4.Future<bool> checkPermission() => (super.noSuchMethod(
-    Invocation.method(#checkPermission, []),
-    returnValue: _i4.Future<bool>.value(false),
-  ) as _i4.Future<bool>);
-
-  @override
-  _i4.Future<bool> requestPermission() => (super.noSuchMethod(
-    Invocation.method(#requestPermission, []),
-    returnValue: _i4.Future<bool>.value(false),
-  ) as _i4.Future<bool>);
-
-  @override
-  _i4.Future<bool> isLocationServiceEnabled() => (super.noSuchMethod(
-    Invocation.method(#isLocationServiceEnabled, []),
-    returnValue: _i4.Future<bool>.value(false),
-  ) as _i4.Future<bool>);
+  _i4.Future<_i2.UserLocation?> getLastKnownLocation() => (super.noSuchMethod(
+    Invocation.method(#getLastKnownLocation, []),
+    returnValue: _i4.Future<_i2.UserLocation?>.value(),
+  ) as _i4.Future<_i2.UserLocation?>);
 
   @override
   _i4.Future<void> openLocationSettings() => (super.noSuchMethod(
@@ -90,7 +104,7 @@ class MockLocationRepository extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockSecureStorageService extends _i1.Mock
-    implements _i5.SecureStorageService {
+    implements _i6.SecureStorageService {
   MockSecureStorageService() {
     _i1.throwOnMissingStub(this);
   }
@@ -116,6 +130,47 @@ class MockSecureStorageService extends _i1.Mock
   ) as _i4.Future<void>);
 
   @override
+  _i4.Future<void> saveRefreshToken(String? refreshToken) =>
+      (super.noSuchMethod(
+        Invocation.method(#saveRefreshToken, [refreshToken]),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<String?> getRefreshToken() => (super.noSuchMethod(
+    Invocation.method(#getRefreshToken, []),
+    returnValue: _i4.Future<String?>.value(),
+  ) as _i4.Future<String?>);
+
+  @override
+  _i4.Future<void> deleteRefreshToken() => (super.noSuchMethod(
+    Invocation.method(#deleteRefreshToken, []),
+    returnValue: _i4.Future<void>.value(),
+    returnValueForMissingStub: _i4.Future<void>.value(),
+  ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> saveSessionId(String? sessionId) => (super.noSuchMethod(
+    Invocation.method(#saveSessionId, [sessionId]),
+    returnValue: _i4.Future<void>.value(),
+    returnValueForMissingStub: _i4.Future<void>.value(),
+  ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<String?> getSessionId() => (super.noSuchMethod(
+    Invocation.method(#getSessionId, []),
+    returnValue: _i4.Future<String?>.value(),
+  ) as _i4.Future<String?>);
+
+  @override
+  _i4.Future<void> deleteSessionId() => (super.noSuchMethod(
+    Invocation.method(#deleteSessionId, []),
+    returnValue: _i4.Future<void>.value(),
+    returnValueForMissingStub: _i4.Future<void>.value(),
+  ) as _i4.Future<void>);
+
+  @override
   _i4.Future<void> setGuestMode(bool? isGuest) => (super.noSuchMethod(
     Invocation.method(#setGuestMode, [isGuest]),
     returnValue: _i4.Future<void>.value(),
@@ -127,6 +182,19 @@ class MockSecureStorageService extends _i1.Mock
     Invocation.method(#isGuestMode, []),
     returnValue: _i4.Future<bool>.value(false),
   ) as _i4.Future<bool>);
+
+  @override
+  _i4.Future<void> saveDeviceId(String? deviceId) => (super.noSuchMethod(
+    Invocation.method(#saveDeviceId, [deviceId]),
+    returnValue: _i4.Future<void>.value(),
+    returnValueForMissingStub: _i4.Future<void>.value(),
+  ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<String?> getDeviceId() => (super.noSuchMethod(
+    Invocation.method(#getDeviceId, []),
+    returnValue: _i4.Future<String?>.value(),
+  ) as _i4.Future<String?>);
 
   @override
   _i4.Future<void> write({required String? key, required String? value}) =>

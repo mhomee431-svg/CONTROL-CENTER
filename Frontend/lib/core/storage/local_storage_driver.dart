@@ -11,33 +11,37 @@ abstract class LocalStorageDriver {
 }
 
 /// SharedPreferences-backed implementation for production use.
+///
+/// Resolves the [SharedPreferences] singleton lazily on first access so the
+/// driver can be constructed synchronously from a Riverpod provider without
+/// blocking app startup. `getInstance()` caches after the first call, so
+/// per-call awaits are effectively free.
 class SharedPreferencesStorageDriver implements LocalStorageDriver {
-  final SharedPreferences _prefs;
-
-  SharedPreferencesStorageDriver(this._prefs);
+  Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
   @override
-  Future<String?> getString(String key) async => _prefs.getString(key);
+  Future<String?> getString(String key) async =>
+      (await _prefs()).getString(key);
 
   @override
   Future<void> setString(String key, String value) async {
-    await _prefs.setString(key, value);
+    await (await _prefs()).setString(key, value);
   }
 
   @override
   Future<List<String>?> getStringList(String key) async =>
-      _prefs.getStringList(key);
+      (await _prefs()).getStringList(key);
 
   @override
   Future<void> setStringList(String key, List<String> value) async {
-    await _prefs.setStringList(key, value);
+    await (await _prefs()).setStringList(key, value);
   }
 
   @override
-  Future<void> remove(String key) async => _prefs.remove(key);
+  Future<void> remove(String key) async => (await _prefs()).remove(key);
 
   @override
-  Future<void> clear() async => _prefs.clear();
+  Future<void> clear() async => (await _prefs()).clear();
 }
 
 /// InMemory implementation used for unit testing and quick fallback.
@@ -66,10 +70,8 @@ class InMemoryStorageDriver implements LocalStorageDriver {
 }
 
 final localStorageDriverProvider = Provider<LocalStorageDriver>((ref) {
-  // In production, this would be initialized with SharedPreferences.
-  // For now, we use InMemoryStorageDriver as a safe default.
-  // To switch to SharedPreferences, use:
-  // final prefs = await SharedPreferences.getInstance();
-  // return SharedPreferencesStorageDriver(prefs);
-  return InMemoryStorageDriver();
+  // Production default: persisted device storage so favorites, history and
+  // settings survive restarts (offline foundation). Tests override this
+  // provider with [InMemoryStorageDriver].
+  return SharedPreferencesStorageDriver();
 });

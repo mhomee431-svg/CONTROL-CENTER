@@ -48,6 +48,8 @@ class MockSearchRepository implements SearchRepository {
     required int limit,
     SortOption sort = SortOption.nearest,
     Map<String, dynamic>? filters,
+    double? latitude,
+    double? longitude,
   }) async {
     // Simulate network latency
     await Future.delayed(const Duration(milliseconds: 800));
@@ -57,14 +59,27 @@ class MockSearchRepository implements SearchRepository {
       throw Exception('Simulated server error');
     }
 
+    // Simulate no results for a specific query (empty state testing)
+    if (query.toLowerCase() == 'no-results') {
+      return [];
+    }
+
     // Simulate end of pagination
     if (page > 3) return [];
 
+    final now = DateTime.now();
     var results = List.generate(limit, (index) {
       final distance = 0.5 + (index * 0.2);
       final price = 150.0 + (index * 10);
+      final mrp = price + 40.0 + (index % 3 == 0 ? 0 : 60.0);
       final rating = 4.5 - (index * 0.1);
-      final lastUpdated = DateTime.now().subtract(Duration(minutes: index * 15));
+      final lastUpdated = now.subtract(Duration(minutes: index * 15));
+      // 1 in 4 out of stock, 1 in 5 low stock
+      final availability = index % 4 == 0
+          ? InventoryAvailability.outOfStock
+          : (index % 5 == 0
+              ? InventoryAvailability.lowStock
+              : InventoryAvailability.inStock);
 
       return ShopProductResult(
         id: 'res_${page}_$index',
@@ -74,11 +89,23 @@ class MockSearchRepository implements SearchRepository {
         shopId: 's_${page}_$index',
         shopName: 'Local Shop ${index + 1}',
         price: price,
-        isAvailable: index % 4 != 0, // 1 in 4 out of stock
+        isAvailable: availability == InventoryAvailability.inStock ||
+            availability == InventoryAvailability.lowStock,
         distanceInKm: distance,
         shopRating: rating,
         lastUpdated: lastUpdated,
+        variant: index % 2 == 0 ? '500g Pack' : '1L Pack',
+        mrp: availability == InventoryAvailability.outOfStock ? null : mrp,
+        shopImageUrl: 'https://via.placeholder.com/60',
         offerText: index == 0 ? '10% OFF' : null,
+        shopAddress: 'Address ${index + 1}, Near Main Road',
+        shopLatitude: 25.594 + (index * 0.001),
+        shopLongitude: 85.137 - (index * 0.001),
+        category: 'Groceries',
+        brand: index % 3 == 0 ? 'Aashirvaad' : 'Local',
+        reviewCount: 10 + index * 5,
+        availability: availability,
+        freshness: _deriveFreshness(lastUpdated, now),
       );
     });
 
@@ -96,19 +123,54 @@ class MockSearchRepository implements SearchRepository {
       case SortOption.recentlyUpdated:
         results.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
         break;
+      case SortOption.relevance:
+        // Keep default backend ordering (no-op in mock).
+        break;
+      case SortOption.availability:
+        // In-stock / purchasable first.
+        results.sort((a, b) {
+          final aPurchasable = a.isPurchasableNow ? 0 : 1;
+          final bPurchasable = b.isPurchasableNow ? 0 : 1;
+          return aPurchasable.compareTo(bPurchasable);
+        });
+        break;
     }
 
     // Apply filters locally to simulate backend filtering
     if (filters != null) {
-      if (filters['max_distance'] is double) {
-        final maxDistance = filters['max_distance'] as double;
+      if (filters['max_distance'] is num) {
+        final maxDistance =
+            (filters['max_distance'] as num).toDouble();
         results = results.where((r) => r.distanceInKm <= maxDistance).toList();
       }
       if (filters['in_stock'] == true) {
-        results = results.where((r) => r.isAvailable).toList();
+        results = results.where((r) => r.isPurchasableNow).toList();
+      }
+      if (filters['max_price'] is num) {
+        final maxPrice = (filters['max_price'] as num).toDouble();
+        results = results.where((r) => r.price <= maxPrice).toList();
+      }
+      if (filters['min_rating'] is num) {
+        final minRating = (filters['min_rating'] as num).toDouble();
+        results = results.where((r) => r.shopRating >= minRating).toList();
+      }
+      if (filters['category'] is String) {
+        final category = filters['category'] as String;
+        results = results.where((r) => r.category == category).toList();
+      }
+      if (filters['brand'] is String) {
+        final brand = filters['brand'] as String;
+        results = results.where((r) => r.brand == brand).toList();
       }
     }
 
     return results;
+  }
+
+  FreshnessLevel _deriveFreshness(DateTime lastUpdated, DateTime now) {
+    final age = now.difference(lastUpdated);
+    if (age.inMinutes <= 30) return FreshnessLevel.fresh;
+    if (age.inHours <= 6) return FreshnessLevel.recent;
+    return FreshnessLevel.stale;
   }
 }
