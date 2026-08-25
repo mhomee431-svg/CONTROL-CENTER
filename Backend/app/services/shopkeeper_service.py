@@ -796,6 +796,8 @@ def update_product(
     inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
     now = datetime.now(timezone.utc)
     touched_price = False
+    old_price = float(sp.price) if sp.price is not None else 0.0
+    old_mrp = float(sp.mrp) if sp.mrp is not None else None
 
     new_price = float(data["price"]) if data.get("price") is not None else None
     if data.get("mrp") is not None:
@@ -813,6 +815,30 @@ def update_product(
         touched_price = True
     if touched_price:
         sp.last_price_update = now
+        # Phase 23: preserve the platform price history trail.
+        open_records = (
+            db.query(PriceHistory)
+            .filter(
+                PriceHistory.shop_product_id == sp.id,
+                PriceHistory.effective_to.is_(None),
+            )
+            .all()
+        )
+        for rec in open_records:
+            rec.effective_to = now
+        db.add(
+            PriceHistory(
+                shop_product_id=sp.id,
+                old_price=old_price,
+                new_price=float(sp.price),
+                old_mrp=old_mrp,
+                new_mrp=float(sp.mrp) if sp.mrp is not None else None,
+                changed_by=user.id,
+                change_source=InventorySource.MANUAL,
+                effective_from=now,
+                effective_to=None,
+            )
+        )
 
     if data.get("is_featured") is not None:
         sp.is_featured = bool(data["is_featured"])
@@ -822,6 +848,7 @@ def update_product(
     explicit_availability = data.get("is_available")
 
     if quantity_changed or threshold_changed:
+        previous_quantity = int(inv.quantity) if inv is not None else 0
         qty = (
             int(data["quantity"])
             if quantity_changed
@@ -844,10 +871,31 @@ def update_product(
         inv.stock_status = _enum_from_name(
             "StockStatus", _derive_stock_status(qty, threshold)
         )
+        inv.is_available = qty > 0
         inv.last_updated_by = user.id
+        # Phase 23: keep the platform inventory row in sync (source/freshness).
+        inv.last_updated_source = InventorySource.MANUAL
+        inv.freshness_status = compute_freshness(now, InventorySource.MANUAL)
+        inv.freshness_checked_at = now
         sp.last_inventory_update = now
+        sp.source = InventorySource.MANUAL
+        sp.freshness_status = inv.freshness_status
         # Availability follows stock unless explicitly overridden below.
         sp.is_available = qty > 0
+
+        if qty != previous_quantity:
+            db.add(
+                InventoryMovement(
+                    inventory_id=inv.id,
+                    quantity_change=qty - previous_quantity,
+                    quantity_before=previous_quantity,
+                    quantity_after=qty,
+                    movement_type="UPDATE",
+                    source=InventorySource.MANUAL,
+                    notes="Shopkeeper stock update",
+                    created_by=user.id,
+                )
+            )
 
     if data.get("status"):
         wanted = str(data["status"]).upper()
@@ -858,6 +906,15 @@ def update_product(
 
     if explicit_availability is not None:
         sp.is_available = bool(explicit_availability)
+        if inv is not None:
+            inv.is_available = bool(explicit_availability)
+            inv.last_updated_by = user.id
+            inv.last_updated_source = InventorySource.MANUAL
+            inv.freshness_status = compute_freshness(now, InventorySource.MANUAL)
+            inv.freshness_checked_at = now
+            sp.source = InventorySource.MANUAL
+            sp.freshness_status = inv.freshness_status
+            sp.last_inventory_update = now
 
     db.flush()
     logger.info(
@@ -865,6 +922,655 @@ def update_product(
         access.shop.id, sp.id, user.id,
     )
     return serialize_product(sp, inv)
+
+
+# ── Phase 23 — Inventory management workflow ─────────────────────────────
+
+ADJUSTMENT_TYPES = {
+    "RESTOCK",
+    "SALE",
+    "DAMAGE",
+    "EXPIRY",
+    "RETURN",
+    "CORRECTION",
+    "STOCK_COUNT",
+    "MANUAL",
+}
+BULK_OPERATIONS = {"price_update", "stock_set", "availability"}
+INVENTORY_SORT_FIELDS = {"name", "price", "quantity", "updated_at"}
+
+
+def search_product_masters(
+    db: Session, query: str | None = None, limit: int = 20
+) -> list[dict[str, Any]]:
+    """Search the shared product-master catalog so shopkeepers can SELECT a
+    known product (never re-create it) and pick a variant."""
+    masters = (
+        db.query(ProductMaster)
+        .filter(ProductMaster.is_deleted == False)  # noqa: E712
+        .limit(max(limit, 1) * 5)
+        .all()
+    )
+    needle = _normalize(query)
+    scored: list[tuple[int, dict[str, Any]]] = []
+    for master in masters:
+        name = _normalize(master.name)
+        slug = _normalize(getattr(master, "slug", ""))
+        if needle:
+            if name == needle:
+                score = 0
+            elif needle in name:
+                score = 1
+            elif needle in slug:
+                score = 2
+            else:
+                continue
+        else:
+            score = 3
+        variants = [
+            {
+                "variant_id": v.id,
+                "name": v.name,
+                "sku": v.sku,
+                "is_active": bool(getattr(v, "is_active", True)),
+            }
+            for v in (master.variants or [])
+            if getattr(v, "is_deleted", False) is not True
+            and getattr(v, "is_active", True) is not False
+        ]
+        scored.append(
+            (
+                score,
+                {
+                    "product_master_id": master.id,
+                    "name": master.name,
+                    "slug": getattr(master, "slug", None),
+                    "description": getattr(master, "description", None),
+                    "base_unit": getattr(master, "base_unit", None),
+                    "status": (
+                        master.status.value if hasattr(master.status, "value") else str(master.status)
+                    )
+                    if master.status is not None
+                    else None,
+                    "variants": variants,
+                },
+            )
+        )
+    scored.sort(key=lambda pair: (pair[0], _normalize(pair[1]["name"])))
+    return [item for _, item in scored[: max(limit, 1)]]
+
+
+def add_product_from_master(
+    access: ShopAccess, db: Session, user: User, data: dict
+) -> dict[str, Any]:
+    """Link an EXISTING catalog product (master + optional variant) to the shop.
+
+    The product master record itself is never created or duplicated here —
+    shopkeepers select from the platform catalog and set shop-level price,
+    MRP, availability and quantity.
+    """
+    from app.models.product import ShopProductStatus
+
+    access.require("product", "create")
+
+    master = (
+        db.query(ProductMaster)
+        .filter(
+            ProductMaster.id == int(data["product_master_id"]),
+            ProductMaster.is_deleted == False,  # noqa: E712
+        )
+        .first()
+    )
+    if master is None:
+        raise NotFoundError("Product not found in catalog")
+
+    variant = None
+    variant_id = data.get("variant_id")
+    if variant_id is not None:
+        variant = next(
+            (v for v in (master.variants or []) if v.id == int(variant_id)),
+            None,
+        )
+        if variant is None:
+            raise ValidationError("Selected variant does not belong to this product")
+
+    price = float(data["price"])
+    mrp = float(data["mrp"]) if data.get("mrp") is not None else None
+    if mrp is not None and mrp < price:
+        raise ValidationError("MRP cannot be lower than selling price")
+
+    duplicate = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.shop_id == access.shop.id,
+            ShopProduct.product_master_id == master.id,
+            ShopProduct.variant_id == (variant.id if variant else None),
+            ShopProduct.is_deleted == False,  # noqa: E712
+        )
+        .first()
+    )
+    if duplicate is not None:
+        raise ConflictError("This product is already in your inventory")
+
+    quantity = int(data.get("quantity", 0))
+    threshold = int(data.get("low_stock_threshold", 5))
+    available = bool(data.get("is_available", True)) and quantity > 0
+    stock_enum = _enum_from_name("StockStatus", _derive_stock_status(quantity, threshold))
+    now = datetime.now(timezone.utc)
+
+    sp = ShopProduct(
+        shop_id=access.shop.id,
+        product_master_id=master.id,
+        variant_id=variant.id if variant else None,
+        sku=_unique_sku(db, access.shop.id, data.get("sku")),
+        status=ShopProductStatus.ACTIVE,
+        price=price,
+        mrp=mrp,
+        is_active=True,
+        is_available=available,
+        stock_status=stock_enum,
+        source=InventorySource.MANUAL,
+        last_inventory_update=now,
+        last_price_update=now,
+    )
+    sp.product_master = master
+    if variant is not None:
+        sp.variant = variant
+    db.add(sp)
+    db.flush()
+
+    inv = Inventory(
+        shop_product_id=sp.id,
+        quantity=quantity,
+        reserved_quantity=0,
+        available_quantity=quantity,
+        is_available=available,
+        stock_status=stock_enum,
+        low_stock_threshold=threshold,
+        last_updated_by=user.id,
+        last_updated_source=InventorySource.MANUAL,
+        freshness_status=compute_freshness(now, InventorySource.MANUAL),
+        freshness_checked_at=now,
+    )
+    db.add(inv)
+    db.flush()
+
+    db.add(
+        InventoryMovement(
+            inventory_id=inv.id,
+            quantity_change=quantity,
+            quantity_before=0,
+            quantity_after=quantity,
+            movement_type="INITIAL",
+            source=InventorySource.MANUAL,
+            notes="Product added to shop inventory",
+            created_by=user.id,
+        )
+    )
+
+    # Link eagerly so serialization sees master/variant immediately.
+    sp.inventory = inv
+    logger.info(
+        "Product added from catalog: shop=%s shop_product=%s master=%s by user=%s",
+        access.shop.id, sp.id, master.id, user.id,
+    )
+    return serialize_product(sp, inv)
+
+
+def adjust_stock(
+    access: ShopAccess, db: Session, user: User, shop_product_id: int, data: dict
+) -> dict[str, Any]:
+    """Apply a delta stock adjustment with a full audit trail
+    (InventoryAdjustment + InventoryMovement)."""
+    access.require("inventory", "update")
+
+    adjustment_type = str(data.get("adjustment_type", "CORRECTION")).upper()
+    if adjustment_type not in ADJUSTMENT_TYPES:
+        raise ValidationError(f"Invalid adjustment type: {adjustment_type}")
+    delta = int(data["quantity_adjustment"])
+    if delta == 0:
+        raise ValidationError("Quantity adjustment cannot be zero")
+
+    sp: ShopProduct | None = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.id == shop_product_id,
+            ShopProduct.shop_id == access.shop.id,
+        )
+        .first()
+    )
+    if sp is None:
+        raise NotFoundError("Product not found in this shop")
+
+    inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+    if inv is None:
+        raise ValidationError("No inventory record exists for this product")
+
+    previous_quantity = int(inv.quantity)
+    updated_quantity = previous_quantity + delta
+    if updated_quantity < 0:
+        raise ValidationError(
+            f"Adjustment would result in negative inventory ({updated_quantity})"
+        )
+
+    now = datetime.now(timezone.utc)
+    threshold = int(inv.low_stock_threshold) if inv.low_stock_threshold else 5
+
+    db.add(
+        InventoryAdjustment(
+            inventory_id=inv.id,
+            adjustment_type=adjustment_type,
+            quantity_adjustment=delta,
+            reason=data.get("reason"),
+            approved_by=user.id,
+            approved_at=now,
+        )
+    )
+
+    inv.quantity = updated_quantity
+    inv.available_quantity = max(updated_quantity - int(inv.reserved_quantity or 0), 0)
+    inv.stock_status = _enum_from_name(
+        "StockStatus", _derive_stock_status(updated_quantity, threshold)
+    )
+    inv.last_updated_by = user.id
+    inv.last_updated_source = InventorySource.MANUAL
+    inv.freshness_status = compute_freshness(now, InventorySource.MANUAL)
+    inv.freshness_checked_at = now
+
+    db.add(
+        InventoryMovement(
+            inventory_id=inv.id,
+            quantity_change=delta,
+            quantity_before=previous_quantity,
+            quantity_after=updated_quantity,
+            movement_type="ADJUSTMENT",
+            source=InventorySource.MANUAL,
+            notes=f"{adjustment_type}: {data.get('reason') or ''}".strip(": ").strip(),
+            created_by=user.id,
+        )
+    )
+
+    sp.stock_status = inv.stock_status
+    sp.is_available = updated_quantity > 0
+    inv.is_available = sp.is_available
+    sp.source = InventorySource.MANUAL
+    sp.freshness_status = inv.freshness_status
+    sp.last_inventory_update = now
+    db.flush()
+
+    logger.info(
+        "Stock adjusted: shop=%s shop_product=%s delta=%s by user=%s",
+        access.shop.id, sp.id, delta, user.id,
+    )
+    return {
+        "shop_product_id": sp.id,
+        "previous_quantity": previous_quantity,
+        "quantity_adjustment": delta,
+        "new_quantity": updated_quantity,
+        "stock_status": inv.stock_status.value,
+        "adjustment_type": adjustment_type,
+        "last_inventory_update": _iso(now),
+    }
+
+
+def remove_product(
+    access: ShopAccess, db: Session, user: User, shop_product_id: int
+) -> dict[str, Any]:
+    """Deactivate + soft-delete a shop product listing."""
+    from app.models.product import ShopProductStatus
+
+    access.require("product", "delete")
+    sp: ShopProduct | None = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.id == shop_product_id,
+            ShopProduct.shop_id == access.shop.id,
+        )
+        .first()
+    )
+    if sp is None:
+        raise NotFoundError("Product not found in this shop")
+
+    now = datetime.now(timezone.utc)
+    sp.is_deleted = True
+    sp.deleted_at = now
+    sp.is_active = False
+    sp.is_available = False
+    try:
+        sp.status = _enum_from_name("ShopProductStatus", "INACTIVE")
+    except KeyError:  # pragma: no cover - enum always present
+        pass
+
+    inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+    if inv is not None:
+        remaining = int(inv.quantity)
+        inv.quantity = 0
+        inv.reserved_quantity = 0
+        inv.available_quantity = 0
+        inv.is_available = False
+        inv.stock_status = _enum_from_name("StockStatus", "OUT_OF_STOCK")
+        inv.last_updated_by = user.id
+        inv.freshness_status = compute_freshness(now, InventorySource.MANUAL)
+        inv.freshness_checked_at = now
+        db.add(
+            InventoryMovement(
+                inventory_id=inv.id,
+                quantity_change=-remaining,
+                quantity_before=remaining,
+                quantity_after=0,
+                movement_type="REMOVE",
+                source=InventorySource.MANUAL,
+                notes="Product removed from shop inventory",
+                created_by=user.id,
+            )
+        )
+        sp.stock_status = inv.stock_status
+        sp.freshness_status = inv.freshness_status
+    sp.last_inventory_update = now
+    db.flush()
+
+    logger.info(
+        "Product removed: shop=%s shop_product=%s by user=%s",
+        access.shop.id, sp.id, user.id,
+    )
+    return {
+        "shop_product_id": sp.id,
+        "status": getattr(sp.status, "value", str(sp.status)),
+        "is_active": False,
+        "removed_at": _iso(now),
+    }
+
+
+def list_inventory(
+    access: ShopAccess,
+    db: Session,
+    search: str | None = None,
+    stock_filter: str | None = None,
+    availability_filter: bool | None = None,
+    active_filter: bool | None = None,
+    sort_by: str = "updated_at",
+    sort_order: str = "desc",
+) -> dict[str, Any]:
+    """View / search / filter / sort the shop inventory.
+
+    Every item carries its last-updated time and inventory source.
+    """
+    access.require("inventory", "read")
+    sort_field = sort_by if sort_by in INVENTORY_SORT_FIELDS else "updated_at"
+    descending = str(sort_order).lower() != "asc"
+
+    products: list[ShopProduct] = (
+        db.query(ShopProduct).filter(ShopProduct.shop_id == access.shop.id).all()
+    )
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+
+    entries: list[tuple[datetime, dict[str, Any]]] = []
+    for sp in products:
+        inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+        item = serialize_product(sp, inv)
+        last_updated_raw = (
+            sp.last_inventory_update
+            or sp.last_price_update
+            or getattr(sp, "created_at", None)
+            or epoch
+        )
+        if last_updated_raw.tzinfo is None:
+            last_updated_raw = last_updated_raw.replace(tzinfo=timezone.utc)
+        item["last_updated"] = _iso(last_updated_raw)
+        item["source"] = (
+            inv.last_updated_source.value
+            if inv is not None and getattr(inv, "last_updated_source", None) is not None
+            else getattr(sp.source, "value", str(sp.source))
+        )
+        freshness = (
+            getattr(inv, "freshness_status", None)
+            if inv is not None
+            else getattr(sp, "freshness_status", None)
+        )
+        item["freshness_status"] = freshness.value if freshness is not None and hasattr(freshness, "value") else None
+        entries.append((last_updated_raw, item))
+
+    needle = _normalize(search)
+    filtered: list[tuple[datetime, dict[str, Any]]] = []
+    for stamp, item in entries:
+        if needle and needle not in _normalize(item["name"]) and needle not in _normalize(item.get("sku") or ""):
+            continue
+        if stock_filter and item["stock_status"] != str(stock_filter).upper():
+            continue
+        if availability_filter is not None and item["is_available"] != bool(availability_filter):
+            continue
+        if active_filter is not None and item["is_active"] != bool(active_filter):
+            continue
+        filtered.append((stamp, item))
+
+    def _sort_key(pair: tuple[datetime, dict[str, Any]]):
+        _, item = pair
+        if sort_field == "name":
+            return _normalize(item["name"])
+        if sort_field == "price":
+            return float(item["price"] or 0)
+        if sort_field == "quantity":
+            return int(item["quantity"] or 0)
+        stamp = pair[0]
+        return stamp.astimezone(timezone.utc)
+
+    filtered.sort(key=_sort_key, reverse=descending)
+    items = [item for _, item in filtered]
+    return {"items": items, "count": len(items)}
+
+
+def product_history(
+    access: ShopAccess,
+    db: Session,
+    user: User,
+    shop_product_id: int,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Combined audit trail for one shop product: movements, adjustments
+    and price changes — newest first."""
+    access.require("inventory", "read")
+    sp: ShopProduct | None = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.id == shop_product_id,
+            ShopProduct.shop_id == access.shop.id,
+        )
+        .first()
+    )
+    if sp is None:
+        raise NotFoundError("Product not found in this shop")
+
+    entries: list[dict[str, Any]] = []
+    inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+    if inv is not None:
+        for mv in (
+            db.query(InventoryMovement)
+            .filter(InventoryMovement.inventory_id == inv.id)
+            .all()
+        ):
+            entries.append(
+                {
+                    "type": "movement",
+                    "occurred_at": _iso(getattr(mv, "created_at", None)),
+                    "movement_type": mv.movement_type,
+                    "quantity_change": mv.quantity_change,
+                    "quantity_before": mv.quantity_before,
+                    "quantity_after": mv.quantity_after,
+                    "source": mv.source.value if hasattr(mv.source, "value") else str(mv.source),
+                    "notes": mv.notes,
+                }
+            )
+        for adj in (
+            db.query(InventoryAdjustment)
+            .filter(InventoryAdjustment.inventory_id == inv.id)
+            .all()
+        ):
+            entries.append(
+                {
+                    "type": "adjustment",
+                    "occurred_at": _iso(getattr(adj, "approved_at", None)),
+                    "adjustment_type": adj.adjustment_type,
+                    "quantity_adjustment": adj.quantity_adjustment,
+                    "reason": adj.reason,
+                }
+            )
+    for ph in (
+        db.query(PriceHistory).filter(PriceHistory.shop_product_id == sp.id).all()
+    ):
+        entries.append(
+            {
+                "type": "price_change",
+                "occurred_at": _iso(ph.effective_from),
+                "old_price": float(ph.old_price) if ph.old_price is not None else None,
+                "new_price": float(ph.new_price) if ph.new_price is not None else None,
+                "old_mrp": float(ph.old_mrp) if ph.old_mrp is not None else None,
+                "new_mrp": float(ph.new_mrp) if ph.new_mrp is not None else None,
+                "change_source": (
+                    ph.change_source.value
+                    if hasattr(ph.change_source, "value")
+                    else str(ph.change_source)
+                ),
+            }
+        )
+
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+
+    def _stamp(entry: dict[str, Any]) -> datetime:
+        raw = entry.get("occurred_at")
+        if isinstance(raw, datetime):
+            return raw
+        if isinstance(raw, str):
+            try:
+                parsed = datetime.fromisoformat(raw)
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                return epoch
+        return epoch
+
+    entries.sort(key=_stamp, reverse=True)
+    entries = entries[: max(int(limit), 1)]
+    return {"shop_product_id": sp.id, "count": len(entries), "entries": entries}
+
+
+def bulk_operation(access: ShopAccess, db: Session, user: User, data: dict) -> dict[str, Any]:
+    """Bulk operations foundation: apply one change to many shop products.
+
+    Supported operations: ``price_update``, ``stock_set``, ``availability``.
+    Per-item results are reported so callers can surface partial failures.
+    """
+    operation = str(data.get("operation", "")).lower().strip()
+    if operation not in BULK_OPERATIONS:
+        raise ValidationError(f"Unsupported bulk operation: {operation}")
+
+    ids = [int(sid) for sid in data.get("shop_product_ids") or []]
+    if not ids:
+        raise ValidationError("shop_product_ids must not be empty")
+
+    results: list[dict[str, Any]] = []
+    failed: list[dict[str, Any]] = []
+    for sid in ids:
+        try:
+            if operation == "price_update":
+                payload: dict[str, Any] = {}
+                if data.get("price") is not None:
+                    payload["price"] = data["price"]
+                if data.get("mrp") is not None:
+                    payload["mrp"] = data["mrp"]
+                if not payload:
+                    raise ValidationError("price_update requires price and/or mrp")
+            elif operation == "stock_set":
+                if data.get("quantity") is None:
+                    raise ValidationError("stock_set requires quantity")
+                payload = {"quantity": int(data["quantity"])}
+            else:  # availability
+                if data.get("is_available") is None:
+                    raise ValidationError("availability requires is_available")
+                payload = {"is_available": bool(data["is_available"])}
+            update_product(access, db, user, sid, payload)
+            results.append({"shop_product_id": sid, "success": True})
+        except AppError as exc:
+            failed.append({"shop_product_id": sid, "success": False, "error": exc.message})
+
+    return {
+        "operation": operation,
+        "requested": len(ids),
+        "succeeded": len(results),
+        "failed_count": len(failed),
+        "results": results,
+        "failed": failed,
+    }
+
+
+def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dict[str, Any]:
+    """Create an offer for this shop and attach it to selected shop products
+    (offer assignment; owner/admin permission)."""
+    access.require("offer", "update")
+
+    start_date = data["start_date"]
+    end_date = data["end_date"]
+    if end_date <= start_date:
+        raise ValidationError("Offer end date must be after start date")
+
+    offer_type_name = str(data["offer_type"]).upper()
+    try:
+        offer_enum = _enum_from_name("OfferType", offer_type_name)
+    except KeyError as exc:
+        raise ValidationError(f"Invalid offer type: {offer_type_name}") from exc
+
+    discount_value = data.get("discount_value")
+    discount_percentage = data.get("discount_percentage")
+    if offer_enum == OfferType.PERCENTAGE_DISCOUNT and not discount_percentage:
+        raise ValidationError("Percentage offers require discount_percentage")
+    if offer_enum == OfferType.FLAT_DISCOUNT and discount_value in (None, 0):
+        raise ValidationError("Flat-discount offers require discount_value")
+
+    product_ids: list[int] = []
+    for sid in data.get("shop_product_ids") or []:
+        sp = (
+            db.query(ShopProduct)
+            .filter(
+                ShopProduct.id == int(sid),
+                ShopProduct.shop_id == access.shop.id,
+                ShopProduct.is_deleted == False,  # noqa: E712
+            )
+            .first()
+        )
+        if sp is None:
+            raise NotFoundError(f"Product {sid} not found in this shop")
+        product_ids.append(sp.id)
+
+    offer = Offer(
+        shop_id=access.shop.id,
+        title=str(data["title"]).strip(),
+        description=data.get("description"),
+        offer_type=offer_enum,
+        discount_value=discount_value,
+        discount_percentage=discount_percentage,
+        start_date=start_date,
+        end_date=end_date,
+        status=OfferStatus.ACTIVE,
+        terms_conditions=data.get("terms_conditions"),
+    )
+    db.add(offer)
+    db.flush()
+
+    for sid in product_ids:
+        db.add(OfferProduct(offer_id=offer.id, shop_product_id=sid))
+
+    logger.info(
+        "Offer assigned: shop=%s offer=%s products=%s by user=%s",
+        access.shop.id, offer.id, product_ids, user.id,
+    )
+    return {
+        "offer_id": offer.id,
+        "title": offer.title,
+        "offer_type": offer_enum.value,
+        "status": offer.status.value,
+        "start_date": _iso(start_date),
+        "end_date": _iso(end_date),
+        "product_ids": product_ids,
+        "product_count": len(product_ids),
+    }
 
 
 # ── Profile / settings updates ───────────────────────────────────────────

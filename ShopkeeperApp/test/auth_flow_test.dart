@@ -2,9 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/app.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
+import 'package:hyperlocal_shopkeeper_app/core/router/app_router.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:go_router/go_router.dart';
 
 import 'fakes.dart';
 

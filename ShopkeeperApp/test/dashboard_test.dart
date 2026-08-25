@@ -1,8 +1,13 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/app.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
+import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
+import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/domain/shop_models.dart';
 
@@ -14,6 +19,8 @@ void main() {
       final fake = FakeDashboardRepo();
       final container = ProviderContainer(overrides: [
         dashboardRepositoryProvider.overrideWithValue(fake),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
         selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
       ]);
       addTearDown(container.dispose);
@@ -54,6 +61,8 @@ void main() {
       );
       final container = ProviderContainer(overrides: [
         dashboardRepositoryProvider.overrideWithValue(fake),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
         selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
       ]);
       addTearDown(container.dispose);
@@ -82,23 +91,30 @@ void main() {
   testWidgets('dashboard renders operational cards for an authorized shop',
       (tester) async {
     final authFake = FakeAuthRepository()..restoreResult = makeSession();
+    final container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(authFake),
+      dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepo()),
+      tokenStoreProvider.overrideWithValue(
+          InMemoryTokenStore(accessToken: 'test-access-token')),
+      selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
+    ]);
+    addTearDown(container.dispose);
+    // Tall surface so the whole dashboard list (incl. the subscription card
+    // below the fold) is built within the lazy ListView.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(UncontrolledProviderScope(
-      container: ProviderContainer(overrides: [
-        authRepositoryProvider.overrideWithValue(authFake),
-        dashboardRepositoryProvider
-            .overrideWithValue(FakeDashboardRepo()),
-        selectedShopProvider
-            .overrideWith(() => SelectedShopOverride(ownerShop())),
-      ]),
+      container: container,
       child: const ShopkeeperApp(),
     ));
-    addTearDown(container.dispose);
     await tester.pumpAndSettle();
 
     // Header shows the business name.
     expect(find.text('Kirana Corner'), findsOneWidget);
-    // Stat cards
-    expect(find.text('Products'), findsOneWidget);
+    // Stat cards ('Products' matches both the stat label and the nav tab).
+    expect(find.text('Products'), findsWidgets);
     expect(find.text('12'), findsOneWidget);
     expect(find.text('Active products'), findsOneWidget);
     expect(find.text('9'), findsOneWidget);

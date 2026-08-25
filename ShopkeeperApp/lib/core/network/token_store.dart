@@ -55,6 +55,14 @@ class SecureTokenStore implements TokenStore {
 
 /// In-memory store for widget/unit tests (no platform channels).
 class InMemoryTokenStore implements TokenStore {
+  InMemoryTokenStore({
+    String? accessToken,
+    String? refreshToken,
+    String? sessionId,
+  })  : _access = accessToken,
+        _refresh = refreshToken,
+        _session = sessionId;
+
   String? _access;
   String? _refresh;
   String? _session;

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -90,7 +92,12 @@ class _DashboardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final columns = constraints.maxWidth >= 900 ? 4 : 2;
-      final ratio = constraints.maxWidth >= 900 ? 2.8 : 1.65;
+      const gap = 12.0;
+      const outerPadding = 32.0; // ListView horizontal padding (16 × 2)
+      final tileWidth = (constraints.maxWidth - outerPadding - (columns - 1) * gap) / columns;
+      // Keep stat cards tall enough for their content at every width
+      // (fixed ratios overflowed on wide screens).
+      final ratio = math.max(1.35, tileWidth / 112);
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -100,8 +107,8 @@ class _DashboardBody extends StatelessWidget {
             crossAxisCount: columns,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            mainAxisSpacing: gap,
+            crossAxisSpacing: gap,
             childAspectRatio: ratio,
             children: [
               _StatCard(

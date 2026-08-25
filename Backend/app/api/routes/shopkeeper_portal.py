@@ -14,11 +14,15 @@ from app.core.responses import success_response
 from app.database.session import get_db
 from app.models.user import User
 from app.schemas.shopkeeper import (
+    ShopkeeperAddFromMaster,
+    ShopkeeperBulkOperation,
+    ShopkeeperOfferAssign,
     ShopkeeperProductCreate,
     ShopkeeperProductUpdate,
     ShopkeeperProfileUpdate,
     ShopkeeperSettingsUpdate,
     ShopkeeperShopCreate,
+    ShopkeeperStockAdjustment,
 )
 from app.services import shopkeeper_service
 
@@ -141,12 +145,34 @@ async def get_dashboard(
 
 
 @router.get("/shops/{shop_id}/inventory")
-async def get_inventory_overview(
+async def get_inventory(
     shop_id: int,
+    search: str | None = Query(None, max_length=120),
+    stock_status: str | None = Query(None, max_length=30),
+    availability: bool | None = Query(None),
+    is_active: bool | None = Query(None),
+    sort_by: str = Query("updated_at", max_length=30),
+    sort_order: str = Query("desc", max_length=4),
+    view: str = Query("overview", max_length=20),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Inventory overview (default) or a filterable/sortable/searchable list
+    (``view=list``) — items include last-updated time and inventory source."""
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    if str(view).lower() == "list":
+        access.require("inventory", "read")
+        listing = shopkeeper_service.list_inventory(
+            access,
+            db,
+            search=search,
+            stock_filter=stock_status,
+            availability_filter=availability,
+            active_filter=is_active,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        return success_response(data=listing)
     access.require("inventory", "read")
     overview = shopkeeper_service.inventory_overview(access, db)
     return success_response(data=overview)
@@ -212,4 +238,148 @@ async def update_product(
         return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
     db.commit()
     return success_response(data=product, message="Product updated")
+
+
+# ── Phase 23 — Inventory management ──────────────────────────────────────
+@router.get("/shops/{shop_id}/catalog/search")
+async def search_catalog(
+    shop_id: int,
+    q: str | None = Query(None, max_length=120),
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Search the shared product-master catalog (with variants) so the
+    shopkeeper can SELECT a known product instead of re-creating it."""
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    access.require("product", "read")
+    results = shopkeeper_service.search_product_masters(db, q, limit=limit)
+    return success_response(data={"results": results, "count": len(results)})
+
+
+@router.post("/shops/{shop_id}/inventory/products", status_code=201)
+async def add_product_from_master(
+    shop_id: int,
+    payload: ShopkeeperAddFromMaster,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add an EXISTING product-master (optionally a variant) to the shop with
+    shop-level price / MRP / availability / quantity."""
+    from app.core.exceptions import AppError
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        product = shopkeeper_service.add_product_from_master(
+            access, db, current_user, payload.model_dump(exclude_none=True)
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=product, message="Product added to inventory", status_code=201)
+
+
+@router.post("/shops/{shop_id}/products/{shop_product_id}/stock-adjustments")
+async def create_stock_adjustment(
+    shop_id: int,
+    shop_product_id: int,
+    payload: ShopkeeperStockAdjustment,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Apply a delta stock adjustment (restock/damage/correction) with a full
+    audit trail; updates propagate to the platform inventory system."""
+    from app.core.exceptions import AppError
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.adjust_stock(
+            access, db, current_user, shop_product_id, payload.model_dump(exclude_none=True)
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=result, message="Stock adjusted")
+
+
+@router.delete("/shops/{shop_id}/products/{shop_product_id}")
+async def remove_product(
+    shop_id: int,
+    shop_product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove/deactivate a shop product listing (soft delete)."""
+    from app.core.exceptions import AppError
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.remove_product(access, db, current_user, shop_product_id)
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=result, message="Product removed")
+
+
+@router.get("/shops/{shop_id}/products/{shop_product_id}/history")
+async def get_product_history(
+    shop_id: int,
+    shop_product_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Inventory history for one product: movements, adjustments and price changes."""
+    from app.core.exceptions import AppError
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.product_history(
+            access, db, current_user, shop_product_id, limit=limit
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    return success_response(data=result)
+
+
+@router.post("/shops/{shop_id}/inventory/bulk")
+async def bulk_inventory_operation(
+    shop_id: int,
+    payload: ShopkeeperBulkOperation,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Bulk operations foundation: price_update / stock_set / availability."""
+    from app.core.exceptions import AppError
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.bulk_operation(
+            access, db, current_user, payload.model_dump(exclude_none=True)
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=result, message="Bulk operation processed")
+
+
+@router.post("/shops/{shop_id}/offers/assign", status_code=201)
+async def assign_offer_to_products(
+    shop_id: int,
+    payload: ShopkeeperOfferAssign,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Assign (create + link) an offer to selected shop products."""
+    from app.core.exceptions import AppError
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.assign_offer(
+            access, db, current_user, payload.model_dump(exclude_none=True)
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=result, message="Offer assigned", status_code=201)
 

@@ -1,11 +1,10 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
+﻿import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/domain/dashboard_models.dart';
-import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/data/shop_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/shops/domain/shop_models.dart';
 
 // ---- Fixtures ------------------------------------------------------------
 
