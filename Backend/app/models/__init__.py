@@ -106,3 +106,10 @@ from app.models.subscription import Subscription, SubscriptionStatus, BillingCyc
 # Saved
 from app.models.saved_product import SavedProduct
 from app.models.saved_shop import SavedShop
+
+# Phase 24 — Inventory intake jobs
+from app.models.inventory_import import (
+    ImportJobStatus,
+    InventoryImportJob,
+    InventoryImportRow,
+)

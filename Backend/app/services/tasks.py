@@ -55,6 +55,37 @@ def dispatch_sms(phone_number: str, template_name: str, context: dict) -> dict:
 
 
 # ── Search index propagation ───────────────────────────────────────────────
+@celery_app.task(name="app.services.tasks.process_inventory_import")
+def process_inventory_import(job_id: int) -> dict:
+    """Background task — apply an Excel inventory-import job's valid rows.
+
+    Large imports are confirmed into QUEUED state by the API and processed
+    here so request handlers never block on thousands of row upserts.
+    """
+    from app.services import excel_import_service
+
+    with SessionLocal() as db:
+        try:
+            summary = excel_import_service.process_import_job(db, job_id)
+            db.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "processed": summary.get("processed_this_run"),
+                "failed": summary.get("failed_this_run"),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("process_inventory_import failed for job %s", job_id)
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "error": str(exc),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+
 @celery_app.task(name="app.services.tasks.index_shop_product")
 def index_shop_product(shop_product_id: int) -> dict:
     """Background task — index or re-index a single shop product."""
