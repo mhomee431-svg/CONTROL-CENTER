@@ -16,7 +16,13 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
+from app.core.exceptions import (
+    AppError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 from app.core.logging import get_logger
 from app.core.shopkeeper_permissions import (
     SHOPKEEPER_PERMISSIONS,
@@ -26,7 +32,21 @@ from app.core.shopkeeper_permissions import (
     permission_key,
     sync_owner_role,
 )
-from app.models.product import Inventory, Offer, OfferStatus, ProductMaster, ProductStatus, ShopProduct
+from app.models.product import (
+    Inventory,
+    InventoryAdjustment,
+    InventoryMovement,
+    InventorySource,
+    Offer,
+    OfferProduct,
+    OfferStatus,
+    OfferType,
+    PriceHistory,
+    ProductMaster,
+    ProductStatus,
+    ShopProduct,
+)
+from app.services.inventory_service import compute_freshness
 from app.models.shop import (
     Shop,
     ShopManager,
@@ -647,10 +667,37 @@ def _unique_sku(db: Session, shop_id: int, sku: str | None) -> str | None:
             return candidate
 
 
+def _normalize(value) -> str:
+    """Lowercase + whitespace-collapse for product-master name matching."""
+    return " ".join(str(value or "").lower().split())
+
+
+def find_matching_master(db: Session, name: str) -> ProductMaster | None:
+    """Return an existing non-deleted product-master whose normalized name
+    matches *name* exactly — used to prevent duplicate master records."""
+    needle = _normalize(name)
+    if not needle:
+        return None
+    candidates = (
+        db.query(ProductMaster)
+        .filter(ProductMaster.is_deleted == False)  # noqa: E712
+        .all()
+    )
+    for master in candidates:
+        if _normalize(master.name) == needle:
+            return master
+    return None
+
+
 def create_product(
     access: ShopAccess, db: Session, user: User, data: dict
 ) -> dict[str, Any]:
-    """Create a ProductMaster + ShopProduct + Inventory row for the shop."""
+    """Create a ProductMaster + ShopProduct + Inventory row for the shop.
+
+    Phase 23 guard: when a valid product-master already exists in the shared
+    catalog (normalized name match), the shopkeeper's listing is LINKED to it —
+    a duplicate master record is never created.
+    """
     from app.models.product import ShopProductStatus
 
     price = float(data["price"])
@@ -664,16 +711,34 @@ def create_product(
     stock_enum = _enum_from_name("StockStatus", _derive_stock_status(quantity, threshold))
     now = datetime.now(timezone.utc)
 
-    master = ProductMaster(
-        name=data["name"].strip(),
-        slug=_unique_master_slug(db, data["name"]),
-        description=data.get("description"),
-        base_unit=data.get("unit"),
-        status=ProductStatus.APPROVED if publish else ProductStatus.DRAFT,
-        is_active=publish,
-    )
-    db.add(master)
-    db.flush()
+    matched = find_matching_master(db, data["name"])
+    if matched is not None:
+        duplicate = (
+            db.query(ShopProduct)
+            .filter(
+                ShopProduct.shop_id == access.shop.id,
+                ShopProduct.product_master_id == matched.id,
+                ShopProduct.variant_id.is_(None),
+                ShopProduct.is_deleted == False,  # noqa: E712
+            )
+            .first()
+        )
+        if duplicate is not None:
+            raise ConflictError(
+                "This product already exists in your inventory — update it instead"
+            )
+        master = matched
+    else:
+        master = ProductMaster(
+            name=data["name"].strip(),
+            slug=_unique_master_slug(db, data["name"]),
+            description=data.get("description"),
+            base_unit=data.get("unit"),
+            status=ProductStatus.APPROVED if publish else ProductStatus.DRAFT,
+            is_active=publish,
+        )
+        db.add(master)
+        db.flush()
 
     sp = ShopProduct(
         shop_id=access.shop.id,
@@ -688,6 +753,8 @@ def create_product(
         last_inventory_update=now,
         last_price_update=now,
     )
+    # Link eagerly so serialization sees the master name immediately.
+    sp.product_master = master
     db.add(sp)
     db.flush()
 

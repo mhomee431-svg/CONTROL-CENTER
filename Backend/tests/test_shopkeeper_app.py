@@ -225,7 +225,10 @@ class TestShopkeeperPermissions:
     def test_manager_subset_excludes_settings(self):
         from app.core.shopkeeper_permissions import effective_shop_permissions
 
-        perms = effective_shop_permissions("shopkeeper", False, None)
+        class UnrestrictedManager:
+            permissions = None  # no explicit restriction → full manager catalog
+
+        perms = effective_shop_permissions("shopkeeper", False, UnrestrictedManager())
         assert "update:shop" not in perms
         assert "read:dashboard" in perms
         assert "update:product" in perms
@@ -530,4 +533,310 @@ class TestVerificationStatus:
         assert dashboard["offers"]["active"] == 1
         assert dashboard["subscription"]["status"] == "ACTIVE"
         assert dashboard["verification"]["status"] == "PENDING"
+
+
+
+# ── Unauthorized shop access ─────────────────────────────────────────────
+
+
+class TestUnauthorizedShopAccess:
+    def test_customer_role_cannot_access_someone_elses_shop(self):
+        from app.core.exceptions import ForbiddenError
+        from app.services import shopkeeper_service as svc
+
+        customer = make_user(role_name="customer")
+        shop = make_shop(shop_id=99, name="Not Mine")
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(make_owner()), [None])
+        db.queue_first(type(make_manager()), [None])
+
+        with pytest.raises(ForbiddenError):
+            svc.resolve_shop_access(db, customer, 99)
+
+    def test_no_role_user_cannot_access(self):
+        from app.core.exceptions import ForbiddenError
+        from app.services import shopkeeper_service as svc
+
+        user = make_user()  # no role
+        shop = make_shop(shop_id=99)
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(make_owner()), [None])
+        db.queue_first(type(make_manager()), [None])
+
+        with pytest.raises(ForbiddenError):
+            svc.resolve_shop_access(db, user, 99)
+
+    def test_missing_shop_raises_not_found(self):
+        from app.core.exceptions import NotFoundError
+        from app.services import shopkeeper_service as svc
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(make_shop()), [None])
+        with pytest.raises(NotFoundError):
+            svc.resolve_shop_access(db, make_user(), 12345)
+
+    def test_portal_dependency_enforces_403(self):
+        from app.core.exceptions import ForbiddenError
+        from app.api.routes import shopkeeper_portal
+
+        customer = make_user(role_name="customer")
+        shop = make_shop(shop_id=77, name="Someone Else")
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(make_owner()), [None])
+        db.queue_first(type(make_manager()), [None])
+
+        resolver = shopkeeper_portal.shop_access_dependency(77)
+        # Direct dependency invocation surfaces the domain error; FastAPI's
+        # exception handlers translate it to an HTTP 403 on the wire.
+        with pytest.raises(ForbiddenError):
+            resolver(current_user=customer, db=db)
+
+    def test_inactive_owner_row_denies_access(self):
+        """Revoked ownership (is_active=False row) is invisible to queries —
+        the DB-level filter returns no active row, so access must be denied."""
+        from app.core.exceptions import ForbiddenError
+        from app.services import shopkeeper_service as svc
+
+        user = make_user()
+        shop = make_shop()
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        # The scoped query filters is_active=True, so a revoked row never comes back.
+        db.queue_first(type(make_owner()), [None])
+        db.queue_first(type(make_manager()), [None])
+
+        with pytest.raises(ForbiddenError):
+            svc.resolve_shop_access(db, user, 10)
+
+    def test_products_require_read_permission(self):
+        from app.core.exceptions import ForbiddenError
+        from app.services.shopkeeper_service import ShopAccess
+        from app.services import shopkeeper_service as svc
+
+        shop = make_shop()
+        access = ShopAccess(shop=shop, role_name="manager", is_owner=False,
+                            permissions=set())
+        with pytest.raises(ForbiddenError):
+            access.require("product", "read")
+
+
+# ── Logout ───────────────────────────────────────────────────────────────
+
+
+class TestShopkeeperLogout:
+    def test_logout_route_revokes_session_and_commits(self):
+        from app.api.routes import shopkeeper_auth
+
+        user = make_user(user_id=9)
+        db = ShopkeeperMockDB()
+        captured = {}
+
+        def fake_logout(db_arg, user_arg, session_id=None, revoke_all=False):
+            captured["session_id"] = session_id
+            captured["revoke_all"] = revoke_all
+            return {"revoked": True}
+
+        with pytest.MonkeyPatch.context() as mp:
+            # Patch where the route actually looks it up (module namespace).
+            mp.setattr(shopkeeper_auth, "logout_session", fake_logout)
+
+            payload = shopkeeper_auth.ShopkeeperLogoutRequest(session_id="sess-1")
+            response = run_async(
+                shopkeeper_auth.logout(payload, current_user=user, db=db)
+            )
+
+        assert captured["session_id"] == "sess-1"
+        assert db.committed == 1
+        body = bytes(response.body).decode()
+        assert '"success":true' in body.replace(" ", "")
+
+
+
+# ── Shop registration & product management foundation ───────────────────
+
+
+class TestShopAndProductFoundation:
+    def test_register_shop_assigns_primary_owner_and_verification(self):
+        from app.models.shop import ShopOwner, ShopVerification
+        from app.services import shopkeeper_service as svc
+
+        user = make_user(role_name="shopkeeper")
+        db = ShopkeeperMockDB()
+
+        shop = svc.register_shop_for_shopkeeper(
+            db,
+            user,
+            {
+                "name": "New Corner Store",
+                "category": "grocery",
+                "latitude": 12.9716,
+                "longitude": 77.5946,
+                "address": {
+                    "address_line1": "12 MG Road",
+                    "city": "Bengaluru",
+                    "state": "Karnataka",
+                    "pincode": "560001",
+                },
+            },
+        )
+
+        owners = [o for o in db.added if isinstance(o, ShopOwner)]
+        assert len(owners) == 1
+        assert owners[0].user_id == user.id and owners[0].is_primary
+        verifications = [v for v in db.added if isinstance(v, ShopVerification)]
+        assert len(verifications) == 1  # initial PENDING verification record
+
+    def test_register_shop_rejects_bad_category(self):
+        from app.core.exceptions import ValidationError
+        from app.services import shopkeeper_service as svc
+
+        db = ShopkeeperMockDB()
+        with pytest.raises(ValidationError):
+            svc.register_shop_for_shopkeeper(
+                db,
+                make_user(role_name="shopkeeper"),
+                {
+                    "name": "X",
+                    "category": "SPACESHIPS",
+                    "latitude": 12.0,
+                    "longitude": 77.0,
+                    "address": {"address_line1": "a", "city": "c",
+                                "state": "s", "pincode": "1"},
+                },
+            )
+
+    def test_create_product_builds_master_shopproduct_inventory(self):
+        from app.models.product import Inventory, ProductMaster, ShopProduct
+        from app.services import shopkeeper_service as svc
+        from app.services.shopkeeper_service import ShopAccess
+
+        user = make_user()
+        shop = make_shop()
+        access = ShopAccess(shop=shop, role_name="owner", is_owner=True)
+        db = ShopkeeperMockDB()
+
+        product = svc.create_product(
+            access,
+            db,
+            user,
+            {"name": "Basmati Rice 5kg", "price": 480.0, "mrp": 550.0,
+             "quantity": 40, "publish": True},
+        )
+
+        assert product["name"] == "Basmati Rice 5kg"
+        assert product["quantity"] == 40
+        assert product["stock_status"] == "IN_STOCK"
+        masters = [o for o in db.added if isinstance(o, ProductMaster)]
+        sps = [o for o in db.added if isinstance(o, ShopProduct)]
+        invs = [o for o in db.added if isinstance(o, Inventory)]
+        assert len(masters) == len(sps) == len(invs) == 1
+
+    def test_create_product_rejects_mrp_below_price(self):
+        from app.core.exceptions import ValidationError
+        from app.services import shopkeeper_service as svc
+        from app.services.shopkeeper_service import ShopAccess
+
+        db = ShopkeeperMockDB()
+        access = ShopAccess(shop=make_shop(), role_name="owner", is_owner=True)
+        with pytest.raises(ValidationError):
+            svc.create_product(
+                access, db, make_user(),
+                {"name": "Bad Pricing", "price": 500.0, "mrp": 400.0},
+            )
+
+
+    def test_update_product_stock_updates_status_and_timestamp(self):
+        from datetime import datetime as dt
+
+        from app.services import shopkeeper_service as svc
+        from app.services.shopkeeper_service import ShopAccess
+
+        sp = make_shop_product(sp_id=200, quantity=50)
+        old_stamp = dt.now(timezone.utc) - timedelta(days=1)
+        sp.last_inventory_update = old_stamp
+
+        inv = sp.inventory
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(sp), [sp])
+        db.queue_first(type(inv), [inv])
+
+        access = ShopAccess(shop=make_shop(), role_name="owner", is_owner=True)
+        result = svc.update_product(access, db, make_user(), 200, {"quantity": 2})
+
+        assert result["stock_status"] == "LOW_STOCK"
+        assert result["quantity"] == 2
+        assert result["is_available"] is True
+        assert sp.last_inventory_update > old_stamp
+
+    def test_update_product_zero_quantity_marks_unavailable(self):
+        from app.services import shopkeeper_service as svc
+        from app.services.shopkeeper_service import ShopAccess
+
+        sp = make_shop_product(sp_id=201, quantity=10)
+        inv = sp.inventory
+        db = ShopkeeperMockDB()
+        db.queue_first(type(sp), [sp])
+        db.queue_first(type(inv), [inv])
+
+        access = ShopAccess(shop=make_shop(), role_name="owner", is_owner=True)
+        result = svc.update_product(access, db, make_user(), 201, {"quantity": 0})
+        assert result["is_available"] is False
+        assert result["stock_status"] == "OUT_OF_STOCK"
+
+    def test_update_product_cannot_touch_other_shops_inventory(self):
+        from app.core.exceptions import NotFoundError
+        from app.services import shopkeeper_service as svc
+        from app.services.shopkeeper_service import ShopAccess
+
+        # Product belongs to shop 10; accessor's shop is 99 → scoped query misses.
+        sp = make_shop_product(sp_id=202)
+        sp.shop_id = 10
+        db = ShopkeeperMockDB()
+        db.queue_first(type(sp), [None])
+
+        other_shop = make_shop(shop_id=99)
+        access = ShopAccess(shop=other_shop, role_name="owner", is_owner=True)
+        with pytest.raises(NotFoundError):
+            svc.update_product(access, db, make_user(), 202, {"price": 9.0})
+
+
+# ── Route registration ───────────────────────────────────────────────────
+
+
+class TestRouteRegistration:
+    def test_shopkeeper_routers_registered_in_main(self):
+        from app.main import app
+
+        paths = set(app.openapi()["paths"].keys())
+        expected = [
+            "/api/v1/shopkeeper/auth/send-otp",
+            "/api/v1/shopkeeper/auth/register",
+            "/api/v1/shopkeeper/auth/login",
+            "/api/v1/shopkeeper/auth/refresh",
+            "/api/v1/shopkeeper/auth/logout",
+            "/api/v1/shopkeeper/auth/me",
+            "/api/v1/shopkeeper/shops",
+            "/api/v1/shopkeeper/shops/{shop_id}",
+            "/api/v1/shopkeeper/shops/{shop_id}/dashboard",
+            "/api/v1/shopkeeper/shops/{shop_id}/inventory",
+            "/api/v1/shopkeeper/shops/{shop_id}/products",
+            "/api/v1/shopkeeper/shops/{shop_id}/profile",
+            "/api/v1/shopkeeper/shops/{shop_id}/settings",
+        ]
+        for path in expected:
+            assert path in paths, f"missing route: {path}"
+
+    def test_customer_routes_untouched_by_shopkeeper_module(self):
+        """Shopkeeper logic must NOT leak into customer endpoints."""
+        from app.main import app
+
+        paths = set(app.openapi()["paths"].keys())
+        # Customer auth still lives at /auth/*
+        assert "/api/v1/auth/send-otp" in paths
+        assert "/api/v1/auth/verify-otp" in paths
 

@@ -1,4 +1,6 @@
-"""Phase 22 — Pydantic schemas for the Shopkeeper App API."""
+"""Phase 22/23 — Pydantic schemas for the Shopkeeper App API."""
+
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -121,3 +123,55 @@ class ShopkeeperProductUpdate(BaseModel):
     is_available: bool | None = None
     is_featured: bool | None = None
     status: str | None = Field(None, max_length=30)
+
+
+# ── Phase 23 — Inventory management ──────────────────────────────────────
+class ShopkeeperAddFromMaster(BaseModel):
+    """Add an EXISTING product-master record (optionally a variant) to a shop.
+
+    Shopkeepers must select from the platform catalog — arbitrary duplicate
+    product-master creation is not allowed through this endpoint.
+    """
+
+    product_master_id: int
+    variant_id: int | None = None
+    price: float = Field(..., ge=0, description="Shop selling price")
+    mrp: float | None = Field(None, ge=0)
+    sku: str | None = Field(None, max_length=100)
+    quantity: int = Field(0, ge=0)
+    low_stock_threshold: int = Field(5, ge=0)
+    is_available: bool = True
+
+
+class ShopkeeperStockAdjustment(BaseModel):
+    """Delta stock adjustment with audit trail (type + reason)."""
+
+    adjustment_type: str = Field("CORRECTION", max_length=50)
+    quantity_adjustment: int = Field(
+        ..., description="Delta units (+restock / -damage); result must stay >= 0"
+    )
+    reason: str | None = Field(None, max_length=255)
+
+
+class ShopkeeperBulkOperation(BaseModel):
+    """Bulk operations foundation: apply one change to many shop products."""
+
+    operation: str = Field(..., description="price_update | stock_set | availability")
+    shop_product_ids: list[int] = Field(..., min_length=1, max_length=200)
+    price: float | None = Field(None, ge=0)
+    mrp: float | None = Field(None, ge=0)
+    quantity: int | None = Field(None, ge=0)
+    is_available: bool | None = None
+
+
+class ShopkeeperOfferAssign(BaseModel):
+    """Assign (create + link) an offer to selected shop products."""
+
+    title: str = Field(..., min_length=1, max_length=255)
+    offer_type: str = Field(..., max_length=40)
+    discount_value: float | None = Field(None, ge=0)
+    discount_percentage: float | None = Field(None, gt=0, le=100)
+    start_date: datetime
+    end_date: datetime
+    shop_product_ids: list[int] = Field(..., min_length=1, max_length=200)
+    terms_conditions: str | None = None

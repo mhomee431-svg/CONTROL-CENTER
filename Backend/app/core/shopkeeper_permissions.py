@@ -49,6 +49,7 @@ SHOPKEEPER_PERMISSIONS: list[tuple[str, str]] = [
     ("inventory", "update"),
     # Offers
     ("offer", "read"),
+    ("offer", "update"),
 ]
 
 #: Reduced catalog for shop MANAGERS — inventory & products, no settings.
