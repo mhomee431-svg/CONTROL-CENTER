@@ -89,6 +89,35 @@ def derive_stock_status(quantity: int, low_stock_threshold: Optional[int] = None
     return StockStatus.IN_STOCK
 
 
+def _notify_back_in_stock(db: Session, shop_product: ShopProduct) -> None:
+    """Phase 27 — fire the PRODUCT_AVAILABLE fan-out when stock returns.
+
+    Never raises: notification failures must not break inventory writes.
+    """
+    if not shop_product.is_available or not shop_product.product_master_id:
+        return
+    try:
+        from app.services import notification_service
+
+        shop = (
+            db.query(Shop).filter(Shop.id == shop_product.shop_id).first()
+            if shop_product.shop_id
+            else None
+        )
+        notification_service.notify_product_available(
+            db,
+            product_master_id=shop_product.product_master_id,
+            shop_name=shop.name if shop else "a nearby shop",
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "Failed to fan out product-available notifications for shop_product %s",
+            shop_product.id,
+        )
+
+
+
+
 # ── Inventory CRUD ──────────────────────────────────────────────────────────
 def _enqueue_search_index_update(shop_product_id: int) -> None:
     """Fire-and-forget trigger to update the search index for a shop product."""
@@ -170,6 +199,7 @@ def update_inventory(db: Session, inventory_id: int, data: dict) -> Optional[Inv
         return None
 
     old_quantity = inv.quantity
+    was_available = bool(inv.is_available)
     new_quantity = data.get("quantity", inv.quantity)
     new_reserved = data.get("reserved_quantity", inv.reserved_quantity)
     source = data.get("source", inv.last_updated_source)
@@ -216,6 +246,9 @@ def update_inventory(db: Session, inventory_id: int, data: dict) -> Optional[Inv
         sp.source = source
         sp.freshness_status = inv.freshness_status
         db.flush()
+        if not was_available and inv.is_available:
+            # Phase 27 — restock transition → notify customers who saved it.
+            _notify_back_in_stock(db, sp)
     _enqueue_search_index_update(inv.shop_product_id)
     return inv
 
@@ -272,6 +305,7 @@ def record_movement(db: Session, data: dict) -> InventoryMovement:
         raise ValueError("Insufficient stock for this movement")
 
     old_quantity = inv.quantity
+    was_out_of_stock = inv.stock_status == StockStatus.OUT_OF_STOCK
     inv.quantity = new_quantity
     inv.available_quantity = max(new_quantity - inv.reserved_quantity, 0)
     inv.stock_status = derive_stock_status(inv.quantity, inv.low_stock_threshold)
@@ -300,6 +334,9 @@ def record_movement(db: Session, data: dict) -> InventoryMovement:
         sp.last_inventory_update = now
         sp.freshness_status = inv.freshness_status
         db.flush()
+        if was_out_of_stock and inv.stock_status != StockStatus.OUT_OF_STOCK:
+            # Phase 27 — movement brought an out-of-stock item back.
+            _notify_back_in_stock(db, sp)
     _enqueue_search_index_update(inv.shop_product_id)
     return movement
 
@@ -400,6 +437,25 @@ def update_price(db: Session, shop_product_id: int, data: dict) -> Optional[Pric
     sp.last_price_update = now
     sp.source = source
     db.flush()
+
+    if float(new_price) < float(old_price):
+        # Phase 27 — price decrease → notify customers who saved this product.
+        try:
+            from app.services import notification_service
+
+            shop = db.query(Shop).filter(Shop.id == sp.shop_id).first() if sp.shop_id else None
+            notification_service.notify_price_drop(
+                db,
+                product_master_id=sp.product_master_id,
+                shop_name=shop.name if shop else "a nearby shop",
+                old_price=float(old_price),
+                new_price=float(new_price),
+            )
+        except Exception:  # noqa: BLE001 — pricing flow must never break on notifications
+            logger.warning(
+                "Failed to fan out price-drop notifications for shop_product %s", shop_product_id
+            )
+
     _enqueue_search_index_update(shop_product_id)
     return history
 

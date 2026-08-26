@@ -9,6 +9,7 @@ from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.notification import DeviceToken, Notification, NotificationPreference
 from app.models.user import User
+from app.services import notification_service
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -36,17 +37,28 @@ class DeviceTokenPayload(BaseModel):
 
 @router.get("")
 async def list_notifications(
+    type: str | None = None,
+    is_read: bool | None = None,
+    limit: int = 50,
+    offset: int = 0,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Return all notifications for the current user."""
+    """Notification history for the current user (filterable, paginated)."""
+    query = db.query(Notification).filter(Notification.user_id == current_user.id)
+    if type is not None:
+        query = query.filter(Notification.type == type)
+    if is_read is not None:
+        query = query.filter(Notification.is_read == is_read)
+    total = query.count()
     notifications = (
-        db.query(Notification)
-        .filter(Notification.user_id == current_user.id)
-        .order_by(Notification.created_at.desc())
-        .all()
+        query.order_by(Notification.created_at.desc()).offset(offset).limit(min(limit, 200)).all()
     )
-    unread_count = sum(1 for n in notifications if not n.is_read)
+    unread_count = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id, Notification.is_read == False)  # noqa: E712
+        .count()
+    )
     return success_response(
         data={
             "notifications": [
@@ -55,15 +67,46 @@ async def list_notifications(
                     "title": n.title,
                     "body": n.body,
                     "type": n.type,
+                    "audience": n.audience,
+                    "deep_link": n.deep_link,
+                    "delivery_status": n.delivery_status,
                     "is_read": n.is_read,
                     "payload": n.payload,
                     "created_at": n.created_at,
                 }
                 for n in notifications
             ],
+            "total": total,
             "unread_count": unread_count,
         }
     )
+
+
+@router.get("/unread-count")
+async def get_unread_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Badge helper — number of unread notifications."""
+    unread_count = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id, Notification.is_read == False)  # noqa: E712
+        .count()
+    )
+    return success_response(data={"unread_count": unread_count})
+
+
+@router.get("/{notification_id}/delivery-status")
+async def get_notification_delivery_status(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Per-device delivery history for one of the user's notifications."""
+    status = notification_service.get_delivery_status(db, notification_id, current_user.id)
+    if status is None:
+        return error_response(message="Notification not found", error_code="NOTIFICATION_NOT_FOUND", status_code=404)
+    return success_response(data=status)
 
 
 @router.put("/{notification_id}/read")
@@ -82,6 +125,7 @@ async def mark_notification_read(
         return error_response(message="Notification not found", error_code="NOTIFICATION_NOT_FOUND", status_code=404)
 
     notification.is_read = True
+    notification.read_at = datetime.now(timezone.utc)
     db.add(notification)
     db.commit()
     return success_response(data=None, message="Notification marked as read")
@@ -94,7 +138,7 @@ async def mark_all_notifications_read(
 ):
     """Mark all notifications for the current user as read."""
     db.query(Notification).filter(Notification.user_id == current_user.id).update(
-        {Notification.is_read: True}
+        {Notification.is_read: True, Notification.read_at: datetime.now(timezone.utc)}
     )
     db.commit()
     return success_response(data=None, message="All notifications marked as read")

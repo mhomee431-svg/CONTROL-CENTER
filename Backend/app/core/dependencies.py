@@ -317,3 +317,44 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role is None or user.role.name != "admin":
         raise ForbiddenError("Admin access required")
     return user
+
+
+def get_admin_permissions(
+    user: User = Depends(get_current_user),
+) -> tuple[User, set[str]]:
+    """Resolve (user, effective_admin_permission_keys).
+
+    Only admin-family roles pass: ``admin`` (super) or an ``admin_*`` sub-role.
+    """
+    from app.core.admin_permissions import (
+        ADMIN_SUBROLE_PERMISSIONS,
+        effective_admin_permissions,
+        user_is_admin_family,
+    )
+
+    if not user_is_admin_family(user):
+        raise ForbiddenError("Admin access required")
+    role_name = user.role.name if user.role is not None else None
+    return user, effective_admin_permissions(role_name)
+
+
+def require_admin_permission(resource: str, action: str):
+    """Dependency factory enforcing a specific admin module permission.
+
+    Usage:
+        @router.post("/shops/{shop_id}/verify")
+        def verify_shop(user: User = Depends(require_admin_permission("shop", "verify"))):
+            ...
+    """
+
+    def checker(
+        perms_ctx: tuple[User, set[str]] = Depends(get_admin_permissions),
+    ) -> User:
+        user, perms = perms_ctx
+        from app.core.admin_permissions import has_admin_permission
+
+        if not has_admin_permission(perms, resource, action):
+            raise ForbiddenError(f"Missing admin permission: {action}:{resource}")
+        return user
+
+    return checker

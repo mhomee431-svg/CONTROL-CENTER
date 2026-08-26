@@ -111,6 +111,17 @@ class Settings(BaseSettings):
     AWS_SNS_REGION: str = "us-east-1"
     AWS_SNS_SENDER_ID: Optional[str] = None
 
+    # ── Push Provider (replaceable; Phase 27) ──────────────────────────────────
+    PUSH_PROVIDER: str = "mock"  # mock | fcm
+    # FCM credentials are NEVER hardcoded — supply via secret manager / env:
+    FCM_CREDENTIALS_FILE: Optional[str] = None   # path to service-account JSON
+    FCM_CREDENTIALS_JSON: Optional[str] = None   # raw service-account JSON string
+    FCM_DRY_RUN: bool = False                    # true → validate without delivering
+    # Anti-spam controls (Phase 27)
+    NOTIFICATION_DEDUPE_COOLDOWN_SECONDS: int = Field(3600, ge=0)  # same dedupe_key within window → suppressed
+    NOTIFICATION_HOURLY_CAP: int = Field(20, ge=1)                 # max non-transactional notifications / user / hour
+    NOTIFICATION_MAX_DELIVERY_ATTEMPTS: int = Field(3, ge=1)       # retries per device before giving up
+
     # ── Email Provider (replaceable) ───────────────────────────────────────────
     EMAIL_PROVIDER: str = "mock"  # mock | smtp | sendgrid | aws-ses
     EMAIL_FROM_ADDRESS: str = "noreply@hyperlocal.app"

@@ -32,6 +32,24 @@ from app.core.config import settings  # noqa: E402
 settings.RATE_LIMIT_ENABLED = False
 
 
+@pytest.fixture(autouse=True)
+def _no_live_broker(monkeypatch):
+    """Keep these tests hermetic — no Redis/Celery broker required.
+
+    The inventory service fire-and-forgets a search-index task via Celery and
+    (Phase 27) the notification service enqueues delivery jobs; stub both so
+    tests never touch a message broker (mirrors test_pos_integration_phase25).
+    """
+    from app.services import inventory_service, notification_tasks
+
+    monkeypatch.setattr(
+        inventory_service, "_enqueue_search_index_update", lambda shop_product_id: None
+    )
+    monkeypatch.setattr(
+        notification_tasks.deliver_notification_task, "delay", lambda nid: None
+    )
+
+
 # ── Enum tests ──────────────────────────────────────────────────────────────
 def test_stock_status_enum_values():
     """StockStatus must support all required states."""

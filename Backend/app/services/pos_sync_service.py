@@ -667,6 +667,27 @@ def run_sync_job(db: Session, job_id: int) -> dict:
         integration.last_sync_status = "PARTIAL"
 
     db.flush()
+
+    # Phase 27 — tell the shopkeeper how their sync run ended.
+    try:
+        from app.models.shop import ShopOwner
+        from app.services import notification_service
+
+        owner_row = (
+            db.query(ShopOwner.user_id).filter(ShopOwner.shop_id == integration.shop_id).first()
+        )
+        if owner_row is not None:
+            notification_service.notify_pos_sync_event(
+                db,
+                shopkeeper_user_id=owner_row[0],
+                integration_id=integration.id,
+                job_id=job.id,
+                ok=job.status == POSSyncStatus.COMPLETED,
+                detail=f"Sync {job.status.value}: {job.items_succeeded} ok / {job.items_failed} failed",
+            )
+    except Exception:  # noqa: BLE001 — notifications must never break a sync run
+        logger.warning("Failed to notify shopkeeper of POS sync job %s outcome", job.id)
+
     logger.info(
         "POS sync job %s finished status=%s processed=%s ok=%s failed=%s duplicates=%s",
         job.id, job.status.value, job.items_processed,

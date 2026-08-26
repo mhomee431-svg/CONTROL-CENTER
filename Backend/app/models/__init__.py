@@ -81,7 +81,12 @@ from app.models.pos import (
 )
 
 # Notifications
-from app.models.notification import Notification, NotificationPreference, DeviceToken
+from app.models.notification import (
+    DeviceToken,
+    Notification,
+    NotificationDelivery,
+    NotificationPreference,
+)
 
 # Admin
 from app.models.admin import (
@@ -102,7 +107,14 @@ from app.models.analytics import ProductView, ShopView, ProductClick, InventoryE
 from app.models.system import SystemSetting, FeatureFlag
 
 # Subscriptions
-from app.models.subscription import Subscription, SubscriptionStatus, BillingCycle, SubscriptionPlan, Payment
+from app.models.subscription import (
+    Subscription,
+    SubscriptionStatus,
+    BillingCycle,
+    SubscriptionPlan,
+    Payment,
+    PaymentEvent,
+)
 
 # Saved
 from app.models.saved_product import SavedProduct

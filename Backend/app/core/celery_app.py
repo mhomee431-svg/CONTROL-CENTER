@@ -12,6 +12,7 @@ celery_app = Celery(
     include=[
         "app.core.tasks",
         "app.services.tasks",
+        "app.services.notification_tasks",
     ],
 )
 
@@ -63,6 +64,12 @@ celery_app.conf.beat_schedule = {
     "daily-popular-searches": {
         "task": "app.services.tasks.aggregate_popular_searches_task",
         "schedule": crontab(hour=2, minute=30),
+    },
+    # Phase 27 — retry failed notification deliveries every 5 minutes
+    "notification-retry-sweep": {
+        "task": "app.services.notification_tasks.retry_failed_notifications",
+        "schedule": 300.0,
+        "kwargs": {"limit": 100},
     },
 }
 
