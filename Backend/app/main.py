@@ -122,6 +122,10 @@ app.include_router(pos_integration.router, prefix=API_PREFIX)
 # Phase 26 — Complete Admin Platform
 app.include_router(admin_routes.router, prefix=API_PREFIX)
 
+# Phase 28 — Shopkeeper subscriptions & payments (monetization)
+from app.api.routes import shopkeeper_subscription
+app.include_router(shopkeeper_subscription.router, prefix=API_PREFIX)
+
 
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])

@@ -689,6 +689,62 @@ def find_matching_master(db: Session, name: str) -> ProductMaster | None:
     return None
 
 
+# ── Subscription entitlement enforcement (Phase 28) ─────────────────────────
+
+
+def _shop_entitlements(db: Session, access: ShopAccess) -> dict:
+    """Effective plan entitlements for the shop (rules live in entitlements)."""
+    from app.services.subscription import entitlements
+
+    return entitlements.resolve_shop_entitlements(db, access.shop)
+
+
+def _enforce_product_limit(db: Session, access: ShopAccess) -> None:
+    """Plan guard: ``max_products`` cap on active (non-deleted) listings."""
+    from app.services.subscription import entitlements
+
+    resolved = _shop_entitlements(db, access)
+    current = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.shop_id == access.shop.id,
+            ShopProduct.is_deleted == False,  # noqa: E712
+        )
+        .count()
+    )
+    entitlements.enforce_limit(resolved, "max_products", current)
+
+
+def _enforce_offers(db: Session, access: ShopAccess) -> None:
+    """Plan guards: offers allowed at all + concurrent-offer cap."""
+    from app.models.product import OfferStatus
+    from app.services.subscription import entitlements
+
+    resolved = _shop_entitlements(db, access)
+    entitlements.enforce_feature(resolved, "offers")
+    current = (
+        db.query(Offer)
+        .filter(Offer.shop_id == access.shop.id, Offer.status == OfferStatus.ACTIVE)
+        .count()
+    )
+    entitlements.enforce_limit(resolved, "max_active_offers", current)
+
+
+def enforce_pos_support(db: Session, shop_id: int) -> None:
+    """Public plan guard used by POS routes: requires ``pos_support``."""
+    from app.services.subscription import entitlements
+
+    resolved = entitlements.resolve_shop_entitlements(db, _ShopIdStub(shop_id))
+    entitlements.enforce_feature(resolved, "pos_support")
+
+
+class _ShopIdStub:
+    """Minimal shop-like object for entitlement resolution by id."""
+
+    def __init__(self, shop_id: int):
+        self.id = shop_id
+
+
 def create_product(
     access: ShopAccess, db: Session, user: User, data: dict
 ) -> dict[str, Any]:
@@ -697,8 +753,12 @@ def create_product(
     Phase 23 guard: when a valid product-master already exists in the shared
     catalog (normalized name match), the shopkeeper's listing is LINKED to it —
     a duplicate master record is never created.
+    Phase 28 guard: the shop's plan ``max_products`` entitlement is enforced.
     """
     from app.models.product import ShopProductStatus
+
+    # Phase 28 — subscription entitlement enforcement (product limit).
+    _enforce_product_limit(db, access)
 
     price = float(data["price"])
     mrp = float(data["mrp"]) if data.get("mrp") is not None else None
@@ -1012,6 +1072,9 @@ def add_product_from_master(
     from app.models.product import ShopProductStatus
 
     access.require("product", "create")
+
+    # Phase 28 — subscription entitlement enforcement (product limit).
+    _enforce_product_limit(db, access)
 
     master = (
         db.query(ProductMaster)
@@ -1505,6 +1568,9 @@ def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dic
     """Create an offer for this shop and attach it to selected shop products
     (offer assignment; owner/admin permission)."""
     access.require("offer", "update")
+
+    # Phase 28 — subscription entitlement enforcement (offers + cap).
+    _enforce_offers(db, access)
 
     start_date = data["start_date"]
     end_date = data["end_date"]

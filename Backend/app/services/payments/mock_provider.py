@@ -25,6 +25,7 @@ from app.services.payments.base import (
     PaymentVerificationError,
     VerificationResult,
     WebhookSignatureError,
+    register_provider,
     sign_payload,
 )
 
