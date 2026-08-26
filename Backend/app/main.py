@@ -21,6 +21,7 @@ from app.api.routes import (
 )
 from app.api.routes import shopkeeper_auth, shopkeeper_portal
 from app.api.routes import inventory_intake
+from app.api.routes import pos_integration
 
 from app.core.config import settings
 from app.core.exceptions import setup_exception_handlers
@@ -113,6 +114,9 @@ app.include_router(shopkeeper_portal.router, prefix=API_PREFIX)
 
 # Phase 24 — Barcode scan + Excel inventory intake
 app.include_router(inventory_intake.router, prefix=API_PREFIX)
+
+# Phase 25 — Provider-agnostic POS integration platform
+app.include_router(pos_integration.router, prefix=API_PREFIX)
 
 
 # 5. Health / Readiness (no API prefix — infra probes)

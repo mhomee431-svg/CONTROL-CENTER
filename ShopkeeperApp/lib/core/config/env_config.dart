@@ -17,4 +17,17 @@ class EnvConfig {
 
   /// Backend base URL, e.g. `http://10.0.2.2:8000` (Android emulator → host).
   static String get apiBaseUrl => _baseUrl;
+
+  // ────────────────────────────────────────────────────────────────────────
+  // TEMP/DEV HARDCODED LOGIN CREDENTIALS — remove before release.
+  //
+  // Lets you sign in from the LoginScreen WITHOUT the OTP/backend flow.
+  // Enter this phone number as the ID and this password, and the app opens
+  // a local demo session straight into the dashboard.
+  // To remove later: delete these two constants, the Password field in
+  // login_screen.dart, and loginWithCredentials()/skipLogin() +
+  // `isGuest` in auth_controller.dart.
+  // ────────────────────────────────────────────────────────────────────────
+  static const String demoLoginId = '9999999999';
+  static const String demoLoginPassword = 'demo123';
 }

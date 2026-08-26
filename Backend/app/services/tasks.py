@@ -190,3 +190,71 @@ def aggregate_popular_searches_task() -> dict:
             db.rollback()
             logger.exception("aggregate_popular_searches_task failed")
             return {"status": "error", "error": str(exc)}
+
+
+# ── Phase 25 — POS integration platform background jobs ─────────────────────
+@celery_app.task(name="app.services.tasks.run_pos_sync_job")
+def run_pos_sync_job(job_id: int) -> dict:
+    """Background task — execute a queued POS sync job."""
+    from app.services import pos_sync_service
+
+    with SessionLocal() as db:
+        try:
+            result = pos_sync_service.run_sync_job(db, job_id)
+            db.commit()
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "result": result,
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("run_pos_sync_job failed for job %s", job_id)
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "error": str(exc),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+
+@celery_app.task(name="app.services.tasks.dispatch_scheduled_pos_syncs")
+def dispatch_scheduled_pos_syncs() -> dict:
+    """Periodic scheduler tick — enqueue sync jobs for cadence-due integrations.
+
+    ``find_due_integrations`` already guards against double-dispatch (open-job
+    check), and each job carries a unique idempotency key so even a race
+    between two ticks cannot create duplicate work.
+    """
+    from app.services import pos_sync_service
+
+    dispatched: list[dict] = []
+    with SessionLocal() as db:
+        for integration in pos_sync_service.find_due_integrations(db):
+            sync_type = "INCREMENTAL" if integration.incremental_cursor else "FULL"
+            idempotency_key = f"sched-{integration.id}-{int(datetime.now(timezone.utc).timestamp())}"
+            try:
+                job, created = pos_sync_service.trigger_manual_sync(
+                    db,
+                    integration.id,
+                    sync_type=sync_type,
+                    trigger="SCHEDULED",
+                    idempotency_key=idempotency_key,
+                )
+                if created:
+                    db.commit()
+                    run_pos_sync_job.delay(job.id)
+                    dispatched.append(
+                        {"integration_id": integration.id, "job_id": job.id, "sync_type": sync_type}
+                    )
+                else:
+                    db.rollback()
+            except Exception as exc:  # noqa: BLE001 — one bad shop must not stop the sweep
+                db.rollback()
+                logger.warning("Scheduled POS sync skipped integration %s: %s", integration.id, exc)
+    return {
+        "status": "success",
+        "dispatched": dispatched,
+        "executed_at": datetime.now(timezone.utc).isoformat(),
+    }

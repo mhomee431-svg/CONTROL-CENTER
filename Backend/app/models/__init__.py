@@ -77,6 +77,7 @@ from app.models.pos import (
     POSSyncJob,
     POSSyncStatus,
     POSSyncLog,
+    POSProductMapping,
 )
 
 # Notifications

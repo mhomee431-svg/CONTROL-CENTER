@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/config/env_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_providers.dart';
 import '../../domain/auth_models.dart';
@@ -24,6 +25,7 @@ class AuthState {
     this.pendingName,
     this.user,
     this.shops = const [],
+    this.isGuest = false, // TEMP/DEV: hardcoded-login; remove with that feature.
   });
 
   final AuthStatus status;
@@ -34,6 +36,11 @@ class AuthState {
   final String? pendingName;
   final ShopkeeperUser? user;
   final List<ShopSummary> shops;
+
+  /// TEMP/DEV ONLY — true when the session was created by the hardcoded
+  /// ID/password login instead of a real backend OTP login. Guest sessions
+  /// must never be hard-logged-out on 401 responses.
+  final bool isGuest;
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isLoading => status == AuthStatus.loading;
@@ -162,9 +169,74 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState.unauthenticated();
   }
 
+  // ────────────────────────────────────────────────────────────────────────
+  // TEMP/DEV HARDCODED LOGIN — remove before release.
+  //
+  // Opens a local demo session (demo user + demo shop) WITHOUT calling the
+  // backend, when the entered ID/password match the hardcoded values in
+  // [EnvConfig]. The real OTP flow (sendOtp → submitOtp) is untouched and
+  // keeps working normally alongside this.
+  //
+  // To restore original behaviour later:
+  //   1. Delete [loginWithCredentials] and [skipLogin] below.
+  //   2. Remove the Password field + credential branch in login_screen.dart.
+  //   3. Restore forceSessionExpired to: unauthenticated-guard only
+  //      (original lines are commented inside it).
+  //   4. Remove `isGuest` from AuthState and the constants from EnvConfig.
+  // ────────────────────────────────────────────────────────────────────────
+
+  /// Validates the entered credentials against the hardcoded demo values.
+  /// Returns true (and opens a demo session) on success.
+  Future<bool> loginWithCredentials(String id, String password) async {
+    final ok = id.trim() == EnvConfig.demoLoginId &&
+        password == EnvConfig.demoLoginPassword;
+    if (!ok) {
+      state = const AuthState(
+          status: AuthStatus.error,
+          errorMessage: 'Invalid ID or password.');
+      return false;
+    }
+    skipLogin();
+    return true;
+  }
+
+  /// Creates the local demo session used by the hardcoded login.
+  void skipLogin() {
+    const demoUser = ShopkeeperUser(
+      id: -1,
+      phoneNumber: '+919999999999',
+      name: 'Demo Shopkeeper',
+      email: null,
+      role: 'owner',
+    );
+    const demoShop = ShopSummary(
+      id: -1,
+      name: 'Demo Shop',
+      status: 'REGISTERED',
+      isVerified: true,
+      category: 'Grocery',
+      imageUrl: null,
+      membership: 'owner',
+      permissions: ['update:shop', 'create:product', 'update:product'],
+    );
+
+    // Pre-select the demo shop so the router guard goes straight to
+    // /dashboard instead of bouncing to /shops or /shop-register.
+    ref.read(selectedShopProvider.notifier).select(demoShop);
+    state = const AuthState(
+      status: AuthStatus.authenticated,
+      user: demoUser,
+      shops: [demoShop],
+      isGuest: true,
+    );
+  }
+
   /// Called by the API layer when a session becomes unrecoverable (401).
   void forceSessionExpired() {
     if (state.status == AuthStatus.unauthenticated) return;
+    // TEMP/DEV: hardcoded-login sessions have no server-side session to
+    // expire — keep the user inside so they can keep exploring the UI.
+    if (state.isGuest) return; // TEMP/DEV line — remove with the feature.
     state = AuthState.sessionExpired();
   }
 }
