@@ -71,6 +71,20 @@ async def v2_search_products(
         is_successful=result["total"] > 0,
     )
 
+    # Phase 29 — unified analytics stream: SEARCH + platform outcome event
+    try:
+        from app.services import analytics_system as _analytics
+
+        _analytics.track_search(
+            db,
+            user_id=user.id if user else None,
+            session_id=request.headers.get("X-Session-ID"),
+            query=q,
+            result_count=result["total"],
+        )
+    except Exception:  # noqa: BLE001 — analytics must never break discovery
+        pass
+
     return success_response(data=result, message="Search complete")
 
 

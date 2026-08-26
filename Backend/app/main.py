@@ -126,6 +126,11 @@ app.include_router(admin_routes.router, prefix=API_PREFIX)
 from app.api.routes import shopkeeper_subscription
 app.include_router(shopkeeper_subscription.router, prefix=API_PREFIX)
 
+# Phase 29 — Analytics & audit (event ingestion + admin dashboards/reports)
+from app.api.routes import analytics_system as analytics_system_routes
+app.include_router(analytics_system_routes.router, prefix=API_PREFIX)
+app.include_router(analytics_system_routes.admin_router, prefix=API_PREFIX)
+
 
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])

@@ -103,6 +103,9 @@ from app.models.admin import (
 # Analytics
 from app.models.analytics import ProductView, ShopView, ProductClick, InventoryEvent, SystemMetric
 
+# Phase 29 — Unified analytics event stream
+from app.models.analytics_event import AnalyticsEvent, AnalyticsDailyAggregate
+
 # System
 from app.models.system import SystemSetting, FeatureFlag
 

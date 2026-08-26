@@ -76,6 +76,7 @@ class Report(Base, TimestampMixin):
     report_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # SALES, INVENTORY, SEARCH_ANALYTICS
     report_name: Mapped[str] = mapped_column(String(255), nullable=False)
     parameters_json: Mapped[dict | None] = mapped_column(JSON)
+    result_json: Mapped[dict | None] = mapped_column(JSON)  # Phase 29 — generated report payload
     generated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     file_url: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="PENDING")  # PENDING, GENERATING, READY, FAILED
@@ -121,3 +122,9 @@ class AuditLog(Base, TimestampMixin):
     request_id: Mapped[str | None] = mapped_column(String(100), index=True)
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    # Phase 29 — tamper-evident hash chaining (see services/audit_service.py).
+    # Each record's hash covers its content AND the previous record's hash,
+    # so any casual modification breaks verifiable chain linkage.
+    prev_record_hash: Mapped[str | None] = mapped_column(String(64))
+    record_hash: Mapped[str | None] = mapped_column(String(64), index=True)
