@@ -1,0 +1,37 @@
+# Copy to terraform.tfvars and fill. NEVER put real secret values here.
+
+aws_region  = "ap-south-1"          # your deployment region
+environment = "production"
+
+project_name = "hyperlocal"
+
+# ── Domain / HTTPS ─────────────────────────────────────────────────────────
+domain_name          = "example.com"         # your real root domain
+api_subdomain        = "api"
+hosted_zone_id       = ""                    # Route53 zone id (or "" to add DNS manually)
+create_acm_certificate = true
+create_route53_records = true
+
+# ── Compute ────────────────────────────────────────────────────────────────
+desired_count       = 2
+max_capacity        = 4
+app_cpu             = 512
+app_memory          = 1024
+
+# ── RDS / Redis (size to your budget) ──────────────────────────────────────
+database_instance_class = "db.t3.small"
+database_multi_az       = false
+backup_retention_days   = 7
+redis_node_type         = "cache.t3.micro"
+
+# ── Registry (find in AWS ECR after `terraform apply` or via outputs) ──────
+# ecr_registry_url  = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+ecr_repository_name = "hyperlocal-backend"
+backend_image_tag   = "latest"
+
+# ── Secrets ─────────────────────────────────────────────────────────────────
+secrets_secret_name = "hyperlocal"
+use_aws_secrets     = true
+
+# ── Security defaults ───────────────────────────────────────────────────────
+is_production = true

@@ -1,0 +1,46 @@
+name: Flutter Customer App — Test & Build
+
+on:
+  push:
+    branches: [main]
+    paths: ['Frontend/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Test & build Android (production)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build release APK
+        env:
+          API_BASE_URL: ${{ secrets.CUSTOMER_API_BASE_URL }}   # e.g. https://api.example.com/v1
+          MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: >
+          flutter build apk --release
+          --dart-define=API_BASE_URL=$API_BASE_URL
+          --dart-define=MAPS_API_KEY=$MAPS_API_KEY
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-app-release
+          path: Frontend/build/app/outputs/flutter-apk/app-release.apk

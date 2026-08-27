@@ -1,0 +1,111 @@
+# Local "production-shaped" stack: PostGIS + Redis + API (+ Celery worker/beat).
+#
+#   docker compose -f Backend/docker-compose.yml up --build
+#
+# This mirrors the AWS topology (private DB/Redis, app, background jobs) so the
+# exact container images and commands used in ECS can be validated locally.
+# Secrets are NOT in this file — they come from .env / shell environment.
+name: hyperlocal-backend
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hyperlocal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hyperlocal_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-hyperlocal}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hyperlocal} -d ${POSTGRES_DB:-hyperlocal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hyperlocal}:${POSTGRES_PASSWORD:-hyperlocal_dev_pw}@db:5432/${POSTGRES_DB:-hyperlocal}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RUN_MIGRATIONS: "true"
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: &worker-env
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-hyperlocal}:${POSTGRES_PASSWORD:-hyperlocal_dev_pw}@db:5432/${POSTGRES_DB:-hyperlocal}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RUN_MIGRATIONS: "false"
+    env_file:
+      - path: .env
+        required: false
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info"]
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-hyperlocal}:${POSTGRES_PASSWORD:-hyperlocal_dev_pw}@db:5432/${POSTGRES_DB:-hyperlocal}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RUN_MIGRATIONS: "false"
+    env_file:
+      - path: .env
+        required: false
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
+
+volumes:
+  db_data:
+  redis_data:

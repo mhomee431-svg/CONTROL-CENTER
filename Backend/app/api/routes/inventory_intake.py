@@ -17,6 +17,24 @@ from app.services import barcode_intake_service, excel_import_service, shopkeepe
 
 router = APIRouter(prefix="/shopkeeper", tags=["shopkeeper-inventory-intake"])
 
+# Phase 30 — barcode input hardening: scannable retail barcodes are digits
+# (EAN-8/UPC-A/EAN-13/GTIN-14); anything else is rejected before it can hit
+# the catalog query layer.
+MAX_BARCODE_LENGTH = 32
+
+
+def _validate_barcode_input(barcode: str) -> str:
+    normalized = str(barcode or "").strip().replace(" ", "").replace("-", "")
+    if not normalized or len(normalized) > MAX_BARCODE_LENGTH:
+        raise AppError("Invalid barcode", status_code=400, error_code="INVALID_BARCODE")
+    if not normalized.isdigit():
+        raise AppError(
+            "Barcode must contain digits only",
+            status_code=400,
+            error_code="INVALID_BARCODE_FORMAT",
+        )
+    return normalized
+
 
 def _app_error(exc: AppError):
     return error_response(
@@ -42,6 +60,24 @@ async def resolve_barcode(
     db: Session = Depends(get_db),
 ):
     """Scan Barcode → Identify Identifier → Find Product → Show Product."""
+    # Phase 30 — input hardening: reject malformed barcodes before any
+    # catalog query; reject oversized inputs before any processing.
+    try:
+        barcode = _validate_barcode_input(barcode)
+    except AppError as exc:
+        return _app_error(exc)
+
+    # Phase 30 — anti-attribution guard: only attribute the scan event to a
+    # shop the caller is actually associated with (prevents polluting another
+    # shop's analytics / scan history by passing arbitrary shop_id values).
+    verified_shop_id = None
+    if shop_id is not None:
+        try:
+            access = _resolve(shop_id, current_user, db)
+            verified_shop_id = access.shop.id
+        except AppError:
+            verified_shop_id = None
+
     try:
         result = barcode_intake_service.resolve_barcode(db, barcode)
     except AppError as exc:
@@ -55,7 +91,7 @@ async def resolve_barcode(
             barcode,
             is_match_found=bool(result["matches"]),
             product_master_id=matched_id,
-            shop_id=shop_id,
+            shop_id=verified_shop_id,
             user_id=current_user.id,
         )
         db.commit()

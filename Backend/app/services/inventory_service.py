@@ -1,5 +1,6 @@
 """Inventory and Pricing Engine service — business logic for inventory, price history, offers, and freshness."""
 
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -119,16 +120,56 @@ def _notify_back_in_stock(db: Session, shop_product: ShopProduct) -> None:
 
 
 # ── Inventory CRUD ──────────────────────────────────────────────────────────
+# Hard upper bound for the fire-and-forget search-index enqueue so a degraded /
+# unavailable broker can never block a request thread (see hang_trace.txt).
+_SEARCH_INDEX_ENQUEUE_TIMEOUT_SECONDS = 1.0
+
+
 def _enqueue_search_index_update(shop_product_id: int) -> None:
-    """Fire-and-forget trigger to update the search index for a shop product."""
+    """Fire-and-forget trigger to update the search index for a shop product.
+
+    Runs the publish on a short-lived daemon thread with a hard timeout so a
+    Redis outage (broker *or* result backend) can never block the request
+    thread — previously ``send_task`` would hang indefinitely in the result
+    backend's pubsub reconnect loop. If the enqueue is abandoned, the change is
+    still converged by the periodic incremental search-index sync (Celery beat).
+    Never raises.
+    """
     try:
         from app.core.celery_app import celery_app
-        celery_app.send_task(
-            "app.services.tasks.index_shop_product",
-            args=[shop_product_id],
+
+        outcome: dict = {"failed": False}
+
+        def _publish() -> None:
+            """Best-effort publish; any broker error is swallowed and flagged."""
+            try:
+                celery_app.send_task(
+                    "app.services.tasks.index_shop_product",
+                    args=[shop_product_id],
+                    ignore_result=True,
+                )
+            except Exception:  # noqa: BLE001 — the worker thread must never crash
+                outcome["failed"] = True
+
+        worker = threading.Thread(
+            target=_publish,
+            name=f"index-enqueue-{shop_product_id}",
+            daemon=True,
         )
-    except Exception:  # noqa: BLE001
-        logger.warning("Failed to enqueue search index update for shop_product %s", shop_product_id)
+        worker.start()
+        worker.join(timeout=_SEARCH_INDEX_ENQUEUE_TIMEOUT_SECONDS)
+        if worker.is_alive():
+            # Broker/result backend not reachable within budget — abandon and
+            # let the periodic sync reconcile the index later.
+            logger.warning(
+                "Search-index enqueue timed out (broker degraded) for shop_product %s",
+                shop_product_id,
+            )
+    except Exception:  # noqa: BLE001 — enqueue must never break the inventory write
+        logger.exception(
+            "Failed to enqueue search index update for shop_product %s",
+            shop_product_id,
+        )
 
 
 def create_inventory(db: Session, data: dict) -> Inventory:

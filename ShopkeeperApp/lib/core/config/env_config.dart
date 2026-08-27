@@ -19,15 +19,29 @@ class EnvConfig {
   static String get apiBaseUrl => _baseUrl;
 
   // ────────────────────────────────────────────────────────────────────────
-  // TEMP/DEV HARDCODED LOGIN CREDENTIALS — remove before release.
+  // Local DEMO login — DISABLED by default for production safety.
   //
-  // Lets you sign in from the LoginScreen WITHOUT the OTP/backend flow.
-  // Enter this phone number as the ID and this password, and the app opens
-  // a local demo session straight into the dashboard.
-  // To remove later: delete these two constants, the Password field in
-  // login_screen.dart, and loginWithCredentials()/skipLogin() +
-  // `isGuest` in auth_controller.dart.
+  // To use during local development only, build with:
+  //   flutter run --dart-define=SHOPKEEPER_ENABLE_DEMO_LOGIN=true \
+  //              --dart-define=SHOPKEEPER_DEMO_ID=9999999999 \
+  //              --dart-define=SHOPKEEPER_DEMO_PASSWORD=demo123
+  //
+  // `loginWithCredentials()` returns false unless the flag is enabled, so a
+  // normal/production build has no working demo backdoor and no stored
+  // credentials in the binary.
   // ────────────────────────────────────────────────────────────────────────
-  static const String demoLoginId = '9999999999';
-  static const String demoLoginPassword = 'demo123';
+  static const bool demoLoginEnabled = bool.fromEnvironment(
+    'SHOPKEEPER_ENABLE_DEMO_LOGIN',
+    defaultValue: false,
+  );
+
+  static const String demoLoginId = String.fromEnvironment(
+    'SHOPKEEPER_DEMO_ID',
+    defaultValue: '',
+  );
+
+  static const String demoLoginPassword = String.fromEnvironment(
+    'SHOPKEEPER_DEMO_PASSWORD',
+    defaultValue: '',
+  );
 }

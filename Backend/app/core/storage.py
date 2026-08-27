@@ -85,15 +85,18 @@ class S3StorageProvider(BaseStorageProvider):
         if not self.bucket:
             raise ValueError("S3_BUCKET_NAME is required when STORAGE_PROVIDER=s3")
 
-        kwargs = {
-            "region_name": settings.S3_REGION,
-            "aws_access_key_id": settings.S3_ACCESS_KEY_ID,
-            "aws_secret_access_key": settings.S3_SECRET_ACCESS_KEY,
-        }
+        kwargs = {"region_name": settings.S3_REGION}
+        # Static keys are OPTIONAL. When absent, boto3 uses the instance/ECS
+        # IAM role (default credential chain) — the recommended production path.
+        if settings.S3_ACCESS_KEY_ID:
+            kwargs["aws_access_key_id"] = settings.S3_ACCESS_KEY_ID
+        if settings.S3_SECRET_ACCESS_KEY:
+            kwargs["aws_secret_access_key"] = settings.S3_SECRET_ACCESS_KEY
         if settings.S3_ENDPOINT_URL:
             kwargs["endpoint_url"] = settings.S3_ENDPOINT_URL
 
         self.client = boto3.client("s3", **kwargs)
+        self.acl = settings.S3_ACL.lower()
 
     async def upload_file(
         self,
@@ -106,14 +109,16 @@ class S3StorageProvider(BaseStorageProvider):
         if folder:
             key = f"{folder.rstrip('/')}/{key}"
 
+        extra = {"ContentType": content_type}
+        # Apply ACL only when supported; private buckets simply omit it.
+        if self.acl != "private":
+            extra["ACL"] = self.acl
+
         self.client.upload_fileobj(
             io.BytesIO(file_bytes),
             self.bucket,
             key,
-            ExtraArgs={
-                "ContentType": content_type,
-                "ACL": settings.S3_ACL,
-            },
+            ExtraArgs=extra,
         )
         return f"s3://{self.bucket}/{key}"
 
@@ -128,6 +133,14 @@ class S3StorageProvider(BaseStorageProvider):
 
     async def get_file_url(self, file_identifier: str) -> str:
         key = file_identifier.replace(f"s3://{self.bucket}/", "")
+        # For private buckets return a short-lived presigned URL so we NEVER
+        # expose S3 credentials and never require public-read objects.
+        if self.acl == "private":
+            return self.client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket, "Key": key},
+                ExpiresIn=900,  # 15 minutes
+            )
         if settings.S3_ENDPOINT_URL:
             return f"{settings.S3_ENDPOINT_URL}/{self.bucket}/{key}"
         return f"https://{self.bucket}.s3.{settings.S3_REGION}.amazonaws.com/{key}"

@@ -56,28 +56,10 @@ from app.services import admin_service  # noqa: E402
 UTC = timezone.utc
 
 
-# Adapt PostGIS Geography columns for plain SQLite: swap the spatial type
-# for Text (keeps the ORM mapper consistent) and drop spatial indexes.
-def _strip_geo_columns():
-    import sqlalchemy as sa
-    from geoalchemy2 import Geography
+# Adapt PostGIS Geography columns for plain SQLite (shared, reversible helper).
+from tests.geo_compat import strip_geo_columns  # noqa: E402
 
-    for table in Base.metadata.tables.values():
-        has_geo = False
-        for col in list(table.columns):
-            if isinstance(col.type, Geography):
-                col.type = sa.Text()
-                col.nullable = True  # test rows may omit spatial data
-                has_geo = True
-        if has_geo:
-            keep = set(table.columns.keys())
-            for idx in list(table.indexes):
-                idx_cols = {c.name for c in idx.columns}
-                if idx_cols & {"location"} or not idx_cols <= keep:
-                    table.indexes.discard(idx)
-
-
-_strip_geo_columns()
+strip_geo_columns()
 
 
 # Replace literal "now()" server defaults / onupdates with Python-side

@@ -151,6 +151,17 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: Optional[str] = None
     CLOUDINARY_FOLDER: str = "hyperlocal"
 
+    # ── AWS (Secrets Manager / IAM) ────────────────────────────────────────────
+    # Use IAM roles (default credential chain) in production. These fields only
+    # control the optional startup hydration helper (app/core/aws_secrets.py).
+    # Secrets themselves are never read from source; they arrive via ECS task
+    # Secrets Manager injection AND/OR this hydration helper.
+    AWS_REGION: str = "us-east-1"
+    AWS_SECRETS_REGION: Optional[str] = None      # optional override
+    USE_AWS_SECRETS: bool = False                 # True → entrypoint hydrates env from Secrets Manager
+    AWS_SECRETS_SECRET_ID: Optional[str] = None    # exact secret name/ARN (e.g. hyperlocal/production)
+    AWS_SECRETS_PREFIX: str = "hyperlocal"          # fallback path: <prefix>/<environment>
+
     # ── CORS ─────────────────────────────────────────────────────────────────────
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5000"
 
@@ -159,6 +170,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_DEFAULT: str = "100/minute"
     RATE_LIMIT_AUTH_ENDPOINT: str = "5/minute"
     RATE_LIMIT_STORAGE_URI: str = "memory://"
+
+    # Phase 30 — set True ONLY behind a trusted reverse proxy that overwrites
+    # X-Forwarded-For; otherwise client keying uses the direct peer address.
+    TRUST_X_FORWARDED_FOR: bool = False
 
     # ── Security Headers ────────────────────────────────────────────────────────
     SECURITY_HEADERS_ENABLED: bool = True

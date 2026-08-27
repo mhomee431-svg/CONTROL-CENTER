@@ -123,13 +123,13 @@ def build_shop_product_index(
         description=product.short_description or product.description,
     )
 
-    last_inv_update = None
+    last_inventory_update = None
     if inv and inv.last_synced_at:
-        last_inv_update = inv.last_synced_at
+        last_inventory_update = inv.last_synced_at
     elif inv and inv.updated_at:
-        last_inv_update = inv.updated_at
+        last_inventory_update = inv.updated_at
     elif sp.last_inventory_update:
-        last_inv_update = sp.last_inventory_update
+        last_inventory_update = sp.last_inventory_update
 
     return {
         "entity_type": SearchIndexEntityType.SHOP_PRODUCT,

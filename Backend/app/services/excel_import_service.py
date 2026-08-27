@@ -406,19 +406,21 @@ def create_import(
         return result
 
     # ── File-level validation ──────────────────────────────────────────
-    safe_name = str(filename or "upload.xlsx")
-    if not safe_name.lower().endswith(xlsx_lite.SUPPORTED_EXTENSION):
-        raise ValidationError(
-            f"Only {xlsx_lite.SUPPORTED_EXTENSION} files are supported",
-            data={"reason_code": "INVALID_FILE_TYPE"},
+    from app.core.upload_security import XLSX_MAGIC, UploadValidationError, validate_upload
+
+    try:
+        safe_name = validate_upload(
+            filename,
+            content,
+            allowed_extensions=(xlsx_lite.SUPPORTED_EXTENSION,),
+            max_bytes=MAX_FILE_SIZE_BYTES,
+            expected_magic=XLSX_MAGIC,
         )
-    if not content:
-        raise ValidationError("Uploaded file is empty", data={"reason_code": "EMPTY_FILE"})
-    if len(content) > MAX_FILE_SIZE_BYTES:
+    except UploadValidationError as exc:
         raise ValidationError(
-            f"File exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB limit",
-            data={"reason_code": "FILE_TOO_LARGE"},
-        )
+            str(exc),
+            data={"reason_code": getattr(exc, "reason_code", "UNSUPPORTED_FILE")},
+        ) from exc
 
     try:
         grid = xlsx_lite.read_workbook(content)

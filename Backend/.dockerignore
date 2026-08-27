@@ -1,0 +1,29 @@
+# Version control / env
+.git
+.gitignore
+**/.env
+**/.env.*
+!.env.example
+*.md
+**/*.pyc
+**/__pycache__/
+**/.pytest_cache/
+.coverage
+.pytest_cache/
+
+# Local runtime artifacts
+storage/uploads/*
+logs/*
+!storage/uploads/.gitkeep
+test_uploads/*
+*.log
+
+# Tests not needed in the runtime image
+tests/
+docs/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

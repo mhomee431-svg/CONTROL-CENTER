@@ -48,24 +48,10 @@ from app.services.subscription import entitlements  # noqa: E402
 UTC = timezone.utc
 
 
-# Adapt PostGIS Geography columns for plain SQLite (mirrors phase-26 tests).
-def _strip_geo_columns():
-    import sqlalchemy as sa
-    from geoalchemy2 import Geography
+# Adapt PostGIS Geography columns for plain SQLite (shared, reversible helper).
+from tests.geo_compat import strip_geo_columns  # noqa: E402
 
-    for table in Base.metadata.tables.values():
-        for col in list(table.columns):
-            if isinstance(col.type, Geography):
-                col.type = sa.Text()
-                col.nullable = True
-        keep = set(table.columns.keys())
-        for idx in list(table.indexes):
-            idx_cols = {c.name for c in idx.columns}
-            if idx_cols & {"location"} or not idx_cols <= keep:
-                table.indexes.discard(idx)
-
-
-_strip_geo_columns()
+strip_geo_columns()
 
 
 def _portable_timestamp_defaults():

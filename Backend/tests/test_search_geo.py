@@ -63,16 +63,22 @@ def test_search_index_model_exists():
 
 
 def test_search_index_model_has_geo():
-    """SearchIndex must have PostGIS location for nearby search."""
-    from app.models.search import SearchIndex
+    """SearchIndex must have PostGIS location for nearby search.
 
-    # location should be a Geography column
-    for col_name, col in SearchIndex.__table__.columns.items():
-        if col_name == "location":
-            assert "%s" % type(col.type).__name__ == "Geography" or "Geography" in str(type(col.type))
-            break
-    else:
+    Geo columns are stripped to Text by some SQLite fixture modules on the
+    *shared* metadata, so assert against the pristine declared type via the
+    reversible geo-compat registry (order-independent).
+    """
+    from app.models.search import SearchIndex
+    from tests.geo_compat import declared_type
+
+    table = SearchIndex.__table__
+    if "location" not in table.columns:
         pytest.fail("SearchIndex has no location column")
+    declared = declared_type(table.name, "location")
+    assert declared is not None and "Geography" in type(declared).__name__, (
+        f"SearchIndex.location should be a Geography column, got {type(declared).__name__}"
+    )
 
 
 def test_search_index_sync_model():

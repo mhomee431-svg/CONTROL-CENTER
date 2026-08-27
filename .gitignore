@@ -5,4 +5,18 @@
 .pytest_cache/
 __pycache__/
 
+# Terraform state & local secrets (never commit)
+infra/.terraform/
+infra/terraform/terraform.tfvars
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Local build artifacts
+build/
+.dart_tool/
+
+# Keep committed env-reference examples (no real secrets)
+!.env.example
+!.env.production.example
 

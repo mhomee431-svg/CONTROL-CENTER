@@ -185,9 +185,16 @@ class AuthController extends Notifier<AuthState> {
   //   4. Remove `isGuest` from AuthState and the constants from EnvConfig.
   // ────────────────────────────────────────────────────────────────────────
 
-  /// Validates the entered credentials against the hardcoded demo values.
-  /// Returns true (and opens a demo session) on success.
+  /// Validates the entered credentials against the demo values.
+  /// Always returns false (and never opens a session) unless the demo login
+  /// was explicitly compiled in via `--dart-define=SHOPKEEPER_ENABLE_DEMO_LOGIN=true`.
   Future<bool> loginWithCredentials(String id, String password) async {
+    if (!EnvConfig.demoLoginEnabled) {
+      state = const AuthState(
+          status: AuthStatus.error,
+          errorMessage: 'Demo login disabled in this build.');
+      return false;
+    }
     final ok = id.trim() == EnvConfig.demoLoginId &&
         password == EnvConfig.demoLoginPassword;
     if (!ok) {

@@ -43,6 +43,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan — startup/shutdown hooks."""
     # Startup
     logger.info("Starting %s v%s (%s)", settings.APP_NAME, settings.APP_VERSION, settings.ENVIRONMENT)
+
+    # Phase 30 — fail-fast production security gate (raises on critical misconfig)
+    from app.core.startup_checks import run_startup_security_checks
+
+    run_startup_security_checks(settings)
+
     await enable_postgis()
     yield
     # Shutdown

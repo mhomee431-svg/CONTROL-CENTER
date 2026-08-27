@@ -788,13 +788,23 @@ def test_customer_inventory_detail_schema():
 
 
 def test_search_uses_inventory_service():
-    """Search route should use inventory_service for freshness and offers."""
+    """Search path uses inventory_service for freshness and offers.
+
+    The V2 discovery route delegates to the search engine, which imports
+    inventory_service and enriches each result with offer text, freshness
+    status and MRP from the inventory-backed index.
+    """
     import inspect
+    from app.search import engine as search_engine
     from app.api.routes import search
 
-    source = inspect.getsource(search)
-    assert "inventory_service" in source
-    assert "map_to_customer_stock_status" in source
-    assert "get_offer_text_for_shop_product" in source
-    assert "freshness_status" in source
-    assert "mrp" in source
+    route_source = inspect.getsource(search)
+    # Route delegates discovery to the search engine (not a bespoke join).
+    assert "search_engine.search_products" in route_source
+
+    engine_source = inspect.getsource(search_engine)
+    # Engine pulls from the inventory domain and surfaces freshness/offer/MRP.
+    assert "inventory_service" in engine_source
+    assert "get_offer_text_for_shop_product" in engine_source
+    assert "freshness_status" in engine_source
+    assert "mrp" in engine_source
