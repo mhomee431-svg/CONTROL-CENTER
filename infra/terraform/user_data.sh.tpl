@@ -80,11 +80,15 @@ REDIS_URL=redis://redis:6379/0
 CELERY_BROKER_URL=redis://redis:6379/1
 CELERY_RESULT_BACKEND=redis://redis:6379/2
 RATE_LIMIT_STORAGE_URI=redis://redis:6379/3
+OTP_STORAGE_URI=redis://redis:6379/4
+TRUST_X_FORWARDED_FOR=true
 JWT_SECRET_KEY=$(openssl rand -hex 32)
 STORAGE_PROVIDER=s3
 S3_BUCKET_NAME=$S3_BUCKET
 S3_REGION=$REGION
-OTP_DEV_MODE=true
+# Production posture: real OTP flow (no universal '123456'). Email/SMS delivery
+# providers are stubs today; wire SendGrid/Twilio before expecting OTP delivery.
+OTP_DEV_MODE=false
 EOF
 
 # 5) Run the app stack (api + worker + beat + LOCAL Redis; RDS is managed)
