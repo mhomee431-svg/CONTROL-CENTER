@@ -36,8 +36,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL_SYNC}   # sync driver for migrations
       RUN_MIGRATIONS: "true"
+    # NOTE: no DATABASE_URL override — alembic/env.py uses the ASYNC engine
+    # (asyncpg), so the async URL from .env must reach it. Sync overrides
+    # crashed migrations with "No module named 'psycopg2'".
     env_file:
       - path: .env
         required: true
@@ -77,8 +79,7 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: ${DATABASE_URL_SYNC}
-      RUN_MIGRATIONS: "false"
+      RUN_MIGRATIONS: "false" # async URL from .env (celery imports the async session too)
     env_file:
       - path: .env
         required: true
@@ -99,8 +100,7 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: ${DATABASE_URL_SYNC}
-      RUN_MIGRATIONS: "false"
+      RUN_MIGRATIONS: "false" # async URL from .env (celery imports the async session too)
     env_file:
       - path: .env
         required: true
