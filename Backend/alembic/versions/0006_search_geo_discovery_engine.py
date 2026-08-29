@@ -48,7 +48,9 @@ def upgrade() -> None:
     op.create_table(
         "search_indexes",
         sa.Column("id", sa.Integer(), primary_key=True, index=True),
-        sa.Column("entity_type", sa.Enum(name="search_index_entity_type"), nullable=False, index=True),
+        # entity_type column reuses the type created by the idempotent DO block above —
+        # create_type=False avoids "type already exists".
+        sa.Column("entity_type", sa.Enum(name="search_index_entity_type", create_type=False), nullable=False, index=True),
         sa.Column("entity_id", sa.Integer(), nullable=False, index=True),
         sa.Column("product_id", sa.Integer(), nullable=True, index=True),
         sa.Column("shop_product_id", sa.Integer(), nullable=True, index=True),
@@ -119,7 +121,7 @@ def upgrade() -> None:
         "search_index_sync_runs",
         sa.Column("id", sa.Integer(), primary_key=True, index=True),
         sa.Column("sync_type", sa.String(30), nullable=False),
-        sa.Column("status", sa.Enum(name="search_index_sync_status"), nullable=False),
+        sa.Column("status", sa.Enum(name="search_index_sync_status", create_type=False), nullable=False),
         sa.Column("total_processed", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("total_created", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("total_updated", sa.Integer(), server_default=sa.text("0"), nullable=False),
