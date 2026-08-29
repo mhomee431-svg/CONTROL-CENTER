@@ -17,6 +17,19 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
+
+
+def _column_exists(table: str, column: str) -> bool:
+    """Return True if `column` exists on `table` (avoids DuplicateColumnError
+    on migration chains that were previously only validated on dirty DBs)."""
+    return column in {c["name"] for c in inspect(op.get_bind()).get_columns(table)}
+
+
+def _index_exists(table: str, index_name: str) -> bool:
+    """Return True if `index_name` exists on `table` (0002 already created
+    ix_shops_category; 0004 re-creates it — Postgres rejects duplicate names)."""
+    return any(i["name"] == index_name for i in inspect(op.get_bind()).get_indexes(table))
 
 
 # revision identifiers, used by Alembic.
@@ -60,7 +73,17 @@ def upgrade() -> None:
     op.add_column("shops", sa.Column("alternate_phone", sa.String(20), nullable=True))
     op.add_column("shops", sa.Column("whatsapp_number", sa.String(20), nullable=True))
     op.add_column("shops", sa.Column("is_accepting_orders", sa.Boolean(), server_default=sa.text("true"), nullable=False))
-    op.add_column("shops", sa.Column("category", sa.Enum(name="shop_category", native_enum=False), nullable=True))
+    # shops.category was first added by 0002 (String) and redefined as the
+    # shop_category ENUM here. Promote the existing column to the enum type
+    # (matches the ORM's native Enum) rather than adding a duplicate; fall back
+    # to a fresh add only when 0002's column is absent.
+    if _column_exists("shops", "category"):
+        op.execute(
+            "ALTER TABLE shops ALTER COLUMN category TYPE shop_category "
+            "USING category::text::shop_category"
+        )
+    else:
+        op.add_column("shops", sa.Column("category", sa.Enum(name="shop_category", native_enum=False), nullable=True))
     op.add_column("shops", sa.Column("subcategories", sa.String(500), nullable=True))
     op.add_column("shops", sa.Column("latitude", sa.Float(), nullable=True))
     op.add_column("shops", sa.Column("longitude", sa.Float(), nullable=True))
@@ -86,7 +109,8 @@ def upgrade() -> None:
 
     # === 6. Create indexes ===
     op.create_index("ix_shops_slug", "shops", ["slug"], unique=True)
-    op.create_index("ix_shops_category", "shops", ["category"])
+    if not _index_exists("shops", "ix_shops_category"):
+        op.create_index("ix_shops_category", "shops", ["category"])
     op.create_index("ix_shops_created_by", "shops", ["created_by"])
 
     # === 7. Add address fields ===

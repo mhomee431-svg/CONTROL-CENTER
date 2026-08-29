@@ -36,14 +36,21 @@ def upgrade() -> None:
         "CREATE TYPE stock_status AS ENUM "
         "('IN_STOCK', 'LOW_STOCK', 'LIMITED_STOCK', 'OUT_OF_STOCK', 'UNKNOWN', 'PRE_ORDER', 'BACK_ORDER')"
     )
+    # shop_products.stock_status and inventory.stock_status carry TEXT defaults
+    # (0002 server_default='IN_STOCK'); drop the defaults before casting to the
+    # new ENUM, re-apply after (Postgres can't auto-cast a text default).
+    op.execute("ALTER TABLE shop_products ALTER COLUMN stock_status DROP DEFAULT")
     op.execute(
         "ALTER TABLE shop_products ALTER COLUMN stock_status "
         "TYPE stock_status USING stock_status::text::stock_status"
     )
+    op.execute("ALTER TABLE shop_products ALTER COLUMN stock_status SET DEFAULT 'IN_STOCK'::stock_status")
+    op.execute("ALTER TABLE inventory ALTER COLUMN stock_status DROP DEFAULT")
     op.execute(
         "ALTER TABLE inventory ALTER COLUMN stock_status "
         "TYPE stock_status USING stock_status::text::stock_status"
     )
+    op.execute("ALTER TABLE inventory ALTER COLUMN stock_status SET DEFAULT 'IN_STOCK'::stock_status")
     op.execute("DROP TYPE stock_status_old")
 
     # === 2. Create customer_stock_status enum ===
@@ -134,12 +141,16 @@ def downgrade() -> None:
         "CREATE TYPE stock_status AS ENUM "
         "('IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK', 'PRE_ORDER', 'BACK_ORDER')"
     )
+    op.execute("ALTER TABLE shop_products ALTER COLUMN stock_status DROP DEFAULT")
     op.execute(
         "ALTER TABLE shop_products ALTER COLUMN stock_status "
         "TYPE stock_status USING stock_status::text::stock_status"
     )
+    op.execute("ALTER TABLE shop_products ALTER COLUMN stock_status SET DEFAULT 'IN_STOCK'::stock_status")
+    op.execute("ALTER TABLE inventory ALTER COLUMN stock_status DROP DEFAULT")
     op.execute(
         "ALTER TABLE inventory ALTER COLUMN stock_status "
         "TYPE stock_status USING stock_status::text::stock_status"
     )
+    op.execute("ALTER TABLE inventory ALTER COLUMN stock_status SET DEFAULT 'IN_STOCK'::stock_status")
     op.execute("DROP TYPE stock_status_new")
