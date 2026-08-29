@@ -41,10 +41,15 @@ def upgrade() -> None:
         "CREATE TYPE product_status AS ENUM "
         "('DRAFT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'INACTIVE', 'ARCHIVED')"
     )
+    # product_masters.status carries a TEXT default ('DRAFT') from 0002 —
+    # Postgres can't auto-cast it to the new ENUM, so drop the default first,
+    # cast, then re-apply the default (now with the literal).
+    op.execute("ALTER TABLE product_masters ALTER COLUMN status DROP DEFAULT")
     op.execute(
         "ALTER TABLE product_masters ALTER COLUMN status "
         "TYPE product_status USING status::text::product_status"
     )
+    op.execute("ALTER TABLE product_masters ALTER COLUMN status SET DEFAULT 'DRAFT'::product_status")
     op.execute("DROP TYPE product_status_old")
 
     # === 3. Update shop_product_status enum (add PENDING_REVIEW, APPROVED, REJECTED; remove PENDING_APPROVAL) ===
@@ -53,10 +58,13 @@ def upgrade() -> None:
         "CREATE TYPE shop_product_status AS ENUM "
         "('ACTIVE', 'INACTIVE', 'DISCONTINUED', 'PENDING_REVIEW', 'APPROVED', 'REJECTED')"
     )
+    # same DROP DEFAULT / cast / SET DEFAULT dance for shop_products.status
+    op.execute("ALTER TABLE shop_products ALTER COLUMN status DROP DEFAULT")
     op.execute(
         "ALTER TABLE shop_products ALTER COLUMN status "
         "TYPE shop_product_status USING status::text::shop_product_status"
     )
+    op.execute("ALTER TABLE shop_products ALTER COLUMN status SET DEFAULT 'ACTIVE'::shop_product_status")
     op.execute("DROP TYPE shop_product_status_old")
 
     # === 4. Add subcategory support to product_masters ===

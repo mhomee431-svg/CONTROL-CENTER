@@ -34,10 +34,14 @@ def upgrade() -> None:
         "('REGISTERED', 'DOCUMENTS_SUBMITTED', 'PENDING_VERIFICATION', 'VERIFIED', "
         "'REJECTED', 'SUSPENDED', 'ACTIVE', 'CLOSED')"
     )
+    # shops.status carries a TEXT default from 0002 — drop/cast/re-set so
+    # Postgres doesn't try to auto-cast the default to the new ENUM.
+    op.execute("ALTER TABLE shops ALTER COLUMN status DROP DEFAULT")
     op.execute(
         "ALTER TABLE shops ALTER COLUMN status "
         "TYPE shop_status USING status::text::shop_status"
     )
+    op.execute("ALTER TABLE shops ALTER COLUMN status SET DEFAULT 'ACTIVE'::shop_status")
     op.execute("DROP TYPE shop_status_old")
 
     # === 2. Create shop_category enum ===
@@ -153,8 +157,10 @@ def downgrade() -> None:
         "CREATE TYPE shop_status AS ENUM "
         "('PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED', 'REJECTED')"
     )
+    op.execute("ALTER TABLE shops ALTER COLUMN status DROP DEFAULT")
     op.execute(
         "ALTER TABLE shops ALTER COLUMN status "
         "TYPE shop_status USING status::text::shop_status"
     )
+    op.execute("ALTER TABLE shops ALTER COLUMN status SET DEFAULT 'ACTIVE'::shop_status")
     op.execute("DROP TYPE shop_status_new")
