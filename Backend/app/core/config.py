@@ -114,6 +114,25 @@ class Settings(BaseSettings):
     AWS_SNS_REGION: str = "us-east-1"
     AWS_SNS_SENDER_ID: Optional[str] = None
 
+    # ── Fast2SMS OTP delivery ────────────────────────────────────────────────────
+    # Sends OTPs via Fast2SMS' "otp" route (https://www.fast2sms.com/dev/bulkV2).
+    #   OTP_MODE=mock → the OTP is printed to the server console (₹0 testing).
+    #   OTP_MODE=live → a real SMS is sent and the Fast2SMS balance is debited.
+    FAST2SMS_API_KEY: Optional[str] = None
+    OTP_MODE: str = "mock"  # mock | live
+
+    # ── Google OAuth (social login) ─────────────────────────────────────────────
+    # Credentials from a Google Cloud Console "OAuth 2.0 Client" (Web application).
+    # GOOGLE_CALLBACK_URL must be registered as the authorized redirect URI and
+    # is used verbatim as the callback route's mount path.
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_CALLBACK_URL: str = "http://localhost:5000/api/auth/google/callback"
+    GOOGLE_OAUTH_AUTHORIZE_URL: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    GOOGLE_OAUTH_TOKEN_URL: str = "https://oauth2.googleapis.com/token"
+    GOOGLE_OAUTH_CERTS_URL: str = "https://www.googleapis.com/oauth2/v3/certs"
+    GOOGLE_OAUTH_SCOPES: str = "openid email profile"
+
     # ── Push Provider (replaceable; Phase 27) ──────────────────────────────────
     PUSH_PROVIDER: str = "mock"  # mock | fcm
     # FCM credentials are NEVER hardcoded — supply via secret manager / env:
@@ -223,6 +242,14 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_environment(cls, v):
         return str(v).lower()
+
+    @field_validator("OTP_MODE", mode="before")
+    @classmethod
+    def _normalize_otp_mode(cls, v):
+        val = str(v).lower()
+        if val not in ("mock", "live"):
+            raise ValueError("OTP_MODE must be one of: mock, live")
+        return val
 
     @model_validator(mode="after")
     def _warn_insecure_production(self):

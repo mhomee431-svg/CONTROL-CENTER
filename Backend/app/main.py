@@ -23,6 +23,8 @@ from app.api.routes import shopkeeper_auth, shopkeeper_portal
 from app.api.routes import inventory_intake
 from app.api.routes import pos_integration
 from app.api.routes import admin as admin_routes
+from app.api.routes import interactions
+from app.api.routes import google_auth
 
 from app.core.config import settings
 from app.core.exceptions import setup_exception_handlers
@@ -137,6 +139,11 @@ from app.api.routes import analytics_system as analytics_system_routes
 app.include_router(analytics_system_routes.router, prefix=API_PREFIX)
 app.include_router(analytics_system_routes.admin_router, prefix=API_PREFIX)
 
+# Interactions / leads — action-triggered verification + immutable actions
+app.include_router(interactions.router, prefix=API_PREFIX)
+
+# Google OAuth — mounted at the exact path derived from GOOGLE_CALLBACK_URL
+app.include_router(google_auth.router)
 
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])

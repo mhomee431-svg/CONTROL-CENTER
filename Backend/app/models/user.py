@@ -20,7 +20,9 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    phone_number: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
+    # Phone may be NULL for Google-only signups; OTP-registered users always have one.
+    phone_number: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
+    google_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
     name: Mapped[str | None] = mapped_column(String(120))
     email: Mapped[str | None] = mapped_column(String(255), index=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500))
@@ -47,4 +49,9 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="user",
         uselist=False,
         foreign_keys="Subscription.user_id",
+    )
+    interactions = relationship(
+        "UserInteraction",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )

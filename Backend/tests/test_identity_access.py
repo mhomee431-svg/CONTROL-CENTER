@@ -458,6 +458,7 @@ class TestAuthRoutes:
     def test_verify_otp_route_new_user(self):
         from app.api.routes.auth import verify_otp_endpoint
         from app.schemas.auth import VerifyOTPRequest
+        from app.services.fast2sms_otp_service import VERIFY_VALID
 
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
@@ -471,7 +472,7 @@ class TestAuthRoutes:
         mock_user.role = mock_role
         mock_user.role.name = "customer"
 
-        with patch("app.api.routes.auth.verify_otp", return_value=True), \
+        with patch("app.api.routes.auth.verify_otp", return_value=VERIFY_VALID), \
              patch("app.api.routes.auth.issue_tokens") as mock_issue:
 
             mock_issue.return_value = {

@@ -26,7 +26,12 @@ from app.services.auth_service import (
     refresh_session,
     revoke_session_by_id,
 )
-from app.services.otp_service import (
+from app.services.fast2sms import Fast2SMSDeliveryError
+from app.services.fast2sms_otp_service import (
+    VERIFY_ALREADY_USED,
+    VERIFY_EXPIRED,
+    VERIFY_INVALID,
+    VERIFY_VALID,
     OTPCooldownError,
     OTPLimitExceeded,
     clear_otp,
@@ -37,6 +42,27 @@ from app.services.otp_service import (
 logger = get_logger("app.api.auth")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _otp_failure_response(result: str):
+    """Map a Fast2SMS OTP verification result to a precise error response."""
+    if result == VERIFY_EXPIRED:
+        return error_response(
+            message="OTP has expired. Please request a new one.",
+            error_code="OTP_EXPIRED",
+            status_code=400,
+        )
+    if result == VERIFY_ALREADY_USED:
+        return error_response(
+            message="This OTP has already been used. Please request a new one.",
+            error_code="OTP_ALREADY_USED",
+            status_code=400,
+        )
+    return error_response(
+        message="Invalid OTP",
+        error_code="INVALID_OTP",
+        status_code=400,
+    )
 
 
 def _default_role(db: Session) -> Role | None:
@@ -54,10 +80,25 @@ def _get_client_meta(request: Request) -> dict:
 
 @router.post("/send-otp")
 @auth_rate_limit()
-async def send_otp(payload: SendOTPRequest, request: Request):
-    """Send OTP to the user's phone number with retry/cooldown limits."""
+async def send_otp(
+    payload: SendOTPRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Send OTP to the user's phone number with retry/cooldown limits.
+
+    Generates a 6-digit code, persists it in the ``otps`` table with a
+    5-minute expiry (``is_verified=False``), and delivers it via Fast2SMS
+    (mock mode prints it to the server console; live mode sends a real SMS).
+    """
     try:
-        result = generate_otp(payload.phone_number)
+        result = generate_otp(db, payload.phone_number)
+    except Fast2SMSDeliveryError:
+        return error_response(
+            message="Failed to deliver the OTP via SMS. Please try again.",
+            error_code="SMS_DELIVERY_FAILED",
+            status_code=502,
+        )
     except OTPCooldownError as exc:
         return error_response(
             message=exc.message,
@@ -87,16 +128,16 @@ async def verify_otp_endpoint(
 ):
     """Verify OTP and issue access + refresh tokens.
 
+    Single-use: a successful match immediately marks the record
+    ``is_verified = True`` so the same code can never be reused.
+
     Creates a new user if one doesn't exist (phone-based registration).
     Assigns the default 'customer' role to new signups.
     """
-    # Verify OTP (handles expiry, max attempts, correct/incorrect)
-    if not verify_otp(payload.phone_number, payload.otp):
-        return error_response(
-            message="Invalid or expired OTP",
-            error_code="INVALID_OTP",
-            status_code=400,
-        )
+    # Verify OTP — returns valid|invalid|expired|already_used (single-use).
+    verification = verify_otp(db, payload.phone_number, payload.otp)
+    if verification != VERIFY_VALID:
+        return _otp_failure_response(verification)
 
     # Normalize phone for lookup (matches OTP service normalization)
     phone = payload.phone_number.strip()
@@ -124,7 +165,7 @@ async def verify_otp_endpoint(
     else:
         # ── Existing user ─────────────────────────────────────────────────
         if not is_account_allowed(user):
-            clear_otp(phone)  # Invalidate OTP
+            clear_otp(db, phone)  # Invalidate OTP
             return error_response(
                 message="Account is not active",
                 error_code="ACCOUNT_NOT_ACTIVE",
@@ -172,13 +213,10 @@ async def register_endpoint(
     customer profile, then issues access + refresh tokens. Existing
     accounts are rejected — they must sign in via /verify-otp instead.
     """
-    # Verify OTP (handles expiry, max attempts, correct/incorrect)
-    if not verify_otp(payload.phone_number, payload.otp):
-        return error_response(
-            message="Invalid or expired OTP",
-            error_code="INVALID_OTP",
-            status_code=400,
-        )
+    # Verify OTP — single-use; a successful match consumes the code.
+    verification = verify_otp(db, payload.phone_number, payload.otp)
+    if verification != VERIFY_VALID:
+        return _otp_failure_response(verification)
 
     # Normalize phone for lookup (matches OTP service normalization)
     phone = payload.phone_number.strip()
@@ -188,7 +226,7 @@ async def register_endpoint(
     user = db.query(User).filter(User.phone_number == phone).first()
 
     if user is not None:
-        clear_otp(phone)  # OTP was consumed; invalidate it either way
+        clear_otp(db, phone)  # OTP was consumed; invalidate it either way
         return error_response(
             message="Account already exists. Please sign in instead.",
             error_code="ACCOUNT_EXISTS",
@@ -236,10 +274,20 @@ async def register_endpoint(
 
 @router.post("/resend-otp")
 @auth_rate_limit()
-async def resend_otp_endpoint(payload: SendOTPRequest, request: Request):
+async def resend_otp_endpoint(
+    payload: SendOTPRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     """Resend OTP with cooldown and resend-limit enforcement."""
     try:
-        result = generate_otp(payload.phone_number)
+        result = generate_otp(db, payload.phone_number)
+    except Fast2SMSDeliveryError:
+        return error_response(
+            message="Failed to deliver the OTP via SMS. Please try again.",
+            error_code="SMS_DELIVERY_FAILED",
+            status_code=502,
+        )
     except OTPCooldownError as exc:
         return error_response(
             message=exc.message,

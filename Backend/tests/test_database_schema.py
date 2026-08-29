@@ -26,6 +26,10 @@ EXPECTED_TABLES = {
     "users",
     "customers",
     "customer_addresses",
+    # OTP auth (Fast2SMS single-use records)
+    "otps",
+    # User interactions / leads (immutable create-only customer actions)
+    "user_interactions",
     # Shops
     "shops",
     "shop_owners",

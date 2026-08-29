@@ -383,3 +383,18 @@ async def assign_offer_to_products(
     db.commit()
     return success_response(data=result, message="Offer assigned", status_code=201)
 
+@router.get("/leads")
+async def shopkeeper_leads(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """All verified customer leads (call views, messages, ratings) tied to the
+    shops this user owns/manages. Read-only — customer submissions are
+    immutable and cannot be edited or deleted through the API.
+    """
+    from app.services import interaction_service
+
+    leads = interaction_service.list_shopkeeper_leads(db, current_user)
+    return success_response(
+        data={"leads": leads, "count": len(leads)}, message="OK"
+    )
