@@ -6,14 +6,14 @@ from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.services.otp_store import get_otp_store
 
 logger = get_logger("app.services.otp")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Storage — In-memory store for development/single-instance.
-# Phase 17+ can swap this with Redis for distributed/expiring storage.
-# ─────────────────────────────────────────────────────────────────────────────
-_otp_store: dict[str, dict] = {}
+
+def _store():
+    """Return the active OTP store (in-memory or Redis via OTP_STORAGE_URI)."""
+    return get_otp_store(settings.OTP_STORAGE_URI)
 
 
 def _hash_otp(otp: str, salt: str) -> str:
@@ -50,7 +50,8 @@ def generate_otp(phone_number: str) -> dict:
     """
     phone = _ensure_phone_normalized(phone_number)
     now = datetime.now(timezone.utc)
-    existing = _otp_store.get(phone)
+    store = _store()
+    existing = store.get(phone)
 
     # Enforce resend limits
     if existing:
@@ -76,7 +77,7 @@ def generate_otp(phone_number: str) -> dict:
 
     expires_at = now + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
 
-    _otp_store[phone] = {
+    record = {
         "otp_hash": otp_hash,
         "salt": salt,
         "expires_at": expires_at,
@@ -85,6 +86,10 @@ def generate_otp(phone_number: str) -> dict:
         "last_resend_at": now,
         "created_at": now,
     }
+    # TTL gets a small buffer beyond the logical expiry so verify_otp can
+    # still distinguish "expired" from "never issued" in its response path.
+    ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60 + 60
+    store.set(phone, record, ttl_seconds)
 
     logger.info("OTP generated for %s (expires in %s minutes)", phone, settings.OTP_EXPIRE_MINUTES)
 
@@ -106,7 +111,8 @@ def verify_otp(phone_number: str, otp: str) -> bool:
       - Correct / incorrect OTP
     """
     phone = _ensure_phone_normalized(phone_number)
-    record = _otp_store.get(phone)
+    store = _store()
+    record = store.get(phone)
     if record is None:
         return False
 
@@ -114,13 +120,13 @@ def verify_otp(phone_number: str, otp: str) -> bool:
 
     # Expiry check
     if now > record["expires_at"]:
-        _otp_store.pop(phone, None)
+        store.pop(phone)
         logger.info("OTP expired for %s", phone)
         return False
 
     # Max attempts check
     if record["attempts"] >= settings.OTP_MAX_ATTEMPTS:
-        _otp_store.pop(phone, None)  # Invalidate OTP after too many attempts
+        store.pop(phone)  # Invalidate OTP after too many attempts
         logger.warning("OTP max attempts exceeded for %s", phone)
         return False
 
@@ -131,11 +137,15 @@ def verify_otp(phone_number: str, otp: str) -> bool:
     is_valid = hmac.compare_digest(actual_hash, expected_hash)
 
     if is_valid:
-        _otp_store.pop(phone, None)  # Single-use
+        store.pop(phone)  # Single-use
         logger.info("OTP verified for %s", phone)
         return True
 
     record["attempts"] += 1
+    # Persist the incremented attempt count (a Redis get() returns a fresh
+    # deserialized copy — without this write-back lockout would never trigger).
+    ttl_seconds = max(1, int((record["expires_at"] - now).total_seconds())) + 60
+    store.set(phone, record, ttl_seconds)
     logger.warning("Invalid OTP attempt for %s (attempt %d)", phone, record["attempts"])
     return False
 
@@ -148,16 +158,33 @@ def resend_otp(phone_number: str) -> dict:
 def remaining_attempts(phone_number: str) -> int:
     """Return how many attempts remain for a phone number."""
     phone = _ensure_phone_normalized(phone_number)
-    record = _otp_store.get(phone)
+    record = _store().get(phone)
     if record is None:
         return 0
     return max(0, settings.OTP_MAX_ATTEMPTS - record["attempts"])
 
 
 def clear_otp(phone_number: str) -> None:
-    """Force-invalidate an OTP (used on logout / account actions)."""
+    """Force-invalidate an OTP (used on logout / account actions).
+
+    Best-effort: storage backend failures must not break logout flows.
+    """
     phone = _ensure_phone_normalized(phone_number)
-    _otp_store.pop(phone, None)
+    try:
+        _store().pop(phone)
+    except Exception as exc:  # noqa: BLE001 — Redis outage must not block logout
+        logger.error("clear_otp failed for %s: %s", phone, exc)
+
+
+def clear_all_otps() -> None:
+    """Wipe every OTP record (ops reset / test isolation).
+
+    Best-effort: storage backend failures are logged, never raised.
+    """
+    try:
+        _store().clear_all()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("clear_all_otps failed: %s", exc)
 
 
 class OTPError(Exception):

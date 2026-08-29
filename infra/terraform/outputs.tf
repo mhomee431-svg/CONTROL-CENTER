@@ -1,50 +1,39 @@
-# ── Outputs — wire these into CI/CD, Flutter builds, and the runbook ─────────
+# ── Outputs — wire these into CI/CD, the Flutter app, and the runbook ───────
 
-output "alb_dns_name" {
-  description = "Public ALB DNS name (point api.<domain> here if not using Route53)."
-  value       = aws_lb.main.dns_name
+output "app_public_ip" {
+  description = "Elastic IP of the app instance (Caddy on 80/443). Point api.<domain> A-record here."
+  value       = aws_eip.app.public_ip
 }
 
-output "api_url" {
-  description = "Production API HTTPS URL."
-  value       = "https://${var.api_subdomain}.${var.domain_name}"
+output "app_instance_id" {
+  description = "EC2 instance id (use with Session Manager for shell access)."
+  value       = aws_instance.app.id
 }
 
-output "ecr_repository_url" {
-  description = "ECR repo URL to push the backend image in CI/CD."
-  value       = aws_ecr_repository.backend.repository_url
+output "database_endpoint" {
+  description = "RDS PostgreSQL endpoint (host:port) — private, app SG only."
+  value       = aws_db_instance.this.endpoint
 }
 
-output "ecs_cluster_name" {
-  value = aws_ecs_cluster.main.name
+output "database_name" {
+  value = aws_db_instance.this.db_name
 }
 
-output "web_service_name" {
-  value = aws_ecs_service.web.name
+output "database_url_ssm_parameter" {
+  description = "SSM SecureString holding DATABASE_URL (fetch: aws ssm get-parameter --with-decryption)."
+  value       = aws_ssm_parameter.database_url.name
 }
 
-output "web_task_family" {
-  value = aws_ecs_task_definition.web.family
-}
-
-output "database_secret_arn" {
-  description = "Secrets Manager ID holding DATABASE_URL (ECS-native injection)."
-  value       = aws_secretsmanager_secret.database.arn
-}
-
-output "app_secret_arn" {
-  description = "Secrets Manager ID for the runtime JSON secret bundle (provider keys)."
-  value       = aws_secretsmanager_secret.backend.arn
+output "redis_endpoint" {
+  description = "Redis runs as a local Docker container on the app instance (free tier)."
+  value       = "127.0.0.1:6379 (on-instance Docker, redis:7-alpine)"
 }
 
 output "s3_bucket_name" {
   value = aws_s3_bucket.uploads.id
 }
 
-output "redis_endpoint" {
-  value = local.redis_endpoint
-}
-
-output "acm_certificate_arn" {
-  value = var.create_acm_certificate ? aws_acm_certificate.next[0].arn : var.acm_certificate_arn
+output "github_token_ssm_parameter" {
+  description = "SSM SecureString for the bootstrap GitHub PAT (replace the PLACEHOLDER if the repo is private)."
+  value       = aws_ssm_parameter.github_token.name
 }

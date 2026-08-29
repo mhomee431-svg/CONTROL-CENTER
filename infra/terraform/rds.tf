@@ -1,23 +1,14 @@
-# ── RDS PostgreSQL (private subnet group, no public access) ─────────────────
+# ── RDS PostgreSQL — FREE-TIER shape (private, db.t3.micro, 20GB gp2) ────────
+# 750 hours/month of db.t3.micro + 20GB storage are both in the 12-month free
+# tier => $0. Backups disabled (snapshot storage would outlive the allowance).
 
 resource "aws_db_subnet_group" "main" {
-  name       = "${local.name_prefix}-rds-subnet"
-  subnet_ids = aws_subnet.data[*].id
-  tags       = { Name = "${local.name_prefix}-rds-subnet" }
+  name       = "${local.name_prefix}-db-subnets"
+  subnet_ids = [aws_subnet.app.id, aws_subnet.data.id] # must span 2 AZs
+  tags       = { Name = "${local.name_prefix}-db-subnets" }
 }
 
-resource "aws_db_parameter_group" "main" {
-  name        = "${local.name_prefix}-pg"
-  family      = "postgres16"
-  description = "Hyperlocal Postgres 16 (SSL enforced; PostGIS via extension in migration)"
-
-  parameter {
-    name  = "rds.force_ssl"
-    value = "1"
-  }
-}
-
-# Generate the master password once and keep it only in Secrets Manager / state.
+# Generated once; lives only in Terraform state + the SSM SecureString below.
 resource "random_password" "master" {
   length           = 32
   special          = true
@@ -31,37 +22,37 @@ resource "random_password" "master" {
 resource "aws_db_instance" "this" {
   identifier             = "${local.name_prefix}-db"
   engine                 = "postgres"
-  engine_version         = "16.3"
-  instance_class         = var.database_instance_class
-  allocated_storage      = var.database_allocated_storage
+  engine_version         = "16.15" # pinned to an available minor in ap-south-1 (16.3 was retired)
+  instance_class         = var.db_instance_class    # db.t3.micro (free tier)
+  allocated_storage      = var.db_allocated_storage # 20GB (free tier)
+  storage_type           = "gp2"                    # free-tier eligible
   storage_encrypted      = true
-  db_name                = var.database_name
-  username               = "hyperlocal"
+  db_name                = var.db_name
+  username               = var.db_username
   password               = random_password.master.result
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
-  parameter_group_name   = aws_db_parameter_group.main.name
-  multi_az               = var.database_multi_az
-  backup_retention_period = var.backup_retention_days
-  backup_window          = "03:00-03:30"
-  maintenance_window     = "sun:05:00-sun:05:30"
-  skip_final_snapshot    = false
-  final_snapshot_identifier = "${local.name_prefix}-db-final"
+
+  # Phase 3 guarantee retained: the database is NEVER publicly exposed.
+  publicly_accessible        = false
+  multi_az                   = false
+  backup_retention_period    = 0
+  skip_final_snapshot        = true
+  delete_automated_backups   = true
+  auto_minor_version_upgrade = true
+  copy_tags_to_snapshot      = true
 
   tags = { Name = "${local.name_prefix}-db" }
 }
 
-# ── Persist connection string for the app (AWS-native ECS secrets injection) ─
-resource "aws_secretsmanager_secret" "database" {
-  name        = "${var.secrets_secret_name}/${var.environment}/database"
-  description = "RDS connection (DATABASE_URL) for ECS injection"
-  kms_key_id  = aws_kms_key.this.arn
-  tags        = { Name = "${local.name_prefix}-db-secret" }
-}
+# Connection string via SSM SecureString (FREE) — deliberately NOT Secrets
+# Manager ($0.40/secret/month and no free tier). The instance role may read
+# /<project>/<environment>/* only.
+resource "aws_ssm_parameter" "database_url" {
+  name        = "/${var.project_name}/${var.environment}/database_url"
+  description = "DATABASE_URL for the app instance (points at the private RDS)."
+  type        = "SecureString"
+  value       = "postgresql+asyncpg://${var.db_username}:${urlencode(random_password.master.result)}@${aws_db_instance.this.endpoint}/${var.db_name}"
 
-resource "aws_secretsmanager_secret_version" "database" {
-  secret_id     = aws_secretsmanager_secret.database.id
-  secret_string = jsonencode({
-    DATABASE_URL = "postgresql+asyncpg://hyperlocal:${urlencode(random_password.master.result)}@${aws_db_instance.this.endpoint}/${var.database_name}?sslmode=require"
-  })
+  tags = { Name = "${local.name_prefix}-db-url" }
 }

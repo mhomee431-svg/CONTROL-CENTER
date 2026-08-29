@@ -1,184 +1,127 @@
-# ── Iner Infrastructure — input variables ─────────────────────────────────
-# Fill real values in terraform.tfvars or via -var. Secrets are NEVER here.
+# ── Inputs — free-tier root module ───────────────────────────────────────────
 
 variable "aws_region" {
-  description = "AWS region for the deployment."
+  description = "AWS region."
   type        = string
-  default     = "us-east-1"
+  default     = "ap-south-1"
 }
 
 variable "project_name" {
-  description = "Resource prefix (lowercase, hyphens allowed)."
+  description = "Project prefix for all resources."
   type        = string
   default     = "hyperlocal"
 }
 
 variable "environment" {
-  description = "Deployment stage (staging | production)."
+  description = "Environment (development | staging | production). Environment separation happens through distinct variable files + name prefixes + SSM paths."
   type        = string
-  default     = "staging"
+  default     = "production"
 }
 
-variable "tags" {
-  description = "Common tags applied to all resources."
-  type        = map(string)
-  default = {
-    Project = "hyperlocal_customer_app"
-    Owner   = "your-email@example.com"
-  }
-}
-
-# ── Networking ──────────────────────────────────────────────────────────────
 variable "vpc_cidr" {
-  type    = string
-  default = "10.0.0.0/16"
+  description = "VPC CIDR."
+  type        = string
+  default     = "10.0.0.0/16"
 }
 
-variable "availability_zones" {
-  type        = list(string)
-  description = ">=2 subnets designed to be in distinct AZs."
-  default     = ["us-east-1a", "us-east-1b"]
+variable "public_subnet_cidr" {
+  description = "Public subnet (app EC2 + Caddy)."
+  type        = string
+  default     = "10.0.1.0/24"
 }
 
-# ── Compute / ECS ───────────────────────────────────────────────────────────
-variable "backend_image_tag" {
-  type    = string
-  default = "latest"
+variable "data_subnet_cidr" {
+  description = "Isolated data subnet (RDS only — no internet route)."
+  type        = string
+  default     = "10.0.20.0/24"
 }
 
-variable "app_port" {
-  type    = number
-  default = 8000
+variable "instance_type" {
+  description = "App instance type — t3.micro is the free-tier shape."
+  type        = string
+  default     = "t3.micro"
 }
 
-variable "app_cpu" {
-  type    = number
-  default = 512
+variable "root_volume_gb" {
+  description = "Root EBS size (30GB/mo gp2 is free-tier eligible)."
+  type        = number
+  default     = 20
 }
 
-variable "app_memory" {
-  type    = number
-  default = 1024
+variable "admin_cidr" {
+  description = "Optional CIDR for admin access (e.g. your IP/32). Empty = no admin port."
+  type        = string
+  default     = ""
 }
 
-variable "worker_desired_count" {
-  type    = number
-  default = 1
+variable "db_instance_class" {
+  description = "RDS instance class — db.t3.micro is the free-tier shape."
+  type        = string
+  default     = "db.t3.micro"
 }
 
-variable "desired_count" {
-  type    = number
-  default = 2
+variable "db_allocated_storage" {
+  description = "RDS storage GB (20GB is the free-tier allowance)."
+  type        = number
+  default     = 20
 }
 
-variable "min_capacity" {
-  type    = number
-  default = 1
+variable "db_name" {
+  description = "RDS database name."
+  type        = string
+  default     = "hyperlocal"
 }
 
-variable "max_capacity" {
-  type    = number
-  default = 4
+variable "db_username" {
+  description = "RDS master username."
+  type        = string
+  default     = "hyperlocal"
 }
 
-# ── RDS ─────────────────────────────────────────────────────────────────────
-variable "database_name" {
-  type    = string
-  default = "hyperlocal"
+variable "github_repo" {
+  description = "Backend repo URL cloned by the boot script."
+  type        = string
+  default     = "https://github.com/Akasharyan47/hyperlocal_customer_app.git"
 }
 
-variable "database_instance_class" {
-  type    = string
-  default = "db.t3.small"
+variable "github_branch" {
+  description = "Branch the boot script deploys."
+  type        = string
+  default     = "main"
 }
 
-variable "database_allocated_storage" {
-  type    = number
-  default = 20
-}
-
-variable "database_multi_az" {
-  type    = bool
-  default = false
-}
-
-variable "backup_retention_days" {
-  type    = number
-  default = 7
-}
-
-# ── Redis ───────────────────────────────────────────────────────────────────
-variable "redis_node_type" {
-  type    = string
-  default = "cache.t3.micro"
-}
-
-variable "redis_num_cache_nodes" {
-  type    = number
-  default = 1
-}
-
-# ── Domain / HTTPS ──────────────────────────────────────────────────────────
 variable "domain_name" {
-  description = "Root domain for API hosting (e.g. example.com)."
+  description = "Root domain for Caddy auto-TLS. Empty = plain HTTP on the EIP."
   type        = string
-  default     = "example.com"
+  default     = ""
 }
 
-variable "api_subdomain" {
-  type    = string
-  default = "api"
+variable "create_s3_gateway_endpoint" {
+  description = "S3 Gateway endpoint (free) for private backend-to-S3 traffic."
+  type        = bool
+  default     = true
 }
 
-variable "create_acm_certificate" {
-  type    = bool
-  default = true
+variable "enable_vpc_flow_logs" {
+  description = "VPC Flow Logs → CloudWatch for the connectivity audit."
+  type        = bool
+  default     = true
 }
 
-variable "acm_certificate_arn" {
-  type    = string
-  default = ""
+variable "flow_log_retention_days" {
+  description = "CloudWatch flow-log retention (1 = cheapest; 14 = sensible)."
+  type        = number
+  default     = 14
 }
 
-variable "create_route53_records" {
-  type    = bool
-  default = false
-}
-
-# ── Container registry / secrets ────────────────────────────────────────────
-variable "ecr_registry_url" {
-  description = "ECR registry base (123456789012.dkr.ecr.us-east-1.amazonaws.com)."
+variable "flow_log_group_kms" {
+  description = "Optional KMS key ARN for the flow-log group (free tier: leave default AWS-managed encryption)."
   type        = string
-  default     = "REPLACE_WITH_ECR_REGISTRY"
+  default     = null
 }
 
-variable "ecr_repository_name" {
-  type    = string
-  default = "hyperlocal-backend"
-}
-
-variable "ecs_cluster_name" {
-  type    = string
-  default = "hyperlocal-cluster"
-}
-
-variable "use_aws_secrets" {
-  type    = bool
-  default = true
-}
-
-variable "secrets_secret_name" {
-  type    = string
-  default = "hyperlocal"
-}
-
-variable "is_production" {
-  type    = bool
-  default = false
-}
-
-variable "hosted_zone_id" {
-  description = "Route53 hosted zone ID for domain_name (used for DNS validation + A record)."
+variable "uploads_bucket_name" {
+  description = "S3 uploads bucket name. Empty = <project>-<account>-uploads."
   type        = string
   default     = ""
 }

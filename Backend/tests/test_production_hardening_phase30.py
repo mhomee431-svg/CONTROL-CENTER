@@ -187,6 +187,9 @@ def _prod_settings(**overrides) -> Settings:
         DEBUG=False,
         CORS_ORIGINS="https://app.example.com",
         RATE_LIMIT_ENABLED=True,
+        # Distributed state is mandatory in production (multi-worker safe):
+        OTP_STORAGE_URI="redis://127.0.0.1:6379/4",
+        RATE_LIMIT_STORAGE_URI="redis://127.0.0.1:6379/3",
     )
     base.update(overrides)
     return Settings(**base)
@@ -218,6 +221,28 @@ class TestStartupSecurityGate:
     def test_debug_flagged_in_production(self):
         with pytest.raises(ProductionSecurityError, match="DEBUG"):
             run_startup_security_checks(_prod_settings(DEBUG=True))
+
+    def test_in_memory_otp_store_blocks_production(self):
+        with pytest.raises(ProductionSecurityError, match="OTP_STORAGE_URI"):
+            run_startup_security_checks(
+                _prod_settings(OTP_STORAGE_URI="memory://")
+            )
+
+    def test_in_memory_rate_limit_store_blocks_production(self):
+        with pytest.raises(ProductionSecurityError, match="RATE_LIMIT_STORAGE_URI"):
+            run_startup_security_checks(
+                _prod_settings(RATE_LIMIT_STORAGE_URI="memory://")
+            )
+
+    def test_fcm_provider_without_credentials_blocks_production(self):
+        with pytest.raises(ProductionSecurityError, match="FCM"):
+            run_startup_security_checks(_prod_settings(PUSH_PROVIDER="fcm"))
+
+    def test_fcm_provider_with_credentials_passes(self):
+        findings = run_startup_security_checks(
+            _prod_settings(PUSH_PROVIDER="fcm", FCM_CREDENTIALS_JSON='{"project_id": "x"}')
+        )
+        assert findings == []
 
     def test_development_only_warns_never_raises(self):
         insecure = Settings(
@@ -366,7 +391,7 @@ class TestTokenSecurity:
 # ── OTP protection ───────────────────────────────────────────────────────────
 class TestOTPProtection:
     def setup_method(self):
-        otp_service._otp_store.clear()
+        otp_service.clear_all_otps()
 
     def test_brute_force_lockout(self):
         phone = "+9198765000042"
@@ -378,11 +403,14 @@ class TestOTPProtection:
         assert otp_service.verify_otp(phone, real_otp) is False
 
     def test_expired_otp_rejected(self):
+        from app.services.otp_store import get_otp_store
+
         phone = "+9198765000043"
         otp_service.generate_otp(phone)
-        otp_service._otp_store[phone]["expires_at"] = (
-            datetime.now(timezone.utc) - timedelta(seconds=1)
-        )
+        store = get_otp_store(settings.OTP_STORAGE_URI)
+        record = store.get(phone)
+        record["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
+        store.set(phone, record, ttl_seconds=60)
         assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
 
     def test_otp_is_single_use(self):

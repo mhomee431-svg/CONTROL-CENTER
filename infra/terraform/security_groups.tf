@@ -1,46 +1,43 @@
-# ── Security groups — least privilege, private RDS/Redis ───────────────────
-# No RDS/Redis SG allows 0.0.0.0/0; only the app SG may reach them.
+# ── Security groups — only required traffic (free-tier edition) ─────────────
+# app : 80/443 in from the world (Caddy reverse proxy / ACME challenge).
+#       No SSH port — shell access is Session Manager (IAM role based, free).
+# rds : 5432 in from the app SG ONLY. No egress block (SGs are stateful; a
+#       database never originates connections).
 
-# 1) Load balancer: allow HTTPS from anywhere.
-resource "aws_security_group" "alb" {
-  name        = "${local.name_prefix}-alb"
-  description = "ALB — public HTTPS"
+resource "aws_security_group" "app" {
+  name_prefix = "${local.name_prefix}-app-"
+  description = "App EC2: 80+443 via Caddy; shell via Session Manager only."
   vpc_id      = local.vpc_id
 
   ingress {
-    description = "HTTPS from internet"
+    description = "HTTP (Caddy reverse proxy + ACME HTTP-01 challenge)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS (Caddy auto-TLS once domain_name is set)"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${local.name_prefix}-alb-sg" }
-}
-
-# 2) Application (ECS tasks): only from ALB on the app port; egress anywhere
-#    needed to reach S3/Secrets/outbound providers.
-resource "aws_security_group" "app" {
-  name         = "${local.name_prefix}-app"
-  description  = "ECS web + worker tasks"
-  vpc_id       = local.vpc_id
-
-  ingress {
-    description     = "From ALB"
-    from_port       = var.app_port
-    to_port         = var.app_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+  dynamic "ingress" {
+    for_each = var.admin_cidr == "" ? [] : [1]
+    content {
+      description = "Optional admin CIDR (e.g. your IP, for later tooling)"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = [var.admin_cidr]
+    }
   }
 
   egress {
+    description = "All outbound (apt, docker pulls, RDS 5432, S3 via endpoint)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -48,46 +45,29 @@ resource "aws_security_group" "app" {
   }
 
   tags = { Name = "${local.name_prefix}-app-sg" }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-# 3) RDS/Postgres: only the app SG.
 resource "aws_security_group" "rds" {
-  name        = "${local.name_prefix}-rds"
-  description = "RDS PostgreSQL — app SG only"
+  name_prefix = "${local.name_prefix}-rds-"
+  description = "Postgres 5432 from the app SG only. Never public."
   vpc_id      = local.vpc_id
 
   ingress {
+    description     = "postgres from the app SG only"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.app.id]
   }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # Deliberately NO egress block: RDS never originates connections.
+
   tags = { Name = "${local.name_prefix}-rds-sg" }
-}
 
-# 4. Redis: only the app SG.
-resource "aws_security_group" "redis" {
-  name        = "${local.name_prefix}-redis"
-  description = "ElastiCache Redis — app SG only"
-  vpc_id      = local.vpc_id
-
-  ingress {
-    from_port       = 6379
-    to_port         = 6379
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
+  lifecycle {
+    create_before_destroy = true
   }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = { Name = "${local.name_prefix}-redis-sg" }
 }

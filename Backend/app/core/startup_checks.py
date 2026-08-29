@@ -82,6 +82,31 @@ def run_startup_security_checks(settings: Settings) -> list[str]:
     if not settings.RATE_LIMIT_ENABLED:
         findings.append("HIGH: RATE_LIMIT_ENABLED is false — no API abuse protection")
 
+    # 6. Distributed OTP storage ────────────────────────────────────────────
+    if (settings.OTP_STORAGE_URI or "memory://").lower().startswith("memory"):
+        findings.append(
+            "CRITICAL: OTP_STORAGE_URI is in-memory — OTPs issued by one worker "
+            "cannot be verified by another; auth breaks with 2+ workers/instances. "
+            "Use a redis:// URI in production"
+        )
+
+    # 7. Distributed rate-limit counters ────────────────────────────────────
+    if (settings.RATE_LIMIT_STORAGE_URI or "memory://").lower().startswith("memory"):
+        findings.append(
+            "HIGH: RATE_LIMIT_STORAGE_URI is in-memory — limits are enforced per "
+            "process, so effective limits scale up with worker count. Use a "
+            "redis:// URI in production"
+        )
+
+    # 8. Push provider credentials ──────────────────────────────────────────
+    if (settings.PUSH_PROVIDER or "mock").lower() == "fcm" and not (
+        settings.FCM_CREDENTIALS_FILE or settings.FCM_CREDENTIALS_JSON
+    ):
+        findings.append(
+            "CRITICAL: PUSH_PROVIDER=fcm but no FCM credentials are configured — "
+            "set FCM_CREDENTIALS_FILE or FCM_CREDENTIALS_JSON"
+        )
+
     critical = [f for f in findings if f.startswith("CRITICAL")]
     high = [f for f in findings if f.startswith("HIGH")]
 

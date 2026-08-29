@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     OTP_MAX_RESENDS: int = Field(5, ge=1)
     OTP_RESEND_COOLDOWN_SECONDS: int = Field(60, ge=0)
     OTP_LENGTH: int = Field(6, ge=4, le=8)
+    # Storage backend for OTP records: "memory://" (single process) or
+    # "redis://host:port/db" (distributed — REQUIRED for 2+ workers/instances).
+    OTP_STORAGE_URI: str = "memory://"
 
     # ── Session / Tokens ────────────────────────────────────────────────────────
     SESSION_MAX_DEVICES: int = Field(5, ge=1, le=20)

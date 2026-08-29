@@ -7,7 +7,9 @@ __pycache__/
 
 # Terraform state & local secrets (never commit)
 infra/.terraform/
+infra/**/.terraform/
 infra/terraform/terraform.tfvars
+infra/terraform/**/terraform.tfvars
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
@@ -15,8 +17,15 @@ infra/terraform/terraform.tfvars
 # Local build artifacts
 build/
 .dart_tool/
+.tools/
 
 # Keep committed env-reference examples (no real secrets)
 !.env.example
 !.env.production.example
+
+# Firebase service-account keys (never commit)
+*firebase-adminsdk*.json
+**/*firebase-adminsdk*.json
+serviceAccountKey*.json
+**/serviceAccountKey*.json
 

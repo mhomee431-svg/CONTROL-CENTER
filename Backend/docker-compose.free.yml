@@ -1,14 +1,14 @@
-# Local "production-shaped" stack: PostGIS + Redis + API (+ Celery worker/beat).
+# Backend/docker-compose.free.yml
 #
-#   docker compose -f Backend/docker-compose.yml up --build
-#
-# This mirrors the AWS topology (private DB/Redis, app, background jobs) so the
-# exact container images and commands used in ECS can be validated locally.
-# Secrets are NOT in this file — they come from .env / shell environment.
-#
-# Requires Docker Desktop >= 4.27 (Compose v2.24+) for the optional
-# `env_file.required` long syntax used below.
-name: hyperlocal-backend
+# FREE-TIER CLOUD variant of the local stack. Same images, tuned for ONE
+# t3.micro (2GB RAM / ~20GB disk) deployed from infra/free Terraform.
+# Differences vs docker-compose.yml:
+#   * DB/Redis are NOT published to any host port (SG has no such ports anyway)
+#   * API is published on host :80 instead of :8000
+#   * single uvicorn worker + celery concurrency 2 (RAM headroom)
+#   * log rotation (journald/disk safety)
+# Usage on server:  docker compose -f docker-compose.free.yml up -d --build
+name: hyperlocal-free
 
 services:
   db:
@@ -24,28 +24,26 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hyperlocal} -d ${POSTGRES_DB:-hyperlocal}"]
       interval: 10s
       timeout: 5s
-      retries: 6
-    ports:
-      - "127.0.0.1:5432:5432"
+      retries: 12
+    logging: &logopts
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 6
-    ports:
-      - "127.0.0.1:6379:6379"
+      retries: 12
+    logging: *logopts
 
-  # ── One-shot migration runner ──────────────────────────────────────────────
-  # Runs `alembic upgrade head` exactly once and exits. Every long-running
-  # service below depends on it completing successfully, so nobody touches
-  # tables before migrations finish (prevents startup crash-loops).
   migrate:
     build:
       context: .
@@ -62,6 +60,7 @@ services:
     env_file:
       - path: .env
         required: false
+    logging: *logopts
 
   api:
     build:
@@ -81,12 +80,17 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-      RUN_MIGRATIONS: "true"
+      RUN_MIGRATIONS: "false"
     env_file:
       - path: .env
         required: false
     ports:
-      - "127.0.0.1:8000:8000"
+      - "80:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    volumes:
+      - uploads:/app/storage
+    stop_grace_period: 30s
+    logging: *logopts
 
   worker:
     build:
@@ -110,7 +114,11 @@ services:
     env_file:
       - path: .env
         required: false
-    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info"]
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=2", "--max-tasks-per-child=50"]
+    volumes:
+      - uploads:/app/storage
+    stop_grace_period: 45s
+    logging: *logopts
 
   beat:
     build:
@@ -124,18 +132,14 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    environment:
-      ENVIRONMENT: ${ENVIRONMENT:-staging}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-hyperlocal}:${POSTGRES_PASSWORD:-hyperlocal_dev_pw}@db:5432/${POSTGRES_DB:-hyperlocal}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-      RUN_MIGRATIONS: "false"
+    environment: *worker-env
     env_file:
       - path: .env
         required: false
     command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
+    logging: *logopts
 
 volumes:
   db_data:
   redis_data:
+  uploads:

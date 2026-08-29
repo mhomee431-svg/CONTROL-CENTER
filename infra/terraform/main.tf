@@ -1,8 +1,19 @@
-# ── Hyperlocal — VPC networking (private-by-default) ────────────────────────
+# ── Hyperlocal — FREE-TIER networking (public EC2 + private RDS) ────────────
+# 100% AWS 12-month Free-Tier topology (paid-tier refactor of the old ECS/NAT/
+# ALB design — that code remains available in git history for the upgrade):
+#   * NO NAT Gateways — the app EC2 sits in a PUBLIC subnet with an IGW route
+#     (free internet egress for apt / docker pulls / provider APIs).
+#   * NO ALB — a stable Elastic IP + Caddy (reverse proxy, auto-TLS) on the box.
+#   * NO ElastiCache — Redis runs as a local Docker container on the EC2.
+#   * RDS db.t3.micro (750h/mo free) in a data subnet with NO default route —
+#     reachable only from the app SG on 5432, never from the internet.
+#   * S3 Gateway endpoint (free) keeps backend → S3 traffic inside the VPC.
+
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
-  azs         = var.availability_zones
   vpc_id      = aws_vpc.this.id
+  az_a        = "${var.aws_region}a"
+  az_b        = "${var.aws_region}b"
 }
 
 resource "aws_vpc" "this" {
@@ -13,52 +24,32 @@ resource "aws_vpc" "this" {
   tags = { Name = "${local.name_prefix}-vpc" }
 }
 
-# ── Subnets ─────────────────────────────────────────────────────────────────
-resource "aws_subnet" "public" {
-  count                   = length(local.azs)
+# Public subnet (AZ a) — hosts ONLY the single app EC2 (Caddy reverse proxy).
+resource "aws_subnet" "app" {
   vpc_id                  = local.vpc_id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 4, count.index)                           # 10.0.0.0/20, 10.0.16.0/20
-  availability_zone       = local.azs[count.index]
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = local.az_a
   map_public_ip_on_launch = true
-  tags = { Name = "${local.name_prefix}-public-${local.azs[count.index]}" }
+  tags                    = { Name = "${local.name_prefix}-public-${local.az_a}" }
 }
 
-resource "aws_subnet" "private" {
-  count             = length(local.azs)
-  vpc_id            = local.vpc_id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 4, count.index + 4)                            # 10.0.64.0/20, 10.0.80.0/20
-  availability_zone = local.azs[count.index]
-  tags = { Name = "${local.name_prefix}-private-${local.azs[count.index]}" }
+# Data subnet (AZ b) — RDS only. Different AZ than the app subnet so the
+# db subnet group spans 2 AZs (AWS requirement), still no public IP mapping.
+resource "aws_subnet" "data" {
+  vpc_id                  = local.vpc_id
+  cidr_block              = var.data_subnet_cidr
+  availability_zone       = local.az_b
+  map_public_ip_on_launch = false
+  tags                    = { Name = "${local.name_prefix}-data-${local.az_b}" }
 }
 
-resource "aws_subnet" "data" {                                       # RDS + Redis (private, no NAT dependency)
-  count             = length(local.azs)
-  vpc_id            = local.vpc_id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 4, count.index + 8)  # 10.0.128.0/20, 10.0.144.0/20
-  availability_zone = local.azs[count.index]
-  tags = { Name = "${local.name_prefix}-data-${local.azs[count.index]}" }
-}
-
-# ── Internet Gateway (public egress + NAT) ──────────────────────────────────
 resource "aws_internet_gateway" "this" {
   vpc_id = local.vpc_id
   tags   = { Name = "${local.name_prefix}-igw" }
 }
 
-resource "aws_eip" "nat" {
-  count  = length(local.azs)
-  domain = "vpc"
-  tags   = { Name = "${local.name_prefix}-nat-eip-${count.index}" }
-}
-
-resource "aws_nat_gateway" "this" {
-  count         = length(local.azs)
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
-  tags          = { Name = "${local.name_prefix}-nat-${count.index}" }
-}
-
-# ── Route tables ────────────────────────────────────────────────────────────
+# ── Route tables ─────────────────────────────────────────────────────────────
+# Public: app subnet → IGW (free egress; no NAT anywhere).
 resource "aws_route_table" "public" {
   vpc_id = local.vpc_id
   tags   = { Name = "${local.name_prefix}-public-rt" }
@@ -70,33 +61,19 @@ resource "aws_route" "public_internet" {
   gateway_id             = aws_internet_gateway.this.id
 }
 
-resource "aws_route_table_association" "public" {
-  count          = length(local.azs)
-  subnet_id      = aws_subnet.public[count.index].id
+resource "aws_route_table_association" "app" {
+  subnet_id      = aws_subnet.app.id
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table" "private" {
-  count  = length(local.azs)
+# Data: isolated — only the implicit local (VPC) route plus the S3 gateway
+# endpoint route (added in vpc_endpoints.tf). RDS cannot reach the internet.
+resource "aws_route_table" "data" {
   vpc_id = local.vpc_id
-  tags   = { Name = "${local.name_prefix}-private-rt-${count.index}" }
-}
-
-resource "aws_route" "private_nat" {
-  count                = length(local.azs)
-  route_table_id       = aws_route_table.private[count.index].id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id       = aws_nat_gateway.this[count.index].id
-}
-
-resource "aws_route_table_association" "private" {
-  count       = length(local.azs)
-  subnet_id   = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  tags   = { Name = "${local.name_prefix}-data-rt" }
 }
 
 resource "aws_route_table_association" "data" {
-  count       = length(local.azs)
-  subnet_id   = aws_subnet.data[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  subnet_id      = aws_subnet.data.id
+  route_table_id = aws_route_table.data.id
 }

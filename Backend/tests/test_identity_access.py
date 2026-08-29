@@ -47,7 +47,7 @@ def run_async(coro):
 class TestOTPService:
     def setup_method(self):
         from app.services import otp_service
-        otp_service._otp_store.clear()
+        otp_service.clear_all_otps()
 
     def test_generate_and_verify_otp(self):
         from app.services.otp_service import generate_otp, verify_otp
@@ -87,9 +87,11 @@ class TestOTPService:
         assert verify_otp("+919999999996", otp) is False
 
     def test_otp_expiry(self):
-        from app.services.otp_service import _otp_store, verify_otp
+        from app.services.otp_service import verify_otp
+        from app.services.otp_store import get_otp_store
 
-        _otp_store["+919999999995"] = {
+        store = get_otp_store(settings.OTP_STORAGE_URI)
+        store.set("+919999999995", {
             "otp_hash": "x" * 64,
             "salt": "s" * 32,
             "expires_at": datetime.now(timezone.utc) - timedelta(minutes=1),
@@ -97,7 +99,7 @@ class TestOTPService:
             "resend_count": 1,
             "last_resend_at": datetime.now(timezone.utc),
             "created_at": datetime.now(timezone.utc),
-        }
+        }, ttl_seconds=60)
         assert verify_otp("+919999999995", "123456") is False
 
     def test_resend_limits(self):

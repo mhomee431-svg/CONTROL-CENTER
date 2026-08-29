@@ -1,37 +1,34 @@
-# Copy to terraform.tfvars and fill. NEVER put real secret values here.
+# ── FREE-TIER preset — copy to terraform.tfvars and apply ────────────────────
+# Monthly cost: $0 inside the 12-month free tier (EC2 t3.micro 750h, EBS 30GB,
+# RDS db.t3.micro 750h + 20GB, EIP while attached, S3 5GB, SSM, flow logs 14d).
 
-aws_region  = "ap-south-1"          # your deployment region
-environment = "production"
-
+aws_region   = "ap-south-1"
+environment  = "production"
 project_name = "hyperlocal"
 
-# ── Domain / HTTPS ─────────────────────────────────────────────────────────
-domain_name          = "example.com"         # your real root domain
-api_subdomain        = "api"
-hosted_zone_id       = ""                    # Route53 zone id (or "" to add DNS manually)
-create_acm_certificate = true
-create_route53_records = true
+# Environment separation: change `environment` per IaC run (development |
+# staging | production) — name prefixes, SSM paths and state keys differ.
+# Example: terraform apply -var-file=terraform.tfvars.staging
 
-# ── Compute ────────────────────────────────────────────────────────────────
-desired_count       = 2
-max_capacity        = 4
-app_cpu             = 512
-app_memory          = 1024
+# App instance (Caddy reverse proxy + Redis container)
+instance_type   = "t3.micro"
+root_volume_gb  = 20
+admin_cidr      = "" # no SSH port anywhere; Session Manager only
 
-# ── RDS / Redis (size to your budget) ──────────────────────────────────────
-database_instance_class = "db.t3.small"
-database_multi_az       = false
-backup_retention_days   = 7
-redis_node_type         = "cache.t3.micro"
+# RDS — free-tier shapes, never public
+db_instance_class   = "db.t3.micro"
+db_allocated_storage = 20
+db_name             = "hyperlocal"
+db_username         = "hyperlocal"
 
-# ── Registry (find in AWS ECR after `terraform apply` or via outputs) ──────
-# ecr_registry_url  = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
-ecr_repository_name = "hyperlocal-backend"
-backend_image_tag   = "latest"
+# Domain: set this + an A-record → the EIP output, and Caddy auto-issues
+# HTTPS. Empty = plain HTTP on the EIP until you buy a domain.
+domain_name = ""
 
-# ── Secrets ─────────────────────────────────────────────────────────────────
-secrets_secret_name = "hyperlocal"
-use_aws_secrets     = true
+# Free networking extras
+github_branch        = "main"
+create_s3_gateway_endpoint = true
+enable_vpc_flow_logs       = true
+flow_log_retention_days    = 14
 
-# ── Security defaults ───────────────────────────────────────────────────────
-is_production = true
+# uploads_bucket_name = ""  # default: hyperlocal-<account_id>-uploads

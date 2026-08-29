@@ -1,0 +1,61 @@
+name: AWS Network Foundation - Validate & Verify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/terraform/*.tf'
+      - 'infra/terraform/*.tfvars*'
+      - 'infra/scripts/network_verify.ps1'
+      - '.github/workflows/aws-network-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+
+jobs:
+  # ── 0. Static checks (no AWS credentials required) ────────────────────────
+  validate:
+    name: Terraform fmt + validate (infra/terraform)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive
+      - run: terraform init -input=false -backend=false
+      - run: terraform validate
+
+  # ── 1. Phase 3 network verification (needs applied infra + verify role) ───
+  verify:
+    name: Verify VPC / subnets / SGs / private S3 / no public DB
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ vars.AWS_ACCOUNT_ID != '' && secrets.AWS_VERIFY_ROLE_ARN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assume read-only verify role (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_VERIFY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run network verification runbook
+        env:
+          API_URL: ${{ vars.API_URL || '' }}
+        run: |
+          chmod +x infra/scripts/network_verify.ps1
+          pwsh -File infra/scripts/network_verify.ps1 \
+            -Region "$AWS_REGION" \
+            -Env "" \
+            -ApiUrl "$API_URL"

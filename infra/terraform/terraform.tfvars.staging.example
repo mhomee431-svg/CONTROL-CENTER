@@ -1,0 +1,15 @@
+# ── Staging preset (free-tier) — apply with: terraform apply -var-file=terraform.tfvars.staging
+aws_region   = "ap-south-1"
+environment  = "staging"
+project_name = "hyperlocal"
+
+instance_type        = "t3.micro"
+root_volume_gb       = 20
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+domain_name          = ""
+
+github_branch              = "develop"
+create_s3_gateway_endpoint = true
+enable_vpc_flow_logs       = true
+flow_log_retention_days    = 7

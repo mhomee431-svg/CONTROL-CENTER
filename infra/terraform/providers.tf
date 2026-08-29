@@ -14,23 +14,30 @@ terraform {
   }
 
   # ── REMOTE STATE ───────────────────────────────────────────────────────────
-  # Uncomment AFTER you create the state bucket (see infra/README.md §Provision
-  # order). Terraform backends cannot interpolate variables.
-  #
-  # backend "s3" {
-  #   bucket         = "hyperlocal-terraform-state"   # must exist first
-  #   key            = "hyperlocal/production/terraform.tfstate"
-  #   region         = "us-east-1"                    # your state lock region
-  #   dynamodb_table = "terraform-locks"
-  #   encrypt        = true
-  # }
+  # Enabled (Phase 3 prep). Bucket + lock table were created by the Phase 2
+  # foundation apply (names derived from foundation locals:
+  #   hyperlocal-<account_id>-tfstate / terraform-locks).
+  # Terraform backends cannot interpolate variables — values are pinned.
+  # NOTE: keep one state key PER ENVIRONMENT (change "staging" below when
+  # running the production tfvars) so environments never share state.
+  backend "s3" {
+    bucket         = "hyperlocal-935173128886-tfstate"
+    key            = "hyperlocal/production/terraform.tfstate"
+    region         = "ap-south-1"
+    dynamodb_table = "terraform-locks"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
   region = var.aws_region
 
   default_tags {
-    tags = var.tags
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
   }
 }
 

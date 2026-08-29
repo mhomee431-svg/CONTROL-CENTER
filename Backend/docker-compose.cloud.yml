@@ -1,0 +1,112 @@
+# Backend/docker-compose.cloud.yml
+#
+# FREE-TIER CLOUD stack for the single EC2 (infra/terraform, t3.micro).
+#   * Postgres is the PRIVATE RDS instance — no db container, DATABASE_URL /
+#     DATABASE_URL_SYNC come from Backend/.env (written by the boot script).
+#   * Redis IS a local container (free tier) — only reachable inside the
+#     compose network, never published to a host port.
+#   * API is bound to 127.0.0.1:8000 — Caddy (systemd) reverse-proxies 80/443.
+# Usage on server:  docker compose -f docker-compose.cloud.yml up -d --build
+name: hyperlocal-cloud
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: &logopts
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL_SYNC}   # sync driver for migrations
+      RUN_MIGRATIONS: "true"
+    env_file:
+      - path: .env
+        required: true
+    logging: *logopts
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      RUN_MIGRATIONS: "false"
+    env_file:
+      - path: .env
+        required: true
+    ports:
+      - "127.0.0.1:8000:8000" # Caddy only; never 0.0.0.0
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    volumes:
+      - uploads:/app/storage
+    stop_grace_period: 30s
+    logging: *logopts
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL_SYNC}
+      RUN_MIGRATIONS: "false"
+    env_file:
+      - path: .env
+        required: true
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=2", "--max-tasks-per-child=50"]
+    volumes:
+      - uploads:/app/storage
+    stop_grace_period: 45s
+    logging: *logopts
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: ${DATABASE_URL_SYNC}
+      RUN_MIGRATIONS: "false"
+    env_file:
+      - path: .env
+        required: true
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
+    logging: *logopts
+
+volumes:
+  redis_data:
+  uploads:

@@ -40,7 +40,8 @@ flutter run
 Full stack (mirrors AWS topology, validates the container images):
 
 ```powershell
-docker compose -f Backend/docker-compose.yml up --build
+powershell -ExecutionPolicy Bypass -File scripts/dev/stack.ps1 up
+# or directly:  docker compose -f Backend/docker-compose.yml up --build
 ```
 
 Run the backend tests:
@@ -52,6 +53,10 @@ powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1
 ## Docs
 
 - [Phase 1 - Local Development Environment](Backend/docs/PHASE1_LOCAL_DEVELOPMENT.md)
+- [Phase 2 - AWS Account & IAM Foundation](docs/PHASE2_AWS_IAM_FOUNDATION.md)
+- [Phase 3 - AWS Network Foundation](docs/PHASE3_AWS_NETWORK_FOUNDATION.md)
+- [Phase 4 - RDS PostgreSQL + PostGIS](docs/PHASE4_RDS_POSTGRESQL_POSTGIS.md)
+- [Free-tier cloud deployment (LIVE now)](docs/FREE_TIER_CLOUD.md)
 - [API contract](Backend/docs/API_CONTRACT.md)
 - [Production hardening](Backend/docs/PHASE30_PRODUCTION_HARDENING.md)
 - [E2E platform testing](Backend/docs/PHASE31_E2E_PLATFORM_TESTING.md)

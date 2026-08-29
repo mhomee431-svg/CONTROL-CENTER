@@ -16,6 +16,39 @@ public AWS deployment.
 > and 4) move OTP + rate-limit state out of process memory (breaks under multi-instance
 > autoscaling).
 
+> **Audit refresh — 2026-08-27 (Phase 0 re-verified against the live repo):**
+> - Phase 1 (Local Development Environment) is **implemented and committed** (HEAD commits
+>   `9fb9793`, `42fa003`): dev scripts, Docker compose (PostGIS 16 + Redis 7), migrations,
+>   health endpoints, `.env` profile auto-selection, and hardened startup checks.
+> - Phase 2 (AWS Account & IAM Foundation) is **authored as IaC but UNCOMMITTED, UNAPPLIED
+>   and UNTESTED** (untracked: `infra/terraform/foundation/*`,
+>   `infra/scripts/iam_verify.ps1`, `infra/scripts/install_tools.ps1`,
+>   `.github/workflows/aws-iam-foundation.yml`, `docs/PHASE2_AWS_IAM_FOUNDATION.md`).
+>   It holds S3 remote-state + DynamoDB lock, GitHub OIDC + scoped CI/CD role, operator /
+>   monitoring / db-operator / S3-backup roles, and a bootstrap assume-role-only user. It is
+>   blocked only on a **manually supplied AWS bootstrap connection** (account id + scoped
+>   bootstrap key, applied from an internet-connected machine — this sandbox has no
+>   outbound-download/AWS access). This addresses report blocker B4 *by design* but is not
+>   yet exercised.
+> - Blocker B1 remains OPEN: real `.env*` secret files still exist **on disk** under
+>   `Backend/`/`Frontend/` (now untracked — removed from git history in `9fb9793`). They must
+>   be rotated and eventually purged from history; only `.env.example` templates are tracked.
+> - Blocker B2 remains OPEN: `firebase-admin` is **still absent** from `Backend/requirements.txt`.
+> - Phase 4 (RDS PostgreSQL + PostGIS) is **authored and statically validated but
+>   UNAPPLIED/UNTESTED against a live AWS RDS instance** (this sandbox has no
+>   Docker/AWS). Deliverables (untracked): `infra/terraform/rds.tf` hardening
+>   (deletion protection, auto minor upgrade, Performance Insights, Postgres log
+>   export, endpoint outputs), `infra/scripts/rds_migrate.sh` (safe
+>   snapshot→migrate→verify workflow), `infra/scripts/rds_restore.sh` (safe
+>   snapshot-restore to a new instance), `Backend/scripts/verify_rds.py` (live
+>   PostGIS + approved-architecture verifier incl. rolled-back spatial sample),
+>   `Backend/tests/test_phase4_rds.py` (6 DB-free checks: migration chain HEAD
+>   `0011`, PostGIS/pg_trgm enablement, Geography columns, verifier coverage),
+>   and `docs/PHASE4_RDS_POSTGRESQL_POSTGIS.md`. PostGIS is already enabled by
+>   committed migration `0002`; it is **not** recreated here. Applying Phase 4
+>   requires the Phase 2 bootstrap + `terraform apply`, then `rds_migrate.sh`.
+> - All findings in §§5–15 below are **unchanged and still valid** at this refresh.
+
 ---
 
 ## 1. Current Architecture

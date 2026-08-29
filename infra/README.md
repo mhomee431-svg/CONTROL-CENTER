@@ -1,109 +1,121 @@
-# Hyperlocal Production Infrastructure (AWS)
+# Hyperlocal Infrastructure — FREE-TIER (AWS 12-month, $0/month)
 
-Terraform-managed, private-by-default AWS topology for the **Hyperlocal Customer
-API**. Nothing here hardcodes secrets, and no infrastructure is exposed publicly
-except the ALB (HTTPS only).
+Terraform-managed AWS topology for the **Hyperlocal Customer API**, engineered to
+stay inside the **AWS 12-month Free Tier**. Nothing is publicly exposed except
+the app instance's Caddy reverse proxy (80/443). No NAT gateways, no ALB, no
+ElastiCache, no Secrets Manager, no paid extras.
+
+> Paid-tier design (ECS Fargate + ALB + NAT + ElastiCache) is preserved in git
+> history — `git log -- infra/terraform` — and is the documented upgrade path.
 
 ```
-                        ┌─────────── HTTPS 443/80 ───────────┐
-                        ▼                                    │
-                    ALB (public subnets)          Internet gateway ─► NAT ─► private subnets
-                        │ forward:443→8000
-                        ▼
-              ECS Fargate "web" (private subnet)   ─┐
-        +────────────────+───────────────────────+  │ only app SG
-        │                │                       │  ▼
-   RDS Postgres 16   ElastiCache Redis           awslogs (CloudWatch)
-   (data subnet)     (data subnet)
-        ▲                       ▲
-        └──── app SG only ──────┘   (no 0.0.0.0/0 on DB/Redis)
-
-   S3 "uploads" (private, SSE-KMS) ← IAM task role (no static keys)
-   Secrets Manager (backend bundle + DATABASE_URL) ← ECS secrets / helper
+Internet ──► 80/443  ▼ SG "…-app-sg" (ONLY 80/443 open; no SSH port)
+                     │
+             Elastic IP ◄── free while attached (stop/start-safe address)
+                     │
+        EC2 t3.micro (public subnet, Ubuntu 24.04)  ◄── shell = Session Manager
+        ├─ Caddy (systemd)  :80/:443 ──► 127.0.0.1:8000   (auto-TLS with a domain)
+        ├─ docker compose (docker-compose.cloud.yml):
+        │    redis:7-alpine         ◄── LOCAL container (never host-published)
+        │    api  → 127.0.0.1:8000  (uploads volume)
+        │    worker + beat + one-shot migrate
+        │
+        ├─► RDS PostgreSQL 16 (db.t3.micro, PRIVATE data subnet, app-SG only)
+        │    DATABASE_URL fetched from SSM SecureString at boot
+        └─► S3 uploads bucket ◄── free S3 Gateway VPC endpoint (in-VPC path)
+                                   creds via the instance role (no static keys)
 ```
 
-## Components
+## Free-tier budget (ap-south-1)
 
-| Layer | Resource | Notes |
-|-------|----------|-------|
-| Networking | VPC, public/private/data subnets, IGW, NAT, route tables | data subnets host RDS/Redis only |
-| Compute | ECS Fargate — `web`, `worker`, `beat` | awsvpc, no public IPs |
-| Data | RDS PostgreSQL 16 (+PostGIS via migration), ElastiCache Redis 7 | app SG only, SSL enforced |
-| Storage | S3 private bucket, SSE-KMS | IAM role; app returns presigned URLs |
-| Secrets | Secrets Manager (2 secrets) | operator-populated, ECS-injected |
-| Identity | Task exec + task runtime IAM roles | least privilege, no static keys |
-| Edge | ALB, ACM cert, Route53 | HTTPS with redirect from :80 |
-| Scaling | App Autoscaling (CPU 70%) | 1–4 web tasks |
+| Item | Allowance used | $/month |
+|---|---|---|
+| EC2 t3.micro | 750 h/mo | 0 |
+| EBS gp2 root 20GB | 30 GB/mo | 0 |
+| Elastic IP | attached to running instance | 0 |
+| RDS db.t3.micro + 20GB gp2 | 750 h + 20 GB | 0 |
+| S3 uploads (AES256, no versioning) | 5 GB + 20k GET | 0 |
+| SSM parameters (SecureString, standard) | free | 0 |
+| VPC Flow Logs (14-day retention) | free tier | 0 |
+| S3 Gateway endpoint / IGW / SGs | always free | 0 |
+| **Total** | | **$0** |
 
-## 🅰 Manual inputs you must provide (before `terraform apply`)
+Post-12-months steady state ≈ **$13/mo** (EC2 ~7.6 + EBS ~1.6 + IPv4 ~3.65 +
+RDS ~12.5 → RDS becomes the biggest line; see "Upgrade path").
 
-Per the project rules I will not invent or paste secrets. Prepare these **in the
-AWS console / provider consoles**:
+## Files
 
-1. **AWS account + IAM role** for Terraform (least-privilege; not root). Set
-   `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` **as environment variables** on
-   the machine running Terraform — never in files.
-2. **Region** (recommend `ap-south-1` for India or your local market).
-3. **Domain + DNS** (root `example.com`). Either delegate to a **Route53 hosted
-   zone** (give us the Zone ID) or point `api.` A-record to the ALB DNS after apply.
-4. **Provider/KMS keys** — you create these and paste them into the **Secrets
-   Manager bundle** (see below). We never need the raw values in chat.
+| File | Purpose |
+|---|---|
+| `terraform/main.tf` | VPC, public app subnet, isolated data subnet, IGW, route tables |
+| `terraform/security_groups.tf` | app (80/443 in) + rds (5432 from app SG only) |
+| `terraform/ec2.tf` | t3.micro + Caddy boot script + EIP + instance role (SSM/S3 least-privilege) |
+| `terraform/rds.tf` | RDS Postgres 16 db.t3.micro, private, SSM SecureString for DATABASE_URL |
+| `terraform/s3.tf` | private uploads bucket (all 4 public-access blocks + TLS-only policy) |
+| `terraform/vpc_endpoints.tf` | S3 Gateway endpoint (private S3, free) |
+| `terraform/flow_logs.tf` | VPC flow logs → CloudWatch (14-day retention) |
+| `terraform/redis.tf` | note: Redis = local Docker container (ElastiCache has no free tier) |
+| `terraform/user_data.sh.tpl` | idempotent boot: Docker, Caddy, clone, .env from SSM, compose up |
+| `Backend/docker-compose.cloud.yml` | api + worker + beat + migrate + **local redis** |
+| `scripts/network_verify.ps1` | Phase-3 verification runbook (see below) |
 
-## Provision order
+## Deploy
 
-```bash
-aws s3api create-bucket --bucket hyperlocal-terraform-state --region <region>  # or any backend
-# (create + dynamodb lock table if you enable the s3 backend block in providers.tf)
+```powershell
+# 0) identity (use a profile, NOT plaintext keys in scripts)
+aws sts get-caller-identity
 
-cd infra/terraform
-cp terraform.tfvars.example terraform.tfvars   # fill region/domain/zone
-terraform init
-terraform plan
-terraform apply
+# 1) plan + apply
+terraform -chdir=infra/terraform init
+terraform -chdir=infra/terraform plan -out=tfplan
+terraform -chdir=infra/terraform apply tfplan
+# outputs: app_public_ip (EIP), database_endpoint, s3_bucket_name, ...
+
+# 2) (only if the repo is private) store the GitHub PAT
+aws ssm put-parameter --name /hyperlocal/production/github_token --type SecureString `
+  --value "<PAT-with-repo-read>" --overwrite
+
+# 3) ~5-8 min after first boot, verify everything
+powershell -ExecutionPolicy Bypass -File infra/scripts/network_verify.ps1 `
+  -Region ap-south-1 -Env production -ApiUrl http://<app_public_ip>
 ```
 
-## After apply — populate secrets & deploy
+Environment separation: run IaC per environment with distinct tfvars —
+`terraform apply -var-file=terraform.tfvars.staging` — name prefixes, SSM
+paths (`/hyperlocal/<env>/*`) and state keys differ automatically.
 
-1. **Backend runtime bundle** (`hyperlocal/<environment>` … the `app_secret_arn`
-   secret). Flat JSON, keys become env vars (see `.env.example` for all names).
-   Terraform created it empty — paste via console/CLI:
+### If boot fails
 
-   ```bash
-   aws secretsmanager put-secret-value \
-     --secret-id <app_secret_arn> \
-     --secret-string '{
-       "JWT_SECRET_KEY":"<long random>",
-       "SMS_PROVIDER":"twilio","TWILIO_AUTH_TOKEN":"...",
-       "EMAIL_PROVIDER":"sendgrid","SENDGRID_API_KEY":"...",
-       "OTP_DEV_MODE":"false",
-       "STORAGE_PROVIDER":"s3"
-     }'
-   ```
+```
+EC2 Console → hyperlocal-production-app → Connect → Session Manager
+journalctl -t hyperlocal-boot -f
+docker ps && docker logs -f hyperlocal-cloud-api-1
+```
 
-   > `DATABASE_URL` is handled separately — Terraform wrote it into the
-   > `…/database` secret and ECS injects it natively. Don't paste it here.
+## Security posture
 
-2. Deploy the image (CI does this; or manually):
-   ```bash
-   aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <ecr_registry_url>
-   docker build -f Backend/Dockerfile -t <ecr_registry_url>/hyperlocal-backend:<sha> Backend
-   docker push <ecr_registry_url>/hyperlocal-backend:<sha>
-   # set backend_image_tag = <sha> in tfvars → apply (or use the CodeDeploy pipeline)
-   ```
+* Only **80/443** are public (Caddy). No SSH port — shell via Session Manager
+  (IAM role based, free). Optional `admin_cidr` variable exists for port 22.
+* RDS is `publicly_accessible = false`, in a data subnet whose route table has
+  **no default route**, reachable only from the app SG on 5432.
+* Redis is a local container — never published to a host port.
+* S3 bucket: all four public-access blocks + `aws:SecureTransport=false` deny.
+* `JWT_SECRET_KEY` is generated at boot on the server; `DATABASE_URL` travels
+  only via SSM SecureString; no secrets in git.
+* IMDSv2 required; root volume encrypted; detailed monitoring off.
 
-3. Run migrations once:
-   ```bash
-   aws ecs run-task --cluster <cluster> --task-definition <web_task> \
-     --overrides '{ "containerOverrides": [ { "name":"api","command":["sh","-c","alembic upgrade head"] } ] }'
-   ```
+## Upgrade path (when traffic/paid tier arrives)
 
-4. Health check: `curl https://api.example.com/health` → then `/ready`.
+1. Recreate NAT + ALB + ECS + ElastiCache from git history (`infra/terraform`
+   before the free-tier refactor) or the Phase-3 paid design.
+2. Move Redis from compose → ElastiCache (`REDIS_URL` swap only).
+3. Point a domain via Route53/ACM — or keep Caddy, which issues HTTPS for free.
+4. RDS: raise class (`db.t3.small`+), enable backups + Multi-AZ.
 
-## Security guarantees implemented
+## Teardown
 
-- RDS/Redis not reachable from the internet (no public SG, private subnets).
-- Static keys never needed at runtime (IAM roles; default credential chain).
-- `STORAGE_PROVIDER=s3`, `S3_ACL=private`; images via **presigned GET URLs**.
-- Secrets only in Secrets Manager, KMS-encrypted, ECS-injected.
-- HTTPS enforced (HTTP → 301), modern TLS policy, HSTS (app config).
-- Flutter apps receive **no AWS credentials** — only the public HTTPS API URL.
+```powershell
+terraform -chdir=infra/terraform destroy   # releases EIP, deletes RDS/EBS → billing stops
+```
+
+A stopped EC2 still bills its EBS volume; **destroy** is the only full stop.
