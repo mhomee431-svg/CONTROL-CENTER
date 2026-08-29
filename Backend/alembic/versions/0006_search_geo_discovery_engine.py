@@ -101,7 +101,7 @@ def upgrade() -> None:
     # GIN indexes
     op.execute(
         "CREATE INDEX ix_search_index_search_vector ON search_indexes "
-        "USING GIN (search_vector)"
+        "USING GIN (search_vector gin_trgm_ops)"
     )
     op.execute(
         "CREATE INDEX ix_search_index_search_text_trgm ON search_indexes "
