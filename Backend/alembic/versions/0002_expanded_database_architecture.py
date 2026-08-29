@@ -86,6 +86,10 @@ def upgrade() -> None:
     # === 3. Remove old incompatible tables/columns ===
     # Drop old inventory (references old products table)
     op.drop_table("inventory")
+    # saved_products (0001) holds an FK to the old products table; it is
+    # re-created in section 11 against product_masters, so it must be
+    # dropped before products can be (DependentObjectsStillExistError).
+    op.drop_table("saved_products")
     # Drop old products table (replaced by product_masters)
     op.drop_table("products")
     # Remove latitude/longitude from shops, replace with location geography
@@ -378,6 +382,22 @@ def upgrade() -> None:
     op.create_index("ix_product_masters_slug", "product_masters", ["slug"])
     op.create_index("ix_product_masters_category_id", "product_masters", ["category_id"])
     op.create_index("ix_product_masters_brand_id", "product_masters", ["brand_id"])
+
+    # Recreate saved_products against product_masters (dropped in section 3
+    # because it referenced the old products table). Mirrors the SavedProduct
+    # ORM model (app/models/saved_product.py).
+    op.create_table(
+        "saved_products",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("product_master_id", sa.Integer(), sa.ForeignKey("product_masters.id"), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.UniqueConstraint("user_id", "product_master_id", name="uq_saved_product_user_product"),
+    )
+    op.create_index("ix_saved_products_id", "saved_products", ["id"])
+    op.create_index("ix_saved_products_user_id", "saved_products", ["user_id"])
+    op.create_index("ix_saved_products_product_master_id", "saved_products", ["product_master_id"])
 
     op.create_table(
         "product_variants",
@@ -1163,6 +1183,10 @@ def downgrade() -> None:
     op.drop_table("product_attributes")
     op.drop_table("product_images")
     op.drop_table("product_variants")
+    # saved_products now references product_masters — drop it first.
+    # (NOTE: the pre-0002 products table is not restored here; reaching 0001
+    # state fully requires recreating it, which this downgrade never did.)
+    op.drop_table("saved_products")
     op.drop_table("product_masters")
     op.drop_table("brands")
     op.drop_table("shop_verifications")
