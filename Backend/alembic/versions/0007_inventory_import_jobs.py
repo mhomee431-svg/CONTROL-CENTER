@@ -40,7 +40,11 @@ def upgrade() -> None:
         sa.Column("idempotency_key", sa.String(64)),
         sa.Column(
             "status",
-            sa.Enum(name="inventory_import_job_status", native_enum=True),
+            sa.Enum(
+                "VALIDATING", "AWAITING_CONFIRMATION", "QUEUED", "PROCESSING",
+                "COMPLETED", "PARTIAL", "FAILED",
+                name="inventory_import_job_status", native_enum=False,
+            ),
             nullable=False,
             server_default="VALIDATING",
         ),
