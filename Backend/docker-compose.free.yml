@@ -56,10 +56,14 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-staging}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hyperlocal}:${POSTGRES_PASSWORD:-hyperlocal_dev_pw}@db:5432/${POSTGRES_DB:-hyperlocal}
       REDIS_URL: redis://redis:6379/0
-      RUN_MIGRATIONS: "true"
+      # Phase 11 fix: run alembic via an explicit command that EXITS — with
+      # RUN_MIGRATIONS=true the entrypoint exec'd the default uvicorn CMD, so
+      # this container never completed and blocked api/worker/beat forever.
+      RUN_MIGRATIONS: "false"
     env_file:
       - path: .env
         required: false
+    command: ["alembic", "upgrade", "head"]
     logging: *logopts
 
   api:

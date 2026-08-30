@@ -16,6 +16,11 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
+    # Resource limits (Phase 11): the app instance is a 2 GB t3.micro shared
+    # with Caddy + Docker + the OS — cap every container so one runaway
+    # process cannot starve the host.
+    mem_limit: 128m
+    cpus: "0.25"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -36,13 +41,16 @@ services:
       redis:
         condition: service_healthy
     environment:
-      RUN_MIGRATIONS: "true"
-    # NOTE: no DATABASE_URL override — alembic/env.py uses the ASYNC engine
-    # (asyncpg), so the async URL from .env must reach it. Sync overrides
-    # crashed migrations with "No module named 'psycopg2'".
+      # Phase 11 fix: the command below runs alembic explicitly and EXITS.
+      # (RUN_MIGRATIONS=true here made the entrypoint exec the default uvicorn
+      # CMD, so this "one-shot" never exited and api/worker/beat — gated on
+      # service_completed_successfully — never started.)
+      RUN_MIGRATIONS: "false"
     env_file:
       - path: .env
         required: true
+    command: ["alembic", "upgrade", "head"]
+    mem_limit: 384m
     logging: *logopts
 
   api:
@@ -66,6 +74,8 @@ services:
     volumes:
       - uploads:/app/storage
     stop_grace_period: 30s
+    mem_limit: 512m
+    cpus: "0.75"
     logging: *logopts
 
   worker:
@@ -87,6 +97,8 @@ services:
     volumes:
       - uploads:/app/storage
     stop_grace_period: 45s
+    mem_limit: 384m
+    cpus: "0.50"
     logging: *logopts
 
   beat:
@@ -105,6 +117,8 @@ services:
       - path: .env
         required: true
     command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
+    mem_limit: 128m
+    cpus: "0.25"
     logging: *logopts
 
 volumes:
