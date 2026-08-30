@@ -56,6 +56,8 @@ powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1
 - [Phase 2 - AWS Account & IAM Foundation](docs/PHASE2_AWS_IAM_FOUNDATION.md)
 - [Phase 3 - AWS Network Foundation](docs/PHASE3_AWS_NETWORK_FOUNDATION.md)
 - [Phase 4 - RDS PostgreSQL + PostGIS](docs/PHASE4_RDS_POSTGRESQL_POSTGIS.md)
+- [Phase 4 - **Free** cloud PostgreSQL + PostGIS (Neon/Supabase, $0)](docs/PHASE4_FREE_CLOUD_POSTGRESQL_POSTGIS.md)
+- [Phase 5 - Database Backup & Recovery](docs/PHASE5_DATABASE_BACKUP_RECOVERY.md)
 - [Free-tier cloud deployment (LIVE now)](docs/FREE_TIER_CLOUD.md)
 - [API contract](Backend/docs/API_CONTRACT.md)
 - [Production hardening](Backend/docs/PHASE30_PRODUCTION_HARDENING.md)

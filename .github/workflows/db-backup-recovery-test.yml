@@ -1,0 +1,62 @@
+name: DB Backup & Recovery Test
+
+# Phase 5 — automated, non-destructive recovery drill on every relevant push.
+# Proves (with a REAL PostGIS PostgreSQL service) that the database can be
+# backed up (pg_dump), restored (pg_restore into a scratch DB), and verified
+# identical (revision + tables + row counts + schema surface). Exit is non-zero
+# if ANY check fails — backups/recovery are not trusted on faith.
+on:
+  push:
+    branches: [main]
+    paths: ['Backend/alembic/**', 'Backend/scripts/recovery_test.py', 'Backend/scripts/verify_rds.py', 'infra/scripts/backup_db.sh', 'infra/scripts/restore_db.sh']
+  workflow_dispatch:
+
+jobs:
+  recovery-drill:
+    name: Recovery drill (dump -> restore -> verify)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4   # PostGIS so the real migration chain applies
+        env:
+          POSTGRES_USER: hyperlocal
+          POSTGRES_PASSWORD: hyperlocal_pw
+          POSTGRES_DB: hyperlocal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hyperlocal -d hyperlocal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+          cache-dependency-path: Backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: Backend
+        run: pip install -r requirements.txt
+
+      - name: Apply migrations (alembic upgrade head)
+        working-directory: Backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://hyperlocal:hyperlocal_pw@localhost:5432/hyperlocal
+        run: alembic upgrade head
+
+      - name: Run recovery drill
+        working-directory: Backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://hyperlocal:hyperlocal_pw@localhost:5432/hyperlocal
+        run: python scripts/recovery_test.py --report-file recovery_report.json
+
+      - name: Upload recovery report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery-report
+          path: Backend/recovery_report.json

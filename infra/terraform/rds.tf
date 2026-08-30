@@ -1,6 +1,9 @@
 # ── RDS PostgreSQL — FREE-TIER shape (private, db.t3.micro, 20GB gp2) ────────
 # 750 hours/month of db.t3.micro + 20GB storage are both in the 12-month free
-# tier => $0. Backups disabled (snapshot storage would outlive the allowance).
+# tier => $0 for the instance. Automated backups are ENABLED (Phase 5): the
+# default 7-day retention is within RDS free tier (up to 20GB of snapshot
+# storage), gives point-in-time recovery to any second, and is the layer-2
+# restore path (rds_restore.sh).
 
 resource "aws_db_subnet_group" "main" {
   name       = "${local.name_prefix}-db-subnets"
@@ -36,9 +39,17 @@ resource "aws_db_instance" "this" {
   # Phase 3 guarantee retained: the database is NEVER publicly exposed.
   publicly_accessible        = false
   multi_az                   = false
-  backup_retention_period    = 0
-  skip_final_snapshot        = true
-  delete_automated_backups   = true
+  # ── Phase 5 — automated backups + point-in-time recovery ─────────────────
+  # 7-day retention (RDS free-tier eligible), window 03:00–03:30 UTC. PITR is
+  # then available to any second within the retention window (rds_restore.sh).
+  # A final snapshot is taken on destroy so the DB is never removed without a
+  # recoverable copy (layer-2 restore path stays valid).
+  backup_retention_period    = 7
+  backup_window              = "03:00-03:30"
+  skip_final_snapshot        = false
+  final_snapshot_identifier  = "${local.name_prefix}-db-final"
+  delete_automated_backups   = false
+  deletion_protection        = true
   auto_minor_version_upgrade = true
   copy_tags_to_snapshot      = true
 

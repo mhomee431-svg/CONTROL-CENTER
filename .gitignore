@@ -22,6 +22,13 @@ build/
 # Keep committed env-reference examples (no real secrets)
 !.env.example
 !.env.production.example
+!.env.free.example
+
+# Phase 4 free-cloud state (never commit — contains provider metadata)
+.free_cloud_db.json
+
+# Phase 5 recovery-drill report (CI artifact; generated, not committed)
+Backend/recovery_report.json
 
 # Firebase service-account keys (never commit)
 *firebase-adminsdk*.json

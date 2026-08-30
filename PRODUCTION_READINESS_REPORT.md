@@ -43,10 +43,16 @@ public AWS deployment.
 >   snapshot-restore to a new instance), `Backend/scripts/verify_rds.py` (live
 >   PostGIS + approved-architecture verifier incl. rolled-back spatial sample),
 >   `Backend/tests/test_phase4_rds.py` (6 DB-free checks: migration chain HEAD
->   `0011`, PostGIS/pg_trgm enablement, Geography columns, verifier coverage),
+>   `0013`, PostGIS/pg_trgm enablement, Geography columns, verifier coverage),
 >   and `docs/PHASE4_RDS_POSTGRESQL_POSTGIS.md`. PostGIS is already enabled by
 >   committed migration `0002`; it is **not** recreated here. Applying Phase 4
 >   requires the Phase 2 bootstrap + `terraform apply`, then `rds_migrate.sh`.
+> - A **$0 managed-cloud Phase-4 path** is now also delivered
+>   (`docs/PHASE4_FREE_CLOUD_POSTGRESQL_POSTGIS.md`): `scripts/provision_free_db.py`
+>   provisions Neon/Supabase free tiers idempotently, `scripts/migrate_free_db.py`
+>   runs the committed Alembic chain (0001→0013) + the verifier, and
+>   `scripts/seed_free_data.py` seeds real Mumbai sample data through the ORM —
+>   no RDS, no Docker, no cost.
 > - All findings in §§5–15 below are **unchanged and still valid** at this refresh.
 
 ---

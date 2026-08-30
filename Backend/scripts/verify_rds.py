@@ -31,6 +31,7 @@ from sqlalchemy import create_engine, text
 EXPECTED_TABLES: set[str] = {
     "roles", "permissions", "role_permissions",
     "users", "customers", "customer_addresses",
+    "otps", "user_interactions",
     "shops", "shop_owners", "shop_managers", "shop_addresses", "shop_hours",
     "shop_holidays", "shop_documents", "shop_verifications",
     "brands", "categories", "product_masters", "product_variants",
@@ -70,11 +71,28 @@ def _resolve_url(arg_url):
 
 
 def _normalize_sync(url: str) -> str:
-    for prefix in ("postgresql+asyncpg://", "postgres+asyncpg://"):
-        if url.startswith(prefix):
-            return "postgresql+psycopg://" + url[len(prefix):]
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    """Convert an async URL to the psycopg (sync) form the verifier needs.
+
+    The app/async URL carries ``ssl=require`` (asyncpg's connection keyword);
+    psycopg rejects ``ssl`` as a connection option, so we translate it to the
+    libpq-style ``sslmode=require``.
+    """
+    prefixes = ("postgresql+asyncpg://", "postgres+asyncpg://")
+    if url.startswith(prefixes):
+        url = url.replace(prefixes[0], "postgresql+psycopg://")
+        url = url.replace(prefixes[1], "postgresql+psycopg://")
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    scheme, _, rest = url.partition("://")
+    if "?" in rest:
+        base, _, query = rest.partition("?")
+        translated = []
+        for item in query.split("&"):
+            if item.startswith("ssl="):
+                translated.append("sslmode=" + item.split("=", 1)[1])
+            else:
+                translated.append(item)
+        return f"{scheme}://{base}?{'&'.join(translated)}"
     return url
 
 

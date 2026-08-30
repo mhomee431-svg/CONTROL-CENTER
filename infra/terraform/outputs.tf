@@ -33,6 +33,11 @@ output "s3_bucket_name" {
   value = aws_s3_bucket.uploads.id
 }
 
+output "backup_bucket_name" {
+  description = "S3 bucket holding logical DB backups (Phase 5 DR layer)."
+  value       = aws_s3_bucket.backups.id
+}
+
 output "github_token_ssm_parameter" {
   description = "SSM SecureString for the bootstrap GitHub PAT (replace the PLACEHOLDER if the repo is private)."
   value       = aws_ssm_parameter.github_token.name

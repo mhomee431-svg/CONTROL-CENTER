@@ -11,7 +11,7 @@ with **PostGIS** and verifies the schema against the **approved architecture**.
 
 ## 1. Design decisions (aligned to the approved architecture)
 
-- **Migrations already exist** (`Backend/alembic/versions/0001..0011`). We
+- **Migrations already exist** (`Backend/alembic/versions/0001..0013`). We
   **never recreate the database** or hand-edit schema. The DB schema is the
   migration chain, and the approved architecture is encoded in
   `Backend/tests/test_database_schema.py` plus the migration sources.
@@ -25,7 +25,8 @@ with **PostGIS** and verifies the schema against the **approved architecture**.
 
 Entity coverage (source of truth = migration chain; `scripts/verify_rds.py`
 encodes the full list): `users`, `roles`, `permissions`, `role_permissions`,
-`customers`, `customer_addresses`, `shops`, `shop_owners`, `shop_managers`,
+`customers`, `customer_addresses`, `otps`, `user_interactions`, `shops`,
+`shop_owners`, `shop_managers`,
 `shop_addresses`, `shop_hours`, `shop_holidays`, `shop_documents`,
 `shop_verifications`, `brands`, `categories`, `product_masters`,
 `product_variants`, `product_images`, `product_attributes`,
