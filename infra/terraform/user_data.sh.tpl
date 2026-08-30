@@ -72,6 +72,10 @@ fi
 DB_URL="$(aws ssm get-parameter --name "$DB_URL_PARAM" --with-decryption --region "$REGION" --query Parameter.Value --output text)"
 DB_URL_SYNC="$(echo "$DB_URL" | sed 's/postgresql+asyncpg:/postgresql:/')"
 umask 077
+# Reuse the JWT secret across reboots — regenerating it would instantly
+# invalidate every issued access/refresh token. Generate once on first boot.
+JWT_KEY="$(grep '^JWT_SECRET_KEY=' "$APP_DIR/Backend/.env" 2>/dev/null | cut -d= -f2 || true)"
+JWT_KEY="${JWT_KEY:-$(openssl rand -hex 32)}"
 cat > "$APP_DIR/Backend/.env" <<EOF
 ENVIRONMENT=$ENVIRONMENT
 DATABASE_URL=$DB_URL
@@ -82,7 +86,7 @@ CELERY_RESULT_BACKEND=redis://redis:6379/2
 RATE_LIMIT_STORAGE_URI=redis://redis:6379/3
 OTP_STORAGE_URI=redis://redis:6379/4
 TRUST_X_FORWARDED_FOR=true
-JWT_SECRET_KEY=$(openssl rand -hex 32)
+JWT_SECRET_KEY=$JWT_KEY
 STORAGE_PROVIDER=s3
 S3_BUCKET_NAME=$S3_BUCKET
 S3_REGION=$REGION

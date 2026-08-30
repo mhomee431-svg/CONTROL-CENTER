@@ -99,6 +99,10 @@ services:
     stop_grace_period: 45s
     mem_limit: 384m
     cpus: "0.50"
+    # The image ships a HEALTHCHECK probing the API on :8000/ready — valid for
+    # `api`, but celery never serves it. Disable here so worker/beat are not
+    # flagged unhealthy forever.
+    healthcheck: { disable: true }
     logging: *logopts
 
   beat:
@@ -119,6 +123,8 @@ services:
     command: ["celery", "-A", "app.core.celery_app.celery_app", "beat", "--loglevel=info"]
     mem_limit: 128m
     cpus: "0.25"
+    # Image HEALTHCHECK probes the API — not applicable to the beat scheduler.
+    healthcheck: { disable: true }
     logging: *logopts
 
 volumes:

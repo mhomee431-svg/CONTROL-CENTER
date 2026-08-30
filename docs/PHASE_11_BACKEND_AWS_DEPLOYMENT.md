@@ -84,13 +84,41 @@ Build failures leave the running stack untouched (old containers keep serving).
 
 ## 5. Verification results (2026-08-31, production)
 
+Live checks run against `http://13.234.167.97` and the instance via SSM.
+
 | Check | Method | Result |
 |---|---|---|
-| Backend starts | `docker compose ps` — api/worker/beat Up, migrate exited 0 | ✅ |
-| API responds | `GET http://13.234.167.97/health` + `/docs` from the internet | ✅ |
-| Database works | `/ready` (DB+PostGIS), `alembic current` | ✅ |
-| Redis works | `redis-cli ping` in container; `/ready` cache check | ✅ |
-| S3 works | put/get/delete round-trip on the uploads bucket with the instance role | ✅ |
-| Auth works | OTP request accepted; wrong code rejected (dev mode off) | ✅ |
-| Logs work | JSON logs via `docker logs`; boot + deploy logs in journald | ✅ |
-| Health check | `/health`, `/ready`, Docker HEALTHCHECK | ✅ |
+| Backend starts | `docker compose ps` — api/worker/beat Up, redis healthy; migrate exited 0 | ✅ |
+| API responds | `GET /health` 200, `GET /ready` 200, `GET /openapi.json` 200 from the internet | ✅ |
+| Database works | `/ready` → `database:true`; `alembic current` → **0013 (head)** | ✅ |
+| Redis works | `/ready` → `redis:true`; `redis-cli ping` in container → **PONG** | ✅ |
+| S3 works | put/get/delete round-trip on `hyperlocal-935173128886-uploads` with the instance role (no static keys) | ✅ |
+| Auth works | `POST /api/v1/auth/send-otp` → 200 (`expires_in:300`, code stored in Redis db4, dev mode off); wrong OTP → **400** | ✅ |
+| Logs work | Structured JSON app logs in `docker logs api` (request/correlation IDs); boot log via `journalctl -t hyperlocal-boot` | ✅ |
+| Health check | `/health`, `/ready`, image `HEALTHCHECK` → `healthy`; **Caddy → API 200** | ✅ |
+
+**Auto-restart validation:** the instance was deliberately rebooted (`ec2
+reboot-instances`). The whole stack came back on its own — Docker and Caddy
+`systemctl enable`, `restart: unless-stopped`, and the idempotent boot script
+re-ran `compose up -d --build` — and `/health` returned 200 without manual
+intervention. ✅ (This is the scaling/autorestart foundation: a stateless,
+restartable, idempotent single-node deployment.)
+
+## 6. Notes & follow-ups
+
+- **Secrets on the server:** `Backend/.env` holds the runtime secret (DB URL,
+  generated JWT key). It is root-only (`umask 077`) and never committed; DB
+  access is via RDS creds in SSM SecureString. The GitHub PAT was stored in
+  SSM (`/hyperlocal/production/github_token`) and the server remote uses it for
+  `git fetch`; rotate it if compromised.
+- **worker/beat HEALTHCHECK:** the production image ships a `HEALTHCHECK`
+  probing `:8000/ready` (for the API). Since celery never serves that port,
+  `docker-compose.cloud.yml` sets `healthcheck: disable: true` on
+  worker/beat so they are not falsely flagged unhealthy.
+- **JWT secret persistence** (`user_data.sh.tpl`): the secret is now reused
+  from the existing `.env` on rebuild instead of regenerated, so instance
+  replaces don't invalidate every user token (cloud-init runs only at first
+  boot, so a plain reboot already preserved `.env`).
+- **Free-tier ceiling:** a second (staging) environment would need its own
+  EC2 + RDS, which exits the 12-month free tier — the documented upgrade path
+  (ECS Fargate + ElastiCache) is preserved in `infra/README.md`.
