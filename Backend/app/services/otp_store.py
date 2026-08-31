@@ -23,7 +23,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Optional
 
+from app.core.exceptions import ServiceUnavailableError
 from app.core.logging import get_logger
+from app.core.redis import client_options
 
 logger = get_logger("app.services.otp_store")
 
@@ -31,6 +33,17 @@ logger = get_logger("app.services.otp_store")
 _DATETIME_KEYS = ("expires_at", "last_resend_at", "created_at")
 
 KEY_PREFIX = "otp:"
+
+
+class OTPStorageUnavailableError(ServiceUnavailableError):
+    """Redis-backed OTP store unreachable — authentication must fail closed.
+
+    Raised as a 503 so clients see an explicit, retryable outage instead of a
+    hang, a 500, or (worse) a permissive auth path.
+    """
+
+    def __init__(self, message: str = "OTP service temporarily unavailable"):
+        super().__init__(message)
 
 
 class BaseOTPStore(ABC):
@@ -97,41 +110,61 @@ class InMemoryOTPStore(BaseOTPStore):
 
 class RedisOTPStore(BaseOTPStore):
     """Distributed store backed by Redis (sync client — mirrors the sync DB
-    access pattern already accepted across the codebase)."""
+    access pattern already accepted across the codebase).
+
+    Phase 6 — graceful failure: when Redis is unreachable every operation
+    raises :class:`OTPStorageUnavailableError` (a 503 ``ServiceUnavailableError``)
+    instead of an unbranded connection exception. OTPs must FAIL CLOSED
+    (never authenticate outside the store), so callers get an explicit
+    "temporarily unavailable" instead of a hang, a 500, or a false deny.
+    """
 
     name = "redis"
 
     def __init__(self, uri: str, client: Any = None) -> None:
-        # ``client`` is injectable for tests; production builds one from the URI.
+        # ``client`` is injectable for tests; production builds one from the URI
+        # using the shared hardened options (timeout/retry/health) from
+        # app.core.redis so behaviour matches the cache and rate limiter.
         if client is not None:
             self._client = client
         else:
-            import redis as redis_sync
+            import redis as redis_sync  # noqa: PLC0415
 
-            self._client = redis_sync.Redis.from_url(
-                uri,
-                decode_responses=True,
-                socket_connect_timeout=2,
-                socket_timeout=2,
-            )
+            self._client = redis_sync.Redis.from_url(uri, **client_options())
 
     def get(self, phone: str) -> Optional[dict]:
-        raw = self._client.get(KEY_PREFIX + phone)
+        try:
+            raw = self._client.get(KEY_PREFIX + phone)
+        except Exception as exc:  # noqa: BLE001 — Redis outage → controlled 503
+            logger.error("Redis OTP get failed for %s: %s", phone, exc)
+            raise OTPStorageUnavailableError() from exc
         if raw is None:
             return None
         return _deserialize(raw)
 
     def set(self, phone: str, record: dict, ttl_seconds: int) -> None:
         ttl = max(1, int(ttl_seconds))
-        self._client.setex(KEY_PREFIX + phone, ttl, _serialize(record))
+        try:
+            self._client.setex(KEY_PREFIX + phone, ttl, _serialize(record))
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Redis OTP set failed for %s: %s", phone, exc)
+            raise OTPStorageUnavailableError() from exc
 
     def pop(self, phone: str) -> None:
-        self._client.delete(KEY_PREFIX + phone)
+        try:
+            self._client.delete(KEY_PREFIX + phone)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Redis OTP delete failed for %s: %s", phone, exc)
+            raise OTPStorageUnavailableError() from exc
 
     def clear_all(self) -> None:
-        keys = list(self._client.scan_iter(match=KEY_PREFIX + "*"))
-        if keys:
-            self._client.delete(*keys)
+        try:
+            keys = list(self._client.scan_iter(match=KEY_PREFIX + "*"))
+            if keys:
+                self._client.delete(*keys)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Redis OTP clear_all failed: %s", exc)
+            raise OTPStorageUnavailableError() from exc
 
 
 # ── Factory / module-level singleton ─────────────────────────────────────────

@@ -94,3 +94,89 @@ def validate_upload(
         raise e
 
     return safe_name
+
+
+# ── Phase 7 — media (image / document) validation ────────────────────────────
+#
+# The signed-upload flow cannot sniff bytes (the backend never sees them), so
+# it validates the *declared* type/extension/size at intent time and re-checks
+# the *stored* object's content-type + size at confirm time. Direct uploads
+# (local development) additionally get full magic-byte verification here.
+
+JPEG_MAGIC = b"\xff\xd8\xff"
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+WEBP_MAGIC = b"WEBP"  # at offset 8 inside a RIFF container
+PDF_MAGIC = b"%PDF-"
+MAX_FILENAME_LENGTH = 255
+
+#: allowed content types → accepted file extensions
+MEDIA_TYPES: dict[str, tuple[str, ...]] = {
+    "image/jpeg": (".jpg", ".jpeg"),
+    "image/png": (".png",),
+    "image/webp": (".webp",),
+    "application/pdf": (".pdf",),
+}
+
+#: detected-from-bytes content type → declared content types that match it
+MEDIA_MAGIC_BY_TYPE: dict[str, tuple[bytes, int, bytes]] = {
+    # content_type: (leading magic, offset, comparison bytes)
+    "image/jpeg": (JPEG_MAGIC, 0, JPEG_MAGIC),
+    "image/png": (PNG_MAGIC, 0, PNG_MAGIC),
+    "image/webp": (b"RIFF", 8, WEBP_MAGIC),
+    "application/pdf": (PDF_MAGIC, 0, PDF_MAGIC),
+}
+
+
+def sniff_media_content_type(content: bytes) -> str | None:
+    """Best-effort content-type detection from magic bytes; None if unknown."""
+    for ctype, (prefix, offset, expected) in MEDIA_MAGIC_BY_TYPE.items():
+        if content[: len(prefix)] == prefix and content[offset : offset + len(expected)] == expected:
+            return ctype
+    return None
+
+
+def validate_media_upload(
+    filename: str | None,
+    content: bytes | None,
+    *,
+    allowed_content_types: tuple[str, ...],
+    max_bytes: int,
+) -> tuple[str, str]:
+    """Validate a directly-streamed media upload. Returns (safe_name, content_type).
+
+    Checks: extension allow-list, declared content-type allow-list, non-empty,
+    size cap, and magic-byte truth (declared type must match actual bytes —
+    blocks renamed executables / polyglots). Raises UploadValidationError.
+    """
+    err = UploadValidationError
+    safe_name = sanitize_filename(filename)
+
+    allowed_exts: tuple[str, ...] = tuple(
+        ext for ctype in allowed_content_types for ext in MEDIA_TYPES.get(ctype, ())
+    )
+    if not any(safe_name.lower().endswith(ext) for ext in allowed_exts):
+        e = err(f"Only {'/'.join(allowed_exts)} files are supported")
+        e.reason_code = "INVALID_FILE_TYPE"  # type: ignore[attr-defined]
+        raise e
+
+    declared = sniff_media_content_type(content or b"")
+    if declared is None:
+        e = err("Unrecognized or unsupported file contents")
+        e.reason_code = "CONTENT_TYPE_MISMATCH"  # type: ignore[attr-defined]
+        raise e
+    if declared not in allowed_content_types:
+        e = err(f"Content type {declared} is not allowed for this upload")
+        e.reason_code = "CONTENT_TYPE_NOT_ALLOWED"  # type: ignore[attr-defined]
+        raise e
+
+    if not content:
+        e = err("Uploaded file is empty")
+        e.reason_code = "EMPTY_FILE"  # type: ignore[attr-defined]
+        raise e
+
+    if len(content) > max_bytes:
+        e = err(f"File exceeds the {max_bytes // (1024 * 1024)} MB limit")
+        e.reason_code = "FILE_TOO_LARGE"  # type: ignore[attr-defined]
+        raise e
+
+    return safe_name, declared

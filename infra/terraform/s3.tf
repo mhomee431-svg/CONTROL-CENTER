@@ -54,3 +54,17 @@ resource "aws_s3_bucket_policy" "uploads_tls_only" {
     }]
   })
 }
+
+# Phase 7 — failed/aborted multipart uploads must not accumulate storage cost.
+resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}

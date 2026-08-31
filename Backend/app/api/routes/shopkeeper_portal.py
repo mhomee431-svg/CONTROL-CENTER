@@ -24,9 +24,23 @@ from app.schemas.shopkeeper import (
     ShopkeeperShopCreate,
     ShopkeeperStockAdjustment,
 )
-from app.services import shopkeeper_service
+from app.services import media_service, shopkeeper_service
 
 router = APIRouter(prefix="/shopkeeper", tags=["shopkeeper"])
+
+
+async def _resolve_image_key(db: Session, user: User, key: str, category: str, shop_id: int) -> str:
+    """Phase 7 — resolve a confirmed media key into a durable storage ref.
+
+    Validates key shape, category match (PRODUCT_IMAGE vs SHOP_IMAGE), scope
+    (the key must have been minted for THIS shop) and object existence, then
+    returns ``s3://{bucket}/{key}`` for persistence in DB columns. The media
+    service raises typed AppErrors which the handlers already translate.
+    """
+    attachment = await media_service.attach_media(
+        db, user, key=key, expected_category=category, shop_id=shop_id,
+    )
+    return attachment["storage_ref"]
 
 
 def shop_access_dependency(shop_id: int):
@@ -110,9 +124,18 @@ async def update_shop_profile(
     db: Session = Depends(get_db),
 ):
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
-    result = shopkeeper_service.update_shop_profile(
-        access, db, payload.model_dump(exclude_none=True)
-    )
+    data = payload.model_dump(exclude_none=True)
+    if data.get("image_key"):
+        # Phase 7 — attach the uploaded shop image to the shop profile.
+        data["image_url"] = await _resolve_image_key(
+            db, current_user, data.pop("image_key"), "SHOP_IMAGE", shop_id,
+        )
+    if data.get("logo_key"):
+        # Phase 7 — attach the uploaded shop logo (same SHOP_IMAGE rules).
+        data["logo_url"] = await _resolve_image_key(
+            db, current_user, data.pop("logo_key"), "SHOP_IMAGE", shop_id,
+        )
+    result = shopkeeper_service.update_shop_profile(access, db, data)
     db.commit()
     return success_response(data=result, message="Shop profile updated")
 
@@ -207,10 +230,14 @@ async def create_product(
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "create")
-    try:
-        product = shopkeeper_service.create_product(
-            access, db, current_user, payload.model_dump(exclude_none=True)
+    data = payload.model_dump(exclude_none=True)
+    if data.get("image_key"):
+        # Phase 7 — attach the uploaded product image to the new listing.
+        data["image_url"] = await _resolve_image_key(
+            db, current_user, data.pop("image_key"), "PRODUCT_IMAGE", shop_id,
         )
+    try:
+        product = shopkeeper_service.create_product(access, db, current_user, data)
     except AppError as exc:
         return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
     db.commit()
@@ -230,9 +257,15 @@ async def update_product(
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "update")
+    data = payload.model_dump(exclude_none=True)
+    if data.get("image_key"):
+        # Phase 7 — replace the product image with a newly confirmed upload.
+        data["image_url"] = await _resolve_image_key(
+            db, current_user, data.pop("image_key"), "PRODUCT_IMAGE", shop_id,
+        )
     try:
         product = shopkeeper_service.update_product(
-            access, db, current_user, shop_product_id, payload.model_dump(exclude_none=True)
+            access, db, current_user, shop_product_id, data
         )
     except AppError as exc:
         return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)

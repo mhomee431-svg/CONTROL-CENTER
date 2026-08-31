@@ -24,4 +24,13 @@ class ApiEndpoints {
   static String products(String id) => '${shop(id)}/products';
   static String product(String shopId, String productId) =>
       '${products(shopId)}/$productId';
+
+  // ── Phase 7 — media / S3 object storage (secure signed-upload flow) ──
+  // Credentials never reach the client: the backend authorizes, mints the
+  // key, and returns a short-lived presigned POST policy. The file goes
+  // straight to S3, then /media/confirm verifies the stored object.
+  static const String mediaUploadUrl = '/api/v1/media/upload-url';
+  static const String mediaConfirm = '/api/v1/media/confirm';
+  static const String mediaUrl = '/api/v1/media/url';
+  static const String mediaObjects = '/api/v1/media/objects';
 }

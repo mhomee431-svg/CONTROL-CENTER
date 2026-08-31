@@ -53,7 +53,11 @@ async def lifespan(app: FastAPI):
 
     await enable_postgis()
     yield
-    # Shutdown
+    # Shutdown — close external connections cleanly (graceful shutdown).
+    # Redis first (stop accepting cache work), then drain DB engine pools.
+    from app.core.cache import cache as redis_cache
+
+    await redis_cache.close()
     await dispose_database()
     logger.info("Shutdown complete")
 
@@ -123,6 +127,11 @@ app.include_router(shopkeeper_portal.router, prefix=API_PREFIX)
 
 # Phase 24 — Barcode scan + Excel inventory intake
 app.include_router(inventory_intake.router, prefix=API_PREFIX)
+
+# Phase 7 — S3 object storage (signed media uploads, authorized reads/deletes)
+from app.api.routes import media as media_routes
+
+app.include_router(media_routes.router, prefix=API_PREFIX)
 
 # Phase 25 — Provider-agnostic POS integration platform
 app.include_router(pos_integration.router, prefix=API_PREFIX)

@@ -17,6 +17,12 @@ DB_URL_PARAM="${db_url_param}"
 S3_BUCKET="${s3_bucket}"
 CADDY_CFG="${caddy_config}"
 
+# Phase 12 — domain + HTTPS configuration for the boot-generated .env
+CORS_ORIGINS="${cors_origins}"
+FRONTEND_URL="${frontend_url}"
+BACKEND_URL="${backend_url}"
+GOOGLE_CALLBACK_URL="${google_callback_url}"
+
 # 0) Base tooling — git (repo clone) + AWS CLI (SSM parameter fetch, steps 3-4).
 #    Ubuntu 24.04 ships NEITHER preinstalled; noble dropped the 'awscli' apt
 #    package entirely → snap (v2) primary, pip fallback. The earlier boot
@@ -44,7 +50,7 @@ if ! command -v docker >/dev/null; then
   systemctl enable --now docker
 fi
 
-# 2) Caddy (reverse proxy; auto-TLS once the domain variable is configured)
+# 2) Caddy (reverse proxy; auto-TLS via Let's Encrypt once the domain is set)
 if ! command -v caddy >/dev/null; then
   apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
@@ -53,7 +59,8 @@ if ! command -v caddy >/dev/null; then
   apt-get install -y caddy
 fi
 mkdir -p /etc/caddy
-echo "$CADDY_CFG" > /etc/caddy/Caddyfile
+# Write the Caddyfile rendered by Terraform (Phase 12: includes TLS + redirect)
+printf '%s\n' "$CADDY_CFG" > /etc/caddy/Caddyfile
 systemctl enable caddy
 systemctl restart caddy
 
@@ -93,6 +100,23 @@ S3_REGION=$REGION
 # Production posture: real OTP flow (no universal '123456'). Email/SMS delivery
 # providers are stubs today; wire SendGrid/Twilio before expecting OTP delivery.
 OTP_DEV_MODE=false
+OTP_MODE=live
+# Phase 12 — domain + HTTPS: CORS, frontend/backend URLs, OAuth callback
+CORS_ORIGINS=$CORS_ORIGINS
+FRONTEND_URL=$FRONTEND_URL
+BACKEND_URL=$BACKEND_URL
+GOOGLE_CALLBACK_URL=$GOOGLE_CALLBACK_URL
+# Security hardening
+RATE_LIMIT_ENABLED=true
+SECURITY_HEADERS_ENABLED=true
+HSTS_MAX_AGE=31536000
+HSTS_INCLUDE_SUBDOMAINS=true
+HSTS_PRELOAD=true
+# Observability
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+LOG_FILE_ENABLED=true
+LOG_FILE_PATH=/app/logs/app.log
 EOF
 
 # 5) Run the app stack (api + worker + beat + LOCAL Redis; RDS is managed)

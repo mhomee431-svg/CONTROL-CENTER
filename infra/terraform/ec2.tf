@@ -1,3 +1,17 @@
+# ── Phase 12: compute production env values for the boot-generated .env ─────
+locals {
+  phase12_cors_origins = join(",", compact([
+    var.frontend_domain != ""  ? "https://${var.frontend_domain}"   : "",
+    var.admin_frontend_domain != "" ? "https://${var.admin_frontend_domain}" : "",
+    # Always fall back to the API root origin so health checks behind the
+    # domain itself still pass CORS (Caddy serves on the same host).
+    var.domain_name != ""      ? "https://${var.domain_name}"       : "",
+  ]))
+  phase12_frontend_url    = var.frontend_domain != "" ? "https://${var.frontend_domain}" : "https://localhost"
+  phase12_backend_url     = var.domain_name      != "" ? "https://${var.domain_name}"     : "http://localhost:8000"
+  phase12_google_callback = var.domain_name      != "" ? "https://${var.domain_name}/api/auth/google/callback" : "http://localhost:5000/api/auth/google/callback"
+}
+
 # ── Single FREE-TIER app EC2: Caddy reverse proxy + local Redis container ───
 # t3.micro (750h/mo free) in the PUBLIC subnet behind an Elastic IP (free while
 # attached to a running instance). No ALB, no NAT, no SSH port.
@@ -111,23 +125,30 @@ resource "aws_instance" "app" {
     http_put_response_hop_limit = 2
   }
 
-  monitoring = false # detailed CloudWatch metrics would leave the free tier
+    monitoring = false # detailed CloudWatch metrics would leave the free tier
 
-  user_data_replace_on_change = null
+  user_data_replace_on_change = true # Phase 12: re-render boot script when domain/email/origins change
 
   user_data_base64 = base64encode(
     templatefile(
       "${path.module}/user_data.sh.tpl",
       {
-        region       = var.aws_region
-        project      = var.project_name
-        environment  = var.environment
-        branch       = var.github_branch
-        repo_url     = var.github_repo
-        app_dir      = "/opt/hyperlocal"
-        db_url_param = aws_ssm_parameter.database_url.name
-        s3_bucket    = aws_s3_bucket.uploads.bucket
-        caddy_config = var.domain_name != "" ? "${var.domain_name} {\n    reverse_proxy 127.0.0.1:8000\n}" : ":80 {\n    reverse_proxy 127.0.0.1:8000\n}"
+        region            = var.aws_region
+        project           = var.project_name
+        environment       = var.environment
+        branch            = var.github_branch
+        repo_url          = var.github_repo
+        app_dir           = "/opt/hyperlocal"
+        db_url_param      = aws_ssm_parameter.database_url.name
+        s3_bucket         = aws_s3_bucket.uploads.bucket
+        caddy_config      = templatefile("${path.module}/Caddyfile.tftpl", {
+          domain_name = var.domain_name
+          acme_email  = var.caddy_acme_email
+        })
+        cors_origins      = local.phase12_cors_origins
+        frontend_url      = local.phase12_frontend_url
+        backend_url       = local.phase12_backend_url
+        google_callback_url = local.phase12_google_callback
       }
     )
   )

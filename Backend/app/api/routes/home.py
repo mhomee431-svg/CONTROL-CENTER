@@ -10,6 +10,7 @@ from app.models.product import (
 )
 from app.models.shop import Shop
 from app.services.geo_service import haversine_km
+from app.services.media_service import resolve_media_url
 
 router = APIRouter(prefix="/home", tags=["home"])
 
@@ -45,7 +46,9 @@ async def get_home_feed(
         image_url = ""
         if p.images:
             primary = [img for img in p.images if img.is_primary]
-            image_url = (primary[0].image_url if primary else p.images[0].image_url) or ""
+            image_url = resolve_media_url(
+                (primary[0].image_url if primary else p.images[0].image_url)
+            ) or ""
         product_data.append(
             {
                 "id": str(p.id),
@@ -74,7 +77,7 @@ async def get_home_feed(
             {
                 "id": str(s.id),
                 "name": s.name,
-                "image_url": s.image_url or "",
+                "image_url": resolve_media_url(s.image_url) or "",
                 "distance": round(distance, 2),
                 "rating": s.rating,
                 "is_verified": s.is_verified,

@@ -1,0 +1,18 @@
+# Phase 8 — gitleaks configuration.
+# Extends gitleaks' default rule set; only repo-specific allowlists live here.
+# Everything below is documentation / examples / the scanner itself — no real
+# secrets are permitted anywhere else in the repository or its history.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Phase 8 — committed reference examples, docs and the scanner's own regexes"
+paths = [
+  '''(^|/)\.env(\.[^/]*)?\.example$''',
+  '''^docs/''',
+  '''(^|/)README(\..*)?$''',
+  '''^PRODUCTION_READINESS_REPORT\.md$''',
+  '''^scripts/security/scan_secrets\.py$''',
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)tests?/''',
+]

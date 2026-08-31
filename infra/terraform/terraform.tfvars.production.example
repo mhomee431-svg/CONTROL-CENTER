@@ -7,7 +7,16 @@ instance_type        = "t3.micro"
 root_volume_gb       = 20
 db_instance_class    = "db.t3.micro"
 db_allocated_storage = 20
-domain_name          = "" # set + A-record → EIP for Caddy auto-HTTPS
+
+# Phase 12 — Production API domain + HTTPS (Caddy auto-TLS)
+# Set domain_name + an A-record → the EIP output, and Caddy auto-issues
+# HTTPS. Leave empty for plain HTTP (pre-DNS / local testing).
+domain_name          = "api.hyperlocal.in"
+caddy_acme_email     = "admin@hyperlocal.in"  # Let's Encrypt cert notifications
+frontend_domain      = "app.hyperlocal.in"    # CORS origin: customer app
+admin_frontend_domain = "admin.hyperlocal.in"  # CORS origin: shopkeeper/admin panel
+dns_zone_name        = "hyperlocal.in."        # Route53 hosted zone apex (trailing dot)
+manage_dns           = true                    # create Route53 A-record → EIP
 
 github_branch              = "main"
 create_s3_gateway_endpoint = true

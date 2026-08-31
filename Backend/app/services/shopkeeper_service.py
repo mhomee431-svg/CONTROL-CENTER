@@ -42,6 +42,7 @@ from app.models.product import (
     OfferStatus,
     OfferType,
     PriceHistory,
+    ProductImage,
     ProductMaster,
     ProductStatus,
     ShopProduct,
@@ -281,8 +282,8 @@ def _shop_summary(shop: Shop, membership: str, permissions: set[str]) -> dict[st
         "status": status,
         "is_verified": bool(getattr(shop, "is_verified", False)),
         "category": category,
-        "image_url": getattr(shop, "image_url", None),
-        "logo_url": getattr(shop, "logo_url", None),
+        "image_url": _media_resolver().resolve_media_url(getattr(shop, "image_url", None)),
+        "logo_url": _media_resolver().resolve_media_url(getattr(shop, "logo_url", None)),
         "membership": membership,
         "permissions": sorted(permissions),
     }
@@ -589,6 +590,53 @@ def inventory_overview(access: ShopAccess, db: Session) -> dict[str, Any]:
     return {"items": items, "summary": stats}
 
 
+def _media_resolver():
+    """Lazy import — media_service imports this module, so resolve at call time."""
+    from app.services import media_service
+
+    return media_service
+
+
+def _primary_image_url(master: ProductMaster | None) -> str | None:
+    """Resolved (presigned) primary image URL for a product master, if any."""
+    if master is None:
+        return None
+    images = sorted(
+        getattr(master, "images", []) or [],
+        key=lambda i: (not i.is_primary, i.sort_order or 0),
+    )
+    if not images:
+        return None
+    return _media_resolver().resolve_media_url(images[0].image_url)
+
+
+def _attach_master_image(db: Session, master: ProductMaster, image_ref: str) -> None:
+    """Persist an uploaded image ref as the master's primary catalog image.
+
+    ``image_ref`` arrives already validated/authorized by the route layer
+    (``media_service.attach_media``) — either an ``s3://{bucket}/{key}`` ref
+    or a local-provider key. Existing primary images are demoted so the newly
+    attached image becomes the single catalog face.
+    """
+    for existing in getattr(master, "images", []) or []:
+        if existing.is_primary:
+            existing.is_primary = False
+    next_sort = (
+        max((i.sort_order or 0) for i in (master.images or [])) + 1
+        if getattr(master, "images", None)
+        else 0
+    )
+    db.add(
+        ProductImage(
+            product_master_id=master.id,
+            image_url=image_ref,
+            is_primary=True,
+            sort_order=next_sort,
+        )
+    )
+    db.flush()
+
+
 def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
     qty = int(inv.quantity) if inv is not None else 0
     threshold = (
@@ -605,6 +653,7 @@ def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
         "name": _display_name(sp),
         "sku": sp.sku,
         "status": getattr(sp.status, "value", str(sp.status)),
+        "image_url": _primary_image_url(getattr(sp, "product_master", None)),
         "price": float(sp.price or 0),
         "mrp": float(sp.mrp) if sp.mrp is not None else None,
         "is_active": sp.is_active,
@@ -818,6 +867,11 @@ def create_product(
     db.add(sp)
     db.flush()
 
+    # Phase 7 — persist the (route-validated) uploaded image as the
+    # master's primary catalog image.
+    if data.get("image_url"):
+        _attach_master_image(db, master, data["image_url"])
+
     db.add(
         Inventory(
             shop_product_id=sp.id,
@@ -975,6 +1029,12 @@ def update_product(
             sp.source = InventorySource.MANUAL
             sp.freshness_status = inv.freshness_status
             sp.last_inventory_update = now
+
+    # Phase 7 — attach a newly uploaded image (route-validated) if provided.
+    if data.get("image_url"):
+        master = getattr(sp, "product_master", None)
+        if master is not None:
+            _attach_master_image(db, master, data["image_url"])
 
     db.flush()
     logger.info(

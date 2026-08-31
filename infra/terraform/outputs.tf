@@ -10,6 +10,32 @@ output "app_instance_id" {
   value       = aws_instance.app.id
 }
 
+# ── Phase 12: Domain + HTTPS outputs ─────────────────────────────────────
+output "api_domain" {
+  description = "Production API domain (e.g. api.hyperlocal.in). Empty if not configured."
+  value       = var.domain_name
+}
+
+output "https_url" {
+  description = "HTTPS endpoint for the API (e.g. https://api.hyperlocal.in)."
+  value       = var.domain_name != "" ? "https://${var.domain_name}" : "https://${aws_eip.app.public_ip}"
+}
+
+output "dns_record" {
+  description = "Route53 A-record created for the API domain (if manage_dns=true and domain_name set)."
+  value       = var.manage_dns && var.domain_name != "" ? aws_route53_record.api_a_record[0].fqdn : "Not managed — point ${var.domain_name} A-record to ${aws_eip.app.public_ip}"
+}
+
+output "caddy_acme_email" {
+  description = "Email used for Let's Encrypt ACME account registration."
+  value       = var.caddy_acme_email
+}
+
+output "cors_origins" {
+  description = "CORS origins configured for the production backend (from Terraform variables)."
+  value       = local.phase12_cors_origins
+}
+
 output "database_endpoint" {
   description = "RDS PostgreSQL endpoint (host:port) — private, app SG only."
   value       = aws_db_instance.this.endpoint

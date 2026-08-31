@@ -1,3 +1,10 @@
+# ── Runtime-only dependencies (installed into the container image) ──────────
+# Phase 10: the Docker image installs THIS file, not requirements.txt, so no
+# test tooling (pytest / pytest-asyncio / pytest-cov) ships in production.
+# Everything here IS used at runtime — provider SDKs (boto3, cloudinary,
+# sendgrid, twilio, aiosmtplib, firebase-admin) are lazily imported by the
+# replaceable provider modules in app/core/storage.py, app/services/*.
+
 # ── Core Web Framework ─────────────────────────────────────────────────────
 fastapi>=0.115.6
 uvicorn[standard]>=0.34.0
@@ -29,28 +36,23 @@ celery>=5.4.0
 slowapi>=0.1.9
 secure>=0.3.0
 
-# ── Storage Providers ──────────────────────────────────────────────────────
+# ── Storage Providers (lazily imported at runtime) ─────────────────────────
 boto3>=1.35.99
 cloudinary>=1.41.0
 
-# ── Email Providers ────────────────────────────────────────────────────────
+# ── Email Providers (lazily imported at runtime) ───────────────────────────
 aiosmtplib>=3.0.2
 sendgrid>=6.11.0
 
-# ── SMS Providers ──────────────────────────────────────────────────────────
+# ── SMS Providers (lazily imported at runtime) ─────────────────────────────
 twilio>=9.3.1
 
-# ── Push / Notifications ────────────────────────────────────────────────────
+# ── Push / Notifications (lazily imported at runtime) ──────────────────────
 firebase-admin>=6.5.0
-
-# ── Logging ────────────────────────────────────────────────────────────────
-structlog>=24.4.0
-python-json-logger>=3.2.1
 
 # ── HTTP client (runtime: Fast2SMS OTP + Google OAuth token flows) ─────────
 httpx>=0.28.1
 
-# ── Testing (dev/CI only — excluded from the container image) ──────────────
-pytest>=8.3.4
-pytest-asyncio>=0.25.0
-pytest-cov>=6.0.0
+# ── Logging ────────────────────────────────────────────────────────────────
+structlog>=24.4.0
+python-json-logger>=3.2.1

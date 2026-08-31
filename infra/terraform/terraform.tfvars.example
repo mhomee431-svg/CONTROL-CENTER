@@ -22,8 +22,15 @@ db_name             = "hyperlocal"
 db_username         = "hyperlocal"
 
 # Domain: set this + an A-record → the EIP output, and Caddy auto-issues
-# HTTPS. Empty = plain HTTP on the EIP until you buy a domain.
+# HTTPS. Leave empty for plain HTTP (pre-DNS / local testing).
 domain_name = ""
+
+# Phase 12 — Production API domain + HTTPS (Caddy auto-TLS)
+# caddy_acme_email = "admin@example.com"
+# frontend_domain  = "app.example.com"
+# admin_frontend_domain = "admin.example.com"
+# dns_zone_name    = "example.com."
+# manage_dns       = true
 
 # Free networking extras
 github_branch        = "main"

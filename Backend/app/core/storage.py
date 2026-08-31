@@ -2,18 +2,74 @@
 
 The provider is selected via `STORAGE_PROVIDER` config and can be swapped
 without changing application code. No provider secrets are hardcoded.
+
+Phase 7 — S3 object storage:
+    * signed-upload architecture: Flutter → backend authorization →
+      short-lived signed upload policy → S3 (credentials NEVER leave the
+      backend; the signed URL embeds only the permission to PUT one object,
+      with content-type and size enforced by the policy conditions)
+    * filename/key strategy: `{prefix}/{scope}/{YYYY}/{MM}/{uuid8}_{name}.{ext}`
+      via :func:`build_object_key` (sanitized, collision-proof, time-partitioned)
+    * typed failure handling: provider outages surface as
+      :class:`StorageUnavailableError` (HTTP 503) instead of 500s
 """
 
 import io
+import re
 import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from app.core.config import settings
+from app.core.exceptions import ServiceUnavailableError
 from app.core.logging import get_logger
 
 logger = get_logger("app.storage")
+
+
+class StorageUnavailableError(ServiceUnavailableError):
+    """Object-storage backend unreachable or failing — fail closed as 503."""
+
+    def __init__(self, message: str = "Storage service is temporarily unavailable"):
+        super().__init__(message)
+        self.error_code = "STORAGE_UNAVAILABLE"
+
+
+def _storage_exc(exc: Exception, action: str) -> StorageUnavailableError:
+    """Wrap an unexpected storage backend failure into a typed 503 error."""
+    logger.error("Storage %s failed: %s", action, exc)
+    return StorageUnavailableError(f"Storage {action} failed; please retry shortly")
+
+
+# ── Key strategy ─────────────────────────────────────────────────────────────
+
+_KEY_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
+_KEY_MAX_BASENAME = 64
+
+
+def build_object_key(folder: str, filename: str) -> str:
+    """Build a safe, unique, time-partitioned object key.
+
+    ``{folder}/{YYYY}/{MM}/{uuid8}_{sanitized-basename}``
+
+    * folder: category prefix (e.g. ``products/12``) — trusted, server-minted
+    * basename: untrusted filename → sanitized, stripped of any path parts,
+      control chars removed, capped at 64 chars
+    * uuid8: guarantees uniqueness (no overwrite of another user's object)
+    """
+    from app.core.upload_security import sanitize_filename
+
+    safe = _KEY_UNSAFE.sub("_", sanitize_filename(filename, fallback="file"))
+    # Keep the extension readable but tame the stem.
+    stem = Path(safe).stem[:_KEY_MAX_BASENAME] or "file"
+    suffix = Path(safe).suffix.lower()[:16]
+    now = datetime.now(timezone.utc)
+    return (
+        f"{folder.rstrip('/')}/{now:%Y}/{now:%m}/"
+        f"{uuid.uuid4().hex[:8]}_{stem}{suffix}"
+    )
 
 
 class BaseStorageProvider(ABC):
@@ -38,6 +94,32 @@ class BaseStorageProvider(ABC):
     @abstractmethod
     async def get_file_url(self, file_identifier: str) -> str:
         """Return a public URL for the given file identifier."""
+        raise NotImplementedError
+
+    # ── Phase 7 — signed upload / object inspection ──────────────────────────
+
+    async def create_signed_upload(
+        self,
+        key: str,
+        content_type: str,
+        max_bytes: int,
+        expires_in: Optional[int] = None,
+    ) -> dict:
+        """Return a short-lived signed upload grant for ONE object key.
+
+        Returns ``{"mode": "post", "url", "fields"}`` (browser/mobile POSTs
+        the multipart form to S3) or ``{"mode": "direct"}`` when the provider
+        requires the backend to stream the bytes (local development).
+        The grant embeds content-type and ``content-length-range`` conditions
+        so S3 itself rejects wrong-type or oversized payloads.
+        """
+        raise NotImplementedError
+
+    async def get_object_head(self, key: str) -> Optional[dict]:
+        """Return ``{"size", "content_type"}`` for the object, or None if absent.
+
+        Raises :class:`StorageUnavailableError` on backend failure.
+        """
         raise NotImplementedError
 
 
@@ -73,6 +155,44 @@ class LocalStorageProvider(BaseStorageProvider):
 
     async def get_file_url(self, file_identifier: str) -> str:
         return file_identifier
+
+    def presign_get_sync(self, key: str) -> str:
+        """Sync URL resolution for serializers (local: static path)."""
+        return f"/static/uploads/{key}"
+
+    async def create_signed_upload(
+        self,
+        key: str,
+        content_type: str,
+        max_bytes: int,
+        expires_in: Optional[int] = None,
+    ) -> dict:
+        # Local disk has no signing concept: the backend streams the bytes
+        # itself via POST /media/direct-upload (full validation in-process).
+        return {"mode": "direct", "key": key, "max_bytes": max_bytes}
+
+    async def get_object_head(self, key: str) -> Optional[dict]:
+        try:
+            path = self.upload_dir / key
+            if not path.is_file():
+                return None
+            return {
+                "size": path.stat().st_size,
+                # Files were stored with the declared content type at upload.
+                "content_type": _LOCAL_CONTENT_TYPES.get(path.suffix.lower()),
+            }
+        except OSError as exc:  # pragma: no cover - disk failure
+            raise _storage_exc(exc, "head") from exc
+
+
+# Best-effort content-type recall for local dev files (stored flat on disk).
+_LOCAL_CONTENT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".pdf": "application/pdf",
+}
 
 
 class S3StorageProvider(BaseStorageProvider):
@@ -114,13 +234,76 @@ class S3StorageProvider(BaseStorageProvider):
         if self.acl != "private":
             extra["ACL"] = self.acl
 
-        self.client.upload_fileobj(
-            io.BytesIO(file_bytes),
-            self.bucket,
-            key,
-            ExtraArgs=extra,
-        )
+        try:
+            self.client.upload_fileobj(
+                io.BytesIO(file_bytes),
+                self.bucket,
+                key,
+                ExtraArgs=extra,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise _storage_exc(exc, "upload") from exc
         return f"s3://{self.bucket}/{key}"
+
+    async def create_signed_upload(
+        self,
+        key: str,
+        content_type: str,
+        max_bytes: int,
+        expires_in: Optional[int] = None,
+    ) -> dict:
+        """Presigned POST policy for exactly one object key.
+
+        Conditions enforce, AT S3 (before the object can ever exist):
+          * content-type must equal the backend-validated type
+          * body length is between 1 byte and the category cap
+          * key is fixed (client cannot choose another path)
+        """
+        from app.core.config import settings as _settings
+
+        ttl = int(expires_in or _settings.S3_UPLOAD_URL_EXPIRES_SECONDS)
+        conditions = [
+            {"bucket": self.bucket},
+            ["content-length-range", 1, max_bytes],
+            {"key": key},
+            {"Content-Type": content_type},
+        ]
+        try:
+            post = self.client.generate_presigned_post(
+                Bucket=self.bucket,
+                Key=key,
+                Conditions=conditions,
+                ExpiresIn=ttl,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise _storage_exc(exc, "signed-upload") from exc
+        return {
+            "mode": "post",
+            "url": post["url"],
+            "fields": post["fields"],
+            "key": key,
+            "expires_in": ttl,
+            "content_type": content_type,
+            "max_bytes": max_bytes,
+        }
+
+    async def get_object_head(self, key: str) -> Optional[dict]:
+        import botocore.exceptions as bexc
+
+        try:
+            head = self.client.head_object(Bucket=self.bucket, Key=key)
+        except bexc.ClientError as exc:
+            code = getattr(exc, "response", {}).get("Error", {}).get("Code", "")
+            status = getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
+            if code in ("404", "NoSuchKey", "NotFound") or status == 404:
+                return None
+            raise _storage_exc(exc, "head") from exc
+        except Exception as exc:  # noqa: BLE001 — network/endpoint failures
+            raise _storage_exc(exc, "head") from exc
+        return {
+            "size": int(head.get("ContentLength", 0)),
+            "content_type": head.get("ContentType"),
+        }
 
     async def delete_file(self, file_identifier: str) -> bool:
         key = file_identifier.replace(f"s3://{self.bucket}/", "")
@@ -136,14 +319,34 @@ class S3StorageProvider(BaseStorageProvider):
         # For private buckets return a short-lived presigned URL so we NEVER
         # expose S3 credentials and never require public-read objects.
         if self.acl == "private":
-            return self.client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": self.bucket, "Key": key},
-                ExpiresIn=900,  # 15 minutes
-            )
+            try:
+                return self.client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": self.bucket, "Key": key},
+                    ExpiresIn=settings.S3_DOWNLOAD_URL_EXPIRES_SECONDS,
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise _storage_exc(exc, "presign") from exc
         if settings.S3_ENDPOINT_URL:
             return f"{settings.S3_ENDPOINT_URL}/{self.bucket}/{key}"
         return f"https://{self.bucket}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+
+    def presign_get_sync(self, key: str) -> str:
+        """Sync presigned GET for serializers (boto3 call is sync anyway).
+
+        Same guarantees as :meth:`get_file_url`: short-lived URL, no
+        credentials exposed, private objects never need public ACLs.
+        """
+        key = key.replace(f"s3://{self.bucket}/", "")
+        if self.acl != "private":
+            if settings.S3_ENDPOINT_URL:
+                return f"{settings.S3_ENDPOINT_URL}/{self.bucket}/{key}"
+            return f"https://{self.bucket}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+        return self.client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": key},
+            ExpiresIn=settings.S3_DOWNLOAD_URL_EXPIRES_SECONDS,
+        )
 
 
 class CloudinaryStorageProvider(BaseStorageProvider):

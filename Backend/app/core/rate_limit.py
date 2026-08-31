@@ -26,10 +26,23 @@ def _client_key(request: Request) -> str:
     return request.client.host if request.client else "anonymous"
 
 
+# Phase 6 — graceful Redis failure for rate limiting:
+#   * storage_options bound every Redis command (no unbounded waits).
+#   * in_memory_fallback_enabled means a Redis outage automatically falls back
+#     to per-process counters instead of 500ing every request. Limits degrade
+#     (per-worker instead of shared) but the API stays up and PostgreSQL bleeds
+#     nothing — the counter is temporary by design.
 limiter = Limiter(
     key_func=_client_key,
     default_limits=[settings.RATE_LIMIT_DEFAULT],
     storage_uri=settings.RATE_LIMIT_STORAGE_URI,
+    storage_options={
+        "socket_connect_timeout": settings.REDIS_SOCKET_CONNECT_TIMEOUT,
+        "socket_timeout": settings.REDIS_SOCKET_TIMEOUT,
+        "health_check_interval": settings.REDIS_HEALTH_CHECK_INTERVAL,
+        "retry_on_timeout": settings.REDIS_RETRY_ON_TIMEOUT,
+    },
+    in_memory_fallback_enabled=True,
     enabled=settings.RATE_LIMIT_ENABLED,
     headers_enabled=True,
 )

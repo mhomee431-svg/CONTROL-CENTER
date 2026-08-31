@@ -1,0 +1,44 @@
+# ── Phase 12: Production domain + HTTPS ──────────────────────────────────────
+# Caddy auto-TLS lifecycle (zero manual intervention):
+#   1. Obtains a Let's Encrypt certificate for the domain (ACME HTTP-01)
+#   2. Redirects all HTTP (port 80) → HTTPS (port 443) automatically
+#   3. Renews certificates ~30 days before expiry (background, zero-downtime)
+#   4. Proxies HTTPS requests to the FastAPI backend on 127.0.0.1:8000
+#
+# The global `email` is used for ACME account registration (Let's Encrypt
+# expiry notifications). The backend sees the original scheme via
+# X-Forwarded-Proto so its HSTS middleware and OAuth callbacks work.
+%{ if domain_name != "" }
+{
+    email ${acme_email}
+}
+
+${domain_name} {
+    # ── Compression ──────────────────────────────────────────────────────────
+    encode gzip
+
+    # ── Reverse proxy to FastAPI ─────────────────────────────────────────────
+    reverse_proxy 127.0.0.1:8000 {
+        # Tell the backend the original request was HTTPS so it can set
+        # HSTS, generate correct OAuth callback URLs, etc.
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host {host}
+        header_up X-Real-IP {remote}
+    }
+
+    # ── Security headers (edge-level, in addition to backend middleware) ─────
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+%{ else }
+# ── Fallback: plain HTTP (no domain / pre-DNS) ─────────────────────────────
+:80 {
+    encode gzip
+    reverse_proxy 127.0.0.1:8000
+}
+%{ endif }

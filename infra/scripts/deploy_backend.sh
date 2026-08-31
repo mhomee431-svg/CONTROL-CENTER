@@ -21,6 +21,9 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.cloud.yml}"
 READY_URL="${READY_URL:-http://127.0.0.1:8000/ready}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/health}"
 WAIT_SECONDS="${WAIT_SECONDS:-180}"
+# Phase 12 — set DOMAIN_URL (e.g. https://api.hyperlocal.in) to enable HTTPS
+# redirect + certificate + CORS verification in `cmd_verify`.
+DOMAIN_URL="${DOMAIN_URL:-}"
 STATE_FILE="${APP_DIR}/.deploy_state" # LAST_GOOD_SHA=<sha-before-deploy>
 
 log()  { printf '\033[1;34m[deploy]\033[0m %s\n' "$*"; }
@@ -106,6 +109,13 @@ cmd_verify() {
   log "4/6 redis:";             compose exec -T redis redis-cli ping
   log "5/6 applied migration:"; compose run --rm migrate alembic current | tail -2 || true
   log "6/6 api log tail:";      compose logs --tail 3 api | tail -3 || true
+
+  if [ -n "$DOMAIN_URL" ]; then
+    log "7/6 HTTP → HTTPS redirect:"; curl -sI --max-time 5 "${DOMAIN_URL/https/http}" | head -1
+    log "8/6 HTTPS certificate:";      echo | openssl s_client -connect "${DOMAIN_URL#https://}:443" -servername "${DOMAIN_URL#https://}" 2>/dev/null | openssl x509 -noout -dates -subject 2>/dev/null || echo "certificate check failed"
+    log "9/6 HTTPS /health:";         curl -fsS --max-time 5 "$DOMAIN_URL/health"; echo
+    log "10/6 CORS headers:";         curl -sI --max-time 5 -H "Origin: https://app.hyperlocal.in" "$DOMAIN_URL/health" | grep -iE "access-control-allow|access-control-allow-credentials" || true
+  fi
   log "✅ verify complete"
 }
 

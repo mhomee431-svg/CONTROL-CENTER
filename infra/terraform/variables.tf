@@ -91,9 +91,45 @@ variable "github_branch" {
 }
 
 variable "domain_name" {
-  description = "Root domain for Caddy auto-TLS. Empty = plain HTTP on the EIP."
+  description = "API domain for Caddy auto-TLS (e.g. api.hyperlocal.in). Empty = plain HTTP on the EIP (no domain / pre-DNS)."
   type        = string
   default     = ""
+}
+
+variable "caddy_acme_email" {
+  description = "Email address for Let's Encrypt ACME account registration (cert issuance notifications + renewal alerts)."
+  type        = string
+  default     = ""
+}
+
+variable "frontend_domain" {
+  description = "Frontend origin for CORS (e.g. app.hyperlocal.in). Used to build CORS_ORIGINS in the boot-generated .env."
+  type        = string
+  default     = ""
+}
+
+variable "admin_frontend_domain" {
+  description = "Admin frontend origin for CORS (e.g. admin.hyperlocal.in). Optional."
+  type        = string
+  default     = ""
+}
+
+variable "dns_zone_name" {
+  description = "Route53 hosted zone apex for DNS lookups (e.g. hyperlocal.in). Required when manage_dns = true."
+  type        = string
+  default     = ""
+}
+
+variable "manage_dns" {
+  description = "Create Route53 A-record pointing api.<domain_name> → app EIP. Set false if DNS is managed externally."
+  type        = bool
+  default     = true
+}
+
+variable "frontend_serve_via_caddy" {
+  description = "If true, also create a Route53 CNAME for frontend_domain → EIP (frontend served by Caddy). Most setups serve frontend from S3/CloudFront — leave false."
+  type        = bool
+  default     = false
 }
 
 variable "create_s3_gateway_endpoint" {

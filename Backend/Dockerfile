@@ -1,15 +1,28 @@
 # syntax=docker/dockerfile:1
 #
-# Hyperlocal Customer API — production runtime image.
+# Hyperlocal Customer API — production runtime image (Phase 10).
 #
-# Multi-stage, non-root, health-checked. Reads ALL secrets from the
-# environment (injected by ECS Secrets Manager / entrypoint) — nothing is
-# baked into the image.
+# Single-stage, non-root, health-checked. ALL secrets arrive at runtime via
+# environment / AWS Secrets Manager (entrypoint) — nothing is baked in.
 #
-# Build:        docker build -t hyperlocal-backend:latest -f Backend/Dockerfile .
-# Run (local):  docker compose -f Backend/docker-compose.yml up
+# Image optimization:
+#   * python:3.14-slim — minimal base; no build toolchain needed because every
+#     dependency ships a cp314 binary wheel (psycopg[binary], asyncpg, bcrypt…)
+#   * installs requirements.prod.txt — runtime-only deps, no pytest tooling
+#   * NO curl/wget — the HEALTHCHECK uses the Python stdlib instead, dropping
+#     the apt layer (and a general-purpose network tool) from the image
+#   * dependency layer is cached independently of the application layer
+#   * .dockerignore keeps env files, credentials, tests, docs and logs out of
+#     the build context
+#
+# Build (from repo root):  docker build -t hyperlocal-backend:latest Backend
+# Run (local stack):       docker compose -f Backend/docker-compose.yml up --build
 
 FROM python:3.14-slim AS runtime
+
+LABEL org.opencontainers.image.title="hyperlocal-backend" \
+      org.opencontainers.image.description="Hyperlocal Customer API — production runtime" \
+      org.opencontainers.image.source="https://github.com/Akasharyan47/hyperlocal_customer_app"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -19,38 +32,35 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Minimal system deps. psycopg[binary] bundles libpq; keep curl for the
-# container HEALTHCHECK only.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
 # Non-root application user (least privilege inside the container).
 RUN adduser --system --ingroup root --disabled-password --home /app appuser
 
-# Install Python deps first for better layer caching.
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --requirement requirements.txt
+# Install Python deps first for better layer caching (runtime-only set).
+COPY requirements.prod.txt ./
+RUN pip install --no-cache-dir --requirement requirements.prod.txt
 
-# Copy the application.
+# Copy the application (entrypoint.sh, alembic/, app/ — tests, docs, scripts,
+# env files and credentials are excluded via .dockerignore).
 COPY . .
 
 # The app writes uploads/logs relative to /app; hand ownership to appuser.
-RUN chown -R appuser:root /app \
-    && mkdir -p /app/storage /app/logs \
-    && chown -R appuser:root /app/storage /app/logs
+RUN mkdir -p /app/storage /app/logs \
+    && chown -R appuser:root /app
 
 USER appuser
 
 EXPOSE 8000
 
 # Liveness/readiness — /ready verifies DB, Redis and PostGIS.
+# Uses the stdlib (urlopen raises on non-2xx), so no curl in the image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8000/ready || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=4)" || exit 1
 
 # Entrypoint optionally (a) hydrates env from AWS Secrets Manager,
-# (b) runs Alembic migrations, then execs the real command (CMD).
-COPY entrypoint.sh /app/entrypoint.sh
+# (b) runs Alembic migrations, then execs the real command (CMD) — the exec
+# keeps the app as PID 1 so `docker stop` delivers SIGTERM straight to
+# uvicorn/celery for graceful shutdown (in-flight requests drained, Redis and
+# DB pools closed by the app lifespan before exit).
 ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
 
 # Default: run the API server. Override CMD for worker/beat/migrate.

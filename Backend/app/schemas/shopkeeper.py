@@ -85,6 +85,11 @@ class ShopkeeperProfileUpdate(BaseModel):
     website_url: str | None = Field(None, max_length=500)
     image_url: str | None = Field(None, max_length=500)
     logo_url: str | None = Field(None, max_length=500)
+    # Phase 7 — signed-upload integration: pass the server-minted object key
+    # returned by POST /media/confirm. Validated (category + ownership +
+    # existence) and converted to a durable s3:// storage reference.
+    image_key: str | None = Field(None, max_length=512)
+    logo_key: str | None = Field(None, max_length=512)
 
 
 class ShopkeeperSettingsUpdate(BaseModel):
@@ -113,6 +118,8 @@ class ShopkeeperProductCreate(BaseModel):
     low_stock_threshold: int = Field(5, ge=0)
     is_available: bool = True
     publish: bool = Field(False, description="Publish immediately (APPROVED) vs keep as DRAFT")
+    # Phase 7 — PRODUCT_IMAGE object key from POST /media/confirm.
+    image_key: str | None = Field(None, max_length=512)
 
 
 class ShopkeeperProductUpdate(BaseModel):
@@ -123,6 +130,8 @@ class ShopkeeperProductUpdate(BaseModel):
     is_available: bool | None = None
     is_featured: bool | None = None
     status: str | None = Field(None, max_length=30)
+    # Phase 7 — replace the product image with a confirmed PRODUCT_IMAGE key.
+    image_key: str | None = Field(None, max_length=512)
 
 
 # ── Phase 23 — Inventory management ──────────────────────────────────────

@@ -21,6 +21,22 @@ test_uploads/*
 # Tests not needed in the runtime image
 tests/
 docs/
+# Ops tooling run from the host/venv, never inside the container
+scripts/
+info.txt
+_mig_manifest.json
+
+# Credentials / private key material — NEVER baked into the image (Phase 8).
+# The Firebase service-account key, private keys, keystores and signing
+# material must only arrive via AWS Secrets Manager at runtime.
+**/*firebase-adminsdk*.json
+**/serviceAccountKey*.json
+**/*.pem
+**/*.key
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.mobileprovision
 
 # Editor / OS
 .vscode/

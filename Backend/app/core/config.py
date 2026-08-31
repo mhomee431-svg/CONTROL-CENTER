@@ -63,8 +63,28 @@ class Settings(BaseSettings):
     POSTGIS_EXTENSION: str = "postgis"
 
     # ── Redis / Cache ─────────────────────────────────────────────────────────
+    # Credentials usually ride inside REDIS_URL (redis[s]://[:password@]host:port/db).
+    # REDIS_USERNAME / REDIS_PASSWORD let a secret manager inject credentials
+    # without rewriting the URL (explicit kwargs beat URL-derived values).
     REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_USERNAME: Optional[str] = None
+    REDIS_PASSWORD: Optional[str] = None
     CACHE_DEFAULT_TTL: int = Field(300, ge=0)
+    # ── Redis timeouts / retry / health (Phase 6 — shared by every consumer) ──
+    REDIS_SOCKET_CONNECT_TIMEOUT: float = Field(2.0, gt=0)   # connect budget (s)
+    REDIS_SOCKET_TIMEOUT: float = Field(2.0, gt=0)           # per-command budget (s)
+    REDIS_HEALTH_CHECK_INTERVAL: int = Field(30, ge=0)       # pooled-connection health probe (s)
+    REDIS_HEALTH_PING_TIMEOUT: float = Field(1.0, gt=0)      # ping budget for health probes (s)
+    REDIS_RETRY_ON_TIMEOUT: bool = True
+    REDIS_MAX_RETRIES: int = Field(3, ge=0)
+    REDIS_RETRY_BACKOFF_BASE: float = Field(0.05, ge=0)
+    REDIS_RETRY_BACKOFF_CAP: float = Field(1.0, gt=0)
+    REDIS_MAX_CONNECTIONS: int = Field(30, ge=1)
+    # Circuit breaker: after Redis fails, ops short-circuit for this long before
+    # the next reconnect attempt so an outage can't hammer the network.
+    REDIS_UNAVAILABLE_GRACE_SECONDS: float = Field(5.0, ge=0)
+    # Global key namespace so cache keys never collide across dbs/consumers.
+    REDIS_KEY_PREFIX: str = "hl:cache:"
 
     # ── Celery ─────────────────────────────────────────────────────────────────
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
@@ -167,7 +187,17 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_ENDPOINT_URL: Optional[str] = None
-    S3_ACL: str = "public-read"
+    # Phase 7 — objects are PRIVATE by default; reads go through short-lived
+    # presigned GET URLs minted by the backend after an authorization check.
+    S3_ACL: str = "private"
+
+    # ── Phase 7 — S3 / media object storage limits ────────────────────────────
+    # Signed upload lifetimes (short-lived: a leaked URL is useless quickly).
+    S3_UPLOAD_URL_EXPIRES_SECONDS: int = Field(600, ge=30, le=3600)
+    S3_DOWNLOAD_URL_EXPIRES_SECONDS: int = Field(900, ge=30, le=7200)
+    # Hard byte caps per media category (defense against "objects as DB" abuse).
+    MEDIA_MAX_IMAGE_BYTES: int = Field(5 * 1024 * 1024, ge=1024)          # 5 MB
+    MEDIA_MAX_DOCUMENT_BYTES: int = Field(15 * 1024 * 1024, ge=1024)      # 15 MB
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None

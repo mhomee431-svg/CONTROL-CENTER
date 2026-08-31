@@ -90,6 +90,7 @@ from app.models.product import (  # noqa: E402
     Inventory,
     Offer,
     OfferProduct,
+    ProductImage,
     ProductMaster,
     ShopProduct,
 )
@@ -113,6 +114,7 @@ TABLES = [
     Category.__table__,
     Brand.__table__,
     ProductMaster.__table__,
+    ProductImage.__table__,
     ShopProduct.__table__,
     Inventory.__table__,
     Offer.__table__,

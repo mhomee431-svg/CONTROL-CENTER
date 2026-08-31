@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.dependencies import get_optional_user
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
+from app.services.media_service import resolve_media_url
 from app.models.product import (
     BarcodeRelationship,
     Inventory,
@@ -88,7 +89,7 @@ def _resolve_product(db: Session, identifier: str) -> ProductMaster | None:
 def _product_master_payload(product: ProductMaster, is_saved: bool) -> dict:
     """Serialize the static product-master section."""
     images = sorted(product.images, key=lambda i: (not i.is_primary, i.sort_order))
-    image_urls = [img.image_url for img in images if img.image_url]
+    image_urls = [resolve_media_url(img.image_url) or "" for img in images if img.image_url]
 
     prices = [
         float(sp.price)
@@ -210,7 +211,7 @@ def _shop_offers_payload(
                 "shop_product_id": sp.id,
                 "shop_id": shop.id,
                 "shop_name": shop.name,
-                "shop_image_url": shop.image_url or "",
+                "shop_image_url": resolve_media_url(shop.image_url) or "",
                 "price": float(sp.price),
                 "mrp": float(sp.mrp) if sp.mrp is not None else None,
                 "distance_km": distance_km,

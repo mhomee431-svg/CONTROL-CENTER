@@ -36,3 +36,15 @@ Backend/recovery_report.json
 serviceAccountKey*.json
 **/serviceAccountKey*.json
 
+# Mobile signing material / keystores (never commit — Phase 8)
+**/android/key.properties
+**/ios/**/key.properties
+*.jks
+**/*.jks
+*.keystore
+**/*.keystore
+*.p12
+**/*.p12
+*.mobileprovision
+**/*.mobileprovision
+
