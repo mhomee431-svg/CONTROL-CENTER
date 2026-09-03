@@ -55,3 +55,8 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    password_resets = relationship(
+        "PasswordReset",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

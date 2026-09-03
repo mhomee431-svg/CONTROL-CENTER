@@ -1251,6 +1251,24 @@ def downgrade() -> None:
     op.create_index("ix_products_brand", "products", ["brand"])
     op.create_index("ix_products_category_id", "products", ["category_id"])
 
+    # Restore the 0001-shaped saved_products (Phase 26 fix). The upgrade dropped
+    # this table and re-created it against product_masters, so the downgrade MUST
+    # drop that new version (above) AND recreate the original user_id/product_id
+    # shape that references the products table restored just above. Without this,
+    # a full `alembic downgrade base` → `upgrade head` round-trip died re-running
+    # the upgrade's `drop_table("saved_products")` on a non-existent table.
+    op.create_table(
+        "saved_products",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("product_id", sa.Integer(), sa.ForeignKey("products.id"), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
+        sa.UniqueConstraint("user_id", "product_id", name="uq_saved_product_user_product"),
+    )
+    op.create_index("ix_saved_products_id", "saved_products", ["id"])
+    op.create_index("ix_saved_products_user_id", "saved_products", ["user_id"])
+    op.create_index("ix_saved_products_product_id", "saved_products", ["product_id"])
+
     # Restore old inventory
     op.create_table(
         "inventory",

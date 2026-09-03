@@ -32,11 +32,12 @@ jobs:
 
       - name: Build release APK
         env:
-          API_BASE_URL: ${{ secrets.CUSTOMER_API_BASE_URL }}   # e.g. https://api.example.com/v1
+          API_BASE_URL: ${{ secrets.CUSTOMER_API_BASE_URL }}   # e.g. https://api.hyperlocal.in (scheme + host)
           MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: >
           flutter build apk --release
           --dart-define=API_BASE_URL=$API_BASE_URL
+          --dart-define=APP_ENV=production
           --dart-define=MAPS_API_KEY=$MAPS_API_KEY
 
       - name: Upload APK

@@ -3,11 +3,21 @@
 from app.models.base import Base, TimestampMixin, SoftDeleteMixin, AuditMixin
 
 # RBAC
-from app.models.role import Role, Permission, role_permissions
+from app.models.role import Role, Permission, role_permissions, user_roles
 
 # Users & Customers
 from app.models.user import User, UserStatus
 from app.models.customer import Customer, CustomerAddress
+
+# Customer favorites / recent products
+from app.models.customer_favorite import CustomerFavorite
+from app.models.customer_recent_product import CustomerRecentProduct
+
+# Password resets
+from app.models.password_reset import PasswordReset
+
+# Location — PostGIS service areas
+from app.models.service_area import ServiceArea
 
 # Sessions
 from app.models.session import AuthSession, TokenBlacklist
@@ -135,3 +145,10 @@ from app.models.otp import Otp
 
 # User interactions / leads (immutable create-only customer actions)
 from app.models.interaction import UserInteraction, InteractionActionType
+
+# Restaurant discovery (Phase 15 — Master Spec §27, Rule 4: discovery-only)
+from app.models.restaurant import (
+    Restaurant,
+    RestaurantMenuCategory,
+    RestaurantMenuItem,
+)

@@ -71,7 +71,25 @@ celery_app.conf.beat_schedule = {
         "schedule": 300.0,
         "kwargs": {"limit": 100},
     },
+    # Phase 24 — evaluate observability alert rules every minute
+    "observe.evaluate-alerts": {
+        "task": "app.core.tasks.evaluate_alert_rules",
+        "schedule": 60.0,
+    },
+    # Phase 24 — keep resource-usage gauges fresh
+    "observe.sample-resource-usage": {
+        "task": "app.core.tasks.sample_resource_usage",
+        "schedule": 30.0,
+    },
 }
+
+# ── Phase 24 — observability: Celery task-metrics signals ───────────────────
+try:
+    from app.core.observability.celery_signals import install_celery_observability
+
+    install_celery_observability()
+except Exception:  # noqa: BLE001 — telemetry is best-effort, never fatal
+    pass
 
 # Export commonly needed helpers
 def get_celery_app() -> Celery:

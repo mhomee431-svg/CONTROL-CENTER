@@ -165,6 +165,10 @@ class ShopAddress(Base, TimestampMixin, SoftDeleteMixin):
     country: Mapped[str] = mapped_column(String(100), default="India")
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
+    location: Mapped[object | None] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326, spatial_index=True),
+        nullable=True,
+    )
     is_primary: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 

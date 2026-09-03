@@ -70,7 +70,7 @@ services:
         required: true
     ports:
       - "127.0.0.1:8000:8000" # Caddy only; never 0.0.0.0
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1,172.16.0.0/12"]
     volumes:
       - uploads:/app/storage
     stop_grace_period: 30s

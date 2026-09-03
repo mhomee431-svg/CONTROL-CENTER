@@ -62,6 +62,8 @@ powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1
 - [API contract](Backend/docs/API_CONTRACT.md)
 - [Production hardening](Backend/docs/PHASE30_PRODUCTION_HARDENING.md)
 - [E2E platform testing](Backend/docs/PHASE31_E2E_PLATFORM_TESTING.md)
+- [Phase 25 - CI/CD](docs/PHASE25_CICD.md)
+- [Phase 26 - Database Migration Automation](docs/PHASE26_DATABASE_MIGRATION_AUTOMATION.md)
 - [Production readiness report](PRODUCTION_READINESS_REPORT.md)
 
 ## Configuration

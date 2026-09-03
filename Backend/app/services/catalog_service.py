@@ -213,7 +213,6 @@ async def create_product(db: AsyncSession, data: dict, created_by: Optional[int]
         is_searchable=data.get("is_searchable", True),
         base_unit=data.get("base_unit"),
         base_quantity=data.get("base_quantity"),
-        created_by=created_by,
     )
     db.add(product)
     await db.flush()
@@ -301,7 +300,6 @@ async def update_product(db: AsyncSession, product_id: int, data: dict, updated_
         if value is not None and hasattr(product, key):
             setattr(product, key, value)
 
-    product.updated_by = updated_by
     await db.flush()
     return product
 

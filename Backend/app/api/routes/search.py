@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_optional_user
+from app.core.dependencies import get_optional_user, require_admin
 from app.core.responses import success_response
 from app.database.session import get_db
 from app.models.user import User
@@ -210,8 +210,9 @@ def v2_record_search_event(
 @router.post("/v2/index/rebuild")
 def v2_index_rebuild(
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Full rebuild of the search index from source-of-truth tables."""
+    """Full rebuild of the search index from source-of-truth tables (admin only)."""
     run = index_full_rebuild(db)
     return success_response(
         data={
@@ -228,8 +229,9 @@ def v2_index_rebuild(
 @router.post("/v2/index/sync")
 def v2_index_incremental(
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Incremental sync of changed shop products into the search index."""
+    """Incremental sync of changed shop products into the search index (admin only)."""
     run = index_incremental_sync(db)
     return success_response(
         data={

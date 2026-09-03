@@ -1,6 +1,6 @@
 """Role and Permission models for RBAC."""
 from datetime import datetime
-from sqlalchemy import String, DateTime, Table, Column, ForeignKey, Integer
+from sqlalchemy import String, DateTime, Table, Column, ForeignKey, Integer, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
@@ -13,6 +13,17 @@ role_permissions = Table(
     Base.metadata,
     Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
     Column("permission_id", Integer, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+# Association table: user_roles (a user may hold several roles)
+user_roles = Table(
+    "user_roles",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+    Column("assigned_at", DateTime(timezone=True), nullable=False, server_default="now()"),
+    Index("ix_user_roles_role_id", "role_id"),
 )
 
 

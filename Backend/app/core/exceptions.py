@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.core.logging import get_logger
+from app.core.observability.metrics import record_db_error
 
 logger = get_logger("app.exceptions")
 
@@ -116,6 +117,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(IntegrityError)
     async def integrity_error_handler(request: Request, exc: IntegrityError):
         ctx = _request_context(request)
+        record_db_error("integrity")
         logger.error(
             "IntegrityError path=%s request_id=%s error=%s",
             ctx["path"],
@@ -134,6 +136,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(SQLAlchemyError)
     async def db_error_handler(request: Request, exc: SQLAlchemyError):
         ctx = _request_context(request)
+        record_db_error("statement")
         logger.error(
             "SQLAlchemyError path=%s request_id=%s error=%s",
             ctx["path"],

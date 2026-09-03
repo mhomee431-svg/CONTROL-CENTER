@@ -17,6 +17,7 @@ key is checked against the caller's shop association or user id.
 from fastapi import APIRouter, Depends, Query, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.dependencies import get_current_user
 from app.core.exceptions import AppError
 from app.core.responses import error_response, success_response
@@ -32,6 +33,31 @@ router = APIRouter(prefix="/media", tags=["media"])
 # app/core/upload_security.py + app/services/media_service.py (defense in
 # depth: declared-type checks at intent time, magic-byte checks on direct
 # uploads, stored-object checks at confirm time).
+
+
+async def _read_capped(file: UploadFile, cap: int) -> bytes:
+    """Read a streamed upload into memory WITHOUT unbounded allocation.
+
+    Reads in 64 KB chunks and stops as soon as the cumulative size exceeds
+    ``cap`` bytes (the largest per-category limit). The media service still
+    enforces the exact per-category cap + magic bytes; this bound only
+    protects the worker process from OOM on multi-GB uploads.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 64)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > cap:
+            err = UploadValidationError(
+                f"File exceeds the {cap // (1024 * 1024)} MB limit"
+            )
+            err.reason_code = "FILE_TOO_LARGE"  # type: ignore[attr-defined]
+            raise err
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _app_error(exc: AppError):
@@ -82,7 +108,10 @@ async def direct_upload(
     (extension + magic bytes + size cap). Production uses signed URLs."""
     if file is None:
         return error_response("file is required", error_code="VALIDATION_ERROR", status_code=422)
-    content = await file.read()
+    # Bound memory before validation: never buffer more than the largest
+    # permitted upload (15 MB documents; images are capped lower in the
+    # service layer).
+    content = await _read_capped(file, settings.MEDIA_MAX_DOCUMENT_BYTES)
     try:
         result = await media_service.direct_upload(
             db,

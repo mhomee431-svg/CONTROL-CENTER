@@ -40,7 +40,7 @@ async def get_nearby_locations(
                     distance_km=round(distance, 2),
                     latitude=shop_latitude,
                     longitude=shop_longitude,
-                    address=shop.address,
+                    address=(shop.addresses[0].address_line1 if shop.addresses else None),
                 )
             )
 
@@ -73,7 +73,10 @@ def search_manual_locations(
 def _extract_coords_from_location(shop: Shop) -> tuple[float | None, float | None]:
     """
     Extract (longitude, latitude) from a PostGIS Geography POINT field.
-    The WKT format is 'POINT(lon lat)'. Returns (None, None) if not parseable.
+
+    The WKT format is 'POINT(lon lat)'. Falls back to the scalar template
+    `latitude` / `longitude` columns when the geometry column is not hydrated
+    (e.g. projection-less sessions). Returns (None, None) if both are absent.
     """
     try:
         raw = str(shop.location)
@@ -83,6 +86,12 @@ def _extract_coords_from_location(shop: Shop) -> tuple[float | None, float | Non
             parts = inner.split()
             if len(parts) == 2:
                 return float(parts[0]), float(parts[1])
-        return None, None
     except (ValueError, TypeError, IndexError):
-        return None, None
+        pass
+
+    # Fallback: scalar latitude/longitude template columns.
+    if getattr(shop, "latitude", None) is not None and getattr(
+        shop, "longitude", None
+    ) is not None:
+        return shop.longitude, shop.latitude
+    return None, None

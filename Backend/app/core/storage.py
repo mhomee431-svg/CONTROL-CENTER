@@ -25,6 +25,10 @@ from typing import Any, Optional
 from app.core.config import settings
 from app.core.exceptions import ServiceUnavailableError
 from app.core.logging import get_logger
+from app.core.observability.metrics import (
+    record_storage_operation,
+    set_storage_available,
+)
 
 logger = get_logger("app.storage")
 
@@ -40,6 +44,7 @@ class StorageUnavailableError(ServiceUnavailableError):
 def _storage_exc(exc: Exception, action: str) -> StorageUnavailableError:
     """Wrap an unexpected storage backend failure into a typed 503 error."""
     logger.error("Storage %s failed: %s", action, exc)
+    record_storage_operation(action, settings.STORAGE_PROVIDER.lower(), False)
     return StorageUnavailableError(f"Storage {action} failed; please retry shortly")
 
 
@@ -122,6 +127,11 @@ class BaseStorageProvider(ABC):
         """
         raise NotImplementedError
 
+    # ── Phase 24 — health probe ─────────────────────────────────────────────
+    async def check_health(self) -> bool:
+        """Probe availability of the storage provider (default OK)."""
+        return True
+
 
 class LocalStorageProvider(BaseStorageProvider):
     """Store files on the local filesystem (development / single-node)."""
@@ -183,6 +193,17 @@ class LocalStorageProvider(BaseStorageProvider):
             }
         except OSError as exc:  # pragma: no cover - disk failure
             raise _storage_exc(exc, "head") from exc
+
+    async def check_health(self) -> bool:
+        try:
+            self.upload_dir.mkdir(parents=True, exist_ok=True)
+            probe = self.upload_dir / ".hl-health-probe"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            return True
+        except OSError as exc:  # pragma: no cover - disk failure
+            logger.warning("Local storage health check failed: %s", exc)
+            return False
 
 
 # Best-effort content-type recall for local dev files (stored flat on disk).
@@ -309,9 +330,11 @@ class S3StorageProvider(BaseStorageProvider):
         key = file_identifier.replace(f"s3://{self.bucket}/", "")
         try:
             self.client.delete_object(Bucket=self.bucket, Key=key)
+            record_storage_operation("delete", "s3", True)
             return True
         except Exception as exc:  # noqa: BLE001
             logger.warning("S3 delete failed: %s", exc)
+            record_storage_operation("delete", "s3", False)
             return False
 
     async def get_file_url(self, file_identifier: str) -> str:
@@ -330,6 +353,25 @@ class S3StorageProvider(BaseStorageProvider):
         if settings.S3_ENDPOINT_URL:
             return f"{settings.S3_ENDPOINT_URL}/{self.bucket}/{key}"
         return f"https://{self.bucket}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+
+    async def check_health(self) -> bool:
+        """Probe connectivity: HEAD the bucket (or list with a 1-key limit)."""
+        try:
+            import botocore.exceptions as bexc
+
+            try:
+                self.client.head_bucket(Bucket=self.bucket)
+                return True
+            except bexc.ClientError as exc:
+                # 403 means "authenticated but no ListBucket permission" — the
+                # connection + credentials are fine, so treat as healthy.
+                status = getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
+                if status == 403:
+                    return True
+                return False
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("S3 health check failed: %s", exc)
+            return False
 
     def presign_get_sync(self, key: str) -> str:
         """Sync presigned GET for serializers (boto3 call is sync anyway).
@@ -381,9 +423,11 @@ class CloudinaryStorageProvider(BaseStorageProvider):
         try:
             public_id = file_identifier.split("/")[-1].split(".")[0]
             self.uploader.destroy(f"{settings.CLOUDINARY_FOLDER}/{public_id}")
+            record_storage_operation("delete", "cloudinary", True)
             return True
         except Exception as exc:  # noqa: BLE001
             logger.warning("Cloudinary delete failed: %s", exc)
+            record_storage_operation("delete", "cloudinary", False)
             return False
 
     async def get_file_url(self, file_identifier: str) -> str:
@@ -409,3 +453,15 @@ def get_storage() -> BaseStorageProvider:
     if _storage_provider is None:
         _storage_provider = get_storage_provider()
     return _storage_provider
+
+
+async def check_storage_health() -> bool:
+    """Probe the configured storage provider and update the availability gauge."""
+    try:
+        provider = get_storage()
+        ok = bool(await provider.check_health())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Storage health check failed: %s", exc)
+        ok = False
+    set_storage_available(ok)
+    return ok

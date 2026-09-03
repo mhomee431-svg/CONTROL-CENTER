@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/maps/map_adapter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../location/presentation/controllers/location_controller.dart';
 import '../../domain/models/search_models.dart';
 
 /// Map view of search results.
 ///
 /// This is the map counterpart to the list view. It uses the existing
 /// [MapAdapter] abstraction so the real map provider (Google Maps,
-/// Mapbox, OSM) can be swapped in later without touching the UI.
+/// Mapbox, OSM) can be swapped in without touching the UI.
 ///
-/// Currently renders a visual placeholder with markers for each shop that
-/// has coordinates. When a real map provider is wired via
-/// [mapAdapterProvider], this widget will render the interactive map.
+/// When a `MAPS_API_KEY` is configured, [mapAdapterProvider] resolves to the
+/// real Google Maps adapter and every shop is rendered as a marker around the
+/// customer's current location; otherwise a deterministic placeholder shows
+/// the same data.
 class SearchResultsMapView extends ConsumerWidget {
   final List<ShopProductResult> results;
   final ValueChanged<ShopProductResult>? onResultTap;
@@ -47,10 +50,44 @@ class SearchResultsMapView extends ConsumerWidget {
 
     final adapter = ref.watch(mapAdapterProvider);
 
+    // When the user has a resolved location, the map is centred on it and the
+    // shops are shown around it; without one, the nearest result anchors the view.
+    final userLocation = ref.watch(locationControllerProvider).location;
+    if (userLocation != null) {
+      final shops = mappable
+          .map(
+            (r) => MapMarkerInfo(
+              latitude: r.shopLatitude ?? 0,
+              longitude: r.shopLongitude ?? 0,
+              label: r.shopName,
+              subtitle: '${r.productName} · ₹${r.price.toStringAsFixed(0)}',
+            ),
+          )
+          .toList();
+
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: adapter.buildShopsMap(
+              userLat: userLocation.latitude,
+              userLng: userLocation.longitude,
+              shops: shops,
+            ),
+          ),
+          _markerLegend(mappable.length),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _ResultPeekBar(results: mappable, onResultTap: onResultTap),
+          ),
+        ],
+      );
+    }
+
     return Stack(
       children: [
-        // Use the map adapter to render the map. Since the current stub
-        // only supports a single destination, we pass the nearest result.
+        // Single-destination fallback when no customer location is known yet.
         Positioned.fill(
           child: adapter.buildMap(
             userLat: mappable.first.shopLatitude ?? 0,
@@ -60,37 +97,7 @@ class SearchResultsMapView extends ConsumerWidget {
             destName: mappable.first.shopName,
           ),
         ),
-        // Marker legend overlay
-        Positioned(
-          top: AppSpacing.md,
-          left: AppSpacing.md,
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.location_on, size: 16, color: AppColors.primary),
-                const SizedBox(width: 4),
-                Text(
-                  '${mappable.length} shops',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Bottom result list (peek) for quick switching back to list
+        _markerLegend(mappable.length),
         Positioned(
           left: 0,
           right: 0,
@@ -98,6 +105,38 @@ class SearchResultsMapView extends ConsumerWidget {
           child: _ResultPeekBar(results: mappable, onResultTap: onResultTap),
         ),
       ],
+    );
+  }
+
+  Widget _markerLegend(int count) {
+    return Positioned(
+      top: AppSpacing.md,
+      left: AppSpacing.md,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.location_on, size: 16, color: AppColors.primary),
+            const SizedBox(width: 4),
+            Text(
+              '$count shops',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -137,19 +176,29 @@ class _ResultPeekBar extends StatelessWidget {
                     result.productName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     result.shopName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '₹${result.price.toStringAsFixed(0)} · ${result.distanceInKm.toStringAsFixed(1)} km',
-                    style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),

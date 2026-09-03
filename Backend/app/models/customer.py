@@ -20,6 +20,8 @@ class Customer(Base, TimestampMixin, SoftDeleteMixin):
 
     user = relationship("User", back_populates="customer_profile")
     addresses = relationship("CustomerAddress", back_populates="customer", foreign_keys="CustomerAddress.customer_id")
+    favorites = relationship("CustomerFavorite", back_populates="customer", cascade="all, delete-orphan")
+    recent_products = relationship("CustomerRecentProduct", back_populates="customer", cascade="all, delete-orphan")
 
 
 class CustomerAddress(Base, TimestampMixin, SoftDeleteMixin):

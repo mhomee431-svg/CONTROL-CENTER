@@ -300,6 +300,7 @@ async def add_product_from_master(
     """Add an EXISTING product-master (optionally a variant) to the shop with
     shop-level price / MRP / availability / quantity."""
     from app.core.exceptions import AppError
+    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -323,6 +324,7 @@ async def create_stock_adjustment(
     """Apply a delta stock adjustment (restock/damage/correction) with a full
     audit trail; updates propagate to the platform inventory system."""
     from app.core.exceptions import AppError
+    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -344,6 +346,7 @@ async def remove_product(
 ):
     """Remove/deactivate a shop product listing (soft delete)."""
     from app.core.exceptions import AppError
+    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -364,6 +367,7 @@ async def get_product_history(
 ):
     """Inventory history for one product: movements, adjustments and price changes."""
     from app.core.exceptions import AppError
+    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -384,6 +388,7 @@ async def bulk_inventory_operation(
 ):
     """Bulk operations foundation: price_update / stock_set / availability."""
     from app.core.exceptions import AppError
+    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -405,6 +410,7 @@ async def assign_offer_to_products(
 ):
     """Assign (create + link) an offer to selected shop products."""
     from app.core.exceptions import AppError
+    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:

@@ -1,6 +1,27 @@
 /// Centralized API endpoint definitions.
-/// All endpoints are relative to the base URL from [EnvConfig.apiBaseUrl].
+///
+/// The API base URL ([EnvConfig.apiBaseUrl]) carries **scheme + host only**, and
+/// every path below is a **bare relative path** — the versioned prefix
+/// ([apiVersionPrefix]) is applied centrally by `ApiClient` via [apiPath]. Bump
+/// the API version in one place here, mirroring `API_PREFIX` in
+/// `Backend/app/core/config.py` (`/api/v1`).
 class ApiEndpoints {
+  ApiEndpoints._();
+
+  /// Versioned prefix for every backend route (FastAPI `API_PREFIX`).
+  static const String apiVersionPrefix = '/api/v1';
+
+  /// Returns [path] prefixed with the API version, unless it already carries
+  /// the prefix or is an absolute URL (`http(s)://...`, e.g. a presigned S3 URL).
+  static String apiPath(String path) {
+    if (path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith(apiVersionPrefix)) {
+      return path;
+    }
+    return '$apiVersionPrefix${path.startsWith('/') ? path : '/$path'}';
+  }
+
   // --- Auth ---
   static const String sendOtp = '/auth/send-otp';
   static const String verifyOtp = '/auth/verify-otp';

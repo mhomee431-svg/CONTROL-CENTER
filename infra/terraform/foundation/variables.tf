@@ -95,3 +95,22 @@ variable "operator_principals" {
   type        = list(string)
   default     = []
 }
+
+# ── Phase 25 CI/CD ─────────────────────────────────────────────────────────────
+variable "github_environments" {
+  description = "GitHub environments the CI/CD role may assume via OIDC. 'production' gates deploys with required reviewers; 'staging' hosts the smoke-gated stage."
+  type        = list(string)
+  default     = ["production", "staging"]
+}
+
+variable "enable_ssm_deploy" {
+  description = "Grant the CI/CD deploy role SSM Run Command + EC2 describe permissions used to drive the single-instance Compose stacks (Phase 25)."
+  type        = bool
+  default     = true
+}
+
+variable "ssm_output_bucket" {
+  description = "Optional bucket to capture long SSM Run Command output (the pipeline streams output directly when it fits)."
+  type        = string
+  default     = ""
+}

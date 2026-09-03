@@ -35,6 +35,7 @@ from typing import Any, Optional
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.observability.metrics import record_redis_error, set_redis_available
 from app.core.redis import RETRYABLE_REDIS_ERRORS, build_async_client
 
 logger = get_logger("app.cache")
@@ -75,6 +76,7 @@ class Cache:
         self._connected = True
         self._available = True
         logger.info("Redis cache connected (%s)", self._url)
+        set_redis_available(True)
 
     async def _build_client(self) -> Any:
         if self._client_override is not None:
@@ -124,6 +126,8 @@ class Cache:
                 logger.warning("Redis ping failed: %s", exc)
                 self._available = False
                 self._connected = False
+                record_redis_error("ping")
+                set_redis_available(False)
         return await self._maybe_reconnect()
 
     async def _maybe_reconnect(self) -> bool:
@@ -141,11 +145,14 @@ class Cache:
             self._connected = True
             self._available = True
             logger.info("Redis cache recovered")
+            set_redis_available(True)
             return True
         except Exception as exc:  # noqa: BLE001
             self._connected = False
             self._available = False
             logger.warning("Redis cache unavailable: %s", exc)
+            record_redis_error("reconnect")
+            set_redis_available(False)
             return False
 
     # ── Core op runner (graceful degradation) ───────────────────────────────
@@ -163,6 +170,8 @@ class Cache:
             self._available = False
             self._connected = False
             logger.warning("Redis operation failed (%s) — degrading to cache-miss", exc)
+            record_redis_error("command")
+            set_redis_available(False)
             return default
 
 # ── Core ops ─────────────────────────────────────────────────────────────

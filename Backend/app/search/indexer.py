@@ -249,7 +249,7 @@ def upsert_product_index(db: Session, product_id: int) -> list[SearchIndex]:
     entries = []
     sp_ids = db.query(ShopProduct.id).filter(ShopProduct.product_master_id == product_id).all()
     for (sid,) in sp_ids:
-        entry = upsert_shop_product_index(db, sid)
+        entry = upsert_shop_product(db, sid)
         if entry:
             entries.append(entry)
     return entries
@@ -260,7 +260,7 @@ def upsert_shop_index(db: Session, shop_id: int) -> list[SearchIndex]:
     entries = []
     sp_ids = db.query(ShopProduct.id).filter(ShopProduct.shop_id == shop_id).all()
     for (sid,) in sp_ids:
-        entry = upsert_shop_product_index(db, sid)
+        entry = upsert_shop_product(db, sid)
         if entry:
             entries.append(entry)
     return entries

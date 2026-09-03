@@ -107,6 +107,39 @@ def run_startup_security_checks(settings: Settings) -> list[str]:
             "set FCM_CREDENTIALS_FILE or FCM_CREDENTIALS_JSON"
         )
 
+    # 9. Mock payment provider must NOT be live with a public default secret ──
+    # The built-in mock gateway signs checkouts + webhooks with
+    # MOCK_PAYMENT_SECRET. The default value is published in source, so an
+    # attacker could forge "payment successful" webhooks and activate paid
+    # subscriptions for free. In production this only boots when a real
+    # non-mock gateway is registered OR the operator set a strong secret.
+    known_mock_secrets = {
+        "mock-payment-secret",
+        "change-me",
+        "changeme",
+        "secret",
+        "",
+        "mock",
+    }
+    try:
+        from app.services.payments import list_providers
+
+        registered = list_providers()
+    except Exception:  # noqa: BLE001
+        registered = []
+    has_real_gateway = any(
+        str(p.get("code", "")).upper() != "MOCK" for p in registered
+    )
+    uses_default_mock_secret = (
+        (settings.MOCK_PAYMENT_SECRET or "").strip().lower() in known_mock_secrets
+    )
+    if not has_real_gateway and uses_default_mock_secret:
+        findings.append(
+            "CRITICAL: only the MockPaymentProvider is registered and its secret is "
+            "a known default — anyone can forge payment/webhook signatures. Set a "
+            "strong MOCK_PAYMENT_SECRET or register a real payment gateway."
+        )
+
     critical = [f for f in findings if f.startswith("CRITICAL")]
     high = [f for f in findings if f.startswith("HIGH")]
 

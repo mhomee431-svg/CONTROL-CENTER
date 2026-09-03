@@ -316,4 +316,5 @@ Tests:
 3. **Wait for Caddy auto-TLS**: Caddy obtains the certificate (1–5 minutes)
 4. **Verify**: `./deploy_backend.sh verify` with `DOMAIN_URL=https://api.hyperlocal.in`
 5. **External check**: `phase12_verify.ps1 -ApiUrl https://api.hyperlocal.in`
-6. **Frontend**: Update the Flutter app's `API_BASE_URL` to `https://api.hyperlocal.in/v1`
+6. **Frontend**: Update the Flutter app's `API_BASE_URL` to `https://api.hyperlocal.in`
+   (scheme + host only — the client prepends `/api/v1` centrally).

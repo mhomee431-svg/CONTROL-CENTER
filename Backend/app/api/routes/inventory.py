@@ -5,8 +5,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.dependencies import require_admin
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
+from app.models.user import User
 from app.models.product import (
     Inventory,
     InventoryAdjustment,
@@ -43,8 +45,9 @@ router = APIRouter(prefix="/inventory", tags=["inventory"])
 async def create_inventory(
     payload: InventoryCreate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a new inventory record for a shop product."""
+    """Create a new inventory record for a shop product (admin only)."""
     try:
         inv = inventory_service.create_inventory(db, payload.model_dump())
         db.commit()
@@ -63,8 +66,9 @@ async def create_inventory(
 async def create_movement(
     payload: InventoryMovementCreate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Record an inventory movement (sale, restock, return, damage, etc.)."""
+    """Record an inventory movement (sale, restock, return, damage, etc.) — admin only."""
     try:
         movement = inventory_service.record_movement(db, payload.model_dump())
         db.commit()
@@ -83,8 +87,9 @@ async def create_movement(
 async def create_adjustment(
     payload: InventoryAdjustmentCreate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create an inventory adjustment (stock count, damage, expiry, theft)."""
+    """Create an inventory adjustment (stock count, damage, expiry, theft) — admin only."""
     try:
         adjustment = inventory_service.create_adjustment(db, payload.model_dump())
         db.commit()
@@ -104,8 +109,9 @@ async def update_price(
     shop_product_id: int,
     payload: PriceUpdate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update the selling price (and optionally MRP) of a shop product, preserving history."""
+    """Update the selling price (and optionally MRP) of a shop product, preserving history (admin only)."""
     history = inventory_service.update_price(db, shop_product_id, payload.model_dump())
     if history is None:
         return error_response(message="Shop product not found", error_code="SHOP_PRODUCT_NOT_FOUND", status_code=404)
@@ -132,8 +138,9 @@ async def get_price_history(
 async def create_offer(
     payload: OfferCreate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a new offer with product mappings and conditions."""
+    """Create a new offer with product mappings and conditions (admin only)."""
     try:
         offer = inventory_service.create_offer(db, payload.model_dump())
         db.commit()
@@ -198,8 +205,9 @@ async def update_offer(
     offer_id: int,
     payload: OfferUpdate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update an offer."""
+    """Update an offer (admin only)."""
     try:
         offer = inventory_service.update_offer(db, offer_id, payload.model_dump(exclude_unset=True))
         if offer is None:
@@ -215,8 +223,9 @@ async def update_offer(
 async def activate_offer(
     offer_id: int,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Activate an offer."""
+    """Activate an offer (admin only)."""
     offer = inventory_service.activate_offer(db, offer_id)
     if offer is None:
         return error_response(message="Offer not found", error_code="OFFER_NOT_FOUND", status_code=404)
@@ -228,8 +237,9 @@ async def activate_offer(
 async def expire_offer(
     offer_id: int,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Expire an offer."""
+    """Expire an offer (admin only)."""
     offer = inventory_service.expire_offer(db, offer_id)
     if offer is None:
         return error_response(message="Offer not found", error_code="OFFER_NOT_FOUND", status_code=404)
@@ -242,8 +252,9 @@ async def expire_offer(
 async def refresh_freshness(
     inventory_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Recompute freshness status for all (or one) inventory records."""
+    """Recompute freshness status for all (or one) inventory records (admin only)."""
     count = inventory_service.refresh_freshness(db, inventory_id)
     db.commit()
     return success_response(data={"updated": count}, message="Freshness refreshed")
@@ -303,8 +314,9 @@ async def update_inventory(
     inventory_id: int,
     payload: InventoryUpdate,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update inventory quantity and related fields."""
+    """Update inventory quantity and related fields (admin only)."""
     inv = inventory_service.update_inventory(db, inventory_id, payload.model_dump(exclude_unset=True))
     if inv is None:
         return error_response(message="Inventory not found", error_code="INVENTORY_NOT_FOUND", status_code=404)
@@ -316,8 +328,9 @@ async def update_inventory(
 async def remove_inventory(
     inventory_id: int,
     db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Remove inventory (sets quantity to 0, marks unavailable)."""
+    """Remove inventory (sets quantity to 0, marks unavailable) — admin only."""
     removed = inventory_service.remove_inventory(db, inventory_id)
     if not removed:
         return error_response(message="Inventory not found", error_code="INVENTORY_NOT_FOUND", status_code=404)

@@ -370,6 +370,18 @@ async def update_brand_route(
     return success_response(data=result, message="Brand updated")
 
 
+@router.delete("/brands/{brand_id}")
+async def delete_brand_route(
+    brand_id: int,
+    current_user: User = Depends(require_admin_permission("brand", "delete")),
+    db: Session = Depends(get_db),
+):
+    result = _run(
+        admin_service.delete_brand, brand_id=brand_id, admin_user=current_user, db=db,
+    )
+    return success_response(data=result, message="Brand deleted")
+
+
 # ── Product identifiers ──────────────────────────────────────────────────
 @router.get("/identifiers")
 async def list_identifiers_route(

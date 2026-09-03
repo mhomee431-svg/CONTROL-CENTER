@@ -83,6 +83,10 @@ umask 077
 # invalidate every issued access/refresh token. Generate once on first boot.
 JWT_KEY="$(grep '^JWT_SECRET_KEY=' "$APP_DIR/Backend/.env" 2>/dev/null | cut -d= -f2 || true)"
 JWT_KEY="${JWT_KEY:-$(openssl rand -hex 32)}"
+# Payment gateway signing secret for the built-in MockPaymentProvider — the
+# production startup gate refuses to boot while this is the published default.
+PAY_KEY="$(grep '^MOCK_PAYMENT_SECRET=' "$APP_DIR/Backend/.env" 2>/dev/null | cut -d= -f2 || true)"
+PAY_KEY="${PAY_KEY:-$(openssl rand -hex 32)}"
 cat > "$APP_DIR/Backend/.env" <<EOF
 ENVIRONMENT=$ENVIRONMENT
 DATABASE_URL=$DB_URL
@@ -94,6 +98,7 @@ RATE_LIMIT_STORAGE_URI=redis://redis:6379/3
 OTP_STORAGE_URI=redis://redis:6379/4
 TRUST_X_FORWARDED_FOR=true
 JWT_SECRET_KEY=$JWT_KEY
+MOCK_PAYMENT_SECRET=$PAY_KEY
 STORAGE_PROVIDER=s3
 S3_BUCKET_NAME=$S3_BUCKET
 S3_REGION=$REGION

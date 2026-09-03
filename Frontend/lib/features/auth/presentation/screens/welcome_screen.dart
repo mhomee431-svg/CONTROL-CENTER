@@ -47,6 +47,12 @@ class WelcomeScreen extends ConsumerWidget {
                     .continueAsGuest(),
                 child: const Text('Continue as Guest'),
               ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/onboarding-flow'),
+                icon: const Icon(Icons.timeline, size: 18),
+                label: const Text('View Customer Journey Flow'),
+              ),
             ],
           ),
         ),

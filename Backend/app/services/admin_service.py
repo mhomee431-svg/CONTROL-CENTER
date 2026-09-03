@@ -95,12 +95,21 @@ def record_audit_log(
     user_agent: str | None = None,
     request_id: str | None = None,
 ) -> AuditLog:
-    """Persist an immutable audit record. Called on EVERY critical operation."""
-    entry = AuditLog(
-        user_id=user_id,
+    """Persist an immutable audit record for every critical admin action.
+
+    Delegates to the Phase 29 tamper-evident service so the admin audit trail
+    participates in the same hash chain as every other platform audit record
+    (verified by ``audit_service.verify_audit_chain``). Entity/action values
+    are normalized to uppercase, matching the canonical trail format.
+    """
+    from app.services import audit_service
+
+    return audit_service.record_critical_action(
+        db,
         action=action,
         entity_type=entity_type,
         entity_id=entity_id,
+        user_id=user_id,
         old_values=old_values,
         new_values=new_values,
         description=description,
@@ -108,9 +117,6 @@ def record_audit_log(
         user_agent=user_agent,
         request_id=request_id,
     )
-    db.add(entry)
-    db.flush()
-    return entry
 
 
 def record_admin_action(
@@ -943,6 +949,36 @@ def update_brand(db: Session, *, admin_user: User, brand_id: int, updates: dict)
         entity_id=brand.id, old_values=old_values, new_values=new_values,
     )
     return serialize_model(brand)
+
+
+def delete_brand(db: Session, *, admin_user: User, brand_id: int) -> dict:
+    """Soft-delete a brand. Blocked while active products still reference it."""
+    brand = (
+        db.query(Brand)
+        .filter(Brand.id == brand_id, Brand.is_deleted == False)  # noqa: E712
+        .first()
+    )
+    if brand is None:
+        raise NotFoundError("Brand not found")
+    in_use = (
+        db.query(func.count(ProductMaster.id))
+        .filter(
+            ProductMaster.brand_id == brand_id,
+            ProductMaster.is_deleted == False,  # noqa: E712
+        )
+        .scalar() or 0
+    )
+    if in_use:
+        raise ConflictError(
+            f"Cannot delete brand: {in_use} active product(s) still reference it"
+        )
+    brand.is_deleted = True
+    brand.deleted_at = _utcnow()
+    record_audit_log(
+        db, user_id=admin_user.id, action="DELETE", entity_type="BRAND",
+        entity_id=brand.id, old_values={"name": brand.name},
+    )
+    return {"id": brand_id, "deleted": True}
 
 
 # â”€â”€ Product identifiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

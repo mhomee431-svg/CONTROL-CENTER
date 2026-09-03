@@ -1,548 +1,0 @@
-00:00 +0: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart                                                                     00:01 +0: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart                                                                     00:02 +0: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart                                                                     00:03 +0: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart                                                                     00:04 +0: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart                                                                     00:04 +0: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses connection timeout         00:04 +1: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses connection timeout         00:04 +1: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses connection error as offline00:04 +2: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses connection error as offline00:04 +2: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses cancelled request          00:04 +3: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses cancelled request          00:04 +3: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 401 unauthorized           00:04 +4: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 401 unauthorized           00:04 +4: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 404 not found              00:04 +5: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 404 not found              00:04 +5: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 500 server error           00:04 +6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly parses 500 server error           00:04 +6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly handles unknown error             00:04 +7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly handles unknown error             00:05 +7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/api_error_handler_test.dart: ApiException from DioException correctly handles unknown error             00:05 +7: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart                                                                     00:05 +7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor does not retry cancelled requests              00:05 +8: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor does not retry cancelled requests              00:05 +8: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor retries connection timeouts                    00:05 +9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor retries connection timeouts                    00:05 +9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor retries 5xx server errors                      00:05 +10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor retries 5xx server errors                     00:05 +10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor does not retry 400 bad request                00:05 +11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/network/retry_interceptor_test.dart: ExponentialRetryInterceptor does not retry 400 bad request                00:05 +11: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/debouncer_test.dart                                                                        00:05 +11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/debouncer_test.dart: Debouncer cancels rapid consecutive triggers and executes only once           00:05 +12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/debouncer_test.dart: Debouncer cancels rapid consecutive triggers and executes only once           00:05 +12: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart                                                                  00:05 +12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState initial state has correct defaults                       00:06 +12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState initial state has correct defaults                       00:06 +13: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState initial state has correct defaults                       00:06 +13: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState copyWith updates fields correctly                        00:06 +14: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedState copyWith updates fields correctly                        00:06 +14: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedNotifier loads initial page on build                           00:06 +15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/performance/paginated_state_test.dart: PaginatedNotifier loads initial page on build                           00:06 +15: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart                                                                     00:06 +15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart: Input Validation Tests validateEmail accurately validates emails           00:06 +16: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart: Input Validation Tests validateEmail accurately validates emails           00:06 +16: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart: Input Validation Tests sanitizeQuery strips harmful HTML tags              00:06 +17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/input_validator_test.dart: Input Validation Tests sanitizeQuery strips harmful HTML tags              00:06 +17: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart                                                                         00:06 +17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger sanitizes sensitive data from log messages                          00:06 +17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger sanitizes sensitive data from log messages                          
-[DEBUG] Request: authorization=[REDACTED] abc123.def456
-[WARN] Retrying with token=[REDACTED]
-[ERROR] Failed request with password=[REDACTED]
-00:06 +18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger sanitizes sensitive data from log messages                          00:06 +18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger handles plain messages without sensitive keys                       00:06 +18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger handles plain messages without sensitive keys                       
-[DEBUG] Simple log message
-[WARN] Another warning
-[ERROR] An error occurred
-00:06 +19: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger handles plain messages without sensitive keys                       00:07 +19: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/safe_logger_test.dart: SafeLogger handles plain messages without sensitive keys                       00:07 +19: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart                                                               00:07 +19: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver writes and reads data correctly          00:07 +20: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver writes and reads data correctly          00:07 +20: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver returns null for missing keys            00:07 +21: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver returns null for missing keys            00:07 +21: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deletes data correctly                   00:07 +22: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deletes data correctly                   00:07 +22: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deleteAll clears all data                00:07 +23: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deleteAll clears all data                00:08 +23: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/security/secure_storage_driver_test.dart: InMemorySecureStorageDriver deleteAll clears all data                00:08 +23: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart                                                                   00:08 +23: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +23: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +24: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +25: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +26: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +27: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +28: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +29: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +30: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +31: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core/widgets/state_view_builder_test.dart: shows loading spinner when isLoading is true                             00:09 +32: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +32: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +33: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +34: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +35: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +36: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +37: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +38: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +39: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +40: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +41: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +42: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +43: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +44: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +45: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +46: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +47: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +48: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +49: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:10 +50: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:11 +50: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:11 +51: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:11 +52: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:12 +52: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/core_flow_test.dart: App initializes, shows splash, and redirects to welcome for unauthenticated users              00:12 +53: ... DirectionsController initial state is loading                                                                                                                                           00:12 +54: ... DirectionsController initial state is loading                                                                                                                                           00:12 +54: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: ... handles No GPS error properly     00:12 +55: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: ... handles No GPS error properly     00:12 +55: ... DirectionsController handles Permission Denied error properly                                                                                                                           00:12 +56: ... DirectionsController handles Permission Denied error properly                                                                                                                           00:12 +56: ... DirectionsController successfully loads route with distance                                                                                                                             00:12 +57: ... DirectionsController successfully loads route with distance                                                                                                                             00:12 +57: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: ... as closed when shop is not open   00:12 +58: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: ... as closed when shop is not open   00:12 +58: ... DirectionsController handles invalid shop coordinates                                                                                                                                   00:12 +59: ... DirectionsController handles invalid shop coordinates                                                                                                                                   00:12 +59: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: ... the route after no GPS            00:13 +59: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/directions/presentation/controllers/directions_controller_test.dart: ... the route after no GPS            00:13 +60: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +61: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +62: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +63: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +64: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +65: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +66: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +67: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +68: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:13 +69: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +70: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +71: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +72: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +73: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +74: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +75: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +76: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +77: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +78: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +79: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +80: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +81: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +82: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +83: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:14 +84: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +84: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +85: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +86: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +87: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +88: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +89: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +90: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +91: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +92: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:15 +93: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +93: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +94: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +95: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +96: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +97: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +98: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +99: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data   00:16 +100: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +101: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +102: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +103: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +104: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +105: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +106: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +107: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +108: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +109: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +110: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +111: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +112: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +113: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +114: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +115: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +116: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +117: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +118: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +119: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +120: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +121: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +122: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +123: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +124: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... shows loading skeleton initially, then renders data  00:16 +124: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... categories, recent searches, and recommended sections00:17 +124: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... categories, recent searches, and recommended sections00:17 +125: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: ... categories, recent searches, and recommended sections00:17 +125: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen         00:18 +125: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen         00:18 +125 -1: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController loads seed notifications covering all customer-facing types [E]
-  Expected: <5>
-    Actual: <0>
-  
-  package:matcher                                                      expect
-  package:flutter_test/src/widget_tester.dart 473:18                   expect
-  test\features\notifications\notifications_controller_test.dart 36:7  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart -p vm --plain-name "NotificationsController loads seed notifications covering all customer-facing types"
-00:19 +125 -2: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController markAsRead updates item state optimistically and persists [E]
-  Bad state: No element
-  dart:collection                                                       ListBase.firstWhere
-  test\features\notifications\notifications_controller_test.dart 59:20  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart -p vm --plain-name "NotificationsController markAsRead updates item state optimistically and persists"
-00:19 +125 -2: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:19 +126 -2: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:19 +126 -3: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController markAsRead on unknown id is a safe no-op [E]
-  Expected: <4>
-    Actual: <0>
-  
-  package:matcher                                                      expect
-  package:flutter_test/src/widget_tester.dart 473:18                   expect
-  test\features\notifications\notifications_controller_test.dart 86:7  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart -p vm --plain-name "NotificationsController markAsRead on unknown id is a safe no-op"
-00:19 +126 -4: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController refresh reloads from the repository [E]
-  Expected: <4>
-    Actual: <0>
-  
-  package:matcher                                                      expect
-  package:flutter_test/src/widget_tester.dart 473:18                   expect
-  test\features\notifications\notifications_controller_test.dart 91:7  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart -p vm --plain-name "NotificationsController refresh reloads from the repository"
-00:19 +126 -4: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:19 +126 -5: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController load failure surfaces an error state (not a fake empty list) [E]
-  Expected: true
-    Actual: <false>
-  
-  package:matcher                                                       expect
-  package:flutter_test/src/widget_tester.dart 473:18                    expect
-  test\features\notifications\notifications_controller_test.dart 116:7  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart -p vm --plain-name "NotificationsController load failure surfaces an error state (not a fake empty list)"
-00:19 +126 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart: NotificationsController mark-read failures keep the optimistic update [E]
-  Bad state: No element
-  dart:collection                                                        ListBase.firstWhere
-  test\features\notifications\notifications_controller_test.dart 138:20  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_controller_test.dart -p vm --plain-name "NotificationsController mark-read failures keep the optimistic update"
-00:19 +127 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:20 +127 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:20 +128 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:20 +129 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:21 +129 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:21 +130 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen      00:22 +130 ~1 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:22 +131 ~1 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:23 +131 ~1 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:23 +131 ~1 -6: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following TestFailure was thrown running a test:
-Expected: exactly one matching candidate
-  Actual: _TextWidgetFinder:<Found 0 widgets with text "3": []>
-   Which: means none were found but one was expected
-
-When the exception was thrown, this was the stack:
-#4      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart:144:5)
-<asynchronous suspension>
-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-This was caught by the test expectation on the following line:
-  file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart line 144
-The test description was:
-  renders notifications with unread badge and read styling
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:23 +131 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: renders notifications with unread badge and read styling [E]
-  Test failed. See exception logs above.
-  The test description was: renders notifications with unread badge and read styling
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart -p vm --plain-name "renders notifications with unread badge and read styling"
-00:24 +132 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:24 +133 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:24 +134 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:24 +135 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:24 +136 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:24 +137 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:24 +138 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:25 +138 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:25 +139 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:25 +140 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:26 +140 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:26 +140 ~1 -7: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: shows error state with working retry                  
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following TestFailure was thrown running a test:
-Expected: exactly one matching candidate
-  Actual: _TextWidgetFinder:<Found 0 widgets with text "Couldn't load notifications": []>
-   Which: means none were found but one was expected
-
-When the exception was thrown, this was the stack:
-#4      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart:215:5)
-<asynchronous suspension>
-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-This was caught by the test expectation on the following line:
-  file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart line 215
-The test description was:
-  shows error state with working retry
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:26 +140 ~1 -8: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart: shows error state with working retry [E]              
-  Test failed. See exception logs above.
-  The test description was: shows error state with working retry
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/notifications/notifications_screen_test.dart -p vm --plain-name "shows error state with working retry"
-00:27 +141 ~1 -8: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +141 ~1 -8: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +142 ~1 -8: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +142 ~1 -9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_controller_test.dart: ProfileController authenticated user gets the mock profile with active account state [E]
-  Expected: not null
-    Actual: <null>
-  
-  package:matcher                                          expect
-  package:flutter_test/src/widget_tester.dart 473:18       expect
-  test\features\profile\profile_controller_test.dart 47:7  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_controller_test.dart -p vm --plain-name "ProfileController authenticated user gets the mock profile with active account state"
-00:28 +143 ~1 -9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +144 ~1 -9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +145 ~1 -9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +146 ~1 -9: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen   00:28 +146 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_controller_test.dart: ProfileController deleteAccount clears local state and records deletion [E]
-  Expected: not null
-    Actual: <null>
-  
-  package:matcher                                          expect
-  package:flutter_test/src/widget_tester.dart 473:18       expect
-  test\features\profile\profile_controller_test.dart 99:7  main.<fn>.<fn>
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_controller_test.dart -p vm --plain-name "ProfileController deleteAccount clears local state and records deletion"
-00:29 +146 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:30 +146 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:30 +147 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:30 +148 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +148 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +149 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +150 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +151 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +152 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +153 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +154 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +155 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +156 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +157 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:31 +158 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:32 +158 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:32 +159 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:32 +160 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:32 +161 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:32 +162 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +162 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +163 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +164 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +165 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +166 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +167 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +168 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +169 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +170 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:33 +171 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +171 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +172 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +173 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +174 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +174 ~1 -10: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data                
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following TestFailure was thrown running a test:
-Expected: exactly one matching candidate
-  Actual: _TextWidgetFinder:<Found 0 widgets with text "Exit guest mode": []>
-   Which: means none were found but one was expected
-
-When the exception was thrown, this was the stack:
-#4      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart:69:5)
-<asynchronous suspension>
-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-This was caught by the test expectation on the following line:
-  file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart line 69
-The test description was:
-  guest sees sign-in prompt instead of profile data
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:34 +175 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +176 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +176 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: guest sees sign-in prompt instead of profile data [E]            
-  Test failed. See exception logs above.
-  The test description was: guest sees sign-in prompt instead of profile data
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart -p vm --plain-name "guest sees sign-in prompt instead of profile data"
-00:34 +177 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +178 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +179 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +180 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +181 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +182 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +183 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +184 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +185 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +186 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +187 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +188 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:34 +189 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:35 +189 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:35 +190 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:36 +190 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:36 +190 ~1 -11: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller   
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following assertion was thrown running a test:
-The finder "Found 0 widgets with key [<'logoutButton'>]: []" (used in a call to "tap()") could not
-find any matching widgets.
-
-When the exception was thrown, this was the stack:
-#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2095:7)
-#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1947:12)
-#2      WidgetController.tap (package:flutter_test/src/controller.dart:1080:7)
-#3      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart:102:18)
-<asynchronous suspension>
-#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-The test description was:
-  logout requires confirmation and signs out via auth controller
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:36 +190 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart: logout requires confirmation and signs out via auth controller [E]
-  Test failed. See exception logs above.
-  The test description was: logout requires confirmation and signs out via auth controller
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/profile/profile_screen_test.dart -p vm --plain-name "logout requires confirmation and signs out via auth controller"
-00:37 +190 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:37 +191 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:37 +192 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:37 +193 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:37 +194 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:37 +195 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:37 +196 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +196 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +197 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +198 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +199 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +200 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +201 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +202 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +203 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +204 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:38 +205 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:39 +205 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:40 +205 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:40 +206 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:40 +207 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:41 +207 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:42 +207 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:43 +207 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:44 +207 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  00:44 +207 ~1 -12: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen  
-══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
-The following assertion was thrown building _ActionsScope:
-Tried to make a child into a parent of itself.
-'package:flutter/src/widgets/focus_manager.dart':
-Failed assertion: line 1053 pos 12: 'child != this'
-
-Either the assertion indicates an error in the framework itself, or we should provide substantially
-more information in this error message to help you determine and fix the underlying cause.
-In either case, please report this assertion by filing a bug on GitHub:
-  https://github.com/flutter/flutter/issues/new?template=02_bug.yml
-
-The relevant error-causing widget was:
-  TextField
-  TextField:file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/lib/features/search/presentation/widgets/search_input_field.dart:98:14
-
-When the exception was thrown, this was the stack:
-#2      FocusNode._reparent (package:flutter/src/widgets/focus_manager.dart:1053:12)
-#3      FocusAttachment.reparent (package:flutter/src/widgets/focus_manager.dart:278:14)
-#4      _FocusState.didChangeDependencies (package:flutter/src/widgets/focus_scope.dart:621:23)
-#5      StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:5981:11)
-#6      ComponentElement.mount (package:flutter/src/widgets/framework.dart:5806:5)
-...     Normal element mounting (69 frames)
-#75     Element.inflateWidget (package:flutter/src/widgets/framework.dart:4600:20)
-#76     Element.updateChild (package:flutter/src/widgets/framework.dart:4072:18)
-#77     SlottedRenderObjectElement._updateChildren (package:flutter/src/widgets/slotted_render_object_widget.dart:317:33)
-#78     SlottedRenderObjectElement.mount (package:flutter/src/widgets/slotted_render_object_widget.dart:263:5)
-...     Normal element mounting (92 frames)
-#170    ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
-...     Normal element mounting (34 frames)
-#204    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4600:20)
-#205    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7277:36)
-#206    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7292:32)
-...     Normal element mounting (129 frames)
-#335    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4600:20)
-#336    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7277:36)
-#337    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7292:32)
-...     Normal element mounting (111 frames)
-#448    ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
-...     Normal element mounting (266 frames)
-#714    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4600:20)
-#715    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7277:36)
-#716    Element.updateChild (package:flutter/src/widgets/framework.dart:4072:18)
-#717    Element.updateChildren (package:flutter/src/widgets/framework.dart:4268:32)
-#718    MultiChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:7308:17)
-#719    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#720    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#721    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#722    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#723    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
-#724    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#725    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#726    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#727    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#728    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#729    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#730    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#731    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#732    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
-#733    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#734    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#735    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#736    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#737    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
-#738    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#739    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#740    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#741    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#742    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
-#743    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#744    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#745    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#746    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#747    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
-#748    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#749    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#750    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#751    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#752    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
-#753    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#754    SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:7135:14)
-#755    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#756    SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:7135:14)
-#757    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#758    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#759    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#760    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#761    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#762    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#763    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#764    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#765    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#766    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#767    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#768    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#769    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
-#770    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#771    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#772    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#773    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#774    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#775    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#776    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#777    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#778    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
-#779    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#780    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#781    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#782    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#783    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
-#784    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#785    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#786    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#787    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#788    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#789    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#790    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#791    StatelessElement.update (package:flutter/src/widgets/framework.dart:5908:5)
-#792    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#793    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#794    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#795    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#796    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#797    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#798    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#799    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
-#800    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
-#801    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
-#802    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
-#803    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
-#804    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2763:15)
-#805    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2820:11)
-#806    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3124:18)
-#807    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2432:19)
-#808    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:558:5)
-#809    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
-#810    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
-#811    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:2261:9)
-#814    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
-#815    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:2250:27)
-#816    WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:719:23)
-#819    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
-#820    WidgetTester.pumpAndSettle (package:flutter_test/src/widget_tester.dart:712:27)
-#821    main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart:121:18)
-<asynchronous suspension>
-#822    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#823    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided 7 frames from class _AssertionError, dart:async, and package:stack_trace)
-
-════════════════════════════════════════════════════════════════════════════════════════════════════
-══╡ EXCEPTION CAUGHT BY SCHEDULER LIBRARY ╞═════════════════════════════════════════════════════════
-The following _TypeError was thrown during a scheduler callback:
-Null check operator used on a null value
-
-When the exception was thrown, this was the stack:
-#0      EditableTextState.renderEditable (package:flutter/src/widgets/editable_text.dart:5139:34)
-#1      EditableTextState.renderEditable (package:flutter/src/widgets/editable_text.dart)
-#2      EditableTextState.didChangeDependencies.<anonymous closure> (package:flutter/src/widgets/editable_text.dart:3367:24)
-#3      SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
-#4      SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1357:11)
-#5      AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:2261:9)
-#8      TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
-#9      AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:2250:27)
-#10     WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:719:23)
-#13     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
-#14     WidgetTester.pumpAndSettle (package:flutter_test/src/widget_tester.dart:712:27)
-#15     main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart:121:18)
-<asynchronous suspension>
-#16     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#17     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided 5 frames from dart:async and package:stack_trace)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following assertion was thrown running a test:
-pumpAndSettle timed out
-
-When the exception was thrown, this was the stack:
-#0      WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:717:11)
-<asynchronous suspension>
-#1      TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
-<asynchronous suspension>
-#2      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart:121:5)
-<asynchronous suspension>
-#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-The test description was:
-  HomeScreen search bar navigates to search screen
-════════════════════════════════════════════════════════════════════════════════════════════════════
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following message was thrown:
-Multiple exceptions (3) were detected during the running of the current test, and at least one was
-unexpected.
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:44 +207 ~1 -13: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart: HomeScreen search bar navigates to search screen [E]
-  Test failed. See exception logs above.
-  The test description was: HomeScreen search bar navigates to search screen
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/home/presentation/screens/home_screen_test.dart -p vm --plain-name "HomeScreen search bar navigates to search screen"
-00:44 +208 ~1 -13: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... when results are fewer than limit 00:44 +208 ~1 -13: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: renders all settings sections                                  
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following TestFailure was thrown running a test:
-Expected: exactly one matching candidate
-  Actual: _TextWidgetFinder:<Found 0 widgets with text "APP PREFERENCES": []>
-   Which: means none were found but one was expected
-
-When the exception was thrown, this was the stack:
-#4      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart:61:5)
-<asynchronous suspension>
-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-This was caught by the test expectation on the following line:
-  file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart line 61
-The test description was:
-  renders all settings sections
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:44 +208 ~1 -14: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: renders all settings sections [E]                              
-  Test failed. See exception logs above.
-  The test description was: renders all settings sections
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart -p vm --plain-name "renders all settings sections"
-00:45 +209 ~1 -14: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... when results are fewer than limit 00:45 +210 ~1 -14: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... when results are fewer than limit 00:45 +210 ~1 -14: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: privacy toggles persist through the storage driver             
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following assertion was thrown running a test:
-The finder "Found 0 widgets with text "Usage analytics": []" (used in a call to "tap()") could not
-find any matching widgets.
-
-When the exception was thrown, this was the stack:
-#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2095:7)
-#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1947:12)
-#2      WidgetController.tap (package:flutter_test/src/controller.dart:1080:7)
-#3      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart:81:18)
-<asynchronous suspension>
-#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-The test description was:
-  privacy toggles persist through the storage driver
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:45 +210 ~1 -15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: privacy toggles persist through the storage driver [E]         
-  Test failed. See exception logs above.
-  The test description was: privacy toggles persist through the storage driver
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart -p vm --plain-name "privacy toggles persist through the storage driver"
-00:45 +211 ~1 -15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... when results are fewer than limit 00:46 +211 ~1 -15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... when results are fewer than limit 00:46 +212 ~1 -15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... when results are fewer than limit 00:46 +212 ~1 -15: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: language switch updates localized strings                      
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following StateError was thrown running a test:
-Bad state: No element
-
-When the exception was thrown, this was the stack:
-#0      Iterable.last (dart:core/iterable.dart:679:7)
-#1      _LastFinderMixin.filter (package:flutter_test/src/finders.dart:1410:28)
-#3      _AncestorFinderMixin.allCandidates (package:flutter_test/src/finders.dart:1857:49)
-#4      FinderBase.evaluate (package:flutter_test/src/finders.dart:1030:76)
-#5      WidgetController.widgetList (package:flutter_test/src/controller.dart:848:19)
-#6      WidgetController._maybeViewOf (package:flutter_test/src/controller.dart:795:34)
-#7      WidgetController.tap (package:flutter_test/src/controller.dart:1078:31)
-#8      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart:98:18)
-<asynchronous suspension>
-#9      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#10     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided 2 frames from dart:async-patch and package:stack_trace)
-
-The test description was:
-  language switch updates localized strings
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:46 +212 ~1 -16: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: language switch updates localized strings [E]                  
-  Test failed. See exception logs above.
-  The test description was: language switch updates localized strings
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart -p vm --plain-name "language switch updates localized strings"
-00:46 +213 ~1 -16: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: sign out requires confirmation and calls the auth controller   00:47 +213 ~1 -16: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: sign out requires confirmation and calls the auth controller   00:47 +213 ~1 -16: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: sign out requires confirmation and calls the auth controller   
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following assertion was thrown running a test:
-The finder "Found 0 widgets with key [<'settingsLogoutTile'>]: []" (used in a call to "tap()") could
-not find any matching widgets.
-
-When the exception was thrown, this was the stack:
-#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2095:7)
-#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1947:12)
-#2      WidgetController.tap (package:flutter_test/src/controller.dart:1080:7)
-#3      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart:115:18)
-<asynchronous suspension>
-#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-The test description was:
-  sign out requires confirmation and calls the auth controller
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:47 +213 ~1 -17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: sign out requires confirmation and calls the auth controller [E]
-  Test failed. See exception logs above.
-  The test description was: sign out requires confirmation and calls the auth controller
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart -p vm --plain-name "sign out requires confirmation and calls the auth controller"
-00:47 +214 ~1 -17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: guests do not see delete-account or edit-profile entries       00:48 +214 ~1 -17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: guests do not see delete-account or edit-profile entries       00:48 +214 ~1 -17: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: guests do not see delete-account or edit-profile entries       
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following TestFailure was thrown running a test:
-Expected: exactly one matching candidate
-  Actual: _TextWidgetFinder:<Found 0 widgets with text "Exit guest mode": []>
-   Which: means none were found but one was expected
-
-When the exception was thrown, this was the stack:
-#4      main.<anonymous closure> (file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart:138:5)
-<asynchronous suspension>
-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-This was caught by the test expectation on the following line:
-  file:///C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart line 138
-The test description was:
-  guests do not see delete-account or edit-profile entries
-════════════════════════════════════════════════════════════════════════════════════════════════════
-00:48 +214 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: guests do not see delete-account or edit-profile entries [E]   
-  Test failed. See exception logs above.
-  The test description was: guests do not see delete-account or edit-profile entries
-  
-
-To run this test again: C:\flutter\bin\cache\dart-sdk\bin\dart.exe test C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart -p vm --plain-name "guests do not see delete-account or edit-profile entries"
-00:48 +215 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/settings/settings_screen_test.dart: clear browsing history asks for confirmation                   00:48 +216 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... updateSort triggers a fresh fetch 00:49 +216 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... updateSort triggers a fresh fetch 00:50 +216 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... updateSort triggers a fresh fetch 00:50 +217 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... updateSort triggers a fresh fetch 00:50 +217 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... results shown and error events    00:51 +217 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... results shown and error events    00:52 +217 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... results shown and error events    00:52 +218 ~1 -18: C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/Frontend/test/features/search/presentation/controllers/search_controller_test.dart: ... results shown and error events    00:52 +218 ~1 -18: Some tests failed.                                                                                                                                                                  

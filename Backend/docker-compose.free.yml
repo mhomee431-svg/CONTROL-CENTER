@@ -90,7 +90,10 @@ services:
         required: false
     ports:
       - "80:8000"
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    # NOTE: no --proxy-headers here — the free stack exposes the API directly
+    # on :80 with no reverse proxy, so uvicorn must NOT trust X-Forwarded-For
+    # (otherwise any client could spoof their IP and bypass rate limits).
     volumes:
       - uploads:/app/storage
     stop_grace_period: 30s

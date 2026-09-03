@@ -77,11 +77,13 @@ mkdir -p "$SECRETS_DIR"
 if [ ! -f "$SECRETS_DIR/.env" ]; then
   log "generating fresh Backend/.env (random JWT secret)"
   JWT_SECRET="$(openssl rand -hex 32)"
+  PAY_SECRET="$(openssl rand -hex 32)"
   cat > "$SECRETS_DIR/.env" <<ENV
 ENVIRONMENT=staging
 DEBUG=false
 LOG_FORMAT=console
 JWT_SECRET_KEY=$${JWT_SECRET}
+MOCK_PAYMENT_SECRET=$${PAY_SECRET}
 OTP_DEV_MODE=true
 OTP_DEV_VALUE=123456
 SMS_PROVIDER=mock

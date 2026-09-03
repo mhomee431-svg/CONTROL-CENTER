@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.core.exceptions import UnauthorizedError
 from app.core.logging import get_logger
+from app.core.observability.metrics import record_auth_result
 from app.core.rate_limit import auth_rate_limit
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
@@ -113,6 +114,7 @@ async def send_otp(
             status_code=429,
         )
 
+    record_auth_result("otp", True, "sent")
     return success_response(
         data=result,
         message="OTP sent successfully",
@@ -137,6 +139,7 @@ async def verify_otp_endpoint(
     # Verify OTP — returns valid|invalid|expired|already_used (single-use).
     verification = verify_otp(db, payload.phone_number, payload.otp)
     if verification != VERIFY_VALID:
+        record_auth_result("otp", False, verification)
         return _otp_failure_response(verification)
 
     # Normalize phone for lookup (matches OTP service normalization)
@@ -194,6 +197,7 @@ async def verify_otp_endpoint(
 
     db.commit()
 
+    record_auth_result("otp", True, "success")
     return success_response(
         data=token_data,
         message="Login successful",
@@ -216,6 +220,7 @@ async def register_endpoint(
     # Verify OTP — single-use; a successful match consumes the code.
     verification = verify_otp(db, payload.phone_number, payload.otp)
     if verification != VERIFY_VALID:
+        record_auth_result("otp", False, verification)
         return _otp_failure_response(verification)
 
     # Normalize phone for lookup (matches OTP service normalization)
@@ -266,6 +271,7 @@ async def register_endpoint(
 
     db.commit()
 
+    record_auth_result("otp", True, "register_success")
     return success_response(
         data=token_data,
         message="Registration successful",
@@ -330,6 +336,7 @@ async def refresh_token(
         )
     except UnauthorizedError as exc:
         db.rollback()
+        record_auth_result("refresh_token", False, "invalid_refresh")
         return error_response(
             message=exc.message,
             error_code=exc.error_code,
@@ -337,6 +344,7 @@ async def refresh_token(
         )
 
     db.commit()
+    record_auth_result("refresh_token", True, "success")
     return success_response(
         data=token_data,
         message="Token refreshed",

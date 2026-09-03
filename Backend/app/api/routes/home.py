@@ -15,6 +15,27 @@ from app.services.media_service import resolve_media_url
 router = APIRouter(prefix="/home", tags=["home"])
 
 
+def _shop_distance_km(
+    shop: Shop,
+    latitude: float | None,
+    longitude: float | None,
+) -> float:
+    """Haversine distance (km) from the customer to a shop.
+
+    Returns ``0.0`` when the customer or the shop coordinates are missing —
+    matching the shape contract the customer app expects (``distance`` is a
+    non-null float). Phase 15 wires real coordinates from the device GPS.
+    """
+    if (
+        latitude is not None
+        and longitude is not None
+        and shop.latitude is not None
+        and shop.longitude is not None
+    ):
+        return haversine_km(latitude, longitude, shop.latitude, shop.longitude)
+    return 0.0
+
+
 @router.get("/feed")
 async def get_home_feed(
     latitude: float | None = Query(None, ge=-90, le=90),
@@ -59,20 +80,12 @@ async def get_home_feed(
             }
         )
 
-    # Nearby shops
+    # Nearby shops — real haversine distance from the customer when coordinates
+    # are supplied (Phase 15). Coordinates ride along for on-map rendering.
     shops = db.query(Shop).all()
     shop_data = []
     for s in shops:
-        # Use PostGIS location for distance if available, else fall back to haversine helper
-        distance = 0.0
-        if latitude is not None and longitude is not None:
-            # NOTE: shop.location is a Geography POINT; basic fallback using precomputed
-            # coordinates would require ST_X/ST_Y. For now use haversine on saved coords.
-            # In a future phase, replace with PostGIS ST_Distance.
-            # This fallback keeps the home feed working.
-            # Access longitude/latitude via WKT parsing would be complex here.
-            distance = 0.0  # Placeholder; PostGIS distance calculation to be implemented in a later phase
-            # Filtering by radius will be done via PostGIS in the search/query phase.
+        distance = _shop_distance_km(s, latitude, longitude)
         shop_data.append(
             {
                 "id": str(s.id),
@@ -81,6 +94,8 @@ async def get_home_feed(
                 "distance": round(distance, 2),
                 "rating": s.rating,
                 "is_verified": s.is_verified,
+                "latitude": s.latitude,
+                "longitude": s.longitude,
             }
         )
     shop_data.sort(key=lambda s: s["distance"])

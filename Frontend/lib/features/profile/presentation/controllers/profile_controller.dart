@@ -15,8 +15,10 @@ import '../../domain/profile_repository.dart';
 ///
 /// Watching auth means dependent notifiers reload on login/logout.
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final authStatus = ref.watch(authControllerProvider).status;
-  if (authStatus == AuthStatus.authenticated && EnvConfig.hasApiBaseUrl) {
+  // Staging/production always resolve to the live API (per the build-time
+  // environment profile); the mock is strictly a development fallback so a
+  // mock can never leak into a production build.
+  if (EnvConfig.hasApiBaseUrl) {
     return ApiProfileRepository(ref.watch(apiClientProvider));
   }
   return MockProfileRepository();

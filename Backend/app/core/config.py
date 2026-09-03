@@ -179,6 +179,14 @@ class Settings(BaseSettings):
     AWS_SES_ACCESS_KEY: Optional[str] = None
     AWS_SES_SECRET_KEY: Optional[str] = None
 
+    # ── Payments (Phase 28) ────────────────────────────────────────────────────
+    # The built-in MockPaymentProvider signs checkouts/webhooks with this secret.
+    # It MUST be replaced with a strong random value in any environment that
+    # accepts payments (dev/test may keep the public default). A production
+    # startup gate (app/core/startup_checks.py) refuses to boot while the mock
+    # provider is registered with a known/default secret.
+    MOCK_PAYMENT_SECRET: str = "mock-payment-secret"
+
     # ── Object Storage (replaceable) ───────────────────────────────────────────
     STORAGE_PROVIDER: str = "local"  # local | s3 | cloudinary
     STORAGE_LOCAL_PATH: str = "./storage/uploads"
@@ -247,6 +255,15 @@ class Settings(BaseSettings):
     REQUEST_ID_HEADER: str = "X-Request-ID"
     CORRELATION_ID_HEADER: str = "X-Correlation-ID"
     DISABLE_DOCS: bool = False
+
+    # ── Observability (Phase 24) ────────────────────────────────────────────────
+    # Structured log enrichment: service name + static labels for every log line.
+    LOG_SERVICE_NAME: str = "hyperlocal-customer-api"
+    LOG_EXTRA_FIELDS: str = ""          # comma-separated key=value pairs appended
+                                        # to every JSON log line (e.g. node=api-1)
+    METRICS_TOKEN: Optional[str] = None  # when set, GET /metrics requires
+                                         # Authorization: Bearer <token>
+    ALERT_WEBHOOK_URL: Optional[str] = None  # POST alerts here (Alertmanager etc.)
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,

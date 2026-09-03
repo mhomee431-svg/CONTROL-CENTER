@@ -32,6 +32,22 @@ from app.services.payments.base import (
 DEFAULT_MOCK_SECRET = "mock-payment-secret"
 
 
+def _resolve_mock_secret(explicit: Optional[str]) -> str:
+    """Return the explicit secret, else the configured MOCK_PAYMENT_SECRET.
+
+    Production startup checks refuse a known-default value, so operators MUST
+    set MOCK_PAYMENT_SECRET (via env / Secrets Manager) before money flows.
+    """
+    if explicit:
+        return explicit
+    try:
+        from app.core.config import settings
+
+        return getattr(settings, "MOCK_PAYMENT_SECRET", None) or DEFAULT_MOCK_SECRET
+    except Exception:  # noqa: BLE001 — settings not yet available at import
+        return DEFAULT_MOCK_SECRET
+
+
 def _deterministic_id(prefix: str, *parts) -> str:
     digest = hashlib.sha1("|".join(str(p) for p in parts).encode("utf-8")).hexdigest()[:14]
     return f"{prefix}_{digest}"
@@ -42,8 +58,8 @@ class MockPaymentProvider(PaymentProvider):
     display_name = "Mock Gateway (built-in)"
     supports_refund = True
 
-    def __init__(self, secret: str = DEFAULT_MOCK_SECRET) -> None:
-        self._secret = secret
+    def __init__(self, secret: Optional[str] = None) -> None:
+        self._secret = _resolve_mock_secret(secret)
         self._fail_next = 0
 
     # ── Test helpers ──────────────────────────────────────────────────────

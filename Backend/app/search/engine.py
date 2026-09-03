@@ -97,7 +97,15 @@ def search_products(db: Session, params: SearchParams) -> dict:
             like_pattern = f"%{norm_q}%"
             trigram_threshold = similarity_threshold(len(norm_q))
 
-            trigram_expr = func.similarity(SearchIndex.search_text, norm_q) > trigram_threshold
+            # pg_trgm similarity works against SHORT fields. Comparing a short
+            # query to the whole denormalized search_text dilutes the score far
+            # below the threshold (a 1-char typo on 'basamti' scored ~0.04), so
+            # typo tolerance compares against the product/brand/category names.
+            trigram_expr = or_(
+                func.similarity(SearchIndex.product_name, norm_q) > trigram_threshold,
+                func.similarity(SearchIndex.brand_name, norm_q) > trigram_threshold,
+                func.similarity(SearchIndex.category_name, norm_q) > trigram_threshold,
+            )
             query = query.filter(
                 or_(
                     SearchIndex.product_name == params.q.strip(),
@@ -184,14 +192,22 @@ def search_products(db: Session, params: SearchParams) -> dict:
     rows = query.offset((params.page - 1) * params.limit).limit(params.limit).all()
 
     # ── 8. Build results (Python-side relevance scoring) ─────────────────
+    from sqlalchemy.engine import Row
+
     results = []
     for row in rows:
-        entry = row
         if isinstance(row, tuple):
+            # Python tuple rows (unit-test mocks)
             entry, computed_distance = row
-            distance = computed_distance / 1000.0 if computed_distance is not None else None
+        elif isinstance(row, Row):
+            # SQLAlchemy 2.0 Row — add_columns always yields (entity, distance)
+            entry = row[0]
+            computed_distance = row[1]
         else:
-            distance = None
+            # Plain ORM entity (no add_columns in the query)
+            entry = row
+            computed_distance = None
+        distance = computed_distance / 1000.0 if computed_distance is not None else None
 
         # Build result dict
         text_score = text_match_score(tokenize(params.q), entry.search_text or "")
@@ -292,7 +308,7 @@ def nearby_shops(
     limit: int = 20,
 ) -> dict:
     """Find nearby shops using PostGIS ST_DWithin."""
-    from app.models.shop import Shop
+    from app.models.shop import Shop, ShopStatus
 
     point_wkt = f"POINT({longitude} {latitude})"
 
@@ -303,7 +319,9 @@ def nearby_shops(
             radius_km * 1000,
         ),
         Shop.is_deleted == False,  # noqa: E712
-        Shop.status == "ACTIVE",
+        Shop.status.in_([ShopStatus.ACTIVE, ShopStatus.VERIFIED]),
+        Shop.is_verified == True,  # noqa: E712
+        Shop.is_accepting_orders == True,  # noqa: E712
     )
     if category:
         query = query.filter(Shop.category == category)

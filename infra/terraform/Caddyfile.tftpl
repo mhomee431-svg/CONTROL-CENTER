@@ -24,6 +24,11 @@ ${domain_name} {
         header_up X-Forwarded-Proto https
         header_up X-Forwarded-Host {host}
         header_up X-Real-IP {remote}
+        # Overwrite (never append to) X-Forwarded-For with the real client IP.
+        # Uvicorn reads the left-most value of X-Forwarded-For when proxy
+        # headers are enabled; appending would let a client spoof their own
+        # IP by pre-pending "X-Forwarded-For: <victim>" and bypass rate limits.
+        header_up X-Forwarded-For {remote_host}
     }
 
     # ── Security headers (edge-level, in addition to backend middleware) ─────

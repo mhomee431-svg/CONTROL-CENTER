@@ -43,7 +43,7 @@ class ApiClient {
   }) async {
     try {
       final response = await _dio.get(
-        path,
+        ApiEndpoints.apiPath(path),
         queryParameters: queryParameters,
         options: await _buildOptions(requiresAuth),
       );
@@ -62,7 +62,7 @@ class ApiClient {
   }) async {
     try {
       final response = await _dio.post(
-        path,
+        ApiEndpoints.apiPath(path),
         data: data,
         queryParameters: queryParameters,
         options: await _buildOptions(requiresAuth),
@@ -81,7 +81,7 @@ class ApiClient {
   }) async {
     try {
       final response = await _dio.put(
-        path,
+        ApiEndpoints.apiPath(path),
         data: data,
         options: await _buildOptions(requiresAuth),
       );
@@ -98,7 +98,7 @@ class ApiClient {
   }) async {
     try {
       final response = await _dio.delete(
-        path,
+        ApiEndpoints.apiPath(path),
         options: await _buildOptions(requiresAuth),
       );
       return _unwrap(response);
@@ -164,7 +164,7 @@ class TokenRefreshInterceptor extends Interceptor {
     final options = err.requestOptions;
     final isUnauthorized = err.response?.statusCode == 401;
     final alreadyRetried = options.extra['retried_after_refresh'] == true;
-    final isAuthCall = options.path.startsWith('/auth/');
+    final isAuthCall = options.path.contains('/auth/');
 
     if (!isUnauthorized || alreadyRetried || isAuthCall) {
       return handler.next(err);
@@ -215,7 +215,7 @@ class TokenRefreshInterceptor extends Interceptor {
 
     try {
       final response = await authDio.post(
-        ApiEndpoints.refreshToken,
+        ApiEndpoints.apiPath(ApiEndpoints.refreshToken),
         data: {
           'refresh_token': refreshToken,
           'device_id': deviceId,

@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_admin
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.product import Inventory, ProductMaster, ShopProduct
@@ -441,12 +441,10 @@ async def admin_list_shops(
     search: Optional[str] = Query(None, max_length=200),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Admin: list all shops with filters."""
-    if current_user.role is None or current_user.role.name != "admin":
-        return error_response(message="Admin access required", error_code="FORBIDDEN", status_code=403)
 
     skip = (page - 1) * limit
     shops = shop_service.list_shops(
@@ -470,18 +468,16 @@ async def admin_list_shops(
 async def admin_review_shop(
     shop_id: int,
     payload: ShopVerificationReview,
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Admin: review shop verification (APPROVE/REJECT/SUSPEND/REACTIVATE)."""
-    if current_user.role is None or current_user.role.name != "admin":
-        return error_response(message="Admin access required", error_code="FORBIDDEN", status_code=403)
 
     try:
         verification = shop_service.review_verification(
             db,
             shop_id=shop_id,
-            reviewer_id=current_user.id,
+            reviewer_id=_admin.id,
             decision=payload.decision,
             review_notes=payload.review_notes,
         )
@@ -501,12 +497,10 @@ async def admin_review_shop(
 async def admin_update_status(
     shop_id: int,
     payload: ShopStatusUpdate,
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Admin: update shop status directly."""
-    if current_user.role is None or current_user.role.name != "admin":
-        return error_response(message="Admin access required", error_code="FORBIDDEN", status_code=403)
 
     shop = shop_service.update_shop_status(db, shop_id, payload.status, reason=payload.reason)
     if shop is None:
@@ -521,17 +515,15 @@ async def admin_verify_document(
     document_id: int,
     is_verified: bool = Query(True),
     rejection_reason: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Admin: verify or reject a shop document."""
-    if current_user.role is None or current_user.role.name != "admin":
-        return error_response(message="Admin access required", error_code="FORBIDDEN", status_code=403)
 
     doc = shop_service.verify_document(
         db,
         document_id=document_id,
-        reviewer_id=current_user.id,
+        reviewer_id=_admin.id,
         is_verified=is_verified,
         rejection_reason=rejection_reason,
     )

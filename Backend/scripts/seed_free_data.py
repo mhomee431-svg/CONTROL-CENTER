@@ -29,7 +29,7 @@ from geoalchemy2 import WKTElement
 from sqlalchemy.orm import Session
 
 # Allow running as a standalone script:  python scripts/seed_free_data.py
-import sys
+import sys  # noqa: F811 - standalone-runner re-import
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 

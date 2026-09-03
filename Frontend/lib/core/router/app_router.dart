@@ -16,6 +16,7 @@ import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/otp_screen.dart';
+import '../../features/onboarding/presentation/screens/onboarding_flow_screen.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/location/presentation/screens/location_permission_screen.dart';
 import '../../features/location/presentation/screens/select_location_screen.dart';
@@ -43,7 +44,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isGoingToAuth = location == '/login' ||
           location == '/otp' ||
           location == '/register' ||
-          location == '/welcome';
+          location == '/welcome' ||
+          location == '/onboarding-flow';
       final isGoingToSplash = location == '/splash';
       final isGoingToLocation = location == '/location-permission' ||
           location == '/select-location';
@@ -59,7 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         // screen, go to the Welcome screen (onboarding entry).
         if (location == '/splash' || location == '/welcome' ||
             location == '/login' || location == '/otp' ||
-            location == '/register') {
+            location == '/register' || location == '/onboarding-flow') {
           return location == '/splash' ? '/welcome' : null;
         }
         return '/welcome';
@@ -92,6 +94,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding-flow',
+        builder: (context, state) => const OnboardingFlowScreen(),
       ),
       GoRoute(
         path: '/login',

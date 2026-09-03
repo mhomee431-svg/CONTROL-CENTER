@@ -1,14 +1,20 @@
 import 'dart:math';
+import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/env/env_config.dart';
 import '../domain/location_service.dart';
 import '../domain/models/location_models.dart';
 
-/// NOTE: In production, this utilizes the `geolocator` package.
-/// Implemented as a mock here to ensure tests and UI run seamlessly
-/// without real hardware dependencies.
+/// Device GPS implementation of [LocationService].
+///
+/// In production builds it delegates to the real `geolocator` platform API
+/// (permission + GPS fix). Debug/test builds keep the deterministic in-memory
+/// behavior so the UI and controller tests run without hardware dependencies.
 class DeviceLocationService implements LocationService {
   bool _mockGpsEnabled = true;
   bool _mockPermissionGranted = true;
+
+  bool get _useRealGps => EnvConfig.isProduction;
 
   /// Test helper to simulate GPS disabled state.
   void setMockGpsEnabled(bool enabled) => _mockGpsEnabled = enabled;
@@ -17,13 +23,54 @@ class DeviceLocationService implements LocationService {
   void setMockPermissionGranted(bool granted) => _mockPermissionGranted = granted;
 
   @override
-  Future<bool> isGpsEnabled() async => _mockGpsEnabled;
+  Future<bool> isGpsEnabled() async {
+    if (_useRealGps) return Geolocator.isLocationServiceEnabled();
+    return _mockGpsEnabled;
+  }
 
   @override
-  Future<bool> requestPermission() async => _mockPermissionGranted;
+  Future<bool> requestPermission() async {
+    if (_useRealGps) {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      return permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
+    }
+    return _mockPermissionGranted;
+  }
 
   @override
   Future<Coordinates> getCurrentLocation() async {
+    if (_useRealGps) {
+      if (!await isGpsEnabled()) {
+        throw const LocationException(
+          LocationErrorType.noGps,
+          'GPS is disabled',
+        );
+      }
+      if (!await requestPermission()) {
+        throw const LocationException(
+          LocationErrorType.permissionDenied,
+          'Location permission denied',
+        );
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      if (position.latitude == 0 && position.longitude == 0) {
+        throw const LocationException(
+          LocationErrorType.invalidCoordinates,
+          'Invalid coordinates received from GPS',
+        );
+      }
+      return Coordinates(position.latitude, position.longitude);
+    }
+
     if (!_mockGpsEnabled) {
       throw const LocationException(LocationErrorType.noGps, 'GPS is disabled');
     }

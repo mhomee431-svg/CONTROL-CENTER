@@ -3207,6 +3207,93 @@ All Admin endpoints require:
 
 ---
 
+#### 24.9 Admin Catalog Management (Categories & Brands)
+
+All endpoints below require a Bearer token and the documented admin
+permission resource/action. The permission catalog is enforced server-side
+via `require_admin_permission(resource, action)`.
+
+| Resource | Action | Permission key |
+|---|---|---|
+| List categories | `category:read` | `GET /api/v1/admin/categories` |
+| Create category | `category:create` | `POST /api/v1/admin/categories` |
+| Update category | `category:update` | `PUT /api/v1/admin/categories/{category_id}` |
+| Delete category (soft) | `category:delete` | `DELETE /api/v1/admin/categories/{category_id}` |
+| List brands | `brand:read` | `GET /api/v1/admin/brands` |
+| Create brand | `brand:create` | `POST /api/v1/admin/brands` |
+| Update brand | `brand:update` | `PUT /api/v1/admin/brands/{brand_id}` |
+| Delete brand (soft) | `brand:delete` | `DELETE /api/v1/admin/brands/{brand_id}` |
+
+##### 24.9.1 Create Brand
+- **Method:** `POST`
+- **Path:** `/api/v1/admin/brands`
+- **Auth:** Bearer token required
+- **Authorization:** `brand:create`
+
+**Request Body:**
+```json
+{
+  "name": "Nestle",
+  "slug": "nestle",
+  "description": "fmcg",
+  "logo_url": "https://cdn.example.com/logos/nestle.png",
+  "is_active": true
+}
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Brand created",
+  "data": { "id": 1, "name": "Nestle", "slug": "nestle", "is_active": true }
+}
+```
+
+**Error Cases:**
+| Status | Code | Condition |
+|---|---|---|
+| 403 | `FORBIDDEN` | Caller lacks `brand:create` |
+| 409 | `CONFLICT` | Brand name or slug already exists |
+
+##### 24.9.2 Update Brand
+- **Method:** `PUT`
+- **Path:** `/api/v1/admin/brands/{brand_id}`
+- **Auth:** Bearer token required
+- **Authorization:** `brand:update`
+
+**Request Body:** optional subset of `{name, slug, description, logo_url, is_active}`.
+
+**Response (200):** updated brand object.
+
+##### 24.9.3 Delete Brand
+- **Method:** `DELETE`
+- **Path:** `/api/v1/admin/brands/{brand_id}`
+- **Auth:** Bearer token required
+- **Authorization:** `brand:delete`
+
+**Behavior:** soft-deletes the brand (`is_deleted = true`). Blocked with
+`409 CONFLICT` while active products still reference the brand. Every
+create/update/delete writes an immutable `AuditLog` record.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Brand deleted",
+  "data": { "id": 1, "deleted": true }
+}
+```
+
+**Error Cases:**
+| Status | Code | Condition |
+|---|---|---|
+| 403 | `FORBIDDEN` | Caller lacks `brand:delete` |
+| 404 | `NOT_FOUND` | Brand does not exist or already deleted |
+| 409 | `CONFLICT` | Active products still reference the brand |
+
+---
+
 ## 25. Subscription APIs (Shopkeeper)
 
 ### 25.1 Get Current Subscription

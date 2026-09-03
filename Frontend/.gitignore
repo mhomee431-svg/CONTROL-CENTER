@@ -51,3 +51,14 @@ app.*.map.json
 .env
 .env.*
 lib/core/env/env.g.dart
+
+# Phase 27 - release signing (never commit real keystores or passwords)
+key.properties
+*.keystore
+*.jks
+
+# Phase 27 - temporary build helper scripts (not for version control)
+build_output.log
+analyze_output.log
+run_release_build.bat
+run_analyze.bat

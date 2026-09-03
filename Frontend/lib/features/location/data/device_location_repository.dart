@@ -4,6 +4,7 @@ import '../domain/location_repository.dart';
 import '../domain/models/location_exception.dart';
 import '../domain/models/location_permission_status.dart';
 import '../domain/models/user_location.dart';
+import '../../../core/env/env_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 
@@ -154,7 +155,8 @@ class DeviceLocationRepository implements LocationRepository {
 
   @override
   Future<List<UserLocation>> searchManualLocations(String query) async {
-    // Try the backend first; fall back to local mock cities if the API is unavailable.
+    // Backend is authoritative in staging/production. In development the API
+    // may be absent, so fall back to a small local list — never in release.
     if (_apiClient != null) {
       try {
         final data = await _apiClient.get(
@@ -177,11 +179,19 @@ class DeviceLocationRepository implements LocationRepository {
               .toList();
         }
       } catch (_) {
-        // Fall through to local mock data
+        if (EnvConfig.isProduction) {
+          // Backend is the only source of truth in production — surface the
+          // failure instead of fabricating results client-side.
+          rethrow;
+        }
       }
     }
 
-    // Local fallback for Bihar target market
+    if (EnvConfig.isProduction) {
+      return const [];
+    }
+
+    // Local fallback for the Bihar target market (development only).
     final mockCities = [
       const UserLocation(latitude: 25.5941, longitude: 85.1376, address: 'Patna Center', city: 'Patna', state: 'Bihar', pincode: '800001', label: 'Patna', isManual: true),
       const UserLocation(latitude: 24.7914, longitude: 85.0002, address: 'Gaya Center', city: 'Gaya', state: 'Bihar', pincode: '823001', label: 'Gaya', isManual: true),

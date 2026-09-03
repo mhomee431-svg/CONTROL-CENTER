@@ -29,11 +29,17 @@ from sqlalchemy import create_engine, text
 
 # Approved architecture (source of truth = migrations 0001..0011).
 EXPECTED_TABLES: set[str] = {
-    "roles", "permissions", "role_permissions",
+    "roles", "permissions", "role_permissions", "user_roles",
     "users", "customers", "customer_addresses",
     "otps", "user_interactions",
+    "auth_sessions", "token_blacklist", "password_resets",
+    "customer_favorites", "customer_recent_products",
     "shops", "shop_owners", "shop_managers", "shop_addresses", "shop_hours",
     "shop_holidays", "shop_documents", "shop_verifications",
+    "service_areas",
+    "restaurant_menu_categories",
+    "restaurant_menu_items",
+    "restaurants",
     "brands", "categories", "product_masters", "product_variants",
     "product_images", "product_attributes", "product_attribute_values",
     "product_identifiers", "barcode_relationships", "shop_products",
@@ -60,6 +66,8 @@ GEOGRAPHY_COLUMNS = {
     "shops": ["location"],
     "customer_addresses": ["location"],
     "search_indexes": ["location"],
+    "shop_addresses": ["location"],
+    "service_areas": ["boundary", "center"],
 }
 
 

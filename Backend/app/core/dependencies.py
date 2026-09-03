@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.observability.metrics import record_auth_result
 from app.core.security import (
     get_token_claims,
     get_token_jti,
@@ -36,21 +37,25 @@ def get_current_user(
       - User exists and account is not suspended/banned
     """
     if credentials is None:
+        record_auth_result("access_token", False, "missing")
         raise UnauthorizedError("Not authenticated")
 
     token = credentials.credentials
 
     # Ensure it's an access token
     if not validate_token_type(token, TokenPurpose.ACCESS):
+        record_auth_result("access_token", False, "invalid_type")
         raise UnauthorizedError("Invalid token type")
 
     user_id = get_token_subject(token)
     if user_id is None:
+        record_auth_result("access_token", False, "invalid_subject")
         raise UnauthorizedError("Invalid or expired token")
 
     # Check blacklist
     jti = get_token_jti(token)
     if jti and is_token_blacklisted(db, jti):
+        record_auth_result("access_token", False, "blacklisted")
         raise UnauthorizedError("Token has been revoked")
 
     claims = get_token_claims(token)
@@ -67,15 +72,19 @@ def get_current_user(
             .first()
         )
         if auth_session is None or not auth_session.is_active or auth_session.is_revoked:
+            record_auth_result("access_token", False, "session_revoked")
             raise UnauthorizedError("Session has been revoked")
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        record_auth_result("access_token", False, "user_not_found")
         raise UnauthorizedError("User not found")
 
     if not user.is_active or user.status.value in ("SUSPENDED", "BANNED", "INACTIVE"):
+        record_auth_result("access_token", False, "account_inactive")
         raise ForbiddenError("User account is not active")
 
+    record_auth_result("access_token", True, "success")
     return user
 
 

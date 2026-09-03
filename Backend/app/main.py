@@ -31,6 +31,8 @@ from app.core.exceptions import setup_exception_handlers
 from app.core.health import router as health_router
 from app.core.logging import get_logger, setup_logging
 from app.core.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
+from app.core.observability.access_log import AccessLogMiddleware, MetricsMiddleware
+from app.core.observability.routes import router as observability_router
 from app.core.rate_limit import limiter
 from app.database.session import dispose_database, enable_postgis
 from slowapi.errors import RateLimitExceeded
@@ -52,6 +54,23 @@ async def lifespan(app: FastAPI):
     run_startup_security_checks(settings)
 
     await enable_postgis()
+
+    # Phase 24 — observability bootstrap (never fails the app when telemetry breaks)
+    try:
+        from app.core.observability.alerting import LogNotifier, WebhookNotifier, manager
+        from app.core.observability.celery_signals import install_celery_observability
+        from app.core.observability.deployment import register_deployment
+        from app.core.observability import metrics as obs_metrics
+
+        register_deployment("starting")
+        install_celery_observability()
+        notifiers = [LogNotifier()]
+        if settings.ALERT_WEBHOOK_URL:
+            notifiers.append(WebhookNotifier(settings.ALERT_WEBHOOK_URL))
+        manager().set_notifiers(notifiers)
+        obs_metrics.storage_provider.set(1, provider=settings.STORAGE_PROVIDER.lower())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Observability bootstrap skipped: %s", exc)
     yield
     # Shutdown — close external connections cleanly (graceful shutdown).
     # Redis first (stop accepting cache work), then drain DB engine pools.
@@ -84,6 +103,10 @@ app.add_middleware(
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIDMiddleware)
+# Phase 24 — observability middlewares (outermost so they time/observe everything,
+# but inside request-ID handling so access logs carry the request id).
+app.add_middleware(AccessLogMiddleware)
+app.add_middleware(MetricsMiddleware)
 if settings.RATE_LIMIT_ENABLED:
     app.state.limiter = limiter
 
@@ -156,6 +179,9 @@ app.include_router(google_auth.router)
 
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])
+
+# Phase 24 — Observability: Prometheus metrics + admin overview/alerts.
+app.include_router(observability_router)
 
 
 # 6. Root

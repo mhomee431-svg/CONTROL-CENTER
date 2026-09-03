@@ -11,11 +11,13 @@ locals {
 
   # GitHub OIDC "sub" claims the CI/CD role may accept:
   #   push to default branch  → repo:<org>/<repo>:ref:refs/heads/main
-  #   deploy environment      → repo:<org>/<repo>:environment:production
-  github_subjects = var.github_allowed_subjects != null ? var.github_allowed_subjects : [
+  #   deploy environments    → repo:<org>/<repo>:environment:<name>
+  # Phase 25: staging is added so `environment: staging` deployment jobs may
+  # assume the deploy role too; production remains the review-gated release.
+  github_subjects = var.github_allowed_subjects != null ? var.github_allowed_subjects : flatten([
     "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main",
-    "repo:${var.github_org}/${var.github_repo}:environment:${var.environment}",
-  ]
+    [for e in var.github_environments : "repo:${var.github_org}/${var.github_repo}:environment:${e}"],
+  ])
 
   # Operators allowed by the role trust: the bootstrap user + any extras.
   operator_principals = concat(

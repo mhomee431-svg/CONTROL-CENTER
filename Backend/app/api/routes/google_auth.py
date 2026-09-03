@@ -18,6 +18,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.rate_limit import default_rate_limit
 from app.database.session import get_db
 from app.models.customer import Customer
 from app.models.role import Role
@@ -43,7 +44,8 @@ def _client_meta(request: Request) -> dict:
 
 
 @router.post("/google")
-async def google_login_url():
+@default_rate_limit()
+async def google_login_url(request: Request):
     """Return the Google consent URL for the client to open in a browser.
 
     A short-lived signed ``state`` token protects the callback from CSRF.
@@ -63,6 +65,7 @@ async def google_login_url():
 
 
 @router.get("/google/callback")
+@default_rate_limit()
 async def google_callback(
     request: Request,
     db: Session = Depends(get_db),

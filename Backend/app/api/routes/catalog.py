@@ -5,8 +5,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_current_user, require_admin
 from app.core.responses import error_response, success_response
 from app.database.session import get_async_db
+from app.models.user import User
 from app.models.product import (
     Brand,
     Category,
@@ -85,8 +87,9 @@ async def get_category_tree(
 async def create_category(
     payload: CategoryCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a new category or subcategory."""
+    """Create a new category or subcategory (admin only)."""
     try:
         category = await catalog_service.create_category(db, payload.model_dump())
         await db.commit()
@@ -117,8 +120,9 @@ async def update_category(
     category_id: int,
     payload: CategoryUpdate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update a category."""
+    """Update a category (admin only)."""
     category = await catalog_service.update_category(db, category_id, payload.model_dump(exclude_unset=True))
     if category is None:
         return error_response(message="Category not found", error_code="CATEGORY_NOT_FOUND", status_code=404)
@@ -147,8 +151,9 @@ async def list_brands(
 async def create_brand(
     payload: BrandCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a new brand."""
+    """Create a new brand (admin only)."""
     try:
         brand = await catalog_service.create_brand(db, payload.model_dump())
         await db.commit()
@@ -179,8 +184,9 @@ async def update_brand(
     brand_id: int,
     payload: BrandUpdate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update a brand."""
+    """Update a brand (admin only)."""
     brand = await catalog_service.update_brand(db, brand_id, payload.model_dump(exclude_unset=True))
     if brand is None:
         return error_response(message="Brand not found", error_code="BRAND_NOT_FOUND", status_code=404)
@@ -194,7 +200,7 @@ async def list_products(
     search: Optional[str] = Query(None, max_length=200),
     category_id: Optional[int] = Query(None),
     brand_id: Optional[int] = Query(None),
-    status: Optional[ProductStatus] = Query(None),
+    status: Optional[ProductStatus] = Query(None),  # noqa: F811 — shadows fastapi.status import; parameter filter
     is_active: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -225,8 +231,9 @@ async def list_products(
 async def create_product(
     payload: ProductMasterCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a new product master with nested variants, images, attributes, and identifiers."""
+    """Create a new product master with nested variants, images, attributes, and identifiers (admin only)."""
     try:
         product = await catalog_service.create_product(db, payload.model_dump())
         await db.commit()
@@ -260,8 +267,9 @@ async def update_product(
     product_id: int,
     payload: ProductMasterUpdate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update a product master."""
+    """Update a product master (admin only)."""
     try:
         product = await catalog_service.update_product(db, product_id, payload.model_dump(exclude_unset=True))
         if product is None:
@@ -279,8 +287,9 @@ async def create_variant(
     product_id: int,
     payload: ProductVariantCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a new variant for a product."""
+    """Create a new variant for a product (admin only)."""
     try:
         variant = await catalog_service.create_variant(db, product_id, payload.model_dump())
         await db.commit()
@@ -311,8 +320,9 @@ async def update_variant(
     variant_id: int,
     payload: ProductVariantUpdate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Update a variant."""
+    """Update a variant (admin only)."""
     variant = await catalog_service.update_variant(db, variant_id, payload.model_dump(exclude_unset=True))
     if variant is None:
         return error_response(message="Variant not found", error_code="VARIANT_NOT_FOUND", status_code=404)
@@ -350,8 +360,9 @@ async def add_identifier(
     product_id: int,
     payload: ProductIdentifierCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Add an identifier to a product."""
+    """Add an identifier to a product (admin only)."""
     try:
         identifier = await catalog_service.add_identifier(db, product_id, payload.model_dump())
         await db.commit()
@@ -371,8 +382,9 @@ async def create_barcode_relationship(
     product_id: int,
     payload: BarcodeRelationshipCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a barcode relationship for a product."""
+    """Create a barcode relationship for a product (admin only)."""
     try:
         rel = await catalog_service.create_barcode_relationship(db, product_id, payload.model_dump())
         await db.commit()
@@ -390,14 +402,15 @@ async def create_barcode_relationship(
 @router.post("/approvals")
 async def submit_for_approval(
     payload: ProductApprovalCreate,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Submit a product for approval review."""
+    """Submit a product for approval review (any authenticated user)."""
     try:
         approval = await catalog_service.submit_for_approval(
             db,
             product_master_id=payload.product_master_id,
-            submitted_by=1,  # TODO: get from auth context
+            submitted_by=current_user.id,
             submission_data=payload.submission_data,
         )
         await db.commit()
@@ -415,14 +428,15 @@ async def submit_for_approval(
 async def review_approval(
     approval_id: int,
     payload: ProductApprovalReview,
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Review a product approval request."""
+    """Review a product approval request (admin only)."""
     try:
         approval = await catalog_service.review_approval(
             db,
             approval_id=approval_id,
-            reviewer_id=1,  # TODO: get from auth context
+            reviewer_id=current_user.id,
             decision=payload.status,
             review_notes=payload.review_notes,
         )
@@ -442,9 +456,12 @@ async def review_approval(
 @router.get("/products/{product_id}/search-document")
 async def get_search_document(
     product_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Prepare a product for search indexing."""
+    """Prepare a product for search indexing (requires authentication — this
+    endpoint recomputes and persists the search document, so it is NOT a
+    plain read)."""
     product = await catalog_service.get_product_detail(db, product_id)
     if product is None:
         return error_response(message="Product not found", error_code="PRODUCT_NOT_FOUND", status_code=404)
@@ -458,8 +475,9 @@ async def get_search_document(
 async def create_shop_product(
     payload: ShopProductCreate,
     db: AsyncSession = Depends(get_async_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create a shop product linking a shop to a product master."""
+    """Create a shop product linking a shop to a product master (admin only)."""
     try:
         shop_product = await catalog_service.create_shop_product(db, payload.model_dump())
         await db.commit()

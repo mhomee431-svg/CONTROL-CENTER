@@ -1,1 +1,7 @@
 #include "Generated.xcconfig"
+
+// Phase 15 — Google Maps API key.
+// Populate MAPS_API_KEY in the gitignored MapsAPIKey.xcconfig (see
+// MapsAPIKey.xcconfig.example). CI can also pass it via
+// `xcodebuild ... MAPS_API_KEY=...`.
+#include_if_exists "MapsAPIKey.xcconfig"

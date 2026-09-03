@@ -190,6 +190,8 @@ def _prod_settings(**overrides) -> Settings:
         # Distributed state is mandatory in production (multi-worker safe):
         OTP_STORAGE_URI="redis://127.0.0.1:6379/4",
         RATE_LIMIT_STORAGE_URI="redis://127.0.0.1:6379/3",
+        # Mock gateway must never run with its published default secret in prod:
+        MOCK_PAYMENT_SECRET="p" * 48,
     )
     base.update(overrides)
     return Settings(**base)
@@ -226,6 +228,15 @@ class TestStartupSecurityGate:
         with pytest.raises(ProductionSecurityError, match="OTP_STORAGE_URI"):
             run_startup_security_checks(
                 _prod_settings(OTP_STORAGE_URI="memory://")
+            )
+
+    def test_default_mock_payment_secret_blocks_production(self):
+        # Only the built-in mock gateway is registered and its signing secret
+        # is the published default → an attacker could forge payment/webhook
+        # signatures to activate paid subscriptions for free.
+        with pytest.raises(ProductionSecurityError, match="MockPaymentProvider"):
+            run_startup_security_checks(
+                _prod_settings(MOCK_PAYMENT_SECRET="mock-payment-secret")
             )
 
     def test_in_memory_rate_limit_store_blocks_production(self):

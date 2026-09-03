@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.core.exceptions import AppError
+from app.core.observability.metrics import record_auth_result
 from app.core.rate_limit import auth_rate_limit
 from app.core.responses import error_response, success_response
 from app.core.shopkeeper_permissions import SHOPKEEPER_PERMISSIONS
@@ -70,6 +71,7 @@ async def send_otp(payload: ShopkeeperSendOTPRequest, request: Request):
             error_code="OTP_RESEND_LIMIT_REACHED",
             status_code=429,
         )
+    record_auth_result("shopkeeper_otp", True, "sent")
     return success_response(data=result, message="OTP sent successfully")
 
 
@@ -82,6 +84,7 @@ async def register(
 ):
     """Register a NEW shopkeeper account (phone + OTP + name)."""
     if not verify_otp(payload.phone_number, payload.otp):
+        record_auth_result("shopkeeper_otp", False, "invalid_otp")
         return error_response(
             message="Invalid or expired OTP",
             error_code="INVALID_OTP",
@@ -115,6 +118,7 @@ async def register(
     )
     db.commit()
 
+    record_auth_result("shopkeeper_otp", True, "register_success")
     return success_response(
         data={
             **token_data,
@@ -134,6 +138,7 @@ async def login(
 ):
     """Sign an EXISTING account into the Shopkeeper App via OTP."""
     if not verify_otp(payload.phone_number, payload.otp):
+        record_auth_result("shopkeeper_otp", False, "invalid_otp")
         return error_response(
             message="Invalid or expired OTP",
             error_code="INVALID_OTP",
@@ -143,12 +148,14 @@ async def login(
     phone = _normalize_phone(payload.phone_number)
     user = db.query(User).filter(User.phone_number == phone).first()
     if user is None:
+        record_auth_result("shopkeeper_otp", False, "account_not_found")
         return error_response(
             message="No account found. Please register first.",
             error_code="ACCOUNT_NOT_FOUND",
             status_code=404,
         )
     if not user.is_active or user.status in (UserStatus.SUSPENDED, UserStatus.BANNED):
+        record_auth_result("shopkeeper_otp", False, "account_inactive")
         return error_response(
             message="Account is not active",
             error_code="ACCOUNT_NOT_ACTIVE",
@@ -168,6 +175,7 @@ async def login(
         user_agent=meta["user_agent"],
     )
     db.commit()
+    record_auth_result("shopkeeper_otp", True, "login_success")
 
     shops = shopkeeper_service.list_authorized_shops(db, user)
     return success_response(data={**token_data, "shops": shops}, message="Login successful")
@@ -185,10 +193,12 @@ async def refresh_token(
         token_data = refresh_session(db, payload.refresh_token, device_id=payload.device_id)
     except AppError as exc:
         db.rollback()
+        record_auth_result("shopkeeper_refresh", False, "invalid_refresh")
         return error_response(
             message=exc.message, error_code=exc.error_code, status_code=exc.status_code
         )
     db.commit()
+    record_auth_result("shopkeeper_refresh", True, "success")
     return success_response(data=token_data, message="Token refreshed")
 
 
