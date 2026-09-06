@@ -145,6 +145,15 @@ class ProductMaster(Base, TimestampMixin, SoftDeleteMixin):
     search_metadata: Mapped[str | None] = mapped_column(Text)  # JSON for search engine
     search_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Pharmacy / healthcare compliance (Master Spec §36, migration 0017)
+    prescription_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    regulatory_class: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="UNCLASSIFIED"
+    )
+    requires_license_type: Mapped[str | None] = mapped_column(String(30))
+    is_restricted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    compliance_notes: Mapped[str | None] = mapped_column(Text)
+
     category = relationship("Category", back_populates="products", foreign_keys=[category_id])
     subcategory = relationship("Category", foreign_keys=[subcategory_id])
     brand = relationship("Brand", back_populates="products")
@@ -267,7 +276,7 @@ class BarcodeRelationship(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     product_master_id: Mapped[int] = mapped_column(ForeignKey("product_masters.id"), index=True, nullable=False)
-    barcode: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    barcode: Mapped[str] = mapped_column(String(100), nullable=False)
     relationship_type: Mapped[str] = mapped_column(String(50), nullable=False)  # PRIMARY, ALTERNATE, PARENT_CHILD, BUNDLE
     related_product_master_id: Mapped[int | None] = mapped_column(ForeignKey("product_masters.id"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

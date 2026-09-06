@@ -42,12 +42,19 @@ def _ensure_phone_normalized(phone_number: str) -> str:
 
 
 def generate_otp(phone_number: str) -> dict:
-    """Generate and store an OTP for the phone number.
+    """Generate and store an OTP for the phone number, then DELIVER it.
+
+    Delivery is handled by :func:`app.services.fast2sms.send_otp_sms`, which
+    respects ``OTP_MODE``:
+      - ``mock`` → prints the code to the server console (₹0 testing).
+      - ``live`` → sends a real SMS through Fast2SMS (balance debited).
 
     Returns a dict with:
       - otp:        the raw OTP (only returned in dev mode)
       - expires_in: seconds until expiry
     """
+    from app.services.fast2sms import send_otp_sms  # local import avoids cycles
+
     phone = _ensure_phone_normalized(phone_number)
     now = datetime.now(timezone.utc)
     store = _store()
@@ -90,6 +97,16 @@ def generate_otp(phone_number: str) -> dict:
     # still distinguish "expired" from "never issued" in its response path.
     ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60 + 60
     store.set(phone, record, ttl_seconds)
+
+    # Deliver the code. Mock mode prints it to the console; live mode sends a
+    # real SMS via Fast2SMS. On live-mode failure the exception propagates and
+    # the stored record is dropped so a code the user never received cannot be
+    # redeemed later.
+    try:
+        send_otp_sms(phone, otp)
+    except Exception:
+        store.pop(phone)
+        raise
 
     logger.info("OTP generated for %s (expires in %s minutes)", phone, settings.OTP_EXPIRE_MINUTES)
 

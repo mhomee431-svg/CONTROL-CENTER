@@ -152,3 +152,19 @@ from app.models.restaurant import (
     RestaurantMenuCategory,
     RestaurantMenuItem,
 )
+
+# Transport & Personal Transport Booking (Phase 16 — Master Spec §28-§29, Rules 5-6)
+from app.models.transport import (
+    TransportProvider,
+    Vehicle,
+    VehicleDocument,
+    TransportService,
+    VehicleAvailability,
+    TransportQuote,
+    TransportBooking,
+    BookingStatusHistory,
+    TripDetail,
+)
+
+# Reviews (Phase 17 — Master Spec §§19-20, 49)
+from app.models.review import Review

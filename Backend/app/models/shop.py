@@ -48,6 +48,38 @@ class ShopCategory(str, enum.Enum):
     OTHER = "OTHER"
 
 
+# ── Location capture metadata (Phase: Shop Location System) ──────────────────
+# These enums describe the QUALITY and PROVENANCE of the coordinates stored on
+# the shop, keeping them strictly separate from business verification status.
+class LocationSource(str, enum.Enum):
+    """How the shop location was determined."""
+    GPS = "GPS"                       # device GNSS fix
+    MANUAL = "MANUAL"                # shopkeeper tapped/edited the pin
+    ADDRESS = "ADDRESS"              # derived from a text address lookup
+
+
+class LocationType(str, enum.Enum):
+    """Semantic meaning of the stored coordinates — always a customer access point."""
+    SHOP_ENTRANCE = "SHOP_ENTRANCE"
+    BUILDING_CENTER = "BUILDING_CENTER"
+    OTHER = "OTHER"
+
+
+class LocationStatus(str, enum.Enum):
+    """Lifecycle of a captured location reading."""
+    CAPTURED = "CAPTURED"            # freshly captured, pending review
+    CONFIRMED = "CONFIRMED"          # shopkeeper confirmed the pin/accuracy
+    CORRECTED = "CORRECTED"          # subsequently edited via controlled flow
+    STALE = "STALE"                  # reading is older than max age
+
+
+class LocationIntegrityStatus(str, enum.Enum):
+    """Client-side mock-location / suspicious-fix signal (NOT tamper-proof)."""
+    NORMAL = "NORMAL"
+    SUSPICIOUS = "SUSPICIOUS"
+    UNKNOWN = "UNKNOWN"
+
+
 class Shop(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "shops"
     __table_args__ = (
@@ -86,6 +118,32 @@ class Shop(Base, TimestampMixin, SoftDeleteMixin):
     )
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
+    # ── Location capture metadata (Phase: Shop Location System) ────────────────
+    # Accuracy of the captured fix in meters (NULL until a verified capture).
+    accuracy_meters: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # When the location reading was captured on the device (UTC, tz-aware).
+    location_captured_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # How the coordinates were obtained: GPS / MANUAL / ADDRESS.
+    location_source: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=LocationSource.GPS.value
+    )
+    # Semantic anchor of the pin: SHOP_ENTRANCE (preferred) / BUILDING_CENTER / OTHER.
+    location_type: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default=LocationType.SHOP_ENTRANCE.value
+    )
+    # Capture-readiness lifecycle: CAPTURED / CONFIRMED / CORRECTED / STALE.
+    location_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=LocationStatus.CAPTURED.value
+    )
+    # Client-side mock-location signal — informative only, never trusted blindly.
+    location_integrity_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=LocationIntegrityStatus.UNKNOWN.value
+    )
+    # Whether the shopkeeper confirmed the captured location at the access point.
+    # Distinct from [is_verified], which is ADMIN business-document verification.
+    location_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_inventory_update: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text)

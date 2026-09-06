@@ -1,0 +1,1779 @@
+============================================================
+PROJECT: HYPERLOCAL PRODUCT DISCOVERY PLATFORM
+TASK: FINAL HIGH-PERFORMANCE DATABASE ARCHITECTURE
+============================================================
+
+ROLE
+
+You are a Senior PostgreSQL Database Architect,
+PostGIS Engineer, Backend Performance Engineer,
+FastAPI Architect and Production DevOps Engineer.
+
+You are working inside my EXISTING project repository.
+
+Your objective is to create a reliable, normalized,
+high-performance PostgreSQL + PostGIS database architecture
+for my Hyperlocal Product Discovery Platform.
+
+The database must be designed specifically for:
+
+- FAST API response
+- FAST product search
+- FAST filtering
+- FAST sorting
+- FAST nearby-shop discovery
+- FAST category browsing
+- FAST barcode lookup
+- FAST product details
+- FAST shop details
+- efficient pagination
+- efficient inventory lookup
+- efficient price lookup
+- efficient Flutter API consumption
+- low AWS infrastructure cost
+
+I am using AWS Free Tier.
+
+Therefore:
+
+PERFORMANCE MUST NOT BE ACHIEVED BY THROWING
+EXPENSIVE AWS INFRASTRUCTURE AT THE PROBLEM.
+
+First optimize:
+
+DATABASE DESIGN
+INDEXES
+QUERIES
+DATA ACCESS
+PAGINATION
+CACHE STRATEGY
+POSTGIS
+SEARCH ARCHITECTURE
+
+Only introduce additional AWS services when genuinely required.
+
+============================================================
+1. BUSINESS PURPOSE
+============================================================
+
+Core platform:
+
+"Search any product and instantly discover which nearby
+business has it, at what price, whether it is available,
+how far it is, and other useful information."
+
+This is primarily an OFFLINE DISCOVERY PLATFORM.
+
+Customer discovers:
+    Product
+    ↓
+    Nearby Business
+    ↓
+    Availability
+    ↓
+    Price
+    ↓
+    Distance
+    ↓
+    Rating
+    ↓
+    Directions
+    ↓
+    Offline Purchase
+
+No grocery marketplace.
+
+No general food delivery.
+
+Restaurants are supported only as a separate discovery domain.
+
+============================================================
+2. PRIMARY CATEGORIES
+============================================================
+
+1. Pharmacy & Healthcare
+2. Beauty & Personal Care
+3. Furniture & Home Care
+4. Household Goods
+5. Sports, Fitness & Outdoor
+6. Books, Media & Stationery
+7. Automotive Parts & Tools
+8. Hardware
+9. Restaurants
+10. Transport
+11. Personal Transport & Travel
+
+Do NOT add Grocery.
+
+Do NOT add general Food Delivery.
+
+============================================================
+3. TECHNOLOGY
+============================================================
+
+Primary database:
+
+PostgreSQL
+
+Geospatial:
+
+PostGIS
+
+Backend:
+
+FastAPI + Python
+
+ORM:
+
+SQLAlchemy
+
+Migration:
+
+Alembic
+
+Cache:
+
+Redis / compatible service
+
+Object storage:
+
+Amazon S3
+
+Deployment:
+
+AWS Free Tier conscious architecture
+
+============================================================
+4. DATABASE MUST BE SOURCE OF TRUTH
+============================================================
+
+PostgreSQL is the primary source of truth.
+
+Redis is ONLY cache.
+
+Search engine is a derived/search layer if used.
+
+S3 is object storage.
+
+Never make Redis or search index the primary database.
+
+============================================================
+5. ARCHITECTURE PRINCIPLE
+============================================================
+
+Prefer:
+
+MODULAR MONOLITH
+
+Do NOT introduce microservices unnecessarily.
+
+Keep the architecture simple enough to operate
+on low-cost AWS infrastructure.
+
+============================================================
+6. EXISTING DATABASE AUDIT
+============================================================
+
+Before changing anything:
+
+INSPECT THE ENTIRE REPOSITORY.
+
+Find:
+
+- existing models
+- SQLAlchemy models
+- migrations
+- raw SQL
+- repositories
+- services
+- API queries
+- database utilities
+- seed scripts
+- search implementation
+- Redis implementation
+- PostGIS implementation
+- duplicate tables
+- duplicate models
+- unused models
+- obsolete migrations
+- hardcoded queries
+- N+1 queries
+- inefficient joins
+- missing indexes
+- incorrect indexes
+- incorrect relationships
+- missing foreign keys
+- unnecessary columns
+- incorrect data types
+- duplicate data
+- inconsistent naming
+
+DO NOT MODIFY FILES DURING INITIAL AUDIT.
+
+Generate an audit report first.
+
+============================================================
+7. CORE DATABASE DOMAINS
+============================================================
+
+Design database around:
+
+USER
+BUSINESS
+BUSINESS LOCATION
+BUSINESS HOURS
+BUSINESS VERIFICATION
+
+CATEGORY
+BRAND
+
+PRODUCT
+PRODUCT VARIANT
+PRODUCT IDENTIFIER
+PRODUCT MEDIA
+PRODUCT ATTRIBUTES
+
+BUSINESS PRODUCT
+INVENTORY
+PRICE
+PRICE HISTORY
+OFFER
+
+SEARCH
+SEARCH HISTORY
+
+SAVED PRODUCTS
+SAVED BUSINESSES
+
+RESTAURANT
+RESTAURANT MENU
+MENU ITEM
+
+VEHICLE MAKE
+VEHICLE MODEL
+VEHICLE VARIANT
+PRODUCT VEHICLE COMPATIBILITY
+
+TRANSPORT PROVIDER
+TRANSPORT VEHICLE
+TRANSPORT SERVICE
+TRANSPORT AVAILABILITY
+TRANSPORT BOOKING
+
+SUBSCRIPTION
+PAYMENT
+
+NOTIFICATION
+USER DEVICE
+
+REVIEW
+
+AUDIT LOG
+
+EXCEL IMPORT
+POS INTEGRATION
+
+============================================================
+8. CRITICAL DATA SEPARATION
+============================================================
+
+These entities MUST remain separate:
+
+Product Master
+Product Variant
+Business Product
+Inventory
+Price
+Price History
+Offer
+
+Never combine them into one giant table.
+
+Example:
+
+PRODUCT
+Dove Shampoo
+
+VARIANT
+650ml
+
+BUSINESS PRODUCT
+Gupta Store + Dove 650ml
+
+INVENTORY
+In Stock
+
+PRICE
+₹248
+
+OFFER
+10% Discount
+
+============================================================
+9. PRODUCT MASTER
+============================================================
+
+products
+
+Use stable primary key.
+
+Required conceptual fields:
+
+id
+category_id
+brand_id
+name
+slug
+description
+product_type
+status
+created_at
+updated_at
+
+Optimize product lookup.
+
+Create appropriate indexes for:
+
+category_id
+brand_id
+status
+slug
+
+If product name search is performed directly in PostgreSQL,
+design an appropriate text-search strategy.
+
+Do NOT blindly add indexes to every column.
+
+============================================================
+10. PRODUCT VARIANTS
+============================================================
+
+product_variants
+
+product_id
+variant_name
+size_value
+size_unit
+model_number
+color
+pack_quantity
+attributes
+created_at
+updated_at
+
+Optimize:
+
+product_id
+model_number
+status where applicable
+
+Use JSONB only where flexible attributes are genuinely required.
+
+Do not use JSONB for fields that need frequent filtering.
+
+============================================================
+11. PRODUCT IDENTIFIERS
+============================================================
+
+product_identifiers
+
+product_variant_id
+identifier_type
+identifier_value
+is_primary
+
+Must support:
+
+BARCODE
+EAN
+UPC
+GTIN
+ISBN
+SKU
+OEM_PART_NUMBER
+MODEL_NUMBER
+
+Barcode/ISBN/OEM lookup must be extremely fast.
+
+Use appropriate UNIQUE constraints.
+
+Use appropriate B-tree indexes.
+
+Expected query:
+
+identifier_type + identifier_value
+
+must be indexed.
+
+============================================================
+12. BUSINESS
+============================================================
+
+businesses
+
+owner_user_id
+business_type
+business_name
+status
+verification_status
+created_at
+updated_at
+
+Optimize common filtering:
+
+status
+business_type
+verification_status
+
+============================================================
+13. BUSINESS LOCATION
+============================================================
+
+business_locations
+
+business_id
+address
+city
+state
+pincode
+latitude
+longitude
+location
+
+Use:
+
+PostGIS GEOGRAPHY(Point,4326)
+
+Create:
+
+GIST spatial index
+
+The system must support:
+
+"Find all businesses within X kilometers."
+
+Example:
+
+5 km
+10 km
+20 km
+
+Do NOT retrieve all businesses and calculate distance
+inside Python.
+
+Use PostGIS spatial queries.
+
+============================================================
+14. POSTGIS PERFORMANCE
+============================================================
+
+Nearby search must use:
+
+ST_DWithin
+
+for radius filtering.
+
+Distance calculation should use:
+
+ST_Distance
+
+only where needed for final ordering/output.
+
+Use spatial index.
+
+Preferred conceptual pattern:
+
+WHERE ST_DWithin(
+    location,
+    customer_location,
+    radius
+)
+
+ORDER BY distance
+
+Avoid:
+
+loading thousands of rows
+then calculating distance in Python.
+
+============================================================
+15. BUSINESS PRODUCT
+============================================================
+
+business_products
+
+business_id
+product_variant_id
+business_sku
+is_active
+created_at
+updated_at
+
+Critical relationship:
+
+business_id + product_variant_id
+
+must be appropriately constrained/indexed.
+
+This table is the central bridge between:
+
+PRODUCT
+and
+BUSINESS.
+
+============================================================
+16. INVENTORY
+============================================================
+
+inventory
+
+business_product_id
+quantity
+available_quantity
+reserved_quantity
+stock_status
+availability_status
+inventory_source
+last_updated_at
+created_at
+updated_at
+
+Fast queries must support:
+
+business_product_id
+stock_status
+availability_status
+last_updated_at
+
+Customer search commonly needs:
+
+AVAILABLE
++
+nearby business
++
+product
+
+Design indexes according to actual query patterns.
+
+============================================================
+17. PRICE
+============================================================
+
+product_prices
+
+business_product_id
+mrp
+selling_price
+currency
+effective_from
+effective_until
+is_current
+created_at
+updated_at
+
+Customer queries must quickly retrieve:
+
+CURRENT PRICE.
+
+Do not repeatedly scan price history.
+
+Consider a partial index for:
+
+is_current = TRUE
+
+if appropriate.
+
+============================================================
+18. PRICE HISTORY
+============================================================
+
+price_history
+
+business_product_id
+mrp
+selling_price
+changed_by
+changed_at
+
+History is for audit/analytics.
+
+Do not use price_history for normal customer search.
+
+============================================================
+19. SEARCH PERFORMANCE
+============================================================
+
+The primary customer query is:
+
+SEARCH PRODUCT
++
+FILTER CATEGORY
++
+FILTER BRAND
++
+FILTER PRICE
++
+FILTER AVAILABILITY
++
+FILTER DISTANCE
++
+SORT BY DISTANCE/PRICE/RATING
+
+This query path must be designed first.
+
+Do not build database schema without considering this query.
+
+============================================================
+20. SEARCH STRATEGY
+============================================================
+
+Use the simplest architecture that provides good performance.
+
+For initial MVP:
+
+PostgreSQL can handle structured filtering
+and basic full-text search.
+
+If PostgreSQL search becomes insufficient,
+introduce a dedicated search engine.
+
+Do NOT introduce an expensive search cluster
+just because it sounds scalable.
+
+AWS Free Tier cost is important.
+
+============================================================
+21. POSTGRES SEARCH
+============================================================
+
+If PostgreSQL handles search:
+
+Evaluate:
+
+tsvector
+GIN index
+pg_trgm
+GIN/GiST indexes
+
+depending on actual query requirements.
+
+Support:
+
+exact product name
+partial name
+brand
+category
+typo tolerance where practical
+identifier search
+
+Do NOT use:
+
+LIKE '%query%'
+
+on large tables without an appropriate strategy.
+
+============================================================
+22. SEARCH RESULT QUERY
+============================================================
+
+Optimize the primary result path:
+
+Customer coordinates
+        ↓
+Product search
+        ↓
+Product Variant
+        ↓
+Business Product
+        ↓
+Inventory
+        ↓
+Current Price
+        ↓
+Business
+        ↓
+Business Location
+        ↓
+Distance
+        ↓
+Rating
+        ↓
+Result
+
+Avoid unnecessary joins.
+
+Select only fields required by API response.
+
+Do NOT use:
+
+SELECT *
+
+in production API queries.
+
+============================================================
+23. COVERING / COMPOSITE INDEX STRATEGY
+============================================================
+
+Do not randomly create indexes.
+
+For each high-frequency query:
+
+1. Identify WHERE clauses.
+2. Identify JOIN columns.
+3. Identify ORDER BY.
+4. Identify LIMIT.
+5. Identify selectivity.
+6. Design composite indexes accordingly.
+
+Example conceptual query:
+
+business_product
++
+inventory availability
++
+product variant
++
+business location
+
+must be analyzed as a complete query path.
+
+Do not create indexes based only on table columns.
+
+============================================================
+24. INDEX RULE
+============================================================
+
+Every index must have a reason.
+
+For each index document:
+
+INDEX NAME
+TABLE
+COLUMNS
+QUERY IT OPTIMIZES
+EXPECTED BENEFIT
+
+Avoid excessive indexes because:
+
+Indexes increase:
+
+storage
+INSERT cost
+UPDATE cost
+maintenance cost
+
+This matters on AWS Free Tier.
+
+============================================================
+25. FOREIGN KEYS
+============================================================
+
+Every important relationship must use foreign keys.
+
+Use appropriate:
+
+ON DELETE CASCADE
+ON DELETE RESTRICT
+ON DELETE SET NULL
+
+based on business meaning.
+
+Do not use CASCADE blindly.
+
+============================================================
+26. CONSTRAINTS
+============================================================
+
+Use database-level constraints.
+
+Examples:
+
+price >= 0
+
+quantity >= 0
+
+rating BETWEEN 1 AND 5
+
+selling_price <= mrp
+
+where business rules genuinely require it.
+
+Use:
+
+NOT NULL
+UNIQUE
+CHECK
+FOREIGN KEY
+
+appropriately.
+
+============================================================
+27. PAGINATION
+============================================================
+
+Do NOT use large OFFSET pagination for high-volume APIs
+where it becomes inefficient.
+
+Prefer:
+
+cursor/keyset pagination
+
+for:
+
+search results
+business listings
+inventory
+search history
+notifications
+
+For small administrative datasets,
+OFFSET pagination may be acceptable.
+
+============================================================
+28. API PAGINATION
+============================================================
+
+Default API:
+
+page size = small bounded value.
+
+Never allow:
+
+limit=100000
+
+Implement maximum page size.
+
+Example:
+
+default = 20
+maximum = 50
+
+Tune based on actual application requirements.
+
+============================================================
+29. N+1 QUERY PREVENTION
+============================================================
+
+Audit every FastAPI endpoint.
+
+Especially:
+
+product search
+product details
+business details
+inventory
+category
+saved items
+
+Do not execute:
+
+1 query for products
++
+1 query per business
++
+1 query per price
++
+1 query per inventory
+
+Use:
+
+JOIN
+selectinload
+joinedload
+batch queries
+
+where appropriate.
+
+Verify using SQL query logging/tests.
+
+============================================================
+30. API RESPONSE PERFORMANCE
+============================================================
+
+API should return only required data.
+
+Do not return:
+
+unused database columns
+large JSON blobs
+full product media collections
+full business history
+
+in list/search endpoints.
+
+Separate:
+
+LIST RESPONSE
+DETAIL RESPONSE
+
+============================================================
+31. PRODUCT LIST RESPONSE
+============================================================
+
+Search endpoint should return minimal data:
+
+product_id
+product_name
+variant
+business_id
+business_name
+price
+mrp
+availability
+distance
+rating
+freshness
+thumbnail
+
+Do not return complete business profile.
+
+============================================================
+32. PRODUCT DETAIL RESPONSE
+============================================================
+
+Detail endpoint can return:
+
+product
+variant
+brand
+category
+media
+attributes
+nearby businesses
+
+But paginate nearby businesses.
+
+============================================================
+33. BUSINESS DETAIL
+============================================================
+
+Business list:
+
+Minimal information.
+
+Business detail:
+
+Full information.
+
+Do not load complete inventory
+when opening business profile.
+
+Inventory must have:
+
+search
+pagination
+category filtering
+
+============================================================
+34. REDIS CACHE
+============================================================
+
+Use Redis only where it improves performance.
+
+Good candidates:
+
+categories
+brands
+popular product data
+business basic information
+frequently requested product details
+configuration
+
+Be careful caching:
+
+inventory
+price
+availability
+
+because these change frequently.
+
+Every cache must have:
+
+key
+TTL
+invalidation strategy
+
+============================================================
+35. CACHE FAILURE
+============================================================
+
+If Redis is unavailable:
+
+application must continue functioning using PostgreSQL.
+
+Redis must never become the only copy of important data.
+
+============================================================
+36. DATABASE CONNECTION POOL
+============================================================
+
+FastAPI + SQLAlchemy must use a properly configured
+connection pool suitable for small AWS instances.
+
+Do not create excessive database connections.
+
+Tune:
+
+pool_size
+max_overflow
+pool_timeout
+pool_recycle
+
+based on deployment resources.
+
+Do not blindly use large pool sizes.
+
+============================================================
+37. QUERY TIMEOUT
+============================================================
+
+Prevent runaway queries.
+
+Configure reasonable timeouts where appropriate.
+
+No API request should accidentally execute an
+unbounded database operation.
+
+============================================================
+38. DATABASE TIME ZONE
+============================================================
+
+Store timestamps consistently.
+
+Prefer:
+
+UTC
+
+at database/application level.
+
+Convert to local timezone only at presentation layer.
+
+============================================================
+39. UUID / PRIMARY KEY STRATEGY
+============================================================
+
+Choose a consistent primary key strategy.
+
+Do not mix:
+
+UUID
+integer
+string IDs
+
+randomly.
+
+Consider database performance and index size.
+
+Document the decision.
+
+============================================================
+40. SOFT DELETE
+============================================================
+
+Do not add deleted_at to every table blindly.
+
+Use soft deletion only where business recovery/audit
+requires it.
+
+Do not physically delete important transactional/audit data.
+
+============================================================
+41. DATABASE NORMALIZATION
+============================================================
+
+Normalize transactional data.
+
+Avoid unnecessary duplication.
+
+However:
+
+do not over-normalize high-frequency read paths
+without measuring the effect.
+
+Use derived/search/cache data when justified.
+
+============================================================
+42. DENORMALIZATION
+============================================================
+
+Denormalization is allowed ONLY when:
+
+1. A real query bottleneck exists.
+2. Query pattern is well understood.
+3. Data synchronization strategy exists.
+4. Storage cost is acceptable.
+5. It improves measurable performance.
+
+Never denormalize just because it "might be faster."
+
+============================================================
+43. MATERIALIZED / DERIVED DATA
+============================================================
+
+Do not introduce materialized views automatically.
+
+Evaluate actual query performance first.
+
+If required:
+
+document:
+
+refresh strategy
+staleness
+maintenance
+benefit
+
+============================================================
+44. RESTAURANT DOMAIN
+============================================================
+
+Restaurants are separate.
+
+restaurants
+restaurant_menus
+menu_items
+
+Restaurant discovery must not pollute
+Product Inventory architecture.
+
+============================================================
+45. TRANSPORT DOMAIN
+============================================================
+
+Separate:
+
+transport_providers
+transport_vehicles
+transport_services
+transport_availability
+transport_bookings
+
+Do not mix transport bookings with product inventory.
+
+============================================================
+46. AUTOMOTIVE
+============================================================
+
+Support:
+
+vehicle_makes
+vehicle_models
+vehicle_variants
+product_vehicle_compatibility
+
+Automotive compatibility should be queryable.
+
+Do not put all compatibility logic into unindexed JSON.
+
+============================================================
+47. ANALYTICS
+============================================================
+
+Analytics events should not slow down
+primary customer queries.
+
+Do not run expensive analytics queries
+on critical request paths.
+
+Use appropriate asynchronous/batch strategy
+when justified.
+
+============================================================
+48. AUDIT
+============================================================
+
+Important changes must be auditable.
+
+Examples:
+
+price changed
+inventory changed
+business verified
+product changed
+booking changed
+
+Audit data must not be joined into normal customer
+search queries unless required.
+
+============================================================
+49. AWS FREE TIER OPTIMIZATION
+============================================================
+
+Assume limited resources.
+
+Optimize for:
+
+low CPU
+low RAM
+low storage
+low network
+low connection count
+
+Do not solve performance by adding:
+
+large RDS
+read replicas
+large cache cluster
+OpenSearch cluster
+load balancer
+Kubernetes
+multiple microservices
+
+unless required and approved.
+
+============================================================
+50. RDS POSTGRESQL
+============================================================
+
+Design schema suitable for small RDS instance.
+
+Keep:
+
+indexes controlled
+queries optimized
+connections controlled
+payloads small
+background jobs limited
+
+PostGIS must be enabled correctly.
+
+Do not make RDS publicly accessible unnecessarily.
+
+============================================================
+51. DATABASE MONITORING
+============================================================
+
+Provide a method to identify:
+
+slow queries
+missing indexes
+unused indexes
+high connection usage
+table growth
+lock contention
+
+Use PostgreSQL tools/extensions where appropriate.
+
+Consider:
+
+pg_stat_statements
+
+if supported and appropriate.
+
+============================================================
+52. EXPLAIN ANALYZE
+============================================================
+
+For all critical queries:
+
+run EXPLAIN ANALYZE.
+
+At minimum test:
+
+1. Product search
+2. Nearby business search
+3. Product + nearby business search
+4. Barcode lookup
+5. Category filtering
+6. Price filtering
+7. Availability filtering
+8. Business detail
+9. Inventory lookup
+
+Document query plans.
+
+============================================================
+53. PERFORMANCE TARGETS
+============================================================
+
+Initial target under realistic local/staging conditions:
+
+Simple indexed lookup:
+< 100 ms database execution target
+
+Barcode lookup:
+< 100 ms database execution target
+
+Nearby search:
+< 200 ms database execution target
+
+Typical search:
+< 300 ms database execution target
+
+These are TARGETS, not guarantees.
+
+Measure actual performance.
+
+Do not claim performance without measurement.
+
+============================================================
+54. API PERFORMANCE TARGET
+============================================================
+
+For common endpoints:
+
+Target:
+
+P95 < 500 ms
+
+under a reasonable development/staging load.
+
+Measure separately:
+
+database time
+application time
+serialization time
+cache time
+
+Do not hide slow database queries behind arbitrary timeouts.
+
+============================================================
+55. LOAD TESTING
+============================================================
+
+Create a small repeatable performance test.
+
+Test:
+
+10
+50
+100
+
+concurrent requests where practical.
+
+Focus on:
+
+search
+nearby discovery
+product details
+
+Do not create excessive AWS load.
+
+Local/staging testing should be preferred.
+
+============================================================
+56. DATABASE SEED DATA
+============================================================
+
+Create realistic seed data:
+
+Categories
+Brands
+Products
+Variants
+Businesses
+Business locations
+Inventory
+Prices
+
+Include enough data to test:
+
+distance filtering
+price filtering
+availability
+pagination
+search
+
+Do not create millions of fake rows on AWS Free Tier.
+
+Large benchmark datasets should be local.
+
+============================================================
+57. TEST DATA
+============================================================
+
+Create controlled examples:
+
+Product:
+Dove Shampoo
+
+Variants:
+180ml
+340ml
+650ml
+
+Businesses:
+multiple nearby businesses
+
+Different:
+
+prices
+inventory statuses
+locations
+ratings
+
+Use this to validate search ranking.
+
+============================================================
+58. CRITICAL SEARCH QUERY
+============================================================
+
+The system must efficiently support:
+
+"Find Dove Shampoo 650ml
+within 5 km
+that is in stock
+and sort by distance."
+
+Also:
+
+"Find Honda Activa brake pad
+within 10 km
+and show compatible businesses."
+
+Also:
+
+"Find medical thermometer
+within 5 km
+and show lowest price first."
+
+============================================================
+59. FILTERS
+============================================================
+
+Support efficient filtering:
+
+category
+subcategory
+brand
+price range
+availability
+distance
+rating
+business type
+product attributes
+vehicle compatibility where applicable
+
+Filters should be composable.
+
+============================================================
+60. SORTING
+============================================================
+
+Support:
+
+distance
+price_low_to_high
+price_high_to_low
+rating
+relevance
+freshness
+
+Do not implement sorting in Python
+after retrieving huge datasets.
+
+Push filtering/sorting to database/search layer.
+
+============================================================
+61. QUERY BUILDER
+============================================================
+
+FastAPI query layer must:
+
+- construct parameterized queries
+- avoid SQL injection
+- avoid unnecessary joins
+- apply filters only when provided
+- use indexes
+- paginate
+- return minimal columns
+
+Avoid giant hardcoded SQL strings when
+maintainability suffers.
+
+============================================================
+62. SQLALCHEMY
+============================================================
+
+Use SQLAlchemy correctly.
+
+Avoid:
+
+N+1 lazy-loading
+unbounded relationship loading
+SELECT *
+
+Use explicit query strategies.
+
+Critical search queries may use carefully optimized SQL
+when ORM-generated SQL is inefficient.
+
+Performance has priority over ORM purity.
+
+============================================================
+63. ALEMBIC
+============================================================
+
+Every schema change requires migration.
+
+Do not edit production schema manually.
+
+Migrations must be:
+
+ordered
+repeatable
+reviewable
+
+============================================================
+64. BACKWARD COMPATIBILITY
+============================================================
+
+If existing Flutter code depends on current API/database:
+
+do not break it blindly.
+
+First identify:
+
+existing API response models
+existing DTOs
+existing database fields
+
+Then migrate carefully.
+
+If breaking change is necessary:
+
+document it.
+
+============================================================
+65. OLD CODE CLEANUP
+============================================================
+
+Find:
+
+duplicate models
+duplicate repositories
+duplicate API services
+unused database tables
+unused migrations
+dead code
+old mock APIs
+hardcoded search data
+
+Remove/refactor only after confirming
+they are not required.
+
+============================================================
+66. SECURITY
+============================================================
+
+Database:
+
+- parameterized queries
+- least privilege
+- secure credentials
+- no secrets in source code
+- restricted RDS access
+- SSL/TLS where appropriate
+- safe migrations
+
+Never log:
+
+database password
+JWT secret
+AWS credentials
+payment secrets
+
+============================================================
+67. BACKUP / RECOVERY
+============================================================
+
+Database architecture must consider:
+
+backup
+restore
+migration recovery
+
+Do not assume AWS Free Tier means
+data is automatically safe.
+
+Document backup limitations and production requirements.
+
+============================================================
+68. REQUIRED DELIVERABLES
+============================================================
+
+After architecture design create/update:
+
+docs/database/architecture.md
+
+docs/database/schema.md
+
+docs/database/index-strategy.md
+
+docs/database/query-performance.md
+
+docs/database/postgis.md
+
+docs/database/backup-recovery.md
+
+docs/database/erd.md
+
+============================================================
+69. IMPLEMENTATION ORDER
+============================================================
+
+DO NOT immediately rewrite the database.
+
+Follow:
+
+STEP 1
+Repository audit
+
+STEP 2
+Current database audit
+
+STEP 3
+Current API query audit
+
+STEP 4
+Identify real query patterns
+
+STEP 5
+Design final normalized schema
+
+STEP 6
+Design indexes based on queries
+
+STEP 7
+Design PostGIS
+
+STEP 8
+Design search strategy
+
+STEP 9
+Design Redis caching
+
+STEP 10
+Create ERD
+
+STEP 11
+Create migration plan
+
+STEP 12
+Implement models
+
+STEP 13
+Implement migrations
+
+STEP 14
+Seed test data
+
+STEP 15
+Implement optimized repository queries
+
+STEP 16
+Connect FastAPI
+
+STEP 17
+Run EXPLAIN ANALYZE
+
+STEP 18
+Optimize slow queries
+
+STEP 19
+Run API performance tests
+
+STEP 20
+Document final architecture
+
+============================================================
+70. PHASE GATE
+============================================================
+
+Do not move to the next step until
+the current step is verified.
+
+For each major step provide:
+
+WHAT EXISTS
+WHAT IS WRONG
+WHAT WILL CHANGE
+WHY
+FILES AFFECTED
+DATABASE CHANGES
+INDEX CHANGES
+PERFORMANCE IMPACT
+TEST RESULTS
+
+============================================================
+71. NO BLIND OPTIMIZATION
+============================================================
+
+Never say:
+
+"this index makes it fast"
+
+without measuring.
+
+Never say:
+
+"this query is optimized"
+
+without checking its query plan.
+
+Use:
+
+EXPLAIN
+EXPLAIN ANALYZE
+actual execution time
+rows examined
+rows returned
+index usage
+
+============================================================
+72. FIRST ACTION
+============================================================
+
+IMPORTANT:
+
+DO NOT IMPLEMENT ANYTHING YET.
+
+First perform a complete audit.
+
+Inspect:
+
+- repository
+- database
+- migrations
+- SQLAlchemy
+- FastAPI endpoints
+- search endpoints
+- product queries
+- inventory queries
+- location queries
+- Redis
+- Flutter API calls
+
+Then produce:
+
+DATABASE PERFORMANCE AUDIT
+
+including:
+
+1. Current schema
+2. Current tables
+3. Current relationships
+4. Current indexes
+5. Missing indexes
+6. Duplicate indexes
+7. Missing constraints
+8. Slow queries
+9. N+1 problems
+10. Search bottlenecks
+11. PostGIS problems
+12. Pagination problems
+13. Redis opportunities
+14. AWS Free Tier risks
+15. Recommended architecture
+16. Migration plan
+17. Performance test plan
+
+DO NOT modify code during this audit.
+
+STOP after the audit.
+
+Wait for the next instruction.
+
+============================================================
+END OF PROMPT
+============================================================

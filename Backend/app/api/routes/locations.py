@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+"""Location APIs: nearby shops within a radius and manual location search."""
 
-from app.core.responses import success_response
+from fastapi import APIRouter, Depends, Query
+
+from app.core.responses import success_response, error_response
 from app.database.session import get_db
-from app.models.shop import Shop
+from app.models.shop import Shop, ShopStatus
 from app.schemas.location import (
     ManualLocationSearchResponse,
     NearbyLocationResponse,
     NearbyShopLocationResponse,
 )
-from app.services.geo_service import haversine_km
+from app.services.geo_service import haversine_km, resolve_shop_coordinates
+from app.services.pincode_service import lookup as resolve_pincode
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -21,18 +23,40 @@ async def get_nearby_locations(
     radius_km: float = Query(5.0, gt=0, le=100, description="Search radius in km"),
     db: Session = Depends(get_db),
 ):
-    """Return all shops within the given radius of the user's location."""
+    """Return the live, verified shops within the given radius of the user's location."""
     shops = db.query(Shop).all()
     nearby = []
     for shop in shops:
-        # NOTE: shop.location is now a PostGIS Geography POINT.
-        # Distance is computed via PostGIS ST_Distance in a later phase.
-        # For now, resolve coordinates from WKT and use haversine.
-        shop_longitude, shop_latitude = _extract_coords_from_location(shop)
+
+        # Visibility contract matches the other nearby endpoints: only live,
+        # verified, order-accepting shops may appear in discovery results.
+
+        if (
+            getattr(shop, "is_deleted", False)
+            or getattr(shop, "status", None) not in (
+                ShopStatus.ACTIVE,
+                ShopStatus.VERIFIED,
+            )
+            or not getattr(shop, "is_verified", False)
+            or not getattr(shop, "is_accepting_orders", True)
+        ):
+            continue
+        # Coordinates are resolved via the shared PostGIS/EWKB/fallback helper;
+
+        
+        shop_longitude, shop_latitude = resolve_shop_coordinates(shop)
         if shop_longitude is None or shop_latitude is None:
+
             continue
         distance = haversine_km(latitude, longitude, shop_latitude, shop_longitude)
         if distance <= radius_km:
+
+            address = None
+            try:
+                addr_list = getattr(shop, "addresses", None) or []
+                address = addr_list[0].address_line1 if addr_list else getattr(shop, "address", None)
+            except Exception:  # noqa: BLE001 - never fail nearby results on a bad address
+                address = None
             nearby.append(
                 NearbyShopLocationResponse(
                     shop_id=shop.id,
@@ -40,11 +64,12 @@ async def get_nearby_locations(
                     distance_km=round(distance, 2),
                     latitude=shop_latitude,
                     longitude=shop_longitude,
-                    address=(shop.addresses[0].address_line1 if shop.addresses else None),
+                    address=address,
                 )
             )
 
     nearby.sort(key=lambda s: s.distance_km)
+
 
     return success_response(
         data=NearbyLocationResponse(
@@ -70,28 +95,35 @@ def search_manual_locations(
     return success_response(data=[ManualLocationSearchResponse(**c).model_dump() for c in results])
 
 
+@router.get("/pincode/{pincode}")
+async def lookup_pincode(pincode: str):
+    """Resolve a 6-digit Indian pincode to city + state (live).
+
+    Primary: PostPin API. Fallback: Google Maps Geocoding.
+    """
+    info = resolve_pincode(pincode)
+    if info is None:
+        return error_response(
+            message="Could not resolve pincode. Enter city & state manually.",
+            error_code="PINCODE_NOT_FOUND",
+            status_code=404,
+        )
+    return success_response(
+        data={"pincode": info.pincode, "city": info.city, "state": info.state},
+        message="OK",
+    )
+
+
 def _extract_coords_from_location(shop: Shop) -> tuple[float | None, float | None]:
     """
     Extract (longitude, latitude) from a PostGIS Geography POINT field.
 
-    The WKT format is 'POINT(lon lat)'. Falls back to the scalar template
-    `latitude` / `longitude` columns when the geometry column is not hydrated
-    (e.g. projection-less sessions). Returns (None, None) if both are absent.
-    """
-    try:
-        raw = str(shop.location)
-        # WKT like: 'POINT(85.1376 25.5941)' or '0101000020E610...' (hex EWKB)
-        if raw.startswith("POINT"):
-            inner = raw[6:-1].strip()  # strip "POINT(" and ")"
-            parts = inner.split()
-            if len(parts) == 2:
-                return float(parts[0]), float(parts[1])
-    except (ValueError, TypeError, IndexError):
-        pass
 
-    # Fallback: scalar latitude/longitude template columns.
-    if getattr(shop, "latitude", None) is not None and getattr(
-        shop, "longitude", None
-    ) is not None:
-        return shop.longitude, shop.latitude
-    return None, None
+    For-machine-compatibility (and to keep existing imports working) this
+    wraps [resolve_shop_coordinates], which handles WKT, EWKB hex blobs,
+    bytes, and the scalar latitude/longitude template columns.
+
+
+
+    """
+    return resolve_shop_coordinates(shop)

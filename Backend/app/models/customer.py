@@ -16,7 +16,7 @@ class Customer(Base, TimestampMixin, SoftDeleteMixin):
     date_of_birth: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     gender: Mapped[str | None] = mapped_column(String(20))
     preferred_language: Mapped[str | None] = mapped_column(String(10), default="en")
-    default_address_id: Mapped[int | None] = mapped_column(ForeignKey("customer_addresses.id"), nullable=True)
+    default_address_id: Mapped[int | None] = mapped_column(ForeignKey("customer_addresses.id", use_alter=True), nullable=True)
 
     user = relationship("User", back_populates="customer_profile")
     addresses = relationship("CustomerAddress", back_populates="customer", foreign_keys="CustomerAddress.customer_id")

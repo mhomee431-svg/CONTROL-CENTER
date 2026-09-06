@@ -8,8 +8,9 @@ from app.models.product import (
     ProductMaster,
     ShopProduct,
 )
-from app.models.shop import Shop
-from app.services.geo_service import haversine_km
+from app.models.shop import Shop, ShopStatus
+from app.search import engine as search_engine
+from app.services.geo_service import haversine_km, resolve_shop_coordinates
 from app.services.media_service import resolve_media_url
 
 router = APIRouter(prefix="/home", tags=["home"])
@@ -29,11 +30,11 @@ def _shop_distance_km(
     if (
         latitude is not None
         and longitude is not None
-        and shop.latitude is not None
-        and shop.longitude is not None
     ):
-        return haversine_km(latitude, longitude, shop.latitude, shop.longitude)
-    return 0.0
+        shop_longitude, shop_latitude = resolve_shop_coordinates(shop)
+        if shop_longitude is not None and shop_latitude is not None:
+            return haversine_km(latitude, longitude, shop_latitude, shop_longitude)
+    return  0.0
 
 
 @router.get("/feed")
@@ -80,12 +81,30 @@ async def get_home_feed(
             }
         )
 
-    # Nearby shops — real haversine distance from the customer when coordinates
-    # are supplied (Phase 15). Coordinates ride along for on-map rendering.
-    shops = db.query(Shop).all()
+    # Nearby shops - visible, verified shops within the customer's radius.
+    # Coordinates are resolved through the shared PostGIS/fallback resolver (so
+    # shops storing coords only in the ``location`` Geography column still work).
+    shops = (
+        db.query(Shop)
+        .filter(
+            Shop.is_deleted == False,   # noqa: E712
+            Shop.status.in_([ShopStatus.ACTIVE, ShopStatus.VERIFIED]),
+            Shop.is_verified == True,    # noqa: E712
+            Shop.is_accepting_orders == True,   # noqa: E712
+        )
+        .all()
+    )
     shop_data = []
     for s in shops:
-        distance = _shop_distance_km(s, latitude, longitude)
+        shop_longitude, shop_latitude = resolve_shop_coordinates(s)
+        if latitude is not None and longitude is not None:
+            if shop_longitude is None or shop_latitude is None:
+                continue
+            distance = haversine_km(latitude, longitude, shop_latitude, shop_longitude)
+            if distance > radius_km:
+                continue
+        else:
+            distance =  0.0
         shop_data.append(
             {
                 "id": str(s.id),
@@ -94,13 +113,21 @@ async def get_home_feed(
                 "distance": round(distance, 2),
                 "rating": s.rating,
                 "is_verified": s.is_verified,
-                "latitude": s.latitude,
-                "longitude": s.longitude,
+                "latitude": shop_latitude,
+                "longitude": shop_longitude,
             }
         )
     shop_data.sort(key=lambda s: s["distance"])
 
-    recent_searches = ["Paracetamol 500mg", "Amul Butter", "Ceiling Fan"]
+    # Dynamic recent searches from the platform's popular search analytics.
+    # Falls back to an empty list when the platform has no search history yet
+    # (fresh database / new deployment) — never hardcoded static values.
+    recent_searches: list[str] = []
+    try:
+        popular = search_engine.popular_searches(db, limit=5)
+        recent_searches = [item["query"] for item in popular if item.get("query")]
+    except Exception:  # noqa: BLE001
+        recent_searches = []
 
     return success_response(
         data={

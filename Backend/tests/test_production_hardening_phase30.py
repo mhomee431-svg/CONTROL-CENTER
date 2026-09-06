@@ -72,7 +72,7 @@ def _portable_timestamp_defaults():
     from sqlalchemy import ColumnDefault
 
     def _now(ctx=None):
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     for table in Base.metadata.tables.values():
         for col in table.columns:
@@ -536,7 +536,7 @@ class TestPerformance:
     @pytest.fixture()
     def perf_db(self, db):
         """Seed a realistic volume of analytics events."""
-        base = datetime.utcnow() - timedelta(hours=2)
+        base = datetime.now(timezone.utc) - timedelta(hours=2)
         events = []
         for i in range(300):
             events.append(
@@ -584,7 +584,7 @@ class TestPerformance:
             perf_db.query(func.count(AnalyticsEvent.id))
             .filter(
                 AnalyticsEvent.event_name == "SEARCH",
-                AnalyticsEvent.occurred_at >= datetime.utcnow() - timedelta(days=1),
+                AnalyticsEvent.occurred_at >= datetime.now(timezone.utc) - timedelta(days=1),
             )
             .scalar()
         )
@@ -604,7 +604,7 @@ class TestPerformance:
         from app.services import analytics_system as an
 
         start = time.perf_counter()
-        result = an.aggregate_daily(perf_db, datetime.utcnow().date())
+        result = an.aggregate_daily(perf_db, datetime.now(timezone.utc).date())
         elapsed = time.perf_counter() - start
         assert result["groups"] >= 2
         assert elapsed < 3.0, f"Aggregation too slow: {elapsed:.3f}s"

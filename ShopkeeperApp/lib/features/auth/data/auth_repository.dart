@@ -5,23 +5,38 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_providers.dart';
 import '../../../../core/network/token_store.dart';
 import '../domain/auth_models.dart';
+import 'mock_auth_repository.dart';
 
 /// Shopkeeper authentication contract.
+///
+/// OTP delivery is handled client-side by Firebase Phone Auth, so there is no
+/// `sendOtp` here — the controller calls [PhoneAuthService] directly. The
+/// `registerWithFirebase` / `loginWithFirebase` methods accept a Firebase ID
+/// token that the backend verifies.
 abstract class AuthRepository {
-  Future<void> sendOtp(String phoneNumber);
-  Future<AuthSession> register({
+  Future<AuthSession> registerWithFirebase({
     required String phoneNumber,
-    required String otp,
+    required String firebaseIdToken,
     required String name,
+    String? password,
   });
-  Future<AuthSession> login({
-    required String phoneNumber,
-    required String otp,
+  Future<AuthSession> loginWithFirebase({
+    required String firebaseIdToken,
+  });
+  Future<AuthSession> loginWithFirebaseAuto({
+    required String firebaseIdToken,
+    String? name,
+  });
+  Future<AuthSession> loginWithPassword({
+    required String identifier,
+    required String password,
   });
 
   /// Restores a stored session; returns null when none is valid.
   Future<AuthSession?> restoreSession();
   Future<void> logout();
+  Future<void> forgotPassword(String identifier);
+  Future<void> resetPassword({required String token, required String newPassword});
 }
 
 class ApiAuthRepository implements AuthRepository {
@@ -31,21 +46,49 @@ class ApiAuthRepository implements AuthRepository {
   final TokenStore _tokens;
 
   @override
-  Future<void> sendOtp(String phoneNumber) async {
-    await _api.post(ApiEndpoints.sendOtp, body: {'phone_number': phoneNumber});
-  }
-
-  @override
-  Future<AuthSession> register({
+  Future<AuthSession> registerWithFirebase({
     required String phoneNumber,
-    required String otp,
+    required String firebaseIdToken,
     required String name,
+    String? password,
   }) async {
     final data = await _api.post(
       ApiEndpoints.register,
       body: {
         'phone_number': phoneNumber,
-        'otp': otp,
+        'firebase_id_token': firebaseIdToken,
+        'name': name,
+        'password': password,
+        'device_type': 'mobile',
+      },
+    ) as Map<String, dynamic>;
+    return _persist(data);
+  }
+
+  @override
+  Future<AuthSession> loginWithFirebase({
+    required String firebaseIdToken,
+  }) async {
+    final data = await _api.post(
+      ApiEndpoints.verifyOtp,
+      body: {
+        'firebase_id_token': firebaseIdToken,
+        'device_type': 'mobile',
+      },
+    ) as Map<String, dynamic>;
+    return _persist(data);
+  }
+
+  /// Login-or-register via Firebase — auto-creates account if phone is new.
+  @override
+  Future<AuthSession> loginWithFirebaseAuto({
+    required String firebaseIdToken,
+    String? name,
+  }) async {
+    final data = await _api.post(
+      ApiEndpoints.firebaseLogin,
+      body: {
+        'firebase_id_token': firebaseIdToken,
         'name': name,
         'device_type': 'mobile',
       },
@@ -54,19 +97,35 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthSession> login({
-    required String phoneNumber,
-    required String otp,
+  Future<AuthSession> loginWithPassword({
+    required String identifier,
+    required String password,
   }) async {
     final data = await _api.post(
       ApiEndpoints.login,
       body: {
-        'phone_number': phoneNumber,
-        'otp': otp,
+        'identifier': identifier,
+        'password': password,
         'device_type': 'mobile',
       },
     ) as Map<String, dynamic>;
     return _persist(data);
+  }
+
+  @override
+  Future<void> forgotPassword(String identifier) async {
+    await _api.post(
+      ApiEndpoints.forgotPassword,
+      body: {'identifier': identifier},
+    );
+  }
+
+  @override
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    await _api.post(
+      ApiEndpoints.resetPassword,
+      body: {'token': token, 'new_password': newPassword},
+    );
   }
 
   Future<AuthSession> _persist(Map<String, dynamic> data) async {
@@ -124,8 +183,21 @@ class ApiAuthRepository implements AuthRepository {
   }
 }
 
+/// Set this to true to use mock auth (no backend / no Firebase required).
+/// - Because the app now uses Firebase Phone Auth, mock mode installs a
+///   FakePhoneAuthService so OTP works offline on emulators/devices.
+/// Set this to false to use real Firebase + backend calls.
+const bool kUseMockAuth = true;
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final api = ref.watch(apiClientProvider);
   final tokens = ref.watch(tokenStoreProvider);
+  
+  if (kUseMockAuth) {
+    // Use mock repository for testing without backend
+    return MockAuthRepository(tokens);
+  }
+  
+  // Use real API repository
+  final api = ref.watch(apiClientProvider);
   return ApiAuthRepository(api, tokens);
 });

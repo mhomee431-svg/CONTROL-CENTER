@@ -176,7 +176,22 @@ class Cache:
 
 # ── Core ops ─────────────────────────────────────────────────────────────
     async def get(self, key: str) -> Optional[str]:
-        return await self._run(lambda: self._redis.get(self._prefixed(key)), None)
+        """GET a raw string value; records hit/miss telemetry (Phase 57)."""
+        result = await self._run(lambda: self._redis.get(self._prefixed(key)), None)
+        try:
+            from app.core.observability.metrics import (
+                record_cache_operation,
+                update_cache_hit_ratio,
+            )
+
+            if result is None:
+                record_cache_operation("get", "miss")
+            else:
+                record_cache_operation("get", "hit")
+            update_cache_hit_ratio()
+        except Exception:  # noqa: BLE001 — telemetry must never break the cache
+            pass
+        return result
 
     async def set(
         self,

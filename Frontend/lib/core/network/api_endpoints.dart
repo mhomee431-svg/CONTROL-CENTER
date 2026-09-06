@@ -84,4 +84,11 @@ class ApiEndpoints {
   // --- Locations ---
   static const String nearbyLocations = '/locations/nearby';
   static const String manualLocationSearch = '/locations/manual-search';
+
+  // --- Customer (favourites, recently viewed, share) ---
+  static const String customerRecentlyViewed = '/customer/recently-viewed';
+  static const String customerFavorites = '/customer/favorites';
+  static const String customerFavoritesTypes = '/customer/favorites/types';
+  static String customerProductShare(String productId) =>
+      '/customer/products/$productId/share';
 }

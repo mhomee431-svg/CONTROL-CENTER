@@ -92,9 +92,14 @@ class LocationPermissionScreen extends ConsumerWidget {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              ref
-                  .read(locationRepositoryProvider)
-                  .openLocationSettings();
+              // openAppSettings() is unsupported on web; guard it so the
+              // button never crashes — on web the user enables location
+              // via the browser's own permission UI instead.
+              try {
+                ref.read(locationRepositoryProvider).openLocationSettings();
+              } catch (_) {
+                // No-op on platforms without app-settings deep links (web).
+              }
             },
             child: const Text('Open Settings'),
           ),
@@ -120,9 +125,14 @@ class LocationPermissionScreen extends ConsumerWidget {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              ref
-                  .read(locationRepositoryProvider)
-                  .openLocationSettings();
+              // openAppSettings() is unsupported on web; guard it so the
+              // button never crashes — on web the user enables location
+              // via the browser's own permission UI instead.
+              try {
+                ref.read(locationRepositoryProvider).openLocationSettings();
+              } catch (_) {
+                // No-op on platforms without app-settings deep links (web).
+              }
             },
             child: const Text('Open Settings'),
           ),

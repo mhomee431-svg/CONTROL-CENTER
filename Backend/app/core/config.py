@@ -96,9 +96,23 @@ class Settings(BaseSettings):
     # ── Security / JWT ─────────────────────────────────────────────────────────
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(1440, ge=1)
+    # Short-lived access tokens (spec: 15-30 minutes)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, ge=1)
+    # Refresh tokens for session renewal (spec: 30 days)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(30, ge=1)
-    PASSWORD_HASHING_ALGO: str = "bcrypt"
+    # Session idle timeout
+    SESSION_IDLE_TIMEOUT_DAYS: int = Field(30, ge=1)
+    # Maximum devices per user
+    SESSION_MAX_DEVICES: int = Field(5, ge=1, le=10)
+    PASSWORD_HASHING_ALGO: str = "sha256"
+    # Password reset token expiry (minutes)
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(30, ge=1)
+    # Password minimum length
+    PASSWORD_MIN_LENGTH: int = Field(8, ge=6)
+    # Password reset cooldown (seconds) - prevents abuse
+    PASSWORD_RESET_COOLDOWN_SECONDS: int = Field(60, ge=30)
+    TOKEN_ISSUER: str = "hyperlocal-api"
+    TOKEN_AUDIENCE: str = "hyperlocal-app"
 
     # ── OTP ─────────────────────────────────────────────────────────────────────
     OTP_DEV_MODE: bool = True
@@ -153,12 +167,23 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_CERTS_URL: str = "https://www.googleapis.com/oauth2/v3/certs"
     GOOGLE_OAUTH_SCOPES: str = "openid email profile"
 
+    # ── Google Maps (pincode / address geocoding) ─────────────────────────
+    # Used by the pincode lookup fallback to resolve city/state from a pincode
+    # via Geocoding when the PostPin API has no match.
+    GOOGLE_MAPS_API_KEY: Optional[str] = None
+
     # ── Push Provider (replaceable; Phase 27) ──────────────────────────────────
     PUSH_PROVIDER: str = "mock"  # mock | fcm
     # FCM credentials are NEVER hardcoded — supply via secret manager / env:
     FCM_CREDENTIALS_FILE: Optional[str] = None   # path to service-account JSON
     FCM_CREDENTIALS_JSON: Optional[str] = None   # raw service-account JSON string
     FCM_DRY_RUN: bool = False                    # true → validate without delivering
+
+    # ── Firebase Phone Authentication (replaces Fast2SMS for OTP login/register) ──
+    # Same service account can serve FCM + Auth. FIREBASE_* settings fall back to
+    # the FCM credentials when not explicitly set.
+    FIREBASE_CREDENTIALS_FILE: Optional[str] = None  # path to service-account JSON
+    FIREBASE_CREDENTIALS_JSON: Optional[str] = None  # raw service-account JSON string
     # Anti-spam controls (Phase 27)
     NOTIFICATION_DEDUPE_COOLDOWN_SECONDS: int = Field(3600, ge=0)  # same dedupe_key within window → suppressed
     NOTIFICATION_HOURLY_CAP: int = Field(20, ge=1)                 # max non-transactional notifications / user / hour
@@ -255,6 +280,13 @@ class Settings(BaseSettings):
     REQUEST_ID_HEADER: str = "X-Request-ID"
     CORRELATION_ID_HEADER: str = "X-Correlation-ID"
     DISABLE_DOCS: bool = False
+
+    # ── API Versioning ─────────────────────────────────────────────────────────
+    API_VERSION_HEADER: str = "X-API-Version"
+    API_VERSION_DEFAULT: str = "1"
+    API_VERSION_SUPPORTED: str = "1"  # comma-separated list
+    API_VERSION_DEPRECATED: str = ""  # comma-separated list of deprecated versions
+    API_VERSION_SUNSET_HEADER: str = "Sunset"
 
     # ── Observability (Phase 24) ────────────────────────────────────────────────
     # Structured log enrichment: service name + static labels for every log line.

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../features/splash/splash_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/home/presentation/screens/coming_soon_screen.dart';
+import '../../features/home/presentation/screens/search_results_by_pin_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/search/presentation/screens/search_results_screen.dart';
 import '../../features/saved_and_history/presentation/screens/saved_items_screen.dart';
@@ -12,78 +15,47 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/addresses_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
-import '../../features/auth/presentation/screens/welcome_screen.dart';
-import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/register_screen.dart';
-import '../../features/auth/presentation/screens/otp_screen.dart';
-import '../../features/onboarding/presentation/screens/onboarding_flow_screen.dart';
+// ── Auth screens disabled (guest-first) ─────────────────────────────
+// import '../../features/auth/presentation/screens/welcome_screen.dart';
+// import '../../features/auth/presentation/screens/login_screen.dart';
+// import '../../features/auth/presentation/screens/register_screen.dart';
+// import '../../features/auth/presentation/screens/otp_screen.dart';
+// import '../../features/onboarding/presentation/screens/onboarding_flow_screen.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/location/presentation/screens/location_permission_screen.dart';
 import '../../features/location/presentation/screens/select_location_screen.dart';
-import '../../features/location/presentation/controllers/location_controller.dart';
 import '../../features/product_details/presentation/screens/product_details_screen.dart';
 import '../../features/product_details/presentation/screens/nearby_shops_screen.dart';
 import '../../features/shop_details/presentation/screens/shop_details_screen.dart';
 import '../../features/directions/presentation/screens/directions_screen.dart';
+import '../../features/customer/presentation/screens/customer_favorites_screen.dart';
+import '../../features/customer/presentation/screens/customer_recently_viewed_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // Watch auth state to trigger router rebuilds automatically
   final authState = ref.watch(authControllerProvider);
-  // Watch location state to trigger router rebuilds automatically
-  final locationState = ref.watch(locationControllerProvider);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     redirect: (context, state) {
       final location = state.matchedLocation;
-
-      final isGoingToAuth = location == '/login' ||
-          location == '/otp' ||
-          location == '/register' ||
-          location == '/welcome' ||
-          location == '/onboarding-flow';
       final isGoingToSplash = location == '/splash';
-      final isGoingToLocation = location == '/location-permission' ||
-          location == '/select-location';
 
+      // ── Auth disabled (guest-first) ──────────────────────────────────
+      // Login / register / OTP / welcome / onboarding are all commented out.
+      // The customer always lands straight on the Home screen; no login wall.
+
+      // While auth status is being resolved, show the splash screen.
       if (authState.status == AuthStatus.initial ||
           authState.status == AuthStatus.loading) {
         return isGoingToSplash ? null : '/splash';
       }
 
-      if (authState.status == AuthStatus.unauthenticated ||
-          authState.status == AuthStatus.sessionExpired) {
-        // If we're on the splash or anywhere that's not already an auth
-        // screen, go to the Welcome screen (onboarding entry).
-        if (location == '/splash' || location == '/welcome' ||
-            location == '/login' || location == '/otp' ||
-            location == '/register' || location == '/onboarding-flow') {
-          return location == '/splash' ? '/welcome' : null;
-        }
-        return '/welcome';
-      }
-
-      if (authState.status == AuthStatus.authenticated ||
-          authState.status == AuthStatus.guest) {
-        // Prevent authenticated/guest users from going back to auth screens
-        if (isGoingToAuth || isGoingToSplash) return '/';
-
-        // GUEST GUARD: Prevent guests from accessing Profile or Saved items
-        if (authState.status == AuthStatus.guest) {
-          if (location == '/profile' || location == '/saved') {
-            return '/login';
-          }
-        }
-
-        // LOCATION GUARD: If authenticated/guest, ensure location is set
-        if (locationState.status != LocationStatus.success) {
-          return isGoingToLocation ? null : '/location-permission';
-        }
-      }
+      // Every other state (guest, authenticated, etc.) → straight to Home.
+      if (isGoingToSplash) return '/';
       return null;
     },
     routes: [
@@ -91,45 +63,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(
-        path: '/welcome',
-        builder: (context, state) => const WelcomeScreen(),
-      ),
-      GoRoute(
-        path: '/onboarding-flow',
-        builder: (context, state) => const OnboardingFlowScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/register',
-        builder: (context, state) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: '/otp',
-        builder: (context, state) {
-          final extra = state.extra;
-          String phone = '';
-          bool isNewUser = false;
-          String? name;
-
-          if (extra is Map<String, dynamic>) {
-            phone = (extra['phone'] as String?) ?? '';
-            name = extra['name'] as String?;
-            isNewUser = (extra['isNewUser'] as bool?) ?? false;
-          } else if (extra is String) {
-            phone = extra;
-          }
-
-          return OtpVerificationScreen(
-            phoneNumber: phone,
-            name: name,
-            isNewUser: isNewUser,
-          );
-        },
-      ),
+      // ── Auth routes disabled (guest-first login is off) ──────────────
+      // GoRoute(path: '/welcome',
+      //     builder: (context, state) => const WelcomeScreen()),
+      // GoRoute(path: '/onboarding-flow',
+      //     builder: (context, state) => const OnboardingFlowScreen()),
+      // GoRoute(path: '/login',
+      //     builder: (context, state) => const LoginScreen()),
+      // GoRoute(path: '/register',
+      //     builder: (context, state) => const RegisterScreen()),
+      // GoRoute(path: '/otp', builder: (context, state) {
+      //   final extra = state.extra;
+      //   String phone = '';
+      //   bool isNewUser = false;
+      //   String? name;
+      //   if (extra is Map<String, dynamic>) {
+      //     phone = (extra['phone'] as String?) ?? '';
+      //     name = extra['name'] as String?;
+      //     isNewUser = (extra['isNewUser'] as bool?) ?? false;
+      //   } else if (extra is String) {
+      //     phone = extra;
+      //   }
+      //   return OtpVerificationScreen(
+      //     phoneNumber: phone, name: name, isNewUser: isNewUser);
+      // }),
       GoRoute(
         path: '/location-permission',
         builder: (context, state) => const LocationPermissionScreen(),
@@ -137,6 +94,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/select-location',
         builder: (context, state) => const SelectLocationScreen(),
+      ),
+      GoRoute(
+        path: '/coming-soon',
+        builder: (context, state) => const ComingSoonScreen(),
+      ),
+      GoRoute(
+        path: '/search-results-by-pin/:pin',
+        builder: (context, state) {
+          final pin = state.pathParameters['pin'] ?? '';
+          return SearchResultsByPinScreen(pin: pin);
+        },
       ),
       GoRoute(
         path: '/product/:id',
@@ -165,7 +133,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/directions',
         builder: (context, state) {
           final shopId = state.uri.queryParameters['shopId'] ?? '';
-          final shopName = state.uri.queryParameters['name'] ?? 'Shop Destination';
+          final shopName =
+              state.uri.queryParameters['name'] ?? 'Shop Destination';
           return DirectionsScreen(shopId: shopId, shopName: shopName);
         },
       ),
@@ -176,6 +145,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/addresses',
         builder: (context, state) => const AddressesScreen(),
+      ),
+      GoRoute(
+        path: '/my-favorites',
+        builder: (context, state) => const CustomerFavoritesScreen(),
+      ),
+      GoRoute(
+        path: '/recently-viewed',
+        builder: (context, state) => const CustomerRecentlyViewedScreen(),
       ),
       GoRoute(
         path: '/settings',

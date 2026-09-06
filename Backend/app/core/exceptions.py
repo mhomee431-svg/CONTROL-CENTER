@@ -97,6 +97,16 @@ def setup_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, exc: RequestValidationError):
         ctx = _request_context(request)
+        
+        # Format errors for client
+        formatted_errors = []
+        for error in exc.errors():
+            formatted_errors.append({
+                "field": ".".join(str(loc) for loc in error["loc"]),
+                "message": error["msg"],
+                "type": error["type"],
+            })
+        
         logger.warning(
             "ValidationError path=%s method=%s request_id=%s errors=%s",
             ctx["path"],
@@ -110,7 +120,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
                 "success": False,
                 "message": "Validation error",
                 "error_code": "VALIDATION_ERROR",
-                "data": {"errors": exc.errors()},
+                "data": {"errors": formatted_errors},
             },
         )
 

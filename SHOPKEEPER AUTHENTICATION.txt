@@ -1,0 +1,1241 @@
+============================================================
+PROJECT: HYPERLOCAL PRODUCT DISCOVERY PLATFORM
+MODULE: SHOPKEEPER AUTHENTICATION & LOGIN
+============================================================
+
+ROLE
+
+You are a Senior Flutter + FastAPI + PostgreSQL
+Authentication Architect and Security Engineer.
+
+You are working inside my EXISTING project repository.
+
+Your task is to inspect the existing project and implement
+a production-ready Shopkeeper Authentication system.
+
+IMPORTANT:
+
+This is an EXISTING project.
+
+The repository contains old code, bugs, duplicate code,
+unused code and potentially incorrect authentication logic.
+
+DO NOT blindly create a new authentication system.
+
+First inspect the existing implementation.
+
+Reuse good existing components where appropriate.
+
+Remove/replace incorrect or duplicate implementations
+only after understanding their dependencies.
+
+============================================================
+1. PLATFORM CONTEXT
+============================================================
+
+This is a Hyperlocal Product Discovery Platform.
+
+Customers search for products and discover nearby businesses.
+
+Shopkeepers/business owners maintain:
+
+- Business profile
+- Store information
+- Product inventory
+- Product prices
+- Product availability
+- Barcode/product identifiers
+- Offers
+- Business hours
+- Business location
+
+The Shopkeeper application is separate from the
+Customer application logically.
+
+============================================================
+2. SHOPKEEPER ACCOUNT TYPES
+============================================================
+
+The authentication system must support:
+
+SHOPKEEPER / BUSINESS OWNER
+
+Future possibility:
+
+BUSINESS STAFF
+
+BUSINESS MANAGER
+
+BUSINESS ADMIN
+
+ADMIN
+
+Do not implement unnecessary staff functionality now.
+
+Design the architecture so it can be extended later.
+
+============================================================
+3. AUTHENTICATION PRINCIPLE
+============================================================
+
+Use:
+
+FastAPI
++
+PostgreSQL
++
+JWT-based authentication
++
+secure password hashing
++
+refresh token/session mechanism
+
+Authentication must be centralized.
+
+Do not duplicate authentication logic across APIs.
+
+============================================================
+4. FIRST AUDIT EXISTING PROJECT
+============================================================
+
+Before coding inspect:
+
+Flutter authentication screens
+
+Flutter routing
+
+Flutter API client
+
+Flutter token storage
+
+FastAPI authentication
+
+FastAPI user model
+
+Database user tables
+
+JWT implementation
+
+Password hashing
+
+Refresh token implementation
+
+Authorization dependencies
+
+Existing shop/business models
+
+Existing migrations
+
+Existing middleware
+
+Existing interceptors
+
+Existing error handling
+
+Existing tests
+
+Search for:
+
+login
+register
+signup
+auth
+jwt
+token
+refresh
+password
+user
+shopkeeper
+business
+owner
+role
+permission
+
+DO NOT implement immediately.
+
+First report:
+
+1. What already exists
+2. What can be reused
+3. What is broken
+4. What is duplicated
+5. What is missing
+6. What should be removed
+7. What should be redesigned
+
+STOP after the audit.
+
+============================================================
+5. SHOPKEEPER LOGIN FLOW
+============================================================
+
+Preferred initial flow:
+
+Shopkeeper
+    ↓
+Open Shopkeeper App
+    ↓
+Login
+    ↓
+Mobile Number / Email
+    ↓
+Password
+    ↓
+Backend Authentication
+    ↓
+Verify account
+    ↓
+Verify role
+    ↓
+Issue Access Token
+    ↓
+Issue Refresh Token
+    ↓
+Load Business Profile
+    ↓
+Shopkeeper Dashboard
+
+============================================================
+6. REGISTRATION FLOW
+============================================================
+
+Shopkeeper registration should collect only
+information genuinely required.
+
+Conceptual flow:
+
+Register
+    ↓
+Mobile / Email
+    ↓
+Password
+    ↓
+Basic Owner Information
+    ↓
+Business Information
+    ↓
+Business Location
+    ↓
+Verification
+    ↓
+Account Created
+    ↓
+Business Pending/Active
+    ↓
+Dashboard
+
+Do not collect unnecessary information.
+
+============================================================
+7. ACCOUNT SEPARATION
+============================================================
+
+Do NOT create separate authentication tables such as:
+
+customer_users
+shopkeeper_users
+admin_users
+
+unless there is a strong architectural reason.
+
+Prefer a central user identity system with:
+
+users
+roles
+business ownership/membership
+
+Example:
+
+users
+    ↓
+user_roles
+    ↓
+business_memberships
+    ↓
+businesses
+
+This prevents duplicate identity systems.
+
+============================================================
+8. USER TABLE
+============================================================
+
+Use the existing users table if suitable.
+
+Conceptual fields:
+
+id
+email
+phone
+password_hash
+first_name
+last_name
+status
+email_verified_at
+phone_verified_at
+last_login_at
+created_at
+updated_at
+
+Do not store plaintext passwords.
+
+============================================================
+9. ROLE
+============================================================
+
+Support role-based authorization.
+
+Example:
+
+CUSTOMER
+SHOPKEEPER
+STAFF
+ADMIN
+
+Do not trust role information sent by Flutter.
+
+Backend must determine the authenticated user's role
+from trusted server-side data.
+
+============================================================
+10. BUSINESS OWNERSHIP
+============================================================
+
+A shopkeeper must be connected to a business.
+
+Conceptual relationship:
+
+User
+ ↓
+Business Membership
+ ↓
+Business
+ ↓
+Business Location
+
+This allows future support for:
+
+one owner → multiple businesses
+
+and:
+
+one business → multiple staff members
+
+============================================================
+11. BUSINESS MEMBERSHIP
+============================================================
+
+If not already present, design:
+
+business_memberships
+
+Conceptual fields:
+
+id
+business_id
+user_id
+role
+status
+created_at
+updated_at
+
+Possible roles:
+
+OWNER
+MANAGER
+STAFF
+
+For MVP:
+
+OWNER
+
+is sufficient.
+
+============================================================
+12. LOGIN API
+============================================================
+
+Create/standardize:
+
+POST /auth/shopkeeper/login
+
+Request:
+
+identifier
+password
+
+Where identifier can be:
+
+email
+
+or
+
+phone
+
+depending on the approved project architecture.
+
+Do not expose whether an email/phone exists
+through overly specific authentication errors.
+
+============================================================
+13. LOGIN RESPONSE
+============================================================
+
+Response should contain:
+
+access_token
+refresh_token
+token_type
+expires_in
+user
+business
+
+Do not return:
+
+password
+password_hash
+internal secrets
+unnecessary database fields
+
+============================================================
+14. ACCESS TOKEN
+============================================================
+
+Access token should be short-lived.
+
+Example:
+
+15–30 minutes
+
+Exact value should be configurable.
+
+Use environment configuration.
+
+Do not hardcode secrets.
+
+============================================================
+15. REFRESH TOKEN
+============================================================
+
+Implement refresh-token based session renewal.
+
+Endpoint:
+
+POST /auth/refresh
+
+Refresh token must be handled securely.
+
+Prefer server-side revocation capability.
+
+Do not make access tokens unnecessarily long-lived.
+
+============================================================
+16. LOGOUT
+============================================================
+
+Endpoint:
+
+POST /auth/logout
+
+Logout must invalidate/revoke the relevant refresh session.
+
+Client must also remove local authentication state.
+
+============================================================
+17. PASSWORD SECURITY
+============================================================
+
+Passwords must be hashed using a modern secure password
+hashing algorithm.
+
+Never store:
+
+plaintext password
+
+reversible password encryption
+
+Do not log passwords.
+
+Do not return password hashes through APIs.
+
+============================================================
+18. PASSWORD RULES
+============================================================
+
+Implement reasonable password requirements.
+
+Avoid unnecessarily complicated rules that cause
+poor usability.
+
+Password validation must happen both:
+
+Flutter
+and
+Backend
+
+Backend remains authoritative.
+
+============================================================
+19. LOGIN SECURITY
+============================================================
+
+Protect login against:
+
+brute force attempts
+credential stuffing
+rapid repeated requests
+
+Implement reasonable rate limiting.
+
+Do not introduce a complicated distributed security
+system unnecessarily for MVP.
+
+Use Redis only if appropriate.
+
+============================================================
+20. ACCOUNT STATUS
+============================================================
+
+Support states such as:
+
+ACTIVE
+PENDING
+SUSPENDED
+BLOCKED
+DEACTIVATED
+
+Backend must prevent login when account status
+does not allow authentication.
+
+============================================================
+21. BUSINESS STATUS
+============================================================
+
+Business can have:
+
+PENDING
+ACTIVE
+SUSPENDED
+REJECTED
+
+A successfully authenticated shopkeeper may still
+have restricted access if the business is pending.
+
+Do not confuse:
+
+USER STATUS
+
+with:
+
+BUSINESS STATUS.
+
+============================================================
+22. BUSINESS VERIFICATION
+============================================================
+
+Authentication and business verification are different.
+
+Login means:
+
+"This user is authenticated."
+
+Verification means:
+
+"This business is approved/verified."
+
+Do not combine them into one flag.
+
+============================================================
+23. AUTHORIZATION
+============================================================
+
+After authentication:
+
+User
+ ↓
+Role
+ ↓
+Business Membership
+ ↓
+Business ID
+ ↓
+Permission
+
+Every shopkeeper API must verify that the authenticated
+user actually owns or is authorized to access the business.
+
+Never trust:
+
+business_id
+
+sent by Flutter alone.
+
+Example:
+
+A malicious shopkeeper must not be able to change:
+
+business_id=123
+
+to:
+
+business_id=456
+
+and access another business.
+
+============================================================
+24. BUSINESS DATA ISOLATION
+============================================================
+
+Every protected shopkeeper operation must enforce:
+
+authenticated_user
++
+authorized_business
+
+before accessing:
+
+inventory
+prices
+products
+offers
+business profile
+orders/bookings where applicable
+analytics
+
+============================================================
+25. FLUTTER LOGIN SCREEN
+============================================================
+
+Inspect existing Flutter UI first.
+
+If login screen exists:
+
+reuse good UI structure.
+
+Fix incorrect implementation.
+
+If missing:
+
+create a clean Shopkeeper Login screen.
+
+Required:
+
+Identifier field
+Password field
+Show/hide password
+Login button
+Forgot password
+Register
+Loading state
+Error state
+
+Do not overdesign.
+
+============================================================
+26. FLUTTER AUTH STATE
+============================================================
+
+Implement centralized authentication state.
+
+States:
+
+INITIAL
+CHECKING_SESSION
+UNAUTHENTICATED
+AUTHENTICATED
+SESSION_EXPIRED
+
+Do not duplicate auth state across multiple screens.
+
+============================================================
+27. TOKEN STORAGE
+============================================================
+
+Tokens must not be stored insecurely.
+
+Use appropriate secure storage on mobile.
+
+Do not store authentication tokens in:
+
+plain text files
+SharedPreferences without appropriate protection
+logs
+source code
+
+Web storage strategy must be evaluated separately.
+
+============================================================
+28. API CLIENT
+============================================================
+
+Flutter API client must automatically:
+
+attach access token
+
+handle 401
+
+attempt token refresh
+
+retry request safely where appropriate
+
+logout when refresh fails
+
+Do not create custom authentication logic
+inside every screen.
+
+============================================================
+29. ROUTE PROTECTION
+============================================================
+
+Shopkeeper-only screens must be protected.
+
+Example:
+
+/shopkeeper/login
+/shopkeeper/register
+/shopkeeper/dashboard
+/shopkeeper/inventory
+/shopkeeper/products
+/shopkeeper/business
+
+Unauthenticated user:
+
+→ login
+
+Authenticated customer:
+
+→ must NOT gain shopkeeper access
+
+Authenticated shopkeeper:
+
+→ shopkeeper dashboard
+
+============================================================
+30. ROLE GUARD
+============================================================
+
+Frontend route guards improve UX.
+
+But security MUST be enforced by backend.
+
+Never depend only on Flutter route guards.
+
+============================================================
+31. FORGOT PASSWORD
+============================================================
+
+Implement architecture for:
+
+Forgot Password
+    ↓
+Identity verification
+    ↓
+Reset token/OTP
+    ↓
+New password
+    ↓
+Invalidate old sessions if appropriate
+
+Do not send passwords through email/SMS.
+
+============================================================
+32. OTP
+============================================================
+
+If OTP is used:
+
+OTP must be:
+
+short-lived
+single-use
+rate-limited
+securely generated
+not logged
+
+Do not store raw OTP unnecessarily.
+
+If storing OTP:
+
+store securely or store a suitable hash.
+
+============================================================
+33. ERROR HANDLING
+============================================================
+
+Use consistent API errors.
+
+Examples:
+
+INVALID_CREDENTIALS
+ACCOUNT_DISABLED
+ACCOUNT_SUSPENDED
+BUSINESS_NOT_ACTIVE
+SESSION_EXPIRED
+INVALID_REFRESH_TOKEN
+RATE_LIMITED
+
+Do not expose sensitive internal details.
+
+============================================================
+34. DATABASE INDEXES
+============================================================
+
+Optimize authentication queries.
+
+Depending on final schema:
+
+unique/index:
+
+email
+
+phone
+
+business membership:
+
+user_id
+business_id
+
+Composite uniqueness where required.
+
+Do not create unnecessary indexes.
+
+============================================================
+35. UNIQUE IDENTITY
+============================================================
+
+Define clear rules for:
+
+email uniqueness
+phone uniqueness
+
+Handle:
+
+case normalization
+phone normalization
+
+consistently.
+
+Do not allow duplicate identities because
+of formatting differences.
+
+============================================================
+36. TRANSACTION SAFETY
+============================================================
+
+Registration involving:
+
+user
+business
+business membership
+
+must be transaction-safe.
+
+Do not create a user without properly handling
+business creation failure.
+
+Do not create orphan businesses.
+
+============================================================
+37. SECURITY LOGGING
+============================================================
+
+Log security events such as:
+
+successful login
+failed login
+logout
+password reset
+account suspension
+refresh-token revocation
+
+Never log:
+
+password
+access token
+refresh token
+OTP
+secret keys
+
+============================================================
+38. AUDIT LOG
+============================================================
+
+If audit system exists:
+
+connect authentication events appropriately.
+
+Do not put excessive authentication logs
+into normal application tables.
+
+============================================================
+39. API DOCUMENTATION
+============================================================
+
+Document:
+
+POST /auth/shopkeeper/login
+POST /auth/refresh
+POST /auth/logout
+POST /auth/shopkeeper/register
+POST /auth/forgot-password
+POST /auth/reset-password
+
+Only implement endpoints that are actually required.
+
+============================================================
+40. TESTING
+============================================================
+
+Create tests for:
+
+Valid login
+Invalid password
+Unknown account
+Inactive account
+Suspended account
+Wrong role
+Valid refresh
+Invalid refresh
+Expired refresh
+Logout
+Protected endpoint
+Unauthorized business access
+Multiple businesses
+Password reset
+Rate limiting
+
+============================================================
+41. SECURITY TEST
+============================================================
+
+Verify:
+
+Shopkeeper A cannot access Shopkeeper B's business.
+
+Test:
+
+business_id manipulation
+user_id manipulation
+role manipulation
+JWT tampering
+expired token
+invalid token
+refresh token reuse
+
+============================================================
+42. PERFORMANCE
+============================================================
+
+Authentication must be lightweight.
+
+Optimize:
+
+user lookup
+password verification
+token generation
+business lookup
+
+Do not perform expensive queries during login.
+
+After authentication:
+
+load only necessary business information.
+
+Do not load:
+
+entire inventory
+entire product catalog
+analytics
+
+during login.
+
+============================================================
+43. AWS FREE TIER
+============================================================
+
+Architecture must remain compatible with AWS Free Tier.
+
+Avoid unnecessary services.
+
+Preferred:
+
+FastAPI
++
+RDS PostgreSQL
++
+Redis only where justified
+
+Do not introduce:
+
+Cognito
+ECS
+Kubernetes
+OpenSearch
+multiple microservices
+
+unless the existing architecture specifically requires it.
+
+The authentication system should run efficiently
+on a small backend deployment.
+
+============================================================
+44. ENVIRONMENT VARIABLES
+============================================================
+
+Secrets must come from environment variables.
+
+Examples:
+
+JWT_SECRET_KEY
+JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS
+DATABASE_URL
+
+Do not commit secrets.
+
+Provide:
+
+.env.example
+
+without real secrets.
+
+============================================================
+45. DATABASE MIGRATION
+============================================================
+
+Use Alembic.
+
+Do not manually modify production database schema.
+
+Migration must handle:
+
+users
+roles
+business memberships
+refresh sessions
+
+only if missing from existing architecture.
+
+Avoid creating duplicate tables.
+
+============================================================
+46. EXISTING CODE CLEANUP
+============================================================
+
+During implementation identify:
+
+duplicate auth services
+duplicate JWT utilities
+duplicate user models
+duplicate login endpoints
+old mock login
+hardcoded credentials
+unused authentication screens
+unused providers
+
+Remove obsolete code carefully.
+
+Do not leave two competing authentication systems.
+
+============================================================
+47. API CONTRACT
+============================================================
+
+Flutter and FastAPI must use the same contract.
+
+Define:
+
+request schema
+response schema
+HTTP status codes
+error schema
+token behavior
+refresh behavior
+logout behavior
+
+Use Pydantic schemas.
+
+============================================================
+48. HTTP STATUS CODES
+============================================================
+
+Use appropriate status codes.
+
+Examples:
+
+200
+201
+400
+401
+403
+409
+422
+429
+500
+
+Do not return 200 for every authentication error.
+
+============================================================
+49. NO HARDCODED LOGIN
+============================================================
+
+Absolutely NO:
+
+if username == "shopkeeper"
+and password == "123456"
+
+No mock authentication in production code.
+
+If mock mode exists:
+
+it must be clearly isolated
+and disabled by default.
+
+============================================================
+50. FINAL ACCEPTANCE CRITERIA
+============================================================
+
+Shopkeeper must be able to:
+
+1. Register
+2. Login
+3. Receive access token
+4. Receive refresh token
+5. Open dashboard
+6. Access own business
+7. Access own inventory
+8. Access own products
+9. Logout
+10. Refresh session
+11. Reset password
+
+System must prevent:
+
+1. Unauthorized access
+2. Cross-business access
+3. Role escalation
+4. Token tampering
+5. Password exposure
+6. Duplicate identity
+7. Brute-force abuse
+8. Access after logout/revocation
+
+============================================================
+51. IMPLEMENTATION RULE
+============================================================
+
+DO NOT rewrite the entire project.
+
+DO NOT create unnecessary files.
+
+DO NOT create duplicate architecture.
+
+DO NOT change unrelated Customer functionality.
+
+DO NOT break existing APIs without documenting it.
+
+DO NOT modify database blindly.
+
+Prefer:
+
+small
+safe
+tested
+incremental
+
+changes.
+
+============================================================
+52. EXECUTION ORDER
+============================================================
+
+PHASE 1
+Complete repository audit.
+
+STOP.
+
+PHASE 2
+Design final Shopkeeper authentication architecture.
+
+STOP.
+
+PHASE 3
+Implement/modify database models and migrations.
+
+STOP.
+
+PHASE 4
+Implement FastAPI authentication.
+
+STOP.
+
+PHASE 5
+Implement authorization/business isolation.
+
+STOP.
+
+PHASE 6
+Implement Flutter Shopkeeper authentication.
+
+STOP.
+
+PHASE 7
+Integrate API client/token refresh.
+
+STOP.
+
+PHASE 8
+Testing/security testing.
+
+STOP.
+
+PHASE 9
+Remove obsolete authentication code.
+
+STOP.
+
+PHASE 10
+Final documentation.
+
+============================================================
+53. VERY IMPORTANT FIRST INSTRUCTION
+============================================================
+
+START NOW WITH PHASE 1 ONLY.
+
+Do not write implementation code yet.
+
+Inspect the entire repository.
+
+Produce a detailed:
+
+SHOPKEEPER AUTHENTICATION AUDIT REPORT
+
+including:
+
+- existing authentication architecture
+- existing user model
+- existing business model
+- existing roles
+- existing JWT
+- existing token storage
+- existing Flutter login
+- existing FastAPI login
+- existing database tables
+- duplicate code
+- bugs
+- security issues
+- missing functionality
+- recommended final architecture
+- files that need modification
+- files that should be removed
+- migration requirements
+
+Then STOP.
+
+WAIT FOR MY NEXT INSTRUCTION.
+
+============================================================
+END
+============================================================

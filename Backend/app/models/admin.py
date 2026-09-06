@@ -108,11 +108,12 @@ class AuditLog(Base, TimestampMixin):
     __tablename__ = "audit_logs"
     __table_args__ = (
         Index("ix_audit_logs_entity_time", "entity_type", "entity_id", "created_at"),
+        Index("ix_audit_logs_user_action", "user_id", "action"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
-    action: Mapped[str] = mapped_column(String(50), nullable=False)  # CREATE, UPDATE, DELETE, VERIFY
+    action: Mapped[str] = mapped_column(String(100), nullable=False)  # CREATE, UPDATE, DELETE, VERIFY, authz:*, admin:*, access:*
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     entity_id: Mapped[int | None] = mapped_column(Integer, index=True)
     old_values: Mapped[dict | None] = mapped_column(JSON)
@@ -122,6 +123,12 @@ class AuditLog(Base, TimestampMixin):
     request_id: Mapped[str | None] = mapped_column(String(100), index=True)
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    
+    # Authorization audit fields
+    is_success: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # True=allowed, False=denied
+    reason: Mapped[str | None] = mapped_column(Text)  # Reason for denial or additional context
+    details: Mapped[dict | None] = mapped_column(JSON)  # Additional structured details
+    is_owner: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # Whether user is resource owner
 
     # Phase 29 — tamper-evident hash chaining (see services/audit_service.py).
     # Each record's hash covers its content AND the previous record's hash,

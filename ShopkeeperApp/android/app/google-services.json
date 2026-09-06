@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "357522455251",
+    "project_id": "hyperlocal--discovery",
+    "storage_bucket": "hyperlocal--discovery.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357522455251:android:626b388e32e3c14ecfb226",
+        "android_client_info": {
+          "package_name": "com.Hyperlocal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_7vCR1ajk5MUs5nSc31mM-GR8X7q1150"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -203,6 +203,7 @@ def create_shopkeeper_account(
     phone_number: str,
     name: str,
     email: str | None = None,
+    password_hash: str | None = None,
 ) -> User:
     """Create a new user carrying the shopkeeper role.
 
@@ -214,6 +215,7 @@ def create_shopkeeper_account(
         phone_number=phone_number,
         name=name.strip(),
         email=email,
+        password_hash=password_hash,
         role_id=role.id,
         status=UserStatus.ACTIVE,
         is_active=True,
@@ -258,6 +260,76 @@ def register_shop_for_shopkeeper(db: Session, user: User, data: dict) -> Shop:
     )
     sync_owner_role(db, user)
     return shop
+
+
+# ── Shop location update (controlled Edit-Location workflow) ─────────────
+
+
+def _location_snapshot(shop: Shop) -> dict[str, Any]:
+    """Audit-safe snapshot of a shop's current location state."""
+    from app.services.geo_service import resolve_shop_coordinates
+
+    longitude, latitude = resolve_shop_coordinates(shop)
+    return {
+        "latitude": latitude if latitude is not None else shop.latitude,
+        "longitude": longitude if longitude is not None else shop.longitude,
+        "accuracy_meters": getattr(shop, "accuracy_meters", None),
+        "location_source": getattr(shop, "location_source", None),
+        "location_type": getattr(shop, "location_type", None),
+        "location_status": getattr(shop, "location_status", None),
+        "location_integrity_status": getattr(shop, "location_integrity_status", None),
+        "location_captured_at": _iso(getattr(shop, "location_captured_at", None)),
+        "location_verified": bool(getattr(shop, "location_verified", False)),
+    }
+
+
+def update_shop_location_for_shopkeeper(
+    access: ShopAccess,
+    db: Session,
+    user: User,
+    latitude: float,
+    longitude: float,
+    meta: dict | None = None,
+    request_meta: dict | None = None,
+) -> dict[str, Any]:
+    """Persist a confirmed location change for an AUTHORIZED shop.
+
+    Flow: ownership/permission is enforced by ``access`` (resolved from the
+    path ``shop_id`` — never from the body), preventing IDOR. Managers without
+    ``update:shop`` are rejected. Every change is written to the hash-chained
+    audit trail with old/new coordinates, accuracies and actor.
+    """
+    from app.services import audit_service
+
+    # Owners/admins hold update:shop; plain managers do not.
+    access.require("shop", "update")
+
+    shop = access.shop
+    old_values = _location_snapshot(shop)
+
+    updated = shop_service.update_shop_location(
+        db, shop.id, latitude, longitude, meta
+    )
+    if updated is None:
+        raise NotFoundError("Shop not found")
+
+    new_values = _location_snapshot(updated)
+    request_meta = request_meta or {}
+
+    audit_service.record_critical_action(
+        db,
+        action="UPDATE",
+        entity_type="SHOP_LOCATION",
+        entity_id=updated.id,
+        user_id=user.id,
+        old_values=old_values,
+        new_values=new_values,
+        description="Shop location updated via controlled edit-location flow",
+        ip_address=request_meta.get("ip_address"),
+        user_agent=request_meta.get("user_agent"),
+    )
+
+    return new_values
 
 
 # ── Serialization helpers ────────────────────────────────────────────────

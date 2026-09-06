@@ -258,3 +258,33 @@ def dispatch_scheduled_pos_syncs() -> dict:
         "dispatched": dispatched,
         "executed_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── Token & Session Cleanup ────────────────────────────────────────────────
+@celery_app.task(name="app.services.tasks.cleanup_expired_tokens")
+def cleanup_expired_tokens() -> dict:
+    """Periodic task — clean expired tokens, sessions, and OTPs.
+    
+    Scheduled to run daily via Celery Beat. Removes:
+    - Expired blacklisted JWT tokens
+    - Expired auth sessions
+    - Expired OTP records
+    - Expired password reset tokens
+    """
+    with SessionLocal() as db:
+        try:
+            from app.services.token_cleanup_service import cleanup_expired_tokens as _cleanup
+
+            results = _cleanup(db)
+            return {
+                "status": "success",
+                "cleaned": results,
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("cleanup_expired_tokens failed")
+            return {
+                "status": "error",
+                "error": str(exc),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }

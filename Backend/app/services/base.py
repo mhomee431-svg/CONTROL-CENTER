@@ -33,3 +33,59 @@ class BaseService(Generic[RepoType]):
 
     async def count(self, **filters: Any) -> int:
         return await self.repository.count(**filters)
+
+    async def exists(self, **filters: Any) -> bool:
+        """Check if a record matching the filters exists."""
+        count = await self.repository.count(**filters)
+        return count > 0
+
+    async def get_or_404(self, id: int):
+        """Get a record or raise NotFoundError."""
+        from app.core.exceptions import NotFoundError
+        
+        obj = await self.repository.get(id)
+        if obj is None:
+            raise NotFoundError(f"{self.repository.model.__name__} with id {id} not found")
+        return obj
+
+    async def get_by_or_404(self, **kwargs: Any):
+        """Get a record by filters or raise NotFoundError."""
+        from app.core.exceptions import NotFoundError
+        
+        obj = await self.repository.get_by(**kwargs)
+        if obj is None:
+            raise NotFoundError(f"{self.repository.model.__name__} not found")
+        return obj
+
+    async def paginate(
+        self,
+        *,
+        page: int = 1,
+        limit: int = 20,
+        **filters: Any,
+    ) -> dict:
+        """Return paginated results with metadata."""
+        skip = (page - 1) * limit
+        
+        from sqlalchemy import select, func
+        from app.database.session import AsyncSessionLocal
+        
+        # Get items
+        items = await self.repository.list(skip=skip, limit=limit, **filters)
+        
+        # Get total count
+        total = await self.repository.count(**filters)
+        
+        pages = (total + limit - 1) // limit if limit > 0 else 0
+        
+        return {
+            "items": items,
+            "pagination": {
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "pages": pages,
+                "has_next": page < pages,
+                "has_prev": page > 1,
+            },
+        }

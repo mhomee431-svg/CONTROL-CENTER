@@ -1,0 +1,2524 @@
+============================================================
+MASTER PROJECT INSTRUCTION
+HYPERLOCAL PRODUCT DISCOVERY PLATFORM
+============================================================
+
+ROLE
+
+You are acting as a Senior Software Architect, Backend Engineer,
+Database Architect, Flutter Engineer, DevOps Engineer, Security Engineer,
+QA Engineer and Code Reviewer.
+
+You are working inside an EXISTING project repository.
+
+Your job is NOT to blindly generate code.
+
+Your job is to understand the existing system, clean it,
+repair it, architect it correctly and then implement the
+complete production-ready platform.
+
+============================================================
+1. PROJECT VISION
+============================================================
+
+Build a Hyperlocal Product Discovery Platform.
+
+Core idea:
+
+"Search any product. Instantly know which nearby shop has it,
+at what price, whether it is available, how far it is,
+and how to reach the shop."
+
+The platform is primarily a DISCOVERY platform.
+
+The customer discovers products and nearby businesses
+and then visits the physical shop/business offline.
+
+This is NOT primarily a home-delivery platform.
+
+Customer flow:
+
+Customer
+    ↓
+Search Product
+    ↓
+System understands product
+    ↓
+Find nearby businesses
+    ↓
+Compare:
+    - availability
+    - price
+    - distance
+    - rating
+    - freshness
+    ↓
+Select Business
+    ↓
+Get Directions
+    ↓
+Visit Business Offline
+    ↓
+Purchase Offline
+
+
+============================================================
+2. BUSINESS SCOPE
+============================================================
+
+PRIMARY BUSINESS CATEGORIES:
+
+1. Pharmacy & Healthcare
+2. Beauty & Personal Care
+3. Furniture & Home Care
+4. Household Goods
+5. Sports, Fitness & Outdoor
+6. Books, Media & Stationery
+7. Automotive Parts & Tools
+8. Hardware
+9. Restaurants
+10. Transport
+11. Personal Transport & Travel
+
+============================================================
+3. CATEGORY DETAILS
+============================================================
+
+PHARMACY & HEALTHCARE
+
+Examples:
+
+- Medicines
+- Medical equipment
+- First aid
+- Healthcare products
+- Medical accessories
+- Personal healthcare products
+
+IMPORTANT:
+
+Healthcare/pharmacy businesses may require verification
+and regulatory/business documentation.
+
+Do not assume every pharmacy/healthcare business is automatically verified.
+
+------------------------------------------------------------
+
+BEAUTY & PERSONAL CARE
+
+Examples:
+
+- Skincare
+- Haircare
+- Cosmetics
+- Personal hygiene
+- Grooming
+- Beauty products
+
+------------------------------------------------------------
+
+FURNITURE & HOME CARE
+
+Examples:
+
+- Furniture
+- Home improvement
+- Home care
+- Furnishing
+- Household furniture
+- Interior-related products
+
+------------------------------------------------------------
+
+HOUSEHOLD GOODS
+
+Examples:
+
+- Laundry
+- Cleaning
+- Storage
+- Household utilities
+- Cleaning equipment
+- Home-use products
+
+------------------------------------------------------------
+
+SPORTS, FITNESS & OUTDOOR
+
+Examples:
+
+- Sports equipment
+- Fitness equipment
+- Gym products
+- Outdoor equipment
+- Accessories
+
+------------------------------------------------------------
+
+BOOKS, MEDIA & STATIONERY
+
+Examples:
+
+- Books
+- Educational books
+- School supplies
+- Stationery
+- Office supplies
+- Media products
+
+ISBN must be supported for books.
+
+------------------------------------------------------------
+
+AUTOMOTIVE PARTS & TOOLS
+
+This is a major category.
+
+Support:
+
+- Cars
+- Bikes
+- Motorcycles
+- Scooters
+- Commercial vehicles
+- Vehicle accessories
+- Spare parts
+- Automotive tools
+- OEM parts
+- Vehicle compatibility
+
+Vehicle compatibility must be modeled properly.
+
+Do NOT rely only on free-form text.
+
+------------------------------------------------------------
+
+HARDWARE
+
+Examples:
+
+- Hand tools
+- Power tools
+- Fasteners
+- Plumbing hardware
+- Construction hardware
+- Electrical hardware
+- Workshop products
+
+------------------------------------------------------------
+
+RESTAURANTS
+
+Restaurants are supported.
+
+BUT:
+
+Grocery is NOT supported.
+
+General food retail is NOT supported.
+
+Food delivery is NOT the primary business model.
+
+Do NOT introduce grocery delivery.
+
+Restaurants should have their own restaurant/menu domain.
+
+------------------------------------------------------------
+
+TRANSPORT
+
+Transport is a separate business domain.
+
+Examples:
+
+- Local transportation
+- Vehicle services
+- Vehicle rental
+- Travel services
+- Transport providers
+
+------------------------------------------------------------
+
+PERSONAL TRANSPORT & TRAVEL
+
+Support services such as:
+
+- Marriage transportation
+- Personal travel
+- Family tour
+- Local tour
+- Vehicle rental
+- Event transportation
+- Travel transportation
+
+This is PERSONAL transportation/travel discovery and booking.
+
+It is NOT product inventory.
+
+It must remain architecturally separate from Product Discovery.
+
+============================================================
+4. EXPLICITLY OUT OF SCOPE
+============================================================
+
+DO NOT build these unless explicitly requested later:
+
+- Grocery marketplace
+- Grocery delivery
+- General food delivery
+- Product home delivery
+- Large e-commerce checkout system
+- Unrelated social media features
+- Unrelated fintech features
+- Cryptocurrency
+- Unnecessary AI features
+- Unnecessary microservices
+- Unnecessary cloud services
+
+The platform primarily helps customers DISCOVER nearby
+physical businesses.
+
+============================================================
+5. EXISTING CODEBASE RULE
+============================================================
+
+IMPORTANT:
+
+This is an EXISTING project.
+
+The old code is NOT automatically correct.
+
+The old code may contain:
+
+- bugs
+- duplicate code
+- dead code
+- unnecessary abstractions
+- incomplete features
+- incorrect architecture
+- mock data
+- hardcoded responses
+- broken dependencies
+- duplicate models
+- duplicate providers
+- duplicate services
+- unused screens
+- abandoned experiments
+
+DO NOT blindly preserve the old implementation.
+
+DO NOT blindly delete everything.
+
+FIRST understand the repository.
+
+Then classify existing code:
+
+KEEP
+REFACTOR
+REMOVE
+REBUILD
+MISSING
+BROKEN
+DUPLICATED
+TEMPORARY
+
+Reuse good existing code.
+
+Remove bad code.
+
+Rebuild only where necessary.
+
+============================================================
+6. DEVELOPMENT PHILOSOPHY
+============================================================
+
+Priority order:
+
+1. Correctness
+2. Reliability
+3. Security
+4. Maintainability
+5. Performance
+6. Simplicity
+7. Development speed
+
+Do NOT sacrifice architecture for speed.
+
+But also:
+
+DO NOT over-engineer.
+
+Prefer:
+
+Modular Monolith
+
+over:
+
+Premature Microservices.
+
+The initial platform should be easy to develop,
+debug, deploy and operate.
+
+============================================================
+7. TARGET ARCHITECTURE
+============================================================
+
+Overall:
+
+Flutter Customer App
+        |
+        | HTTPS REST API
+        ↓
+FastAPI Backend
+        |
+        ├── Authentication
+        ├── Customer
+        ├── Business
+        ├── Product
+        ├── Inventory
+        ├── Search
+        ├── Location
+        ├── Saved Items
+        ├── Notifications
+        ├── Restaurant
+        ├── Transport
+        ├── Subscription
+        ├── Analytics
+        └── Admin
+        |
+        ├──────── PostgreSQL + PostGIS
+        |
+        ├──────── Redis
+        |
+        ├──────── Search Engine
+        |
+        └──────── Object Storage
+
+
+============================================================
+8. TECHNOLOGY STACK
+============================================================
+
+CUSTOMER APP:
+
+Flutter
+
+BACKEND:
+
+Python
+FastAPI
+
+DATABASE:
+
+PostgreSQL
+PostGIS
+
+CACHE:
+
+Redis / compatible managed cache
+
+SEARCH:
+
+Use a dedicated search layer only when justified.
+
+The system must support:
+
+- product search
+- typo tolerance
+- brand search
+- category search
+- barcode search
+- nearby business discovery
+- availability filtering
+- price sorting
+- distance sorting
+- rating sorting
+
+OBJECT STORAGE:
+
+Amazon S3 or compatible object storage.
+
+Store images/files in object storage.
+
+Do NOT store large binary files inside PostgreSQL.
+
+AUTH:
+
+JWT/access-token based authentication with secure refresh-token strategy.
+
+LOCATION:
+
+PostGIS.
+
+CONTAINERIZATION:
+
+Docker / Docker Compose for local development where useful.
+
+DATABASE MIGRATIONS:
+
+Alembic.
+
+ORM:
+
+SQLAlchemy.
+
+API DOCUMENTATION:
+
+OpenAPI through FastAPI.
+
+============================================================
+9. AWS FREE TIER REQUIREMENT
+============================================================
+
+IMPORTANT:
+
+I am currently using AWS Free Tier.
+
+The architecture must be COST-CONSCIOUS.
+
+Do not create expensive AWS resources automatically.
+
+Do not deploy:
+
+- large EC2 instances
+- unnecessary load balancers
+- unnecessary NAT gateways
+- unnecessary RDS replicas
+- unnecessary OpenSearch clusters
+- unnecessary ElastiCache infrastructure
+- unnecessary ECS/EKS infrastructure
+- unnecessary background infrastructure
+
+without explicit approval.
+
+Prefer the simplest AWS architecture that satisfies the requirement.
+
+Initial target:
+
+RDS PostgreSQL + PostGIS
++
+simple backend compute
++
+S3
++
+Redis only where justified
++
+simple DNS/HTTPS
+
+Use Single-AZ and eligible small instances during development
+where appropriate.
+
+Do not enable expensive production-grade features during MVP
+unless explicitly approved.
+
+Before creating ANY AWS resource:
+
+1. Explain what it is.
+2. Explain why it is needed.
+3. Explain expected cost/free-tier implications.
+4. Ask for approval if it may create charges.
+
+Never assume AWS resources are free.
+
+Never hardcode AWS credentials.
+
+Use IAM roles and secure secret management.
+
+============================================================
+10. AWS COST SAFETY
+============================================================
+
+Create a COST-SAFETY document.
+
+Track:
+
+- RDS
+- EC2/Lightsail/compute
+- S3
+- Redis
+- Search
+- data transfer
+- CloudWatch
+- NAT
+- load balancers
+- domain
+- other services
+
+Never silently introduce a paid dependency.
+
+If an AWS service is not necessary for MVP,
+do not introduce it.
+
+============================================================
+11. DATABASE ARCHITECTURE
+============================================================
+
+PostgreSQL + PostGIS is the system of record.
+
+Core domains:
+
+USER
+BUSINESS
+LOCATION
+CATEGORY
+BRAND
+PRODUCT
+PRODUCT VARIANT
+PRODUCT IDENTIFIER
+PRODUCT MEDIA
+BUSINESS PRODUCT
+INVENTORY
+PRICE
+PRICE HISTORY
+OFFER
+SEARCH
+SAVED ITEMS
+RESTAURANT
+TRANSPORT
+BOOKING
+SUBSCRIPTION
+PAYMENT
+NOTIFICATION
+ANALYTICS
+AUDIT
+
+============================================================
+12. USER DOMAIN
+============================================================
+
+users
+
+Fields conceptually include:
+
+id
+phone
+email
+password_hash
+role
+status
+is_verified
+created_at
+updated_at
+last_login_at
+
+Roles:
+
+CUSTOMER
+BUSINESS_OWNER
+RESTAURANT_OWNER
+TRANSPORT_PROVIDER
+ADMIN
+SUPER_ADMIN
+
+Do not create separate authentication systems for every role.
+
+Use a unified identity system with authorization.
+
+------------------------------------------------------------
+
+user_profiles
+
+user_id
+first_name
+last_name
+profile_image
+gender
+date_of_birth
+language
+created_at
+updated_at
+
+------------------------------------------------------------
+
+user_addresses
+
+user_id
+label
+address
+area
+city
+state
+pincode
+latitude
+longitude
+PostGIS location
+is_default
+created_at
+updated_at
+
+============================================================
+13. BUSINESS DOMAIN
+============================================================
+
+businesses
+
+business_id
+owner_user_id
+business_type
+business_name
+description
+phone
+email
+logo
+cover_image
+status
+verification_status
+created_at
+updated_at
+
+Business types:
+
+SHOP
+PHARMACY
+HEALTHCARE
+BEAUTY
+FURNITURE
+HOUSEHOLD
+SPORTS
+BOOKSTORE
+AUTOMOTIVE
+HARDWARE
+RESTAURANT
+TRANSPORT_PROVIDER
+
+------------------------------------------------------------
+
+business_locations
+
+Support multiple branches.
+
+Fields:
+
+id
+business_id
+address
+city
+state
+pincode
+latitude
+longitude
+PostGIS location
+is_primary
+
+Create a spatial GIST index.
+
+------------------------------------------------------------
+
+business_hours
+
+business_id
+day_of_week
+open_time
+close_time
+is_closed
+
+------------------------------------------------------------
+
+business_verifications
+
+business_id
+verification_type
+status
+document_reference
+verified_by
+verified_at
+rejection_reason
+created_at
+
+Healthcare/pharmacy verification must be supported.
+
+============================================================
+14. PRODUCT MASTER
+============================================================
+
+IMPORTANT:
+
+Product Master is one of the most important modules.
+
+The Product Master represents the canonical product identity.
+
+products:
+
+id
+category_id
+brand_id
+name
+slug
+description
+product_type
+status
+created_at
+updated_at
+
+DO NOT put shop-specific:
+
+price
+stock
+offer
+
+inside products.
+
+------------------------------------------------------------
+
+product_variants
+
+product_id
+variant_name
+size_value
+size_unit
+model_number
+color
+pack_quantity
+attributes JSONB
+created_at
+updated_at
+
+Example:
+
+Dove Shampoo
+    |
+    ├── 180ml
+    ├── 340ml
+    └── 650ml
+
+------------------------------------------------------------
+
+product_identifiers
+
+product_variant_id
+identifier_type
+identifier_value
+is_primary
+
+Support:
+
+EAN
+UPC
+GTIN
+BARCODE
+ISBN
+SKU
+OEM_PART_NUMBER
+MODEL_NUMBER
+
+Identifier values should be indexed appropriately.
+
+============================================================
+15. PRODUCT MEDIA
+============================================================
+
+product_media
+
+product_id
+variant_id
+media_type
+url
+sort_order
+is_primary
+
+Store actual files in S3.
+
+Database stores metadata and URL/object key.
+
+============================================================
+16. PRODUCT ATTRIBUTES
+============================================================
+
+Support category-specific attributes.
+
+Examples:
+
+Healthcare:
+
+form
+strength
+pack_size
+
+Furniture:
+
+material
+width
+height
+length
+
+Sports:
+
+size
+gender
+material
+
+Automotive:
+
+vehicle
+model
+year
+engine
+compatibility
+
+Prefer structured attributes where the domain requires
+queryability.
+
+Use JSONB only where appropriate.
+
+Do not put everything into JSONB.
+
+============================================================
+17. AUTOMOTIVE COMPATIBILITY
+============================================================
+
+Create proper entities:
+
+vehicle_makes
+vehicle_models
+vehicle_variants
+product_vehicle_compatibility
+
+Example:
+
+Brake Pad
+    ↓
+Honda
+    ↓
+Activa
+    ↓
+Activa 6G
+
+The customer should eventually be able to search
+using vehicle information.
+
+============================================================
+18. BUSINESS PRODUCT
+============================================================
+
+business_products
+
+This table connects:
+
+PRODUCT VARIANT
+        +
+BUSINESS
+
+Fields:
+
+id
+business_id
+product_variant_id
+business_sku
+is_active
+created_at
+updated_at
+
+Unique relationship:
+
+business_id + product_variant_id
+
+must be appropriately constrained unless the architecture
+explicitly supports multiple listings of the same variant.
+
+============================================================
+19. INVENTORY
+============================================================
+
+inventory
+
+business_product_id
+quantity
+available_quantity
+reserved_quantity
+stock_status
+availability_status
+last_updated_at
+inventory_source
+created_at
+updated_at
+
+Inventory source:
+
+MANUAL
+BARCODE
+POS
+EXCEL
+API
+
+Stock status:
+
+IN_STOCK
+LOW_STOCK
+OUT_OF_STOCK
+UNKNOWN
+
+Availability:
+
+AVAILABLE
+UNAVAILABLE
+LIMITED
+UNKNOWN
+
+============================================================
+20. PRICE
+============================================================
+
+product_prices
+
+business_product_id
+mrp
+selling_price
+currency
+effective_from
+effective_until
+is_current
+created_at
+updated_at
+
+Do not mix historical prices with current prices.
+
+------------------------------------------------------------
+
+price_history
+
+business_product_id
+mrp
+selling_price
+changed_by
+changed_at
+
+============================================================
+21. OFFERS
+============================================================
+
+offers
+
+business_id
+business_product_id
+offer_type
+discount_value
+offer_price
+start_at
+end_at
+conditions
+status
+created_at
+updated_at
+
+============================================================
+22. INVENTORY HISTORY
+============================================================
+
+inventory_update_logs
+
+inventory_id
+old_quantity
+new_quantity
+old_status
+new_status
+source
+updated_by
+created_at
+
+This is required for debugging and auditing inventory changes.
+
+============================================================
+23. BARCODE WORKFLOW
+============================================================
+
+Shopkeeper should be able to:
+
+1. Open product-add screen.
+2. Scan barcode.
+3. Search product identifier.
+4. If product exists:
+      load Product Master.
+5. If variant exists:
+      connect shop to existing variant.
+6. If product does not exist:
+      allow controlled product creation/request.
+7. Enter:
+      price
+      availability
+      quantity if supported
+      offer
+8. Review.
+9. Publish.
+
+Never create duplicate Product Master records unnecessarily.
+
+============================================================
+24. EXCEL IMPORT
+============================================================
+
+Support:
+
+import_jobs
+import_errors
+
+Import workflow:
+
+Upload Excel
+    ↓
+Validate file
+    ↓
+Validate rows
+    ↓
+Resolve identifiers
+    ↓
+Resolve products
+    ↓
+Resolve variants
+    ↓
+Create/update business products
+    ↓
+Update inventory
+    ↓
+Update price
+    ↓
+Generate import report
+
+Invalid rows must not silently disappear.
+
+Provide row-level error information.
+
+============================================================
+25. POS INTEGRATION
+============================================================
+
+Support future POS integration.
+
+Tables:
+
+pos_integrations
+pos_sync_logs
+
+Never store sensitive POS credentials as plain text.
+
+Use secure secret references.
+
+============================================================
+26. LOCATION / POSTGIS
+============================================================
+
+PostGIS is mandatory for nearby business discovery.
+
+Store business location using:
+
+GEOGRAPHY(Point, 4326)
+
+Use spatial indexes.
+
+Customer query:
+
+latitude
+longitude
+radius
+
+System should calculate:
+
+distance
+
+using PostGIS.
+
+Nearby search must NOT depend on application-side
+distance calculations for large result sets.
+
+============================================================
+27. SEARCH
+============================================================
+
+Search should understand:
+
+"Dove shampoo 650ml"
+
+"Samsung charger"
+
+"Honda Activa brake pad"
+
+"notebook"
+
+"medical thermometer"
+
+etc.
+
+Search pipeline:
+
+Customer Query
+      ↓
+Normalize
+      ↓
+Understand intent
+      ↓
+Product / Variant matching
+      ↓
+Category / Brand matching
+      ↓
+Inventory availability
+      ↓
+Business location
+      ↓
+Distance
+      ↓
+Ranking
+      ↓
+Results
+
+Result ranking should consider:
+
+- product relevance
+- exact match
+- availability
+- distance
+- price
+- business rating
+- inventory freshness
+
+Do not make search dependent entirely on fuzzy matching.
+
+Exact identifiers such as barcode/ISBN should have priority.
+
+============================================================
+28. SEARCH RESULT
+============================================================
+
+A search result should conceptually contain:
+
+Product
+Variant
+Business
+Price
+MRP
+Availability
+Distance
+Rating
+Inventory freshness
+Offer if available
+
+Example:
+
+Dove Shampoo 650ml
+
+Gupta General Store
+₹248
+In Stock
+1.2 km
+4.3 ★
+
+Sharma Mart
+₹235
+In Stock
+1.8 km
+4.1 ★
+
+Kiran Store
+₹250
+Limited Stock
+2.3 km
+4.0 ★
+
+============================================================
+29. CUSTOMER FEATURES
+============================================================
+
+Customer app should support:
+
+- authentication
+- location selection
+- product search
+- nearby discovery
+- filters
+- sorting
+- product details
+- shop details
+- directions
+- save product
+- save shop
+- call shop
+- share
+- search history
+- profile
+- notifications
+
+Do not add unnecessary e-commerce checkout.
+
+============================================================
+30. SHOPKEEPER FEATURES
+============================================================
+
+Shopkeeper should support:
+
+Registration
+    ↓
+Mobile verification
+    ↓
+Business verification
+    ↓
+Choose plan
+    ↓
+Choose inventory method
+
+Inventory methods:
+
+1. Phone Barcode Lookup
+2. POS Sync
+3. Excel Upload
+4. Manual Update
+
+Then:
+
+Add / Update Products
+    ↓
+Inventory Live on Platform
+    ↓
+Customers Can Search & Find
+
+============================================================
+31. INVENTORY UPDATE PRINCIPLE
+============================================================
+
+Inventory freshness is critical.
+
+Every inventory update should record:
+
+- source
+- timestamp
+- actor
+- old value
+- new value
+
+Customer search should be able to know whether
+inventory information is fresh.
+
+Never present stale inventory as guaranteed truth.
+
+Use appropriate freshness indicators.
+
+============================================================
+32. RESTAURANT DOMAIN
+============================================================
+
+Restaurant is separate from normal product inventory.
+
+restaurants
+
+restaurant_id
+business_id
+description
+cuisine
+price_range
+status
+
+restaurant_menus
+
+restaurant_id
+name
+description
+is_active
+
+menu_items
+
+menu_id
+name
+description
+price
+image
+is_available
+
+Do NOT convert restaurants into grocery shops.
+
+============================================================
+33. TRANSPORT DOMAIN
+============================================================
+
+Transport must be independent from Product Inventory.
+
+transport_providers
+
+business_id
+provider_type
+description
+status
+
+vehicle_types
+
+name
+capacity
+
+transport_vehicles
+
+provider_id
+vehicle_type_id
+registration_reference
+brand
+model
+year
+capacity
+image
+status
+
+transport_services
+
+provider_id
+service_type
+title
+description
+base_price
+pricing_type
+status
+
+transport_availability
+
+vehicle_id
+service_id
+available_from
+available_until
+status
+
+============================================================
+34. PERSONAL TRANSPORT / TRAVEL
+============================================================
+
+Support:
+
+Marriage transportation
+Personal travel
+Family tours
+Local tours
+Vehicle rental
+Event transportation
+
+transport_bookings:
+
+customer_id
+provider_id
+vehicle_id
+service_id
+pickup
+destination
+pickup coordinates
+destination coordinates
+start time
+end time
+passenger count
+purpose
+notes
+quoted price
+final price
+status
+created_at
+updated_at
+
+Purpose:
+
+MARRIAGE
+TOUR
+FAMILY_TRAVEL
+PERSONAL_TRAVEL
+LOCAL_TRAVEL
+EVENT
+OTHER
+
+============================================================
+35. SAVED ITEMS
+============================================================
+
+saved_products
+
+user_id
+product_id
+created_at
+
+saved_businesses
+
+user_id
+business_id
+created_at
+
+Add appropriate unique constraints.
+
+============================================================
+36. SEARCH HISTORY
+============================================================
+
+search_history
+
+user_id
+query
+search_type
+latitude
+longitude
+results_count
+created_at
+
+Search history must not contain unnecessary personal data.
+
+============================================================
+37. NOTIFICATIONS
+============================================================
+
+notifications
+
+user_id
+type
+title
+message
+data JSONB
+is_read
+created_at
+
+user_devices
+
+user_id
+device_id
+platform
+push_token
+is_active
+last_seen_at
+
+============================================================
+38. REVIEWS
+============================================================
+
+reviews
+
+user_id
+business_id
+product_id
+booking_id
+rating
+review_text
+status
+created_at
+updated_at
+
+Reviews must have validation.
+
+============================================================
+39. SUBSCRIPTIONS
+============================================================
+
+subscription_plans
+
+name
+description
+price
+billing_period
+product_limit
+features
+is_active
+
+business_subscriptions
+
+business_id
+plan_id
+start_date
+end_date
+status
+auto_renew
+
+Initial plans may be:
+
+BASIC
+PRO
+PREMIUM
+
+Do not hardcode plan rules throughout the application.
+
+============================================================
+40. PAYMENTS
+============================================================
+
+payments
+
+user_id
+business_id
+subscription_id
+amount
+currency
+provider
+transaction_reference
+status
+paid_at
+created_at
+
+Payment implementation must be isolated.
+
+Never trust client-provided payment status.
+
+Verify payment server-side.
+
+============================================================
+41. ADMIN PANEL
+============================================================
+
+Admin must support:
+
+Dashboard
+Businesses
+Business verification
+Products
+Categories
+Brands
+Inventory monitoring
+Subscriptions
+Reports
+Search analytics
+Users
+Reviews
+Transport providers
+Restaurants
+System settings
+Audit logs
+
+Admin actions must be audited.
+
+============================================================
+42. AUDIT LOG
+============================================================
+
+audit_logs
+
+actor_user_id
+action
+entity_type
+entity_id
+old_data
+new_data
+created_at
+
+Examples:
+
+PRODUCT_CREATED
+PRODUCT_UPDATED
+PRICE_CHANGED
+INVENTORY_UPDATED
+BUSINESS_VERIFIED
+BUSINESS_REJECTED
+BOOKING_ACCEPTED
+SUBSCRIPTION_CHANGED
+
+============================================================
+43. SECURITY
+============================================================
+
+Implement:
+
+- secure password handling
+- JWT security
+- refresh token security
+- authorization
+- role-based access control
+- input validation
+- SQL injection protection
+- rate limiting where appropriate
+- secure CORS
+- secure headers
+- secret management
+- file upload validation
+- object storage access control
+- audit logging
+- secure error responses
+
+Never expose:
+
+database passwords
+AWS access keys
+JWT secrets
+payment secrets
+OTP provider secrets
+internal stack traces
+
+============================================================
+44. ENVIRONMENT VARIABLES
+============================================================
+
+Never hardcode secrets.
+
+Use environment variables.
+
+Examples:
+
+DATABASE_URL
+REDIS_URL
+JWT_SECRET
+JWT_REFRESH_SECRET
+AWS_REGION
+AWS_S3_BUCKET
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+SEARCH_URL
+OTP_PROVIDER_KEY
+PAYMENT_PROVIDER_KEY
+
+Prefer IAM roles over static AWS credentials
+where the deployment environment supports it.
+
+Provide:
+
+.env.example
+
+Never commit:
+
+.env
+
+============================================================
+45. API ARCHITECTURE
+============================================================
+
+Use versioned API:
+
+/api/v1/
+
+Modules:
+
+/auth
+/users
+/profile
+/locations
+/categories
+/brands
+/products
+/search
+/businesses
+/inventory
+/saved
+/notifications
+/restaurants
+/transport
+/bookings
+/subscriptions
+/payments
+/admin
+/analytics
+
+Use:
+
+request schemas
+response schemas
+validation
+service layer
+repository/data-access layer where justified
+consistent error format
+
+Do not put all business logic inside route handlers.
+
+============================================================
+46. API RESPONSE PRINCIPLE
+============================================================
+
+Responses must be:
+
+consistent
+validated
+predictable
+versioned
+
+Example conceptual format:
+
+success:
+
+{
+  "data": ...,
+  "meta": ...
+}
+
+error:
+
+{
+  "error": {
+    "code": "...",
+    "message": "...",
+    "details": ...
+  }
+}
+
+Do not expose internal exceptions.
+
+============================================================
+47. DATABASE MIGRATIONS
+============================================================
+
+Use Alembic.
+
+Never manually modify production database structure
+without a migration.
+
+Every schema change must have:
+
+migration
+upgrade
+downgrade where practical
+testing
+
+Migration naming must be meaningful.
+
+============================================================
+48. DATABASE CONSTRAINTS
+============================================================
+
+Do not rely only on application validation.
+
+Use:
+
+PRIMARY KEY
+FOREIGN KEY
+UNIQUE
+CHECK
+NOT NULL
+INDEX
+SPATIAL INDEX
+
+where appropriate.
+
+Database must enforce important invariants.
+
+============================================================
+49. SOFT DELETE / STATUS
+============================================================
+
+Do not physically delete important business/product records
+unless explicitly required.
+
+Use status/soft-delete where appropriate.
+
+But do not add soft-delete columns to every table blindly.
+
+Choose based on business requirements.
+
+============================================================
+50. PERFORMANCE
+============================================================
+
+Initial platform must work efficiently on small infrastructure.
+
+Avoid:
+
+N+1 queries
+unbounded queries
+large payloads
+unnecessary joins
+repeated database calls
+loading entire tables
+
+Use:
+
+pagination
+indexes
+selective columns
+query optimization
+caching
+spatial indexes
+appropriate database constraints
+
+============================================================
+51. REDIS
+============================================================
+
+Redis should be used for:
+
+- caching
+- short-lived data
+- rate limiting
+- temporary state
+- frequently accessed search/business data where justified
+
+Do NOT use Redis as the primary database.
+
+PostgreSQL is the source of truth.
+
+If Redis is unavailable, core persistent functionality
+should not become corrupted.
+
+============================================================
+52. CACHING RULE
+============================================================
+
+Never cache data indefinitely.
+
+Every cache must have:
+
+key strategy
+TTL
+invalidation strategy
+
+Inventory and price data require special care.
+
+Do not return stale cached availability
+without an appropriate freshness strategy.
+
+============================================================
+53. S3
+============================================================
+
+Use S3 for:
+
+- product images
+- business images
+- profile images
+- documents
+- import files
+
+Database stores:
+
+object key
+URL/reference
+metadata
+
+Validate:
+
+file type
+file size
+upload permissions
+
+============================================================
+54. OBSERVABILITY
+============================================================
+
+Implement structured logging.
+
+Track:
+
+request ID
+endpoint
+status code
+latency
+error category
+
+Do not log secrets.
+
+Do not log sensitive personal information unnecessarily.
+
+============================================================
+55. TESTING
+============================================================
+
+Testing is mandatory.
+
+Backend:
+
+- unit tests
+- API tests
+- database tests
+- authentication tests
+- authorization tests
+- product tests
+- inventory tests
+- search tests
+- location tests
+- transport booking tests
+
+Flutter:
+
+- widget tests where useful
+- integration tests for critical flows
+
+Critical flows:
+
+Customer Search
+Product Result
+Shop Details
+Directions
+Shopkeeper Product Add
+Inventory Update
+Barcode Lookup
+Authentication
+Admin Verification
+Transport Booking
+
+============================================================
+56. ERROR HANDLING
+============================================================
+
+Errors must be:
+
+predictable
+safe
+logged appropriately
+user-friendly
+
+Do not show raw exceptions to users.
+
+Example:
+
+BAD:
+
+"psycopg2.errors.UniqueViolation..."
+
+GOOD:
+
+"Product already exists for this business."
+
+============================================================
+57. CLINE AGENT WORKING RULES
+============================================================
+
+IMPORTANT.
+
+You are an AI coding agent working inside a repository.
+
+Before modifying files:
+
+1. Inspect the repository.
+2. Understand architecture.
+3. Find existing implementation.
+4. Search for duplicates.
+5. Check dependencies.
+6. Check tests.
+7. Check configuration.
+8. Check database code.
+9. Check API contracts.
+10. Check Flutter integration.
+
+Do not guess file locations.
+
+Use repository search.
+
+============================================================
+58. NEVER DO THIS
+============================================================
+
+DO NOT:
+
+- blindly rewrite entire repository
+- create duplicate models
+- create duplicate services
+- create duplicate APIs
+- create duplicate database tables
+- create fake backend responses permanently
+- hardcode production secrets
+- hardcode business rules unnecessarily
+- add unrelated features
+- introduce microservices unnecessarily
+- create expensive AWS infrastructure without approval
+- delete working code without analysis
+- change architecture randomly
+- change database schema without migration
+- skip tests
+- claim something works without verification
+
+============================================================
+59. BEFORE CODING
+============================================================
+
+For every major phase:
+
+FIRST:
+
+Inspect.
+
+SECOND:
+
+Explain planned changes.
+
+THIRD:
+
+Implement.
+
+FOURTH:
+
+Run validation.
+
+FIFTH:
+
+Fix issues.
+
+SIXTH:
+
+Report exactly what changed.
+
+============================================================
+60. PHASE-BASED DEVELOPMENT
+============================================================
+
+Follow this sequence.
+
+PHASE 0
+Existing Repository Audit
+
+PHASE 1
+Cleanup + Bug Fix
+
+PHASE 2
+Customer App Architecture Freeze
+
+PHASE 3
+Final Database Architecture
+
+PHASE 4
+API Contract
+
+PHASE 5
+Backend Foundation
+
+PHASE 6
+Authentication
+
+PHASE 7
+Product Master
+
+PHASE 8
+Business / Shop
+
+PHASE 9
+Inventory
+
+PHASE 10
+PostGIS / Location
+
+PHASE 11
+Search
+
+PHASE 12
+Customer API Integration
+
+PHASE 13
+Shopkeeper App
+
+PHASE 14
+Admin Panel
+
+PHASE 15
+Barcode
+
+PHASE 16
+Excel Import
+
+PHASE 17
+POS Integration
+
+PHASE 18
+Restaurant
+
+PHASE 19
+Transport
+
+PHASE 20
+Personal Transport / Travel Booking
+
+PHASE 21
+Subscription
+
+PHASE 22
+Notification
+
+PHASE 23
+Analytics
+
+PHASE 24
+Security Hardening
+
+PHASE 25
+Testing
+
+PHASE 26
+AWS Deployment
+
+PHASE 27
+Production Release
+
+============================================================
+61. PHASE GATE
+============================================================
+
+NEVER automatically jump from one major phase
+to the next if the current phase is broken.
+
+Each phase must have:
+
+Implementation
++
+Validation
++
+Testing
++
+Documentation
++
+Completion report
+
+A phase is COMPLETE only when:
+
+- code builds
+- relevant tests pass
+- no known critical errors remain
+- architecture remains consistent
+- documentation is updated
+- database/API contracts remain consistent
+
+============================================================
+62. DATABASE CONTRACT IS FROZEN
+============================================================
+
+The following separation is mandatory:
+
+Product Master
+≠
+Product Variant
+≠
+Business Product
+≠
+Inventory
+≠
+Price
+≠
+Price History
+≠
+Offer
+
+Also:
+
+Restaurant
+≠
+Product Shop
+
+Transport
+≠
+Product Inventory
+
+Transport Booking
+≠
+Product Purchase
+
+Customer
+≠
+Business Owner
+
+These boundaries must not be casually broken.
+
+============================================================
+63. CORE DATA FLOW
+============================================================
+
+SHOPKEEPER:
+
+Shopkeeper
+   ↓
+Business
+   ↓
+Product/Variant selection
+   ↓
+Business Product
+   ↓
+Inventory
+   ↓
+Price
+   ↓
+Offer
+   ↓
+Database
+   ↓
+Search Index
+   ↓
+Customer Search
+
+
+CUSTOMER:
+
+Customer
+   ↓
+Search
+   ↓
+Product matching
+   ↓
+Inventory filtering
+   ↓
+PostGIS nearby businesses
+   ↓
+Price / availability / distance / rating
+   ↓
+Results
+   ↓
+Business
+   ↓
+Directions
+   ↓
+Offline Purchase
+
+
+TRANSPORT:
+
+Customer
+   ↓
+Transport Search
+   ↓
+Nearby Providers
+   ↓
+Services / Vehicles
+   ↓
+Availability
+   ↓
+Booking Request
+   ↓
+Provider
+   ↓
+Confirmation
+   ↓
+Booking
+
+
+============================================================
+64. SEARCH FRESHNESS
+============================================================
+
+Inventory changes must eventually reflect in search.
+
+Design:
+
+Inventory Update
+      ↓
+Database
+      ↓
+Search synchronization
+      ↓
+Search index
+      ↓
+Customer result
+
+The system must handle synchronization failures.
+
+Do not silently lose updates.
+
+============================================================
+65. DATA CONSISTENCY
+============================================================
+
+PostgreSQL is the source of truth.
+
+Search engine is a derived index.
+
+Redis is a cache.
+
+S3 is object storage.
+
+Never treat:
+
+Redis
+Search index
+S3 metadata
+
+as the primary relational source of truth.
+
+============================================================
+66. DEVELOPMENT ENVIRONMENT
+============================================================
+
+Support local development.
+
+Recommended local services:
+
+Flutter
+Python
+PostgreSQL/PostGIS
+Redis
+Search service if required
+Docker where useful
+
+Development should be possible without requiring
+production AWS infrastructure.
+
+============================================================
+67. PRODUCTION ARCHITECTURE
+============================================================
+
+Initial production architecture should be simple.
+
+Flutter
+    ↓
+HTTPS
+    ↓
+Backend
+    ↓
+PostgreSQL/PostGIS
+    ↓
+Redis
+    ↓
+Search
+    ↓
+S3
+
+Do not introduce Kubernetes/microservices
+until scale genuinely requires it.
+
+============================================================
+68. SECURITY OF AWS
+============================================================
+
+Use least privilege.
+
+IAM policies should grant only required permissions.
+
+Do not use root AWS credentials in application code.
+
+Do not commit credentials.
+
+Do not expose RDS publicly unless absolutely necessary.
+
+Prefer private database access.
+
+Restrict security groups.
+
+============================================================
+69. DOCUMENTATION
+============================================================
+
+Maintain:
+
+README.md
+
+docs/
+
+architecture/
+database/
+api/
+deployment/
+security/
+testing/
+
+Important files:
+
+docs/architecture/system.md
+docs/database/schema.md
+docs/api/api-contract.md
+docs/deployment/aws.md
+docs/security/security.md
+
+Update documentation when architecture changes.
+
+============================================================
+70. GIT SAFETY
+============================================================
+
+Before large modifications:
+
+Check git status.
+
+Do not destroy user work.
+
+Do not reset or force-delete unrelated changes.
+
+Do not overwrite unrelated files.
+
+Keep changes logically grouped.
+
+After major milestones provide:
+
+git diff summary
+files changed
+files added
+files deleted
+
+============================================================
+71. FINAL QUALITY STANDARD
+============================================================
+
+The final system must be:
+
+Reliable
+Maintainable
+Secure
+Testable
+Scalable
+Cost-conscious
+Simple to operate
+
+It must not be:
+
+Over-engineered
+Duplicated
+Full of dead code
+Full of hardcoded data
+Dependent on mock APIs
+Dependent on expensive AWS services
+Architecturally inconsistent
+
+============================================================
+72. MOST IMPORTANT RULE
+============================================================
+
+DO NOT TRY TO BUILD THE ENTIRE PROJECT IN ONE STEP.
+
+Work phase by phase.
+
+At the beginning of each phase:
+
+1. Inspect current state.
+2. Identify what already exists.
+3. Identify what is missing.
+4. Identify what is broken.
+5. Plan the minimum required changes.
+6. Implement.
+7. Test.
+8. Fix.
+9. Document.
+10. Report completion.
+
+Do not invent requirements.
+
+If something is ambiguous:
+
+use the existing approved architecture first.
+
+If still ambiguous:
+
+STOP and ask for clarification rather than making
+a major architectural assumption.
+
+============================================================
+73. FIRST TASK
+============================================================
+
+DO NOT START IMPLEMENTING FEATURES YET.
+
+Your FIRST task is:
+
+PHASE 0 — COMPLETE REPOSITORY AUDIT.
+
+Inspect the entire repository.
+
+Generate:
+
+1. Current folder structure
+2. Current Flutter architecture
+3. Existing backend architecture
+4. Existing database architecture
+5. Existing API layer
+6. Existing authentication
+7. Existing product implementation
+8. Existing shop/business implementation
+9. Existing inventory implementation
+10. Existing search implementation
+11. Existing location implementation
+12. Existing transport implementation
+13. Existing restaurant implementation
+14. Existing admin implementation
+15. Existing AWS/deployment configuration
+16. Dependency analysis
+17. Duplicate code report
+18. Dead code report
+19. Bug report
+20. Security issues
+21. Architecture violations
+22. Missing components
+23. Recommended cleanup
+24. Recommended implementation order
+
+Classify every important component:
+
+KEEP
+REFACTOR
+REMOVE
+REBUILD
+MISSING
+BROKEN
+DUPLICATED
+TEMPORARY
+
+IMPORTANT:
+
+Do NOT modify or delete files during Phase 0.
+
+Do NOT generate large amounts of code.
+
+Only inspect and produce the audit.
+
+After the audit is complete,
+STOP and wait for the next phase instruction.
+
+============================================================
+END OF MASTER PROJECT INSTRUCTION
+============================================================

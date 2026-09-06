@@ -1,8 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/data/auth_repository.dart' show kUseMockAuth;
+import '../../features/auth/data/phone_auth_service.dart';
 import '../config/env_config.dart';
 import 'api_client.dart';
+import 'token_refresh_interceptor.dart';
 import 'token_store.dart';
 
 /// Global hook invoked whenever any API call fails with 401 (session
@@ -12,12 +15,22 @@ void Function()? globalUnauthorizedHandler;
 
 /// Single shared Dio instance for the Shopkeeper App.
 final dioProvider = Provider<Dio>((ref) {
-  return Dio(BaseOptions(
+  final dio = Dio(BaseOptions(
     baseUrl: EnvConfig.apiBaseUrl,
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 15),
     responseType: ResponseType.json,
   ));
+
+  // Add token refresh interceptor
+  final tokenStore = ref.watch(tokenStoreProvider);
+  dio.interceptors.add(TokenRefreshInterceptor(
+    dio: dio,
+    tokenStore: tokenStore,
+    onSessionExpired: () => globalUnauthorizedHandler?.call(),
+  ));
+
+  return dio;
 });
 
 /// Shared API client.
@@ -31,4 +44,13 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 /// Convenience provider resolving the stored bearer token.
 final accessTokenProvider = FutureProvider<String?>((ref) async {
   return ref.watch(tokenStoreProvider).readAccessToken();
+});
+
+/// Firebase Phone Auth service. Uses the offline [FakePhoneAuthService] while
+/// mock auth is enabled so the app works without a real Firebase project.
+final phoneAuthServiceProvider = Provider<PhoneAuthService>((ref) {
+  if (kUseMockAuth) {
+    return FakePhoneAuthService();
+  }
+  return FirebasePhoneAuthService();
 });

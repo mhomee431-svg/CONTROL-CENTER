@@ -1,0 +1,46 @@
+                 HYPERLOCAL PRODUCT DISCOVERY
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+      CUSTOMER         SHOPKEEPER         ADMIN
+          │                │                │
+          │                ▼                │
+          │        Add / Update Stock      │
+          │                │                │
+          │       ┌────────┼────────┐       │
+          │       │        │        │       │
+          │    Barcode    POS     Excel    │
+          │       │        │        │       │
+          │       └────────┼────────┘       │
+          │                ▼                │
+          │           INVENTORY             │
+          │                │                │
+          └───────────────►│                │
+                           ▼                │
+                    PRODUCT MASTER ◄────────┘
+                           │
+                 ┌─────────┼─────────┐
+                 ▼         ▼         ▼
+              PRICE    LOCATION   SEARCH
+                 │         │         │
+                 └─────────┼─────────┘
+                           ▼
+                    NEARBY RESULTS
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+          PRICE       AVAILABILITY    DISTANCE
+             │             │             │
+             └─────────────┼─────────────┘
+                           ▼
+                    CUSTOMER CHOOSES
+                           │
+                           ▼
+                      DIRECTIONS
+                           │
+                           ▼
+                      VISIT SHOP
+                           │
+                           ▼
+                   OFFLINE PURCHASE

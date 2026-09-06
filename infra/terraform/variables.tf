@@ -6,6 +6,25 @@ variable "aws_region" {
   default     = "ap-south-1"
 }
 
+# ── Resource tagging (Phase 51) ────────────────────────────────────────────
+variable "tag_owner" {
+  description = "Owner tag value for cost allocation (e.g. platform-team)."
+  type        = string
+  default     = "platform-team"
+}
+
+variable "tag_cost_center" {
+  description = "Cost center tag value (e.g. hyperlocal-001)."
+  type        = string
+  default     = "hyperlocal-001"
+}
+
+variable "tag_project" {
+  description = "Project tag value (defaults to project_name)."
+  type        = string
+  default     = ""
+}
+
 variable "project_name" {
   description = "Project prefix for all resources."
   type        = string

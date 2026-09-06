@@ -1,4 +1,4 @@
-package com.hyperlocal.hyperlocal_customer_app
+package com.hyperlocal.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -44,7 +44,7 @@ def _portable_timestamp_defaults():
     from sqlalchemy import ColumnDefault
 
     def _now(ctx=None):
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     for table in Base.metadata.tables.values():
         for col in table.columns:
@@ -425,7 +425,7 @@ class TestReadUnread:
         user = self._make_three(db)
         first = db.query(Notification).order_by(Notification.id).first()
         first.is_read = True
-        first.read_at = datetime.utcnow()
+        first.read_at = datetime.now(timezone.utc)
         db.flush()
         unread = (
             db.query(Notification)
@@ -447,7 +447,7 @@ class TestReadUnread:
     def test_read_all(self, db):
         user = self._make_three(db)
         db.query(Notification).filter(Notification.user_id == user.id).update(
-            {Notification.is_read: True, Notification.read_at: datetime.utcnow()}
+            {Notification.is_read: True, Notification.read_at: datetime.now(timezone.utc)}
         )
         db.flush()
         remaining = (

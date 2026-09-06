@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../controllers/home_controller.dart';
 import '../widgets/location_header.dart';
 import '../widgets/home_search_bar.dart';
@@ -10,15 +11,30 @@ import '../widgets/category_section.dart';
 import '../widgets/recent_searches_section.dart';
 import '../widgets/product_row_section.dart';
 import '../widgets/nearby_shops_section.dart';
+import '../screens/coming_soon_screen.dart';
+import '../../../location/presentation/controllers/location_controller.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  @override
+    @override
   Widget build(BuildContext context, WidgetRef ref) {
     final homeDataAsync = ref.watch(homeControllerProvider);
+
+    // When location resolves, refresh the home feed so nearby shops load.
+    ref.listen<LocationState>(
+      locationControllerProvider,
+            (previous, next) {
+        if (next.status == LocationStatus.success &&
+            next.location != null &&
+            next.location!.hasValidCoordinates) {
+          // ignore: unused_result
+          ref.refresh(homeControllerProvider.future);
+        }
+      },
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -39,16 +55,23 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               homeDataAsync.when(
-                data: (data) => SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
+                data: (data) {
+                  // Phase 11: If the auto-detected location has no shops,
+                  // show a "Coming Soon" screen instead of an empty home.
+                  if (data.nearbyShops.isEmpty) {
+                    return const SliverToBoxAdapter(child: ComingSoonScreen());
+                  }
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
                       switch (index) {
                         case 0:
                           return PromotionBanner(promotions: data.promotions);
                         case 1:
                           return CategorySection(categories: data.categories);
                         case 2:
-                          return RecentSearchesSection(recentSearches: data.recentSearches);
+                          return RecentSearchesSection(
+                            recentSearches: data.recentSearches,
+                          );
                         case 3:
                           return ProductRowSection(
                             title: 'Popular Nearby',
@@ -73,11 +96,11 @@ class HomeScreen extends ConsumerWidget {
                         default:
                           return null;
                       }
-                    },
-                    childCount: 8,
-                  ),
-                ),
-                loading: () => const SliverToBoxAdapter(child: HomeSkeletonLoader()),
+                    }, childCount: 8),
+                  );
+                },
+                loading: () =>
+                    const SliverToBoxAdapter(child: HomeSkeletonLoader()),
                 error: (error, stack) => SliverToBoxAdapter(
                   child: _HomeErrorView(
                     error: error,

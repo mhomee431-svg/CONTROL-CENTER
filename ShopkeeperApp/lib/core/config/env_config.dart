@@ -12,8 +12,7 @@
 ///
 /// ```bash
 /// flutter build apk --release \
-///   --dart-define=SHOPKEEPER_API_BASE_URL=https://api.hyperlocal.in \
-///   --dart-define=SHOPKEEPER_ENABLE_DEMO_LOGIN=false
+///   --dart-define=SHOPKEEPER_API_BASE_URL=https://api.hyperlocal.in
 /// ```
 ///
 /// `SHOPKEEPER_API_BASE_URL` must be **scheme + host only** — the versioned
@@ -119,33 +118,6 @@ class EnvConfig {
   static const bool useMockData = bool.fromEnvironment(
     'SHOPKEEPER_USE_MOCK',
     defaultValue: false,
-  );
-
-  // ────────────────────────────────────────────────────────────────────────
-  // Local DEMO login — DISABLED by default for production safety.
-  //
-  // To use during local development only, build with:
-  //   flutter run --dart-define=SHOPKEEPER_ENABLE_DEMO_LOGIN=true \
-  //              --dart-define=SHOPKEEPER_DEMO_ID=9999999999 \
-  //              --dart-define=SHOPKEEPER_DEMO_PASSWORD=demo123
-  //
-  // `loginWithCredentials()` returns false unless the flag is enabled, so a
-  // normal/production build has no working demo backdoor and no stored
-  // credentials in the binary.
-  // ────────────────────────────────────────────────────────────────────────
-  static const bool demoLoginEnabled = bool.fromEnvironment(
-    'SHOPKEEPER_ENABLE_DEMO_LOGIN',
-    defaultValue: false,
-  );
-
-  static const String demoLoginId = String.fromEnvironment(
-    'SHOPKEEPER_DEMO_ID',
-    defaultValue: '',
-  );
-
-  static const String demoLoginPassword = String.fromEnvironment(
-    'SHOPKEEPER_DEMO_PASSWORD',
-    defaultValue: '',
   );
 }
 

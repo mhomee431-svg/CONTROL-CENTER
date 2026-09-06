@@ -81,6 +81,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.core.tasks.sample_resource_usage",
         "schedule": 30.0,
     },
+    # Daily token & session cleanup (runs at 3:00 AM)
+    "daily-token-cleanup": {
+        "task": "app.services.tasks.cleanup_expired_tokens",
+        "schedule": crontab(hour=3, minute=0),
+    },
 }
 
 # ── Phase 24 — observability: Celery task-metrics signals ───────────────────

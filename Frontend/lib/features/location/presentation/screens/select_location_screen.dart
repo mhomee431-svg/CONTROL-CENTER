@@ -30,6 +30,10 @@ class _SelectLocationScreenState extends ConsumerState<SelectLocationScreen> {
       if (!mounted) return;
       setState(() => _savedAddresses = addresses);
     });
+    // Auto-detect current location on open (Zepto-style).
+    Future.microtask(() {
+      ref.read(locationControllerProvider.notifier).fetchCurrentLocation();
+    });
   }
 
   @override
@@ -67,9 +71,18 @@ class _SelectLocationScreenState extends ConsumerState<SelectLocationScreen> {
     context.go('/');
   }
 
-  void _useCurrentLocation() {
-    ref.read(locationControllerProvider.notifier).fetchCurrentLocation(force: true);
-    context.go('/');
+    void _useCurrentLocation() async {
+    final controller = ref.read(locationControllerProvider.notifier);
+    await controller.fetchCurrentLocation(force: true);
+
+    final updatedState = ref.read(locationControllerProvider);
+    if (updatedState.status == LocationStatus.success) {
+      if (mounted) context.go('/');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(updatedState.errorMessage ?? 'Location fetch failed')),
+      );
+    }
   }
 
   @override
@@ -83,6 +96,8 @@ class _SelectLocationScreenState extends ConsumerState<SelectLocationScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const Divider(height: 1),
+
             // Current location indicator
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),

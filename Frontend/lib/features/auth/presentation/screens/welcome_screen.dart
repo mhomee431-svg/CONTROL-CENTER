@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+// import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../controllers/auth_controller.dart';
+// import '../controllers/auth_controller.dart';
 
 /// Welcome/onboarding entry screen shown to first-time users.
 class WelcomeScreen extends ConsumerWidget {
@@ -36,23 +36,24 @@ class WelcomeScreen extends ConsumerWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xl),
-              ElevatedButton(
-                onPressed: () => context.push('/login'),
-                child: const Text('Login with Phone'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton(
-                onPressed: () => ref
-                    .read(authControllerProvider.notifier)
-                    .continueAsGuest(),
-                child: const Text('Continue as Guest'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              OutlinedButton.icon(
-                onPressed: () => context.push('/onboarding-flow'),
-                icon: const Icon(Icons.timeline, size: 18),
-                label: const Text('View Customer Journey Flow'),
-              ),
+              // ── Auth/Login disabled (guest-first) ────────────────────
+              // ElevatedButton(
+              //   onPressed: () => context.push('/login'),
+              //   child: const Text('Login with Phone'),
+              // ),
+              // const SizedBox(height: AppSpacing.sm),
+              // TextButton(
+              //   onPressed: () => ref
+              //       .read(authControllerProvider.notifier)
+              //       .continueAsGuest(),
+              //   child: const Text('Continue as Guest'),
+              // ),
+              // const SizedBox(height: AppSpacing.sm),
+              // OutlinedButton.icon(
+              //   onPressed: () => context.push('/onboarding-flow'),
+              //   icon: const Icon(Icons.timeline, size: 18),
+              //   label: const Text('View Customer Journey Flow'),
+              // ),
             ],
           ),
         ),

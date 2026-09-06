@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/config/env_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_providers.dart';
+import '../../data/phone_auth_service.dart';
+import '../../data/phone_utils.dart';
 import '../../domain/auth_models.dart';
 import '../../data/auth_repository.dart';
 import 'selected_shop.dart';
@@ -25,7 +28,6 @@ class AuthState {
     this.pendingName,
     this.user,
     this.shops = const [],
-    this.isGuest = false, // TEMP/DEV: hardcoded-login; remove with that feature.
   });
 
   final AuthStatus status;
@@ -36,11 +38,6 @@ class AuthState {
   final String? pendingName;
   final ShopkeeperUser? user;
   final List<ShopSummary> shops;
-
-  /// TEMP/DEV ONLY — true when the session was created by the hardcoded
-  /// ID/password login instead of a real backend OTP login. Guest sessions
-  /// must never be hard-logged-out on 401 responses.
-  final bool isGuest;
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isLoading => status == AuthStatus.loading;
@@ -78,6 +75,8 @@ final authControllerProvider =
     NotifierProvider<AuthController, AuthState>(AuthController.new);
 
 class AuthController extends Notifier<AuthState> {
+  String? _pendingPassword;
+
   @override
   AuthState build() {
     // Install the global 401 → sign-out hook (no-op in tests that never
@@ -87,6 +86,8 @@ class AuthController extends Notifier<AuthState> {
   }
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
+
+  PhoneAuthService get _phoneAuth => ref.read(phoneAuthServiceProvider);
 
   /// Restores a persisted session on app startup.
   Future<bool> checkSession() async {
@@ -106,26 +107,77 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Send OTP via Firebase Phone Auth (client-side). No backend call.
+  /// The phone number is normalised to E.164 (+91…) first so users can type a
+  /// bare 10-digit Indian number.
   Future<bool> sendOtp(String phoneNumber) async {
+    final normalized = normalizeIndianPhone(phoneNumber);
+    state = AuthState.loading(from: state);
+    final completer = Completer<bool>();
+    try {
+      await _phoneAuth.sendOtp(
+        phoneNumber: normalized,
+        onCodeSent: (verificationId) {
+          state = AuthState.otpSent(
+            normalized,
+            pendingName: state.pendingName,
+          );
+          if (!completer.isCompleted) completer.complete(true);
+        },
+        onError: (message) {
+          state = AuthState.error(message);
+          if (!completer.isCompleted) completer.complete(false);
+        },
+      );
+    } catch (e) {
+      state = AuthState.error('Could not send the code. Try again.');
+      if (!completer.isCompleted) completer.complete(false);
+    }
+    return completer.future;
+  }
+
+  /// Firebase login-or-register: verifies OTP via Firebase, then calls the
+  /// backend which auto-creates the account if the phone is new.
+  Future<bool> loginWithFirebaseAuto({required String firebaseIdToken, String? name}) async {
     state = AuthState.loading(from: state);
     try {
-      await _repo.sendOtp(phoneNumber);
-      state = AuthState.otpSent(
-        phoneNumber,
-        pendingName: state.pendingName,
+      final session = await _repo.loginWithFirebaseAuto(
+        firebaseIdToken: firebaseIdToken,
+        name: name,
       );
+      state = AuthState.authenticated(user: session.user, shops: session.shops);
       return true;
     } on ApiException catch (e) {
       state = AuthState.error(e.message);
       return false;
     } catch (_) {
-      state = AuthState.error('Could not send the code. Try again.');
+      state = AuthState.error('Login failed. Please try again.');
       return false;
     }
   }
 
-  /// Marks the running OTP flow as a REGISTRATION for [name].
-  void beginRegistration(String phoneNumber, String name) {
+  /// Login with password (email/phone + password).
+  Future<bool> loginWithPassword(String identifier, String password) async {
+    state = AuthState.loading(from: state);
+    try {
+      final session = await _repo.loginWithPassword(
+        identifier: identifier,
+        password: password,
+      );
+      state = AuthState.authenticated(
+          user: session.user, shops: session.shops);
+      return true;
+    } on ApiException catch (e) {
+      state = AuthState.error(e.message);
+      return false;
+    } catch (_) {
+      state = AuthState.error('Login failed. Please try again.');
+      return false;
+    }
+  }
+
+  /// Marks the running OTP flow as a REGISTRATION for [name] with [password].
+  void beginRegistration(String phoneNumber, String name, [String? password]) {
     state = AuthState(
       status: state.status,
       errorMessage: state.errorMessage,
@@ -134,23 +186,39 @@ class AuthController extends Notifier<AuthState> {
       user: state.user,
       shops: state.shops,
     );
+    _pendingPassword = password;
   }
 
+  /// Verify the SMS code via Firebase, then register/login on the backend
+  /// using the resulting Firebase ID token.
   Future<bool> submitOtp({
     required String phoneNumber,
     required String otp,
   }) async {
     state = AuthState.loading(from: state);
     try {
+      // 1) Verify the OTP with Firebase → get ID token.
+      final result = await _phoneAuth.verifyOtp(smsCode: otp);
+
+      // 2) Use the token to register or log in on the backend.
       final name = state.pendingName;
       final session = (name != null && name.isNotEmpty)
-          ? await _repo.register(
-              phoneNumber: phoneNumber, otp: otp, name: name)
-          : await _repo.login(phoneNumber: phoneNumber, otp: otp);
+          ? await _repo.registerWithFirebase(
+              phoneNumber: result.phoneNumber,
+              firebaseIdToken: result.idToken,
+              name: name,
+              password: _pendingPassword,
+            )
+          : await _repo.loginWithFirebase(
+              firebaseIdToken: result.idToken,
+            );
       state = AuthState.authenticated(
           user: session.user, shops: session.shops);
       return true;
     } on ApiException catch (e) {
+      state = AuthState.error(e.message);
+      return false;
+    } on PhoneAuthException catch (e) {
       state = AuthState.error(e.message);
       return false;
     } catch (_) {
@@ -169,81 +237,39 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState.unauthenticated();
   }
 
-  // ────────────────────────────────────────────────────────────────────────
-  // TEMP/DEV HARDCODED LOGIN — remove before release.
-  //
-  // Opens a local demo session (demo user + demo shop) WITHOUT calling the
-  // backend, when the entered ID/password match the hardcoded values in
-  // [EnvConfig]. The real OTP flow (sendOtp → submitOtp) is untouched and
-  // keeps working normally alongside this.
-  //
-  // To restore original behaviour later:
-  //   1. Delete [loginWithCredentials] and [skipLogin] below.
-  //   2. Remove the Password field + credential branch in login_screen.dart.
-  //   3. Restore forceSessionExpired to: unauthenticated-guard only
-  //      (original lines are commented inside it).
-  //   4. Remove `isGuest` from AuthState and the constants from EnvConfig.
-  // ────────────────────────────────────────────────────────────────────────
-
-  /// Validates the entered credentials against the demo values.
-  /// Always returns false (and never opens a session) unless the demo login
-  /// was explicitly compiled in via `--dart-define=SHOPKEEPER_ENABLE_DEMO_LOGIN=true`.
-  Future<bool> loginWithCredentials(String id, String password) async {
-    if (!EnvConfig.demoLoginEnabled) {
-      state = const AuthState(
-          status: AuthStatus.error,
-          errorMessage: 'Demo login disabled in this build.');
-      return false;
+  /// Request password reset.
+  Future<void> forgotPassword(String identifier) async {
+    state = AuthState.loading(from: state);
+    try {
+      await _repo.forgotPassword(identifier);
+      state = AuthState.unauthenticated();
+    } on ApiException catch (e) {
+      state = AuthState.error(e.message);
+      rethrow;
+    } catch (_) {
+      state = AuthState.error('Failed to send reset link');
+      rethrow;
     }
-    final ok = id.trim() == EnvConfig.demoLoginId &&
-        password == EnvConfig.demoLoginPassword;
-    if (!ok) {
-      state = const AuthState(
-          status: AuthStatus.error,
-          errorMessage: 'Invalid ID or password.');
-      return false;
-    }
-    skipLogin();
-    return true;
   }
 
-  /// Creates the local demo session used by the hardcoded login.
-  void skipLogin() {
-    const demoUser = ShopkeeperUser(
-      id: -1,
-      phoneNumber: '+919999999999',
-      name: 'Demo Shopkeeper',
-      email: null,
-      role: 'owner',
-    );
-    const demoShop = ShopSummary(
-      id: -1,
-      name: 'Demo Shop',
-      status: 'REGISTERED',
-      isVerified: true,
-      category: 'Grocery',
-      imageUrl: null,
-      membership: 'owner',
-      permissions: ['update:shop', 'create:product', 'update:product'],
-    );
-
-    // Pre-select the demo shop so the router guard goes straight to
-    // /dashboard instead of bouncing to /shops or /shop-register.
-    ref.read(selectedShopProvider.notifier).select(demoShop);
-    state = const AuthState(
-      status: AuthStatus.authenticated,
-      user: demoUser,
-      shops: [demoShop],
-      isGuest: true,
-    );
+  /// Reset password with token.
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    state = AuthState.loading(from: state);
+    try {
+      await _repo.resetPassword(token: token, newPassword: newPassword);
+      state = AuthState.unauthenticated();
+    } on ApiException catch (e) {
+      state = AuthState.error(e.message);
+      rethrow;
+    } catch (_) {
+      state = AuthState.error('Failed to reset password');
+      rethrow;
+    }
   }
 
   /// Called by the API layer when a session becomes unrecoverable (401).
   void forceSessionExpired() {
     if (state.status == AuthStatus.unauthenticated) return;
-    // TEMP/DEV: hardcoded-login sessions have no server-side session to
-    // expire — keep the user inside so they can keep exploring the UI.
-    if (state.isGuest) return; // TEMP/DEV line — remove with the feature.
     state = AuthState.sessionExpired();
   }
 }

@@ -1,0 +1,886 @@
+================================================================================
+ HYPERLOCAL PRODUCT DISCOVERY PLATFORM
+ FINAL DATABASE SCHEMA DESIGN   (Master Specification Phase 2 / §10-§29, §52)
+================================================================================
+
+DOCUMENT PURPOSE
+--------------------------------------------------------------------------------
+This is the canonical database architecture for the hyperlocal product
+discovery platform. For every domain it defines the entities, columns,
+primary/foreign keys, unique & check constraints, indexes and the PostGIS
+strategy, and maps each entity to the Alembic migration that materialises it.
+
+It implements the Master Specification rules verbatim:
+ RULE 1 Product Master != Inventory
+ RULE 2 Inventory != Price
+ RULE 3 Price != Offer
+ RULE 4 Restaurant != Normal Product Shop
+ RULE 5 Transport != Product Inventory
+ RULE 6 Personal Transport Booking != Product Order
+ RULE 9 Search Engine != Primary Database
+ RULE 13 Grocery / general food retail is OUT OF SCOPE
+
+STATUS LEGEND
+--------------------------------------------------------------------------------
+  [C] Committed   - exists in the committed Alembic chain (0001-0013).
+  [W] In-progress - authored but NOT yet committed (migration 0014 + models).
+  [P] Proposed    - designed in this document for a coming phase; exact DDL
+ will follow in the next migration. Never confuse with [C]/[W].
+
+STACK & GLOBAL CONVENTIONS
+--------------------------------------------------------------------------------
+DB        : PostgreSQL 16 + PostGIS 3.4 (extensions: postgis, pg_trgm).
+Geometry  : GeoAlchemy2 Geography(type, srid=4326) for great-circle distances;
+ a GiST index exists on every geography column.
+IDs       : SERIAL/INTEGER surrogate PKs; natural keys are UNIQUE constraints.
+Money     : NUMERIC(12,2); every money column carries CHECK (>= 0).
+Quantity  : INTEGER; CHECK (>= 0)  - negative stock is structurally impossible.
+Enums     : Stable domain enums use native PostgreSQL ENUM (user_status,
+ stock_status, shop_category, etc.). Volatile/rapidly-evolving enums
+ use VARCHAR + CHECK so ALTER TYPE lock pain is avoided. New tables
+ should default to VARCHAR + CHECK (project pattern since 0012).
+Timestamps: EVERY table has created_at + updated_at TIMESTAMPTZ NOT NULL
+ DEFAULT now(); updated_at gets ON UPDATE now() (TimestampMixin).
+SoftDelete: Entities with legal/compliance lifecycles carry is_deleted BOOLEAN
+ NOT NULL DEFAULT false + deleted_at TIMESTAMPTZ (SoftDeleteMixin).
+ Hard delete is reserved for logs / append-only streams.
+Audit     : created_by / updated_by INTEGER on business tables where an actor
+ is meaningful; high-risk transitions also append a row to
+ audit_logs (tamper-evident hash chain over record_hash).
+Search    : search_indexes is a denormalised, rebuildable projection served by
+ the SearchIndexer. PostgreSQL remains the authoritative store.
+Cache     : Redis holds cache, production OTP state, rate-limit counters and
+ the Celery broker/result store. Redis is NEVER the source of truth.
+
+================================================================================
+ HIGH-LEVEL ENTITY MAP (ERD, reduced)
+================================================================================
+
+ USERS ── role (ROLES ─ role_permissions ─ PERMISSIONS; user_roles is M2M)
+   │── customer_profile ─ CUSTOMERS ─ customer_addresses
+   │                        ├─ customer_favorites (polymorphic)
+   │                        └─ customer_recent_products
+   │── saved_products ─ PRODUCT_MASTERS
+   │── saved_shops ───── SHOPS
+   │── search_history / search_events
+   │── notifications / device_tokens / notification_preferences / deliveries
+   ├── auth_sessions / token_blacklist / otps / password_resets
+   ├── subscriptions ─ subscription_plans / payments / payment_events
+   └── user_interactions (call_view / message / rating on SHOPS)
+
+ CATEGORIES (self-parent) ─ BRANDS ─ PRODUCT_MASTERS
+   ├─ PRODUCT_VARIANTS ──────── SHOP_PRODUCTS ─┬─ INVENTORY (1:1)
+   ├─ PRODUCT_IDENTIFIERS                    ├─ INVENTORY_MOVEMENTS
+   ├─ BARCODE_RELATIONSHIPS                  ├─ INVENTORY_ADJUSTMENTS
+   ├─ PRODUCT_ATTRIBUTES ─ VALUES            ├─ INVENTORY_EVENTS
+   └─ PRODUCT_IMAGES                         ├─ PRICE_HISTORY
+                                             └─ OFFERS ─ OFFER_PRODUCTS
+                                                       └─ OFFER_CONDITIONS
+
+ SHOPS (location POINT 4326) ─┬─ SHOP_OWNERS / SHOP_MANAGERS
+                               ├─ SHOP_ADDRESSES (location POINT 4326)
+                               ├─ SHOP_HOURS / SHOP_HOLIDAYS
+                               ├─ SHOP_DOCUMENTS / SHOP_VERIFICATIONS
+                               ├─ SERVICE_AREAS (boundary POLYGON 4326)
+                               ├─ POS_INTEGRATIONS ─ POS_DEVICES
+                               │       ├─ POS_SYNC_JOBS ─ POS_SYNC_LOGS
+                               │       └─ POS_PRODUCT_MAPPINGS
+                               ├─ INVENTORY_IMPORT_JOBS ─ INVENTORY_IMPORT_ROWS
+                               └─ SHOP_PRODUCTS (above)
+
+ SEARCH_INDEXES ─ SEARCH_INDEX_SYNC_RUNS          (search projection)
+ ANALYTICS_EVENTS ─ ANALYTICS_DAILY_AGGREGATES    (unified event stream)
+ PRODUCT_VIEWS / SHOP_VIEWS / PRODUCT_CLICKS / SYSTEM_METRICS
+ ADMIN_ACTIONS / ADMIN_NOTES / PRODUCT_APPROVALS / COMPLAINTS / REPORTS
+ AUDIT_LOGS / SYSTEM_SETTINGS / FEATURE_FLAGS
+
+ PROPOSED (Phase plan: RESTAURANTS landed in migration 0015 [W];
+ RESTAURANTS [W] - RESTAURANT_MENU_CATEGORIES [W] - RESTAURANT_MENU_ITEMS [W]
+ TRANSPORT_PROVIDERS [W] – VEHICLES [W] – VEHICLE_DOCUMENTS [W] – TRANSPORT_SERVICES [W]
+   – VEHICLE_AVAILABILITY [W] – TRANSPORT_QUOTES [W] – TRANSPORT_BOOKINGS [W]
+   – BOOKING_STATUS_HISTORY [W] – TRIP_DETAILS [W]
+ REVIEWS [W] (verified customer shop/product reviews)
+ pharmacy compliance columns [W] on PRODUCT_MASTERS
+
+================================================================================
+ TABLE CATALOG (columns of every entity)
+================================================================================
+
+DOMAIN 1 - IDENTITY & ACCESS
+--------------------------------------------------------------------------------
+users [C]  (migration 0001)
+ id PK | phone_number VARCHAR(20) UQ IDX NULL (Google-only signups have
+ NULL) | google_id VARCHAR(64) UQ IDX NULL | name VARCHAR(120) |
+ email VARCHAR(255) IDX | avatar_url VARCHAR(500) | password_hash VARCHAR(255) |
+ role_id FK->roles.id IDX | status ENUM user_status NOT NULL (ACTIVE/INACTIVE/
+ SUSPENDED/BANNED/PENDING_VERIFICATION) | is_active BOOL | last_login_at |
+ last_login_ip VARCHAR(45) | timestamps | is_deleted + deleted_at
+ Indexes: uq on phone_number, google_id.
+
+roles [C] (0001)
+ id PK | name VARCHAR(50) UQ IDX | description | timestamps
+
+permissions [C] (0001)
+ id PK | name VARCHAR(100) UQ IDX | description | resource VARCHAR(50) |
+ action VARCHAR(50) | timestamps
+
+role_permissions [C] (0001)  - M2M
+ role_id FK->roles.id CASCADE + permission_id FK->permissions.id CASCADE,
+ composite PK | no timestamps
+
+user_roles [W] (0014)  - M2M RBAC
+ user_id FK->users.id CASCADE + role_id FK->roles.id CASCADE, composite PK |
+ assigned_at TIMESTAMPTZ NOT NULL DEFAULT now() | IDX(role_id)
+
+otps [C] (0012, Fast2SMS)
+ id PK | phone_number VARCHAR(20) IDX NOT NULL | otp_code VARCHAR(128) NOT NULL
+  (SALTED HMAC-SHA256 DIGEST - raw OTP never persisted) | expires_at TIMESTAMPTZ
+ IDX NOT NULL | is_verified BOOL NOT NULL DEFAULT false | timestamps
+
+password_resets [W] (0014)
+ id PK | user_id FK->users.id CASCADE IDX | token_hash VARCHAR(128) UQ IDX
+  (never raw token) | expires_at TIMESTAMPTZ IDX | is_used BOOL DEFAULT false |
+ used_at | used_ip VARCHAR(45) | timestamps | IDX(user_id, is_used)
+
+auth_sessions [C(0013)/W(0014-table guard)] - device-bound persistent session
+ id PK | session_id VARCHAR(36) UQ | user_id FK->users.id IDX | device_id IDX |
+ device_name | device_type | platform | app_version | ip_address VARCHAR(45) |
+ user_agent VARCHAR(500) | refresh_token_hash VARCHAR(128) IDX |
+ refresh_token_expires_at | refresh_token_revoked_at | refresh_token_used_at |
+ refresh_rotation_count INT DEFAULT 0 | access_jti VARCHAR(36) IDX |
+ refresh_jti VARCHAR(36) IDX | is_active BOOL IDX | is_revoked BOOL |
+ last_activity_at IDX | expires_at | revoked_at | revoked_reason VARCHAR(100) |
+ revoked_by VARCHAR(50) | previous_refresh_token_hash VARCHAR(128) |
+ reuse_detected BOOL DEFAULT false | timestamps | IDX(user_id, is_active)
+
+token_blacklist [W] (0014) - revoked JWT revocation ledger
+ id PK | jti VARCHAR(36) UQ IDX | token_type VARCHAR(20) | user_id FK IDX |
+ expires_at | revoked_at | reason | timestamps
+
+SAVED / PASSWORD COMBINED NOTES: password_resets store only digests; auth_sessions
+store only hashed refresh tokens. No raw credential exists anywhere in the DB.
+
+DOMAIN 2 - CUSTOMER
+--------------------------------------------------------------------------------
+customers [C] (0002)
+ id PK | user_id FK->users.id UQ IDX NOT NULL | date_of_birth |
+ gender VARCHAR(20) | preferred_language VARCHAR(10) default en |
+ default_address_id FK->customer_addresses.id NULL | timestamps |
+ is_deleted + deleted_at
+
+customer_addresses [C/W] (0002 + 0014 location col)
+ id PK | user_id FK->users.id IDX NOT NULL | customer_id FK->customers.id
+ IDX NULL | label VARCHAR(50) (Home/Work/Other) | address_line1 NOT NULL |
+ address_line2 | city IDX | state | pincode IDX | country default India |
+ location geography(POINT,4326) GiST NULL | is_default BOOL | is_verified BOOL |
+ timestamps | soft-delete
+
+customer_favorites [W] (0014) - polymorphic favourites
+ id PK | customer_id FK->customers.id CASCADE IDX | item_type VARCHAR(30)
+ CHECK IN ('PRODUCT','SHOP','BRAND','CATEGORY','SHOP_PRODUCT') |
+ item_id INT (no FK by design - one table serves all kinds) |
+ metadata_json JSON | UQ(customer_id, item_type, item_id) |
+ IDX(customer_id, created_at) IDX(item_type, item_id) | timestamps
+
+customer_recent_products [W] (0014)
+ id PK | customer_id FK CASCADE IDX | product_master_id FK CASCADE IDX |
+ variant_id FK->product_variants.id SET NULL IDX |
+ shop_product_id FK->shop_products.id SET NULL IDX | first_viewed_at |
+ last_viewed_at | view_count INT DEFAULT 1 | UQ(customer_id, product_master_id) |
+ IDX(customer_id, last_viewed_at) | timestamps
+
+saved_products [C] (0002)
+ id PK | user_id FK->users.id IDX | product_master_id FK->product_masters.id
+ IDX | UQ(user_id, product_master_id) | created_at
+
+saved_shops [C] (0002)
+ id PK | user_id FK->users.id IDX | shop_id FK->shops.id IDX |
+ UQ(user_id, shop_id) | created_at
+
+NOTE: saved_* are user-scoped; customer_favorites is customer-scoped polymorphic.
+Both are kept: saved_products/saved_shops back the existing API contract,
+customer_favorites adds the generalised feed. (See Gap report item on unification.)
+
+DOMAIN 3 - CATALOG / PRODUCT MASTER (canonical identity only)
+--------------------------------------------------------------------------------
+categories [C] (0003) - self-referencing hierarchy
+ id PK | name VARCHAR(100) UQ IDX CHECK(length>0) | slug VARCHAR(120) UQ IDX |
+ description TEXT | icon_url VARCHAR(500) | parent_id FK->categories.id IDX
+  (NULL = top-level) | sort_order INT | is_active BOOL | is_subcategory BOOL |
+ timestamps | soft-delete
+
+brands [C] (0003)
+ id PK | name VARCHAR(120) UQ IDX | slug VARCHAR(140) UQ IDX | description |
+ logo_url VARCHAR(500) | is_active BOOL | timestamps | soft-delete
+
+product_masters [C] (0003) - THE canonical product. No price/stock here.
+ id PK | name VARCHAR(255) IDX CHECK(length>0) | slug VARCHAR(280) UQ IDX |
+ description TEXT | short_description VARCHAR(500) | category_id FK->categories
+ IDX | subcategory_id FK->categories IDX | brand_id FK->brands IDX |
+ status ENUM product_status (DRAFT/PENDING_REVIEW/APPROVED/REJECTED/INACTIVE/
+ ARCHIVED) | is_active | is_featured | is_searchable | base_unit VARCHAR(50) |
+ base_quantity FLOAT | approved_by FK->users | approved_at | rejected_by |
+ rejected_at | rejection_reason TEXT | search_metadata TEXT | search_updated_at |
+ timestamps | soft-delete | IDX(name, brand_id)
+  [P] proposed compliance columns - see Domain 14 (pharmacy/healthcare).
+
+product_variants [C] (0003)
+ id PK | product_master_id FK IDX NOT NULL | sku VARCHAR(100) UQ IDX | name |
+ description | attributes_json TEXT ({"color":"Red","size":"M"}) | is_active |
+ sort_order | UQ(product_master_id, sku) | timestamps | soft-delete
+
+product_images [C] (0003)
+ id PK | product_master_id FK IDX | variant_id FK IDX NULL | image_url
+ VARCHAR(500) NOT NULL (object storage URL - images never stored in DB) |
+ thumbnail_url | alt_text | sort_order | is_primary | timestamps
+
+product_attributes [C] (0003)
+ id PK | product_master_id FK IDX | name VARCHAR(100) | is_variant_defining
+ BOOL | sort_order | timestamps
+
+product_attribute_values [C] (0003)
+ id PK | attribute_id FK->product_attributes.id IDX | value VARCHAR(255) |
+ sort_order | timestamps
+
+product_identifiers [C] (0003) - barcode/SKU/ISBN/GTIN/MPN canonical registry
+ id PK | product_master_id FK IDX NOT NULL | identifier_type ENUM
+  (EAN/UPC/ISBN/GTIN/ASIN/SKU/MPN/MODEL_NUMBER/JAN/ITF/CUSTOM) NOT NULL |
+ identifier_value VARCHAR(100) IDX | is_primary BOOL | is_active BOOL |
+ UQ(identifier_type, identifier_value) | IDX(identifier_type, identifier_value)
+  | timestamps
+
+barcode_relationships [C] (0003) - barcode aliases / parent-child / bundle links
+ id PK | product_master_id FK IDX | barcode VARCHAR(100) IDX | relationship_type
+  (PRIMARY/ALTERNATE/PARENT_CHILD/BUNDLE) | related_product_master_id FK NULL |
+ is_active | notes TEXT | UQ(barcode, relationship_type) | timestamps
+
+RULE ENFORCEMENT: nothing in this domain holds price, stock or shop data.
+Shop availability + price live ONLY in shop_products / inventory / price_history.
+
+DOMAIN 4 - SHOPS / BUSINESS
+--------------------------------------------------------------------------------
+shops [C] (0004) - local business entity (physical + discovery profile)
+ id PK | name VARCHAR(255) IDX | slug VARCHAR(280) UQ IDX | description TEXT |
+ tagline | image_url | cover_image_url | logo_url | phone VARCHAR(20) IDX |
+ alternate_phone | email | website_url | whatsapp_number | status ENUM shop_status
+  (REGISTERED/DOCUMENTS_SUBMITTED/PENDING_VERIFICATION/VERIFIED/REJECTED/
+ SUSPENDED/ACTIVE/CLOSED) | rating FLOAT CHECK 0-5 | review_count INT CHECK >=0 |
+ is_verified | is_featured | is_open_24x7 | is_accepting_orders |
+ category ENUM shop_category (GROCERY/ELECTRONICS/PHARMACY/HARDWARE/FASHION/
+ RESTAURANT/BAKERY/DAIRY/MEAT/VEGETABLES/STATIONERY/TOYS/BEAUTY/OTHER) IDX |
+ subcategories VARCHAR(500) JSON array | location geography(POINT,4326) NOT NULL
+ GiST | latitude FLOAT | longitude FLOAT | verified_at |
+ last_inventory_update TIMESTAMPTZ IDX | rejection_reason TEXT |
+ suspension_reason TEXT | suspended_at | reactivated_at | closed_at |
+ min_order_amount | delivery_radius_km default 5 | delivery_fee |
+ free_delivery_above | is_delivery_available | is_pickup_available |
+ gstin VARCHAR(50) | fssai_license VARCHAR(50) | established_year INT |
+ created_by FK->users | timestamps | soft-delete
+ NOTE: shop_category enum contains legacy GROCERY/RESTAURANT/DAIRY values
+ inherited from an early version. Category-policy compliance (RULE 13) is
+ enforced at the CATEGORIES (product taxonomy) level and during onboarding;
+ existing enum values are preserved for backward compatibility and flagged in
+ the Gap report for cleanup.
+
+shop_owners [C] (0004)
+ id PK | shop_id FK IDX | user_id FK IDX | is_primary | is_active |
+ UQ(shop_id, user_id) | timestamps | soft-delete
+
+shop_managers [C] (0004)
+ id PK | shop_id FK IDX | user_id FK IDX | permissions VARCHAR(500) JSON array |
+ is_active | UQ(shop_id, user_id) | timestamps | soft-delete
+
+shop_addresses [C, W] (0004 + 0014 location col)
+ id PK | shop_id FK IDX | address_line1 NOT NULL | address_line2 | landmark |
+ city IDX | state | pincode IDX | country | latitude | longitude |
+ location geography(POINT,4326) GiST NULL (backfilled from lat/lng in 0014) |
+ is_primary | is_verified | timestamps | soft-delete
+
+shop_hours [C] (0004)
+ id PK | shop_id FK IDX | day_of_week INT CHECK 0-6 (0=Mon.6=Sun) | open_time
+ TIME | close_time TIME | is_closed | UQ(shop_id, day_of_week) | timestamps
+
+shop_holidays [C] (0004)
+ id PK | shop_id FK IDX | holiday_date DATE IDX | reason | is_recurring_yearly |
+ timestamps
+
+shop_documents [C] (0004) - verification documents (GST/License/PAN)
+ id PK | shop_id FK IDX | document_type | document_url VARCHAR(500) (object
+ storage, private bucket) | document_number | expires_at | is_verified |
+ verified_at | verified_by FK->users | rejection_reason TEXT | timestamps |
+ soft-delete
+
+shop_verifications [C] (0004)
+ id PK | shop_id FK IDX | status ENUM verification_status (PENDING/SUBMITTED/
+ UNDER_REVIEW/VERIFIED/REJECTED/EXPIRED) | submitted_by FK | reviewed_by FK |
+ review_notes TEXT | submitted_at | reviewed_at | verified_at | expires_at |
+ timestamps
+
+DOMAIN 5 - SHOP-PRODUCT / INVENTORY (per-shop price + availability)
+--------------------------------------------------------------------------------
+shop_products [C, W] (0005 + 0014 composite indexes) - the SHOP x PRODUCT link
+ id PK | shop_id FK IDX NOT NULL | product_master_id FK IDX NOT NULL |
+ variant_id FK IDX NULL | sku VARCHAR(100) IDX (shop-level) | status ENUM
+ shop_product_status (ACTIVE/INACTIVE/DISCONTINUED/PENDING_REVIEW/APPROVED/
+ REJECTED) | price NUMERIC(12,2) CHECK>=0 NOT NULL | mrp NUMERIC(12,2)
+ CHECK>=0 | is_active IDX | is_available IDX | is_featured | is_visible |
+ stock_status ENUM stock_status IDX (IN_STOCK/LOW_STOCK/LIMITED_STOCK/OUT_OF_
+ STOCK/UNKNOWN/PRE_ORDER/BACK_ORDER) | freshness_status ENUM IDX |
+ last_inventory_update IDX | last_price_update IDX | source ENUM inventory_source
+  (MANUAL/BARCODE_SCAN/EXCEL_UPLOAD/POS_INTEGRATION/SYSTEM) |
+ UQ(shop_id, product_master_id, variant_id) | UQ(shop_id, sku) |
+ timestamps | soft-delete
+ Composite IDX (0014): (shop_id, variant_id), (shop_id, product_master_id),
+  (shop_id, is_available).
+
+inventory [C] (0005) - 1:1 with shop_product. Quantity is NOT price.
+ id PK | shop_product_id FK UQ IDX | quantity INT CHECK>=0 NOT NULL |
+ reserved_quantity INT DEFAULT 0 | available_quantity INT DEFAULT 0 |
+ is_available BOOL IDX | stock_status ENUM IDX | low_stock_threshold INT |
+ last_updated_by FK->users | last_updated_source ENUM inventory_source |
+ last_synced_at | freshness_status ENUM IDX | freshness_checked_at |
+ timestamps
+ UQ(inventory_shop_product) enforces one inventory record per shop-product.
+
+inventory_movements [C] (0005) - immutable ledger
+ id PK | inventory_id FK IDX | quantity_change INT (+/-) | quantity_before |
+ quantity_after | movement_type (SALE/RESTOCK/RETURN/DAMAGE/ADJUSTMENT) |
+ source ENUM inventory_source | reference_type | reference_id | notes TEXT |
+ created_by FK | timestamps
+
+inventory_adjustments [C] (0005)
+ id PK | inventory_id FK IDX | adjustment_type (STOCK_COUNT/DAMAGE/EXPIRY/THEFT)
+  | quantity_adjustment INT | reason TEXT | approved_by FK | approved_at |
+ timestamps
+
+inventory_events [C] (0011)
+ id PK | shop_product_id FK IDX | event_type | quantity_change INT |
+ source ENUM inventory_source | reference_type | reference_id | notes |
+ created_by FK | occurred_at
+
+inventory_import_jobs [C] (0007) - Excel intake
+ id PK | shop_id FK IDX | uploaded_by FK | filename | file_size_bytes |
+ idempotency_key VARCHAR(64) IDX | status ENUM import_job_status
+  (VALIDATING/AWAITING_CONFIRMATION/QUEUED/PROCESSING/COMPLETED/PARTIAL/FAILED)
+ IDX | total_rows | valid_rows | error_rows | processed_rows | failed_rows |
+ error_message | started_at | completed_at | timestamps
+ IDX(shop_id, idempotency_key) for idempotent re-uploads.
+
+inventory_import_rows [C] (0007)
+ id PK | job_id FK IDX | row_number | status (PENDING/VALID/PROCESSED/ERROR/
+ SKIPPED) | raw_data TEXT JSON | normalized_data TEXT JSON | error_code |
+ error_message | error_field | product_master_id | variant_id | shop_product_id
+  | timestamps  (resolved FKs kept as plain INT - a row may reference entities
+ created by the import itself.)
+
+DOMAIN 6 - PRICING & OFFERS (price history is never overwritten)
+--------------------------------------------------------------------------------
+price_history [C] (0005) - append-only
+ id PK | shop_product_id FK IDX | old_price NUMERIC(12,2) CHECK>=0 |
+ new_price NUMERIC(12,2) CHECK>=0 | old_mrp CHECK>=0 | new_mrp CHECK>=0 |
+ changed_by FK->users | change_source ENUM inventory_source |
+ effective_from TIMESTAMPTZ | effective_to TIMESTAMPTZ | timestamps
+
+offers [C] (0005) - shop-scoped offer
+ id PK | shop_id FK IDX NOT NULL | title | description | offer_type ENUM
+  (PERCENTAGE_DISCOUNT/FLAT_DISCOUNT/BUY_X_GET_Y/BUNDLE/FREE_SHIPPING) |
+ discount_value NUMERIC | discount_percentage FLOAT | min_purchase_amount |
+ max_discount_amount | buy_quantity | get_quantity | status ENUM offer_status
+  (DRAFT/ACTIVE/PAUSED/EXPIRED/CANCELLED) | start_date NOT NULL | end_date NOT
+ NULL CHECK(end_date > start_date) | is_visible | terms_conditions TEXT |
+ timestamps | soft-delete
+
+offer_products [C] (0005)
+ id PK | offer_id FK IDX | shop_product_id FK IDX | is_excluded |
+ UQ(offer_id, shop_product_id) | timestamps
+
+offer_conditions [C] (0005)
+ id PK | offer_id FK IDX | condition_type (MIN_QTY/MIN_AMOUNT/CATEGORY/BRAND) |
+ condition_value | operator (>=,<=,==,IN) | timestamps
+
+DOMAIN 7 - LOCATION / GEO SERVICE AREAS
+--------------------------------------------------------------------------------
+service_areas [W] (0014) - PostGIS operating/service zones
+ id PK | name VARCHAR(100) UQ | area_type VARCHAR(30) CHECK IN ('CITY','ZONE',
+  'LOCALITY','PINCODE') | pincode_prefix VARCHAR(6) IDX |
+ boundary geography(POLYGON,4326) GiST NULL | center geography(POINT,4326)
+ GiST NULL | delivery_radius_km NUMERIC(6,2) | is_active BOOL IDX (partial
+ WHERE is_active) | geo_json JSON | timestamps
+ Purpose: ST_Covers(boundary, customer_point) answers "is this customer inside
+ a covered zone"; also the anchor for the transport service-area model [P].
+
+DOMAIN 8 - SEARCH (denormalised projection + events)
+--------------------------------------------------------------------------------
+search_indexes [C] (0006) - served to discovery; NOT a source of truth
+ id PK | entity_type ENUM search_index_entity_type (SHOP_PRODUCT/PRODUCT/SHOP/
+ BRAND/CATEGORY) IDX | entity_id INT IDX | UQ(entity_type, entity_id) |
+ product_id FK->product_masters IDX | shop_product_id FK IDX | shop_id FK IDX |
+ brand_id FK IDX | category_id FK IDX | variant_id FK IDX | product_name
+ VARCHAR(255) NOT NULL | brand_name VARCHAR(120) | category_name VARCHAR(100) |
+ variant_name VARCHAR(255) | search_text TEXT NOT NULL (normalised, concatenated)
+  | search_vector TEXT (tsvector repr.) GIN | barcode VARCHAR(100) GIN trgm |
+ sku VARCHAR(100) | is_product_searchable BOOL | is_shop_visible BOOL |
+ price NUMERIC(12,2) | mrp NUMERIC(12,2) | is_available BOOL IDX |
+ stock_status VARCHAR(50) IDX | freshness_status VARCHAR(50) IDX |
+ last_inventory_update IDX | shop_name | shop_rating FLOAT IDX? |
+ shop_review_count | is_shop_accepting_orders | location geography(POINT,4326)
+ GiST | latitude | longitude | distance_km FLOAT | popularity_score FLOAT |
+ is_synced BOOL | last_synced_at | timestamps
+ Indexes additionally: GIN(search_vector), GIN(search_text gin_trgm_ops),
+ GIN(barcode gin_trgm_ops), (shop_id, is_available), (product_id, price),
+  (shop_id, shop_rating), (product_id, freshness_status), (category_id, brand_id)
+
+search_index_sync_runs [C] (0006)
+ id PK | sync_type (FULL/INCREMENTAL) | status ENUM (RUNNING/COMPLETED/FAILED)
+  | total_processed | total_created | total_updated | total_removed |
+ error_count | started_at | completed_at | error_message | timestamps
+
+search_history [C] (0008?/0001) - per-user query log
+ id PK | user_id FK->users IDX | query VARCHAR(255) IDX | result_count |
+ is_successful BOOL | searched_at | timestamps | IDX(user_id, query)
+
+search_events [C] (0011) - analytics-grade search funnel
+ id PK | user_id FK IDX NULL | session_id VARCHAR(100) IDX | query |
+ event_type (SEARCH/SUGGESTION_CLICK/RESULT_CLICK/CONVERSION) | result_count |
+ clicked_product_id FK | clicked_shop_id FK | clicked_shop_product_id FK |
+ device_type | app_version | event_time | timestamps
+
+popular_searches [C] (0011)
+ id PK | query VARCHAR(255) UQ IDX | search_count INT | result_count |
+ is_active | last_searched_at | timestamps
+
+barcode_scans [C] (0006)
+ id PK | barcode VARCHAR(100) IDX | barcode_type (EAN-13/UPC-A/QR) |
+ user_id FK IDX | shop_id FK IDX | product_master_id FK IDX | scan_source
+  (CUSTOMER_APP/SHOPKEEPER_APP) | is_match_found BOOL | scan_time | timestamps
+
+DOMAIN 9 - POS INTEGRATION (one canonical inventory; POS is a source)
+--------------------------------------------------------------------------------
+pos_integrations [C] (0008 + 0010/0025 fields)
+ id PK | shop_id FK IDX NOT NULL | provider_name (Marg/Busy/Vyapar) |
+ integration_type (API/FILE_UPLOAD/WEBHOOK) | api_base_url VARCHAR(500) |
+ api_key_encrypted TEXT | api_secret_encrypted TEXT | status ENUM
+ pos_integration_status (ACTIVE/INACTIVE/SUSPENDED/ERROR/DISCONNECTED) |
+ last_sync_at | last_sync_status | config_json JSON | provider_code IDX |
+ sync_enabled BOOL | sync_interval_minutes INT default 60 | auto_create_products
+ BOOL | conflict_strategy default PRESERVE_PLATFORM | incremental_cursor
+ VARCHAR(255) | last_successful_sync_at | consecutive_failures INT |
+ disconnected_at | timestamps | soft-delete
+
+pos_devices [C] (0008)
+ id PK | shop_id FK IDX | integration_id FK IDX NULL | device_identifier
+ VARCHAR(100) IDX | device_name | device_type (POS_TERMINAL/SCANNER/TABLET) |
+ is_active | last_connected_at | firmware_version | UQ(shop_id,
+ device_identifier) | timestamps | soft-delete
+
+pos_sync_jobs [C] (0008)
+ id PK | shop_id FK IDX | integration_id FK IDX | sync_type (INVENTORY/PRICE/
+ PRODUCT/FULL) | status ENUM pos_sync_status (PENDING/RUNNING/COMPLETED/
+ COMPLETED_WITH_ERRORS/FAILED/CANCELLED) | started_at | completed_at |
+ items_processed | items_succeeded | items_failed | error_summary TEXT |
+ created_by FK | idempotency_key VARCHAR(64) UQ IDX | trigger
+  (MANUAL/SCHEDULED/RETRY) | retry_count | next_retry_at | duplicates_skipped |
+ timestamps
+
+pos_sync_logs [C] (0008)
+ id PK | sync_job_id FK IDX | log_level (INFO/WARNING/ERROR) | message TEXT |
+ item_reference | error_code | stack_trace TEXT | logged_at | timestamps
+
+pos_product_mappings [C] (0010) - durable POS->platform mapping
+ id PK | integration_id FK IDX | shop_id FK IDX | pos_product_code NOT NULL |
+ pos_sku | barcode | product_master_id FK IDX | variant_id FK IDX |
+ shop_product_id FK IDX | last_synced_hash VARCHAR(64) (fingerprint; identical
+  => no-op) | last_synced_at | last_conflict_json JSON | is_active |
+ UQ(integration_id, pos_product_code) | timestamps
+
+DOMAIN 10 - NOTIFICATIONS (push/email/SMS)
+--------------------------------------------------------------------------------
+notifications [C] (0009 + 0027 typed fields)
+ id PK | user_id FK IDX | title | body TEXT | type default system | audience
+  (customer/shopkeeper/admin) | deep_link VARCHAR(500) | dedupe_key VARCHAR(255)
+  (anti-spam) | delivery_status (PENDING/SENT/PARTIAL/FAILED/SKIPPED) |
+ delivery_attempts | last_attempt_at | provider_message_id | last_error TEXT |
+ is_read | payload TEXT JSON | read_at | sent_at | timestamps |
+ IDX(user_id, is_read) | IDX(user_id, dedupe_key)
+
+notification_preferences [C] (0009)
+ id PK | user_id FK UQ | push_enabled | email_enabled | sms_enabled |
+ price_alerts | availability_alerts | promotional | deal_alerts | timestamps
+
+device_tokens [C] (0009)
+ id PK | user_id FK IDX | token VARCHAR(500) UQ | device_type
+  (android/ios/web) | platform (FCM/APNS) | is_active | failure_count |
+ last_used_at | expires_at | app_version | timestamps
+
+notification_deliveries [C] (0009) - per (notification, device token)
+ id PK | notification_id FK IDX | device_token_id FK IDX | status | attempts |
+ provider_message_id | error TEXT | permanent_failure BOOL | attempted_at |
+ delivered_at | UQ(notification_id, device_token_id) | timestamps
+
+DOMAIN 11 - SUBSCRIPTION & PAYMENTS
+--------------------------------------------------------------------------------
+subscription_plans [C] (0010) - admin-configurable; price NEVER hard-coded
+ id PK | name VARCHAR(100) UQ IDX | description | price_monthly FLOAT NOT NULL |
+ price_annual FLOAT NOT NULL | currency default INR | billing_cycle ENUM
+  (WEEKLY/MONTHLY/QUARTERLY/ANNUAL) | is_active | features_json JSON
+  ({"unlimited_scans":100,..}) | max_shops INT | max_products INT |
+ trial_days INT default 0 | sort_order | timestamps
+
+subscriptions [C] (0010)
+ id PK | user_id FK IDX NOT NULL | shop_id FK IDX NULL (NULL = user-level) |
+ plan_id FK->subscription_plans IDX NOT NULL | status ENUM subscription_status
+  (ACTIVE/PAST_DUE/CANCELED/TRIALING/INCOMPLETE/EXPIRED) | is_auto_renew BOOL |
+ current_period_start | current_period_end | cancel_at_period_end |
+ trial_ends_at | created_by FK | timestamps
+
+payments [C] (0010)
+ id PK | subscription_id FK IDX | payment_provider (RAZORPAY/CASHFREE/STRIPE) |
+ provider_order_id VARCHAR(255) UQ IDX | transaction_id UQ IDX | amount FLOAT |
+ currency default INR | status (PENDING/SUCCESS/FAILED/REFUNDED) |
+ payment_method (CARD/UPI/NETBANKING/WALLET) | billing_cycle | invoice_number
+ UQ IDX | refund_id | paid_at | refunded_at | failure_reason TEXT |
+ payment_metadata JSON | timestamps
+
+payment_events [C] (0010) - webhook idempotency ledger
+ id PK | provider IDX | event_id IDX | event_type | payment_id FK IDX |
+ payload JSON | received_at | UQ(provider, event_id) | timestamps
+
+DOMAIN 12 - ANALYTICS, INTERACTIONS & AUDIT
+--------------------------------------------------------------------------------
+analytics_events [C] (0029) - unified append-only, privacy-preserving stream
+ id PK | event_name VARCHAR(60) | actor_type (CUSTOMER/SHOPKEEPER/PLATFORM) |
+ actor_id INT IDX (surrogate user id only - no PII) | session_id VARCHAR(64) IDX
+  | shop_id FK IDX | product_master_id FK | category_id FK IDX | query VARCHAR(255)
+  | metric_value FLOAT | props JSON (PII scrubbed) | device_type | app_version |
+ occurred_at IDX | timestamps none (append-only)
+ IDX(event_name, occurred_at) (actor_type, occurred_at) (shop_id, occurred_at)
+  (product_master_id, occurred_at)
+
+analytics_daily_aggregates [C] (0029)
+ id PK | aggregate_date DATE | event_name | actor_type | shop_id FK |
+ product_master_id INT | category_id INT | event_count | distinct_sessions |
+ distinct_actors | metric_sum FLOAT | computed_at | IDX(date, event_name),
+ IDX(date, shop_id)
+
+product_views [C] (0011)
+ id PK | product_master_id FK IDX | user_id FK IDX NULL | session_id IDX |
+ device_type | app_version | viewed_at | timestamps
+
+shop_views [C] (0011)
+ id PK | shop_id FK IDX | user_id FK IDX NULL | session_id IDX | device_type |
+ app_version | viewed_at | timestamps
+
+product_clicks [C] (0011)
+ id PK | product_master_id FK IDX | user_id FK IDX NULL | session_id IDX |
+ source (SEARCH/BARCODE_SCAN/RECENT) | clicked_at | query | shop_id FK |
+ shop_product_id FK | timestamps
+
+system_metrics [C] (0011)
+ id PK | metric_name IDX | metric_value FLOAT | unit | shop_id FK IDX NULL |
+ source (PROMETHEUS/DB_QUERY/MANUAL) | recorded_at | timestamps
+
+user_interactions [C] (0028) - verified-customer shop actions (create-only)
+ id PK | user_id FK CASCADE IDX | shop_id FK CASCADE IDX | action_type ENUM
+  (call_view/message/rating) | message_content TEXT | rating INT CHECK 1-5 |
+ IDX(shop_id, created_at) IDX(user_id, created_at) | timestamps
+ Immutable: no update/delete paths exist anywhere in the platform.
+
+reports [C] (0011) - admin report jobs
+ id PK | report_type IDX | report_name | parameters_json JSON | result_json JSON
+  | generated_by FK | file_url | status (PENDING/GENERATING/READY/FAILED) |
+ started_at | completed_at | error_message TEXT | timestamps
+
+complaints [C] (0011)
+ id PK | complainant_user_id FK IDX NULL | complaint_type (WRONG_PRICE/FAKE_
+ PRODUCT/SHOP_ISSUE) | subject | description TEXT | entity_type | entity_id |
+ status ENUM complaint_status (OPEN/IN_PROGRESS/RESOLVED/CLOSED/REJECTED) |
+ priority (LOW/MEDIUM/HIGH/URGENT) | assigned_to FK | resolution_notes TEXT |
+ resolved_at | timestamps
+
+admin_actions [C] (0011) - immutable admin activity ledger
+ id PK | admin_user_id FK IDX | action_type IDX (VERIFY_SHOP/SUSPEND_USER..) |
+ target_type | target_id | action_data JSON | description TEXT | ip_address |
+ performed_at | timestamps
+
+admin_notes [C] (0011)
+ id PK | admin_user_id FK IDX | entity_type | entity_id IDX | note TEXT |
+ is_private | created_by FK | timestamps
+
+product_approvals [C] (0011) - product master moderation queue
+ id PK | product_master_id FK IDX | shop_id FK IDX NULL | submitted_by FK |
+ status ENUM approval_status (PENDING/APPROVED/REJECTED/NEEDS_INFO) |
+ requested_by FK | reviewed_by FK | review_notes TEXT | submitted_at |
+ reviewed_at | submission_data JSON | timestamps
+
+audit_logs [C] (0011) - tamper-evident hash-chained audit trail
+ id PK | user_id FK IDX | action (CREATE/UPDATE/DELETE/VERIFY) | entity_type IDX
+  | entity_id IDX | old_values JSON | new_values JSON | ip_address | user_agent |
+ request_id IDX | description TEXT | prev_record_hash VARCHAR(64) |
+ record_hash VARCHAR(64) IDX | created_at | IDX(entity_type, entity_id,
+ created_at)
+
+DOMAIN 13 - SYSTEM CONFIGURATION
+--------------------------------------------------------------------------------
+system_settings [C] (0011)
+ id PK | key VARCHAR(100) UQ IDX | value TEXT | value_type (string/int/float/
+ boolean/json) | description | is_secret BOOL | updated_by | timestamps
+
+feature_flags [C] (0011)
+ id PK | name VARCHAR(100) UQ IDX | description | is_enabled | default_enabled |
+ rollout_percentage INT default 100 | scope (GLOBAL/SHOP/USER/REGION) |
+ target_ids_json JSON | conditions_json JSON | updated_by | timestamps
+
+DOMAIN 14 - RESTAURANT DISCOVERY [W]   (authored in migration 0015; NOT yet committed; Master Spec §27, Rule 4)
+--------------------------------------------------------------------------------
+Tables and ORM models are AUTHORED in migration 0015 (uncommitted; apply after 0014). They
+keep restaurant data logically separate from the physical-product inventory,
+while reusing users / shops(location) / search / reviews / notifications.
+
+restaurants [W] - one row per restaurant listing, 1:1 with a shops row
+ id PK | shop_id FK->shops.id UQ NOT NULL (reuses location/hours/status) |
+ cuisine_types JSON (["North Indian","Chinese"]) | dining_available BOOL |
+ takeaway_available BOOL | avg_cost_for_two NUMERIC(12,2) | is_open_now_calc
+ BOOL | rating FLOAT CHECK 0-5 | review_count INT CHECK>=0 | veg_only BOOL |
+ licence_fssai VARCHAR(50) | timestamps | soft-delete
+ NOTE: no "menu item inventory / stock" - discovery only (RULE: no food delivery).
+
+restaurant_menu_categories [W]
+ id PK | restaurant_id FK IDX | name VARCHAR(120) | description | sort_order |
+ is_active | UQ(restaurant_id, name) | timestamps
+
+restaurant_menu_items [W]
+ id PK | restaurant_id FK IDX | menu_category_id FK IDX | name VARCHAR(255) |
+ description TEXT | price NUMERIC(12,2) CHECK>=0 | veg BOOL | spicy BOOL |
+ is_available_today BOOL | sort_order | is_active | timestamps | soft-delete
+
+DOMAIN 15 - AUTHORED [W] - TRANSPORT & PERSONAL TRANSPORT BOOKING
+                          (Master Spec §28-§29, Rules 5-6)
+--------------------------------------------------------------------------------
+Transport is a SERVICE domain. Vehicles are NOT shop_products and bookings are
+NOT product orders. These tables are designed to be created together in the
+next migration after 0014. service_areas (Domain 7) anchors coverage.
+
+
+
+transport_providers [P] - provider profile (owner of vehicles/services)
+ id PK | user_id FK->users.id IDX | shop_id FK->shops.id IDX NULL (optional
+ business linkage) | company_name VARCHAR(255) | license_number VARCHAR(100) |
+ verification_status VARCHAR(30) CHECK IN ('PENDING','VERIFIED','REJECTED',
+  'SUSPENDED') | service_area_id FK->service_areas.id IDX NULL | rating FLOAT
+ CHECK 0-5 | review_count INT CHECK>=0 | is_active BOOL | timestamps | soft-delete
+
+vehicles [P]
+ id PK | provider_id FK->transport_providers.id IDX NOT NULL |
+ vehicle_type VARCHAR(30) CHECK IN ('SEDAN','SUV','HATCHBACK','MPV','BIKE',
+  'SCOOTER','TEMPO','MINI_BUS','BUS','VAN') | make VARCHAR(100) | model
+ VARCHAR(100) | year INT | registration_number VARCHAR(30) UQ IDX |
+ capacity_passengers INT CHECK>=1 | capacity_luggage_kg NUMERIC(8,2) |
+ ac_available BOOL | fuel_type VARCHAR(20) | color VARCHAR(30) |
+ interior_photo_url VARCHAR(500) | exterior_photo_url VARCHAR(500) |
+ is_active BOOL | timestamps | soft-delete
+ IDX(provider_id, vehicle_type, is_active)
+
+vehicle_documents [P] - insurance / registration / permit (private bucket)
+ id PK | vehicle_id FK->vehicles.id IDX | document_type VARCHAR(50)
+  (REGISTRATION/INSURANCE/PERMIT/DRIVING_LICENSE) | document_url VARCHAR(500) |
+ document_number VARCHAR(100) | valid_until DATE |is_verified BOOL |
+ verified_at | verified_by FK->users | timestamps | soft-delete
+
+transport_services [P] - what a provider offers (marriage / tour / local / ..)
+ id PK | provider_id FK IDX NOT NULL | service_type VARCHAR(30) CHECK IN
+  ('MARRIAGE','FAMILY_TOUR','PERSONAL_TRAVEL','LOCAL_TRAVEL','EVENT_TRAVEL',
+  'AIRPORT','WEDDING','OTHER') | name VARCHAR(255) | description TEXT |
+ base_price NUMERIC(12,2) CHECK>=0 | price_unit VARCHAR(20) CHECK IN
+  ('PER_DAY','PER_KM','PER_TRIP','PER_HOUR','QUOTE') | min_duration_days INT |
+ is_active BOOL | timestamps | soft-delete
+
+vehicle_availability [P] - calendar-style availability per vehicle
+ id PK | vehicle_id FK IDX NOT NULL | available_from TIMESTAMPTZ NOT NULL |
+ available_to TIMESTAMPTZ NOT NULL CHECK(available_to > available_from) |
+ status VARCHAR(20) CHECK IN ('AVAILABLE','BOOKED','MAINTENANCE') |
+ created_by FK->users | timestamps
+ IDX(vehicle_id, status, available_from)
+
+transport_quotes [P] - provider-side quote for a requested trip
+ id PK | provider_id FK IDX | vehicle_id FK IDX NULL | customer_user_id
+ FK->users.id IDX | requested_by FK->users.id IDX | trip_purpose VARCHAR(30)
+ CHECK IN ('MARRIAGE','FAMILY_TOUR','PERSONAL_TRAVEL','LOCAL_TRAVEL',
+  'EVENT_TRAVEL','OTHER') | pickup_address TEXT | destination_address TEXT |
+ pickup_lat FLOAT | pickup_lng FLOAT | trip_date DATE | trip_days INT |
+ passenger_count INT CHECK>=1 | quote_amount NUMERIC(12,2) CHECK>=0 |
+ currency VARCHAR(10) default INR | status VARCHAR(30) CHECK IN
+  ('REQUESTED','QUOTED','ACCEPTED','REJECTED','EXPIRED') | notes TEXT |
+ timestamps | IDX(customer_user_id, created_at)
+
+transport_bookings [P] - confirmed booking (separate from product orders)
+ id PK | quote_id FK->transport_quotes.id UQ IDX NOT NULL | customer_user_id
+ FK->users.id IDX | provider_id FK IDX | vehicle_id FK IDX | status VARCHAR(30)
+ CHECK IN ('PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED') |
+ booking_ref VARCHAR(40) UQ IDX | pickup_address TEXT | destination TEXT |
+ pickup_lat FLOAT | pickup_lng FLOAT | trip_date DATE | trip_days INT |
+ passenger_count INT | agreed_amount NUMERIC(12,2) CHECK>=0 | currency |
+ notes TEXT | confirmed_by FK->users | confirmed_at | cancelled_at |
+ cancel_reason TEXT | timestamps | IDX(customer_user_id, status) IDX(provider_id,
+ status)
+
+booking_status_history [P] - audit of every booking transition
+ id PK | booking_id FK->transport_bookings.id IDX | from_status VARCHAR(30) |
+ to_status VARCHAR(30) | changed_by FK->users | note TEXT | changed_at
+ TIMESTAMPTZ | timestamps
+
+trip_details [P] - operational trip snapshot after confirmation
+ id PK | booking_id FK->transport_bookings.id UQ IDX | driver_name VARCHAR(120) |
+ driver_phone VARCHAR(20) | vehicle_actual_id FK->vehicles.id IDX NULL |
+ start_odometer INT | end_odometer INT | started_at | ended_at |
+ actual_distance_km NUMERIC(8,2) | final_amount NUMERIC(12,2) |
+ payment_status VARCHAR(20) CHECK IN ('PENDING','PAID','PARTIAL') |
+ timestamps
+
+RULE GUARDRAILS: transport_quotes/transport_bookings are never joined to
+shop_products/inventory; booking references users, transport_providers and
+vehicles only. No cart/checkout/delivery semantics are introduced.
+
+DOMAIN 16 - AUTHORED [W] - REVIEWS & PHARMA COMPLIANCE
+--------------------------------------------------------------------------------
+reviews [P] - moderated, verified-customer reviews for shops & products
+ id PK | user_id FK->users.id CASCADE IDX | shop_id FK->shops.id IDX NULL |
+ product_master_id FK->product_masters.id IDX NULL |
+ CHECK (shop_id IS NOT NULL OR product_master_id IS NOT NULL) | rating INT
+ CHECK 1-5 | title VARCHAR(255) | body TEXT |is_verified_purchase BOOL |
+ status VARCHAR(20) CHECK IN ('PENDING','APPROVED','REJECTED','HIDDEN') |
+ moderated_by FK->users | moderated_at | timestamps | soft-delete
+ IDX(shop_id, status) IDX(product_master_id, status)
+ NOTE: user_interactions.rating stays as the lightweight create-only signal;
+ reviews adds moderated display content. Dedupe via partial UNIQUE (1 review
+ per (user, shop) when status IN display states) - see migration plan.
+
+pharmacy compliance - proposed columns on product_masters (Master Spec §36)
+ ADD prescription_required BOOL NOT NULL DEFAULT false
+ ADD regulatory_class VARCHAR(30) CHECK IN ('OTC','RX','SCHEDULED','DEVICE',
+  'SUPPLEMENT','UNCLASSIFIED') DEFAULT 'UNCLASSIFIED'
+ ADD requires_license_type VARCHAR(30)   -- e.g.'DRUG_LICENSE'
+ ADD is_restricted BOOL NOT NULL DEFAULT false
+ ADD compliance_notes TEXT
+ Partial index ON product_masters WHERE prescription_required
+ These columns gate discovery-only flows (no illegal sale/skip of Rx checks).
+
+================================================================================
+ DATA CONSISTENCY RULES (enforced by CHECK / UNIQUE / FK constraints)
+================================================================================
+   1. quantity >= 0 in inventory.               (ck_inventory_quantity_non_negative)
+  2. price / mrp >= 0 everywhere money appears.  (ck on shop_products, price_history)
+   3. rating IN [0, 5]and review_count >= 0 on shops; rating IN [1, 5] on
+ user_interactions (and proposed reviews.
+   4. offer end_date > start_date.                   (ck_offers_end_after_start)
+   5. one product master NEVER duplicated: UQ categories.slug, brands.slug,
+ product_masters.slug, product_identifiers(identifier_type,value) etc.
+   6. one shop-product link: UQ shop_products(shop_id, product_master_id, variant_id)
+ plus UQ(shop_id, sku).
+   7. one inventory row per shop-product.             (uq_inventory_shop_product)
+   8. one favourite per (customer,item): uq_customer_favorite_customer_item.
+
+   9. one active subscription per (user|shop): enforced at the service layer;
+ payments reference the subscription and provider (order_id/transaction_id) are UQ.
+  10. OTP/reset tokens: single-use(, expiring(, flips is_verified/is_used).
+  11. bookings (proposed) are never FK'd to shop_products/inventory.
+  12. RBAC: users.role_id + user_roles M2M; permissions via role_permissions.-
+  13. Unique service-area name; area_type CHECK IN CITY/ZONE/LOCALITY/PINCODE.-
+================================================================================
+ INDEXING & PERFORMANCE (hot paths from Master Spec §46)
+================================================================================
+ Hot path 1 - "search any product near me":
+ search_indexes: GIN(search_vector), GIN(search_text gin_trgm_ops),
+ GIN(barcode gin_trgm_ops) for typo-tolerant full-text;
+ GiST(location) for radius/bbox pre-filter;
+     (shop_id,is_available), (shop_id,shop_rating), (product_id,price),
+     (product_id,freshness_status), (category_id,brand_id) composite B-tree.
+ 2. inventory lookup: shop_products(shop_id, product_master_id[, variant_id]),
+ shop_products(shop_id,variant_id), shop_products(shop_id,is_available),
+ inventory(shop_product_id) UNIQUE.          (Added in 0014.)
+ 3. nearby shop: shops(location) GiST; shop_addresses(location) GiST.
+ 4. service zones: service_areas(boundary) GiST, (center) GiST, pincode_prefix,
+ partial(active) index.                              (Added in 0014.)
+  5. auth: users(phone_number|google_id) UQ; auth_sessions(user_id,is_active),
+ refresh_token_hash; token_blacklist(jti) UQ.
+  6. product detail / shop detail: PK lookups; composite (name,brand_id) etc./
+ 7. analytics: analytics_events(event_name,occurred_at), (actor_type,occurred_at),
+     (shop_id,occurred_at), (product_master_id,occurred_at); daily rollup for reports.
+
+ Rules: measure first; prefer composite over many single-column indexes; use partial
+ indexes for hot-but-sparse predicates; GiST only on geography/geometry columns;
+ every business-unique key MUST carry an index (Postgres auto-indexes UQ).
+
+================================================================================
+ MIGRATION MAP (chain must stay one-directional; no silent re-creation)
+================================================================================
+ 0001 initial_migration        - users, roles, permissions, role_permissions..
+ 0002 expanded_database_architecture - customers, saved_products/shops, search_history;
+ PostGIS + pg_trgm enablement
+ 0003 product_master_catalog       - categories, brands, product_masters, variants,
+ images, attributes, identifiers, barcode_relationships
+ 0004 shop_management_system        - shops, owners, managers, addresses, hours,
+ holidays, documents, verifications
+ 0005 inventory_pricing_engine      - shop_products, inventory, movements, adjustments,
+ price_history, offers, offer_products, offer_conditions
+ 0006 search_geo_discovery_engine  - search_indexes(+GIN/GiST), sync_runs, barcode_scans
+ 0007 inventory_import_jobs         - inventory_import_jobs, inventory_import_rows
+  0008 pos_integration_platform      - pos_integrations, pos_devices, pos_sync_jobs, logs
+ 
+  0009 notification_system            - notifications, preferences, device_tokens, deliveries
+ 
+  0010 subscription_monetization     - subscription_plans, subscriptions, payments;
+ POS product mappings
+  0011 analytics_audit_system         - analytics/funnel, user_interactions, reports,
+ complaints, admin_actions/notes, product_approvals, audit_logs
+ 
+  0012 fast2sms_otp_records         - otps (salted HMAC, 5-min TTL)
+  0013 google_oauth_leads            - google_id on users, Google auth session support
+  0014 module_schema_completion [W]- user_roles, password_resets, auth_sessions+token_
+ blacklist materialisation, customer_favorites, customer_recent_
+ products, service_areas, shop_addresses.location geo
+ backfill, shop_products composite indexes, defensive
+ GiST indexes.  (Authored; NOT yet committed.)
+  0015 [W] restaurant_discovery (authored; NOT yet committed)      - restaurants, restaurant_menu_categories, menu_items
+  0016 [W] transport_booking (authored; NOT yet committed)         - transport_providers, vehicles, vehicle_documents,
+ transport_services, vehicle_availability, transport_quotes,
+ transport_bookings, booking_status_history, trip_details
+   0017 [W] reviews_pharma (authored; NOT yet committed)            - reviews (+partial UQ), product_masters compliance columns
+                                      (prescription_required, regulatory_class, etc.)
+
+ NOTE: RESTAURANTS (0015), TRANSPORT (0016) and REVIEWS + PHARMA COMPLIANCE (0017) are
+ now all AUTHORED [W] on top of in-work 0014 with full API layers (routes, services,
+ schemas) and DB-free tests. The migration chain is linear 0001-0017.
+ DO NOT fork the chain.
+
+
+
+================================================================================
+ PHARMACY / HEALTHCARE COMPLIANCE (Master Spec §36)
+================================================================================
+  1. product_masters gains prescription_required / regulatory_class when
+ the pharmacy phase lands (0017 authored [W]).
+ 2. Pharmacies (PHARMACY shop_category) require shop_verifications documents
+       (drug licence etc.)and verification_status == VERIFIED before any Rx-class
+ product is surfaced.
+  3. Rx-class products are DISCOVERY ONLY: the platform never sells, checks-out,
+ or books prescription medicines; UI must show an appropriate disclaimer
+ next to Rx items;.
+   4. Audit trail: pharmacy-related product creation / classification changes
+ route through product_approvals and audit_logs.
+
+
+
+================================================================================
+ CLOSING NOTE
+================================================================================
+ This design freezes the Phase-2 canonical database for the platform: every
+ entity the Master Specification requires is either [C] implemented (with its
+ exact Alembic migration), [W] in-progress (0014), or [P] designed with exact
+ columns here for the next migration after the current work lands. The three
+ irreducible invariants of the whole scheme are:
+    1. product identity (product_masters) is global and ONE per product.
+    2. price/stock/availability are shop-specific (shop_products/inventory/price
+        _history).
+    3. services (restaurants, transport) live in their own domains, never
+ blended into product inventory; transport bookings are their own
+ aggregates, never product orders.

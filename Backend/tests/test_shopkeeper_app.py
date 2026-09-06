@@ -265,11 +265,16 @@ class TestShopkeeperRegistration:
         customers = [o for o in db.added if type(o).__name__ == "Customer"]
         assert customers == []  # business account: no customer profile
 
-    def test_register_route_full_flow(self):
+    def test_register_route_full_flow(self, monkeypatch):
         from app.api.routes import shopkeeper_auth
-        from app.services.otp_service import generate_otp
 
-        otp_info = generate_otp("+919000000011")
+        # Mock Firebase token verification → returns the phone number.
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "verify_firebase_id_token",
+            lambda token: "+919000000011",
+        )
+
         request = MagicMock()
         request.client.host = "127.0.0.1"
         request.headers.get.return_value = "pytest-agent"
@@ -277,8 +282,9 @@ class TestShopkeeperRegistration:
         db = ShopkeeperMockDB()
         payload = shopkeeper_auth.ShopkeeperRegisterRequest(
             phone_number="+919000000011",
-            otp=otp_info["dev_otp"],
+            firebase_id_token="fake-firebase-token-0000000000",
             name="Suresh Kirana",
+            password="Password123",
             device_id="dev-1",
         )
         response = run_async(shopkeeper_auth.register(payload, request, db))
@@ -286,14 +292,18 @@ class TestShopkeeperRegistration:
         assert '"success":true' in body.replace(" ", "")
         assert "access_token" in body
 
-    def test_register_rejects_existing_account(self):
+    def test_register_rejects_existing_account(self, monkeypatch):
         from fastapi.responses import JSONResponse
 
         from app.api.routes import shopkeeper_auth
         from app.models.user import User
-        from app.services.otp_service import generate_otp
 
-        otp_info = generate_otp("+919000000012")
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "verify_firebase_id_token",
+            lambda token: "+919000000012",
+        )
+
         request = MagicMock()
         request.client.host = "127.0.0.1"
         request.headers.get.return_value = None
@@ -303,7 +313,10 @@ class TestShopkeeperRegistration:
         db.queue_first(User, [existing])
 
         payload = shopkeeper_auth.ShopkeeperRegisterRequest(
-            phone_number="+919000000012", otp=otp_info["dev_otp"], name="Dup"
+            phone_number="+919000000012",
+            firebase_id_token="fake-firebase-token-0000000000",
+            name="Dup",
+            password="Password123",
         )
         response = run_async(shopkeeper_auth.register(payload, request, db))
         assert isinstance(response, JSONResponse)
@@ -315,46 +328,60 @@ class TestShopkeeperRegistration:
 
 
 class TestShopkeeperLogin:
-    def test_login_invalid_otp(self):
+    def test_login_invalid_token(self, monkeypatch):
         from fastapi.responses import JSONResponse
 
         from app.api.routes import shopkeeper_auth
+        from app.services.firebase_verification import FirebaseVerificationError
+
+        # Mock Firebase verification to reject the token.
+        def _raise(token):
+            raise FirebaseVerificationError("Invalid token")
+
+        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token", _raise)
 
         request = MagicMock()
         request.client.host = "127.0.0.1"
         db = ShopkeeperMockDB()
-        payload = shopkeeper_auth.ShopkeeperLoginRequest(
-            phone_number="+919000000013", otp="000000"
+        payload = shopkeeper_auth.ShopkeeperOTPLoginRequest(
+            firebase_id_token="bad-token-0000000000000"
         )
-        response = run_async(shopkeeper_auth.login(payload, request, db))
+        response = run_async(shopkeeper_auth.verify_otp_login(payload, request, db))
         assert isinstance(response, JSONResponse)
-        assert response.status_code == 400
+        assert response.status_code == 401
 
-    def test_login_unknown_account(self):
+    def test_login_unknown_account(self, monkeypatch):
         from fastapi.responses import JSONResponse
 
         from app.api.routes import shopkeeper_auth
-        from app.models.user import User
-        from app.services.otp_service import generate_otp
 
-        otp_info = generate_otp("+919000000014")
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "verify_firebase_id_token",
+            lambda token: "+919000000014",
+        )
+
         request = MagicMock()
         request.client.host = "127.0.0.1"
         db = ShopkeeperMockDB()  # no user found
 
-        payload = shopkeeper_auth.ShopkeeperLoginRequest(
-            phone_number="+919000000014", otp=otp_info["dev_otp"]
+        payload = shopkeeper_auth.ShopkeeperOTPLoginRequest(
+            firebase_id_token="fake-firebase-token-0000000000"
         )
-        response = run_async(shopkeeper_auth.login(payload, request, db))
+        response = run_async(shopkeeper_auth.verify_otp_login(payload, request, db))
         assert isinstance(response, JSONResponse)
         assert response.status_code == 404
 
-    def test_login_success_returns_tokens_and_shops(self):
+    def test_login_success_returns_tokens_and_shops(self, monkeypatch):
         from app.api.routes import shopkeeper_auth
         from app.models.user import User
-        from app.services.otp_service import generate_otp
 
-        otp_info = generate_otp("+919000000015")
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "verify_firebase_id_token",
+            lambda token: "+919000000015",
+        )
+
         request = MagicMock()
         request.client.host = "127.0.0.1"
         request.headers.get.return_value = "pytest"
@@ -371,10 +398,10 @@ class TestShopkeeperLogin:
         db.queue_first(type(shop), [shop])
         db.set_all(type(make_manager()), [])
 
-        payload = shopkeeper_auth.ShopkeeperLoginRequest(
-            phone_number="+919000000015", otp=otp_info["dev_otp"], device_id="dev-2"
+        payload = shopkeeper_auth.ShopkeeperOTPLoginRequest(
+            firebase_id_token="fake-firebase-token-0000000000", device_id="dev-2"
         )
-        response = run_async(shopkeeper_auth.login(payload, request, db))
+        response = run_async(shopkeeper_auth.verify_otp_login(payload, request, db))
         body = bytes(response.body).decode()
         assert '"success":true' in body.replace(" ", "")
         assert "access_token" in body and "refresh_token" in body

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/product_share.dart';
 import '../../domain/search_state.dart';
 import '../controllers/search_controller.dart';
 import '../widgets/search_filter_sort_bar.dart';
@@ -147,6 +148,17 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   result: result,
                   onTap: () => context.push(
                     '/product/${result.productId}',
+                  ),
+                  onShare: () => shareProduct(
+                    context,
+                    productName: result.productName,
+                    price: result.price,
+                    mrp: result.mrp,
+                    discountPercent: result.discountPercent,
+                    shopName: result.shopName,
+                    distanceInKm: result.distanceInKm,
+                    variant: result.variant,
+                    brand: result.brand,
                   ),
                 );
               },

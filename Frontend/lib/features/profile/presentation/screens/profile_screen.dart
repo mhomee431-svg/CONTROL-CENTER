@@ -71,6 +71,20 @@ class ProfileScreen extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/profile/addresses'),
             ),
+            ListTile(
+              leading: const Icon(Icons.favorite_outline),
+              title: const Text('My Favourites'),
+              subtitle: const Text('Products & shops you saved'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/my-favorites'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Recently Viewed'),
+              subtitle: const Text('Products you explored recently'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/recently-viewed'),
+            ),
             if (!isGuest && profile != null) ...[
               ListTile(
                 leading: const Icon(Icons.badge_outlined),

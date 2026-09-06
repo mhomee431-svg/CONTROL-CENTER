@@ -1,0 +1,67 @@
+MASTER PROJECT SPECIFICATION
+          ↓
+PHASE 1
+Repository Audit
+          ↓
+PHASE 2
+Final Database Architecture
+          ↓
+PHASE 3
+Database Implementation + Migration
+          ↓
+PHASE 4
+Backend Contract / REST APIs
+          ↓
+PHASE 5
+FastAPI Backend Foundation
+          ↓
+PHASE 6
+Authentication
+          ↓
+PHASE 7
+Product Master
+          ↓
+PHASE 8
+Shop + Business
+          ↓
+PHASE 9
+Inventory
+          ↓
+PHASE 10
+Search + PostGIS
+          ↓
+PHASE 11
+Flutter ↔ Backend Integration
+          ↓
+PHASE 12
+Shopkeeper App
+          ↓
+PHASE 13
+Admin Panel
+          ↓
+PHASE 14
+Barcode / POS / Excel
+          ↓
+PHASE 15
+Restaurant
+          ↓
+PHASE 16
+Transport
+          ↓
+PHASE 17
+Personal Transport Booking
+          ↓
+PHASE 18
+Subscription
+          ↓
+PHASE 19
+Notifications + Analytics
+          ↓
+PHASE 20
+Testing
+          ↓
+PHASE 21
+AWS Deployment
+          ↓
+PRODUCTION
+

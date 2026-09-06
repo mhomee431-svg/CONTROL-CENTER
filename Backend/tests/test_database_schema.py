@@ -104,6 +104,22 @@ EXPECTED_TABLES = {
     # Saved
     "saved_products",
     "saved_shops",
+    # Restaurant discovery (Rule 4: discovery-only)
+    "restaurants",
+    "restaurant_menu_categories",
+    "restaurant_menu_items",
+    # Transport & personal transport booking (Rules 5-6)
+    "transport_providers",
+    "vehicles",
+    "vehicle_documents",
+    "transport_services",
+    "vehicle_availability",
+    "transport_quotes",
+    "transport_bookings",
+    "booking_status_history",
+    "trip_details",
+    # Reviews (moderated content)
+    "reviews",
 }
 
 EXPECTED_ENUMS = {

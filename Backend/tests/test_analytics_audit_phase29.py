@@ -56,7 +56,7 @@ def _portable_timestamp_defaults():
     from sqlalchemy import ColumnDefault
 
     def _now(ctx=None):
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     for table in Base.metadata.tables.values():
         for col in table.columns:
@@ -111,7 +111,7 @@ def db():
     engine.dispose()
 
 
-NOW = datetime.utcnow()
+NOW = datetime.now(timezone.utc)
 
 
 # ── Event generation ─────────────────────────────────────────────────────────
@@ -282,7 +282,7 @@ class TestEventIntegrity:
 # ── Aggregation ──────────────────────────────────────────────────────────────
 class TestAggregation:
     def test_daily_aggregation_counts(self, db):
-        today = datetime.utcnow()
+        today = datetime.now(timezone.utc)
         yesterday = today - timedelta(days=1)
         an.track_event(db, event_name="PRODUCT_VIEW", actor_type="CUSTOMER",
                        actor_id=1, product_master_id=11, category_id=31,
@@ -307,7 +307,7 @@ class TestAggregation:
         assert pv["distinct_actors"] == 3
 
     def test_aggregation_is_idempotent_per_day(self, db):
-        today = datetime.utcnow()
+        today = datetime.now(timezone.utc)
         for _ in range(4):
             an.track_event(db, event_name="SHARE", actor_type="CUSTOMER",
                            actor_id=1, occurred_at=today)
@@ -319,7 +319,7 @@ class TestAggregation:
         assert agg.event_count == 4
 
     def test_metric_sum_aggregated(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for ms in (100, 200, 300):
             an.track_event(db, event_name="API_PERFORMANCE", actor_type="PLATFORM",
                            metric_value=ms, occurred_at=now)
@@ -335,7 +335,7 @@ class TestAggregation:
 # ── Dashboard correctness ────────────────────────────────────────────────────
 class TestDashboards:
     def test_search_trends(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for _ in range(3):
             an.track_search(db, user_id=1, session_id="s1", query="milk",
                             result_count=5, occurred_at=now)
@@ -350,7 +350,7 @@ class TestDashboards:
         assert trends["daily"][0]["searches"] == 4
 
     def test_popular_products_and_categories(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for _ in range(3):
             an.track_event(db, event_name="PRODUCT_VIEW", actor_type="CUSTOMER",
                            product_master_id=101, category_id=31, occurred_at=now)
@@ -364,7 +364,7 @@ class TestDashboards:
         assert categories == {31: 3, 32: 1}
 
     def test_popular_shops(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         an.track_event(db, event_name="SHOP_VIEW", actor_type="CUSTOMER",
                        shop_id=21, session_id="x", occurred_at=now)
         an.track_event(db, event_name="DIRECTIONS", actor_type="CUSTOMER",
@@ -374,7 +374,7 @@ class TestDashboards:
                             "distinct_sessions": 2}
 
     def test_conversion_rate(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # s1 searches then visits a shop; s2 only searches; s3 only views.
         an.track_event(db, event_name="SEARCH", actor_type="CUSTOMER",
                        session_id="s1", query="tea", metric_value=3, occurred_at=now)
@@ -390,7 +390,7 @@ class TestDashboards:
         assert conv["conversion_rate"] == 0.5
 
     def test_inventory_freshness(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         an.track_event(db, event_name="INVENTORY_FRESHNESS", actor_type="PLATFORM",
                        shop_id=21, metric_value=0.8, occurred_at=now)
         an.track_event(db, event_name="INVENTORY_FRESHNESS", actor_type="PLATFORM",
@@ -401,7 +401,7 @@ class TestDashboards:
         assert by_shop == {21: 0.8, 22: 1.0}
 
     def test_subscription_metrics(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         plan_events = [
             ("SUBSCRIPTION_CREATED", None),
             ("SUBSCRIPTION_CREATED", None),
@@ -419,7 +419,7 @@ class TestDashboards:
         assert metrics["revenue"] == 698.0
 
     def test_platform_health(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for ms in (100, 200, 300):
             an.track_event(db, event_name="API_PERFORMANCE", actor_type="PLATFORM",
                            metric_value=ms, occurred_at=now)
@@ -454,7 +454,7 @@ class TestReports:
             an.generate_report(db, report_type="HOROSCOPES")
 
     def test_report_payload_matches_dashboard(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         an.track_search(db, user_id=1, session_id="r1", query="milk",
                         result_count=9, occurred_at=now)
         report = an.generate_report(db, report_type="SEARCH_TRENDS",
@@ -473,7 +473,7 @@ class TestReports:
 class TestVerifyTraceability:
     def test_funnel_traces_to_raw_events(self, db):
         """End-to-end funnel: every dashboard number recomputes from raw rows."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Session 1: search -> click -> shop view -> directions (full funnel)
         an.track_search(db, user_id=1, session_id="f1", query="sweets",
                         result_count=8, occurred_at=now)
@@ -527,7 +527,7 @@ class TestVerifyTraceability:
         assert search_agg.distinct_sessions == 3
 
     def test_report_generation_from_funnel(self, db):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         an.track_search(db, user_id=1, session_id="z1", query="chai",
                         result_count=6, occurred_at=now)
         report = an.generate_report(db, report_type="CONVERSION")

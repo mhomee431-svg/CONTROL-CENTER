@@ -2,36 +2,101 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+import re
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────
 class ShopkeeperSendOTPRequest(BaseModel):
-    phone_number: str = Field(..., min_length=10, max_length=15)
+    phone_number: str = Field(..., min_length=10, max_length=20)
 
 
 class ShopkeeperRegisterRequest(BaseModel):
-    """First-time shopkeeper registration (phone + OTP + display name)."""
+    """First-time shopkeeper registration.
 
-    phone_number: str = Field(..., min_length=10, max_length=15)
-    otp: str = Field(..., min_length=4, max_length=8)
+    Phone verification is performed client-side by Firebase Phone Auth — the
+    Flutter app sends the resulting Firebase ID token (``firebase_id_token``).
+    The backend verifies the token to extract and trust the phone number.
+    """
+
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token from a completed phone-OTP sign-in",
+    )
+    phone_number: str = Field(..., min_length=10, max_length=20, description="Must match the token's phone")
     name: str = Field(..., min_length=1, max_length=100)
     email: str | None = Field(None, max_length=255)
+    password: str = Field(..., min_length=8, max_length=128, description="Password (8+ chars)")
     device_id: str | None = Field(None, description="Stable device identifier")
     device_name: str | None = None
     device_type: str | None = Field(None, description="android, ios, web")
     platform: str | None = None
     app_version: str | None = None
 
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError('Password must contain at least one letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v
+
 
 class ShopkeeperLoginRequest(BaseModel):
-    """OTP login for an EXISTING account (any role) via the Shopkeeper App."""
+    """Password-based login for shopkeeper (identifier can be email or phone)."""
 
-    phone_number: str = Field(..., min_length=10, max_length=15)
-    otp: str = Field(..., min_length=4, max_length=8)
+    identifier: str = Field(..., min_length=3, max_length=255, description="Email or phone number")
+    password: str = Field(..., min_length=8, max_length=128)
     device_id: str | None = None
     device_name: str | None = None
     device_type: str | None = None
+    platform: str | None = None
+    app_version: str | None = None
+
+
+class ShopkeeperOTPLoginRequest(BaseModel):
+    """Firebase-phone-OTP login for an EXISTING account via the Shopkeeper App.
+
+    The Flutter app completes the OTP flow client-side with ``firebase_auth``
+    and sends the resulting Firebase ID token (``firebase_id_token``).
+    """
+
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token from a completed phone-OTP sign-in",
+    )
+    device_id: str | None = None
+    device_name: str | None = None
+    device_type: str | None = None
+    platform: str | None = None
+    app_version: str | None = None
+
+
+class ShopkeeperFirebaseLoginRequest(BaseModel):
+    """Combined Firebase login-or-register request.
+
+    The Flutter app sends the Firebase ID token after a successful phone-OTP
+    sign-in. The backend verifies the token, extracts the phone number, and
+    either logs in an existing shopkeeper or auto-registers a new one (if no
+    account exists for that phone). This "login or register on first use" flow
+    is the standard pattern for phone-auth apps.
+    """
+
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token from a completed phone-OTP sign-in",
+    )
+    name: str | None = Field(None, max_length=100, description="Required only when auto-registering a new account")
+    device_id: str | None = Field(None, description="Stable device identifier")
+    device_name: str | None = None
+    device_type: str | None = Field(None, description="android, ios, web")
     platform: str | None = None
     app_version: str | None = None
 
@@ -42,8 +107,53 @@ class ShopkeeperRefreshRequest(BaseModel):
 
 
 class ShopkeeperLogoutRequest(BaseModel):
+    refresh_token: str | None = None
     session_id: str | None = None
     revoke_all: bool = False
+
+
+class ShopkeeperForgotPasswordRequest(BaseModel):
+    """Request password reset (identifier can be email or phone)."""
+
+    identifier: str = Field(..., min_length=3, max_length=255, description="Email or phone number")
+
+
+class ShopkeeperResetPasswordRequest(BaseModel):
+    """Reset password using token from forgot-password email/SMS."""
+
+    token: str = Field(..., description="Password reset token")
+    new_password: str = Field(..., min_length=8, max_length=128, description="New password")
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password(cls, v):
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError('Password must contain at least one letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v
+
+
+# ── Token Response ──────────────────────────────────────────────────────────
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    session_id: str | None = None
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    session_id: str | None = None
+    user: dict
+    shops: list[dict] = []
 
 
 # ── Shop registration / profile / settings ───────────────────────────────
@@ -55,6 +165,35 @@ class ShopAddressInput(BaseModel):
     state: str = Field(..., min_length=1, max_length=100)
     pincode: str = Field(..., min_length=3, max_length=10)
     country: str | None = Field("India", max_length=100)
+
+
+# ── Location capture metadata (Phase: Shop Location System) ─────────────────
+class ShopLocationMeta(BaseModel):
+    """Provenance/quality metadata for a captured shop location.
+
+    GPS coordinates remain the primary source of truth; this block is
+    supporting metadata used by admin review and accuracy auditing.
+    """
+
+    location_source: str | None = Field(
+        None, max_length=20, description="GPS | MANUAL | ADDRESS"
+    )
+    location_type: str | None = Field(
+        None, max_length=30, description="SHOP_ENTRANCE | BUILDING_CENTER | OTHER"
+    )
+    location_status: str | None = Field(
+        None, max_length=20, description="CAPTURED | CONFIRMED | CORRECTED | STALE"
+    )
+    location_integrity_status: str | None = Field(
+        None, max_length=20, description="NORMAL | SUSPICIOUS | UNKNOWN"
+    )
+    accuracy_meters: float | None = Field(None, ge=0, le=10000)
+    location_captured_at: datetime | None = Field(
+        None, description="Device timestamp of the fix (ISO-8601, UTC)"
+    )
+    location_verified: bool | None = Field(
+        None, description="Shopkeeper confirmed the pin at the access point"
+    )
 
 
 class ShopkeeperShopCreate(BaseModel):
@@ -70,6 +209,21 @@ class ShopkeeperShopCreate(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     gstin: str | None = Field(None, max_length=50)
     address: ShopAddressInput
+    # Optional capture provenance — populated by the shopkeeper location flow.
+    location: ShopLocationMeta | None = None
+
+
+class ShopkeeperShopLocationUpdate(BaseModel):
+    """Controlled, IDOR-safe edit of a shop's location.
+
+    Only ``latitude``/``longitude`` are required; the remaining fields are
+    accepted so the controlled Edit-Location flow can persist the new
+    accuracy/timestamp/source in a single request.
+    """
+
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    location: ShopLocationMeta | None = None
 
 
 class ShopkeeperProfileUpdate(BaseModel):

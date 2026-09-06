@@ -27,7 +27,7 @@ from pathlib import Path
 import sqlalchemy as sa
 from sqlalchemy import create_engine, text
 
-# Approved architecture (source of truth = migrations 0001..0011).
+# Approved architecture (source of truth = migrations 0001..0017).
 EXPECTED_TABLES: set[str] = {
     "roles", "permissions", "role_permissions", "user_roles",
     "users", "customers", "customer_addresses",
@@ -59,6 +59,12 @@ EXPECTED_TABLES: set[str] = {
     "system_settings", "feature_flags",
     "subscription_plans", "subscriptions", "payments", "payment_events",
     "saved_products", "saved_shops",
+    # 0016 transport & personal transport booking (Rules 5-6)
+    "transport_providers", "vehicles", "vehicle_documents",
+    "transport_services", "vehicle_availability", "transport_quotes",
+    "transport_bookings", "booking_status_history", "trip_details",
+    # 0017 reviews + pharmacy compliance
+    "reviews",
 }
 
 # Geography POINT columns that must be typed for PostGIS.

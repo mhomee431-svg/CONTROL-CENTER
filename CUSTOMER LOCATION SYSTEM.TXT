@@ -1,0 +1,1844 @@
+                 SHOPKEEPER
+                     │
+                     ▼
+               ┌────────────┐
+               │  Add Shop  │
+               └─────┬──────┘
+                     │
+                     ▼
+             Shop Information
+                     │
+                     ▼
+          ┌─────────────────────┐
+          │ Fetch Your Location │
+          └──────────┬──────────┘
+                     │
+                     ▼
+             Check GPS/Permission
+                     │
+                     ▼
+          Collect Multiple Readings
+                     │
+             ┌───────┴────────┐
+             │                │
+        Accuracy Good     Accuracy Poor
+             │                │
+             │          Improve Accuracy
+             │                │
+             └───────┬────────┘
+                     ▼
+                  MAP
+                     │
+                     ▼
+              📍 SHOP ENTRANCE
+                     │
+                     ▼
+             Reverse Geocoding
+                     │
+                     ▼
+              Address Preview
+                     │
+                     ▼
+            Confirm Shop Location
+                     │
+                     ▼
+                POST / API
+                     │
+                     ▼
+            PostgreSQL + PostGIS
+                     │
+                     ▼
+             SHOP CREATED
+                     │
+                     ▼
+           Verification = Pending
+             
+
+
+You are a Senior Flutter Engineer, FastAPI Backend Engineer,
+PostgreSQL/PostGIS Engineer, Location/GPS Engineer and Security Engineer.
+
+You are working on my existing Hyperlocal Product Discovery Platform.
+
+IMPORTANT:
+Do NOT blindly rewrite the project.
+
+First inspect the existing repository and understand:
+- Flutter architecture
+- Shopkeeper authentication
+- Shopkeeper registration
+- Business/shop models
+- Existing location implementation
+- Existing map implementation
+- Existing permission handling
+- Existing API layer
+- Existing PostgreSQL/PostGIS implementation
+- Existing navigation
+- Existing state management
+- Existing reusable widgets
+- Existing error handling
+
+Then implement the Shopkeeper "Add Shop / Shop Location" system.
+
+==================================================
+1. BUSINESS CONTEXT
+==================================================
+
+This is a Hyperlocal Product Discovery Platform.
+
+Customers should be able to discover:
+
+Product
+→ Nearby Shop
+→ Availability
+→ Price
+→ Distance
+→ Shop Location
+→ Directions
+
+Shopkeepers must be able to register their physical shop/business.
+
+Supported business domains:
+
+1. Pharmacy & Healthcare
+2. Beauty & Personal Care
+3. Furniture & Home Care
+4. Household Goods
+5. Sports, Fitness & Outdoor
+6. Books, Media & Stationery
+7. Automotive Parts & Tools
+8. Hardware
+9. Restaurants
+10. Transport
+11. Personal Transport / Personal Travel
+
+This is NOT a grocery delivery platform.
+
+This is NOT a general food delivery platform.
+
+Restaurants are a discovery/business domain, not a food-delivery workflow.
+
+==================================================
+2. CORE REQUIREMENT
+==================================================
+
+Implement a highly accurate Shopkeeper Shop Location Capture system.
+
+The user experience should be similar to modern ride/location applications.
+
+Main flow:
+
+Shopkeeper Login
+      ↓
+Shopkeeper Dashboard
+      ↓
+Add Shop
+      ↓
+Shop Information
+      ↓
+"Use My Current Location"
+      ↓
+Fetching your location...
+      ↓
+High Accuracy GPS
+      ↓
+Map opens
+      ↓
+Current location marker
+      ↓
+Shopkeeper confirms location
+      ↓
+Reverse geocoding
+      ↓
+Address preview
+      ↓
+Shop location verification
+      ↓
+Save Shop
+      ↓
+Backend/PostGIS
+      ↓
+Shop created
+      ↓
+Shop Dashboard
+
+==================================================
+3. IMPORTANT ACCURACY RULE
+==================================================
+
+Never claim that GPS can provide mathematically "100% accurate"
+coordinates.
+
+Instead implement:
+
+HIGH-ACCURACY LOCATION CAPTURE
++
+MULTIPLE GPS READINGS
++
+ACCURACY RADIUS VALIDATION
++
+MAP CONFIRMATION
++
+REVERSE GEOCODING
++
+SHOPKEEPER CONFIRMATION
++
+POSTGIS STORAGE
+
+The application should aim for the best available device location.
+
+The UI must NOT say:
+
+"100% accurate GPS"
+
+Instead use wording such as:
+
+"Getting your precise location..."
+
+"Improving location accuracy..."
+
+"Location accuracy: 5 m"
+
+"Move closer to your shop for better accuracy."
+
+==================================================
+4. SHOP LOCATION UX
+==================================================
+
+Create a clean mobile-first location screen.
+
+Example:
+
+--------------------------------
+        Add Your Shop
+--------------------------------
+
+[ Map ]
+
+             📍
+         Your Location
+
+--------------------------------
+
+Fetching your location...
+
+Accuracy: 7 meters
+
+--------------------------------
+
+[ Use This Location ]
+
+[ Adjust Pin ]
+
+--------------------------------
+
+Address:
+
+Ghusiya Kala
+Bikramganj
+Rohtas
+Bihar
+India
+
+--------------------------------
+
+[ Confirm Shop Location ]
+--------------------------------
+
+The UI must clearly distinguish:
+
+DEVICE LOCATION
+
+from
+
+SHOP LOCATION.
+
+==================================================
+5. ADD SHOP BUTTON
+==================================================
+
+When Shopkeeper clicks:
+
+"Add Shop"
+
+start the shop registration flow.
+
+Do NOT immediately save anything.
+
+Open:
+
+Shop Information
+      ↓
+Location Capture
+      ↓
+Location Confirmation
+      ↓
+Final Review
+      ↓
+Create Shop
+
+==================================================
+6. LOCATION PERMISSION FLOW
+==================================================
+
+Implement proper location permission handling.
+
+On entering location capture:
+
+Check:
+
+1. Location service enabled?
+2. Permission granted?
+3. Permission denied?
+4. Permission permanently denied?
+5. Approximate location available?
+6. Precise location available?
+
+If permission is denied:
+
+Show:
+
+"Location permission is required to accurately add your shop."
+
+Buttons:
+
+[Allow Location]
+
+[Enter Location Manually]
+
+Do NOT crash.
+
+Do NOT create fake coordinates.
+
+Do NOT silently use a default location.
+
+==================================================
+7. PRECISE LOCATION MODE
+==================================================
+
+Request the highest available location accuracy supported by the device.
+
+Use the existing Flutter location package if already present.
+
+Do NOT add duplicate location packages unnecessarily.
+
+If a suitable package already exists:
+
+reuse it.
+
+If implementation is missing:
+
+choose one stable production-ready Flutter location solution.
+
+Avoid unnecessary dependencies.
+
+==================================================
+8. LOCATION ACQUISITION ALGORITHM
+==================================================
+
+Do NOT accept the first GPS reading blindly.
+
+Implement:
+
+STEP 1
+Request high accuracy location.
+
+STEP 2
+Start location acquisition.
+
+STEP 3
+Collect multiple location readings.
+
+STEP 4
+Read:
+
+latitude
+longitude
+accuracy
+timestamp
+altitude if available
+speed if available
+
+STEP 5
+Discard obviously poor readings.
+
+Example:
+
+accuracy > 50m
+→ poor
+
+accuracy > 25m
+→ weak
+
+accuracy 10–25m
+→ acceptable
+
+accuracy 5–10m
+→ good
+
+accuracy <= 5m
+→ excellent
+
+These thresholds must be configurable.
+
+Do NOT hard-code them in multiple files.
+
+Create one centralized location accuracy configuration.
+
+==================================================
+9. BEST LOCATION SELECTION
+==================================================
+
+From multiple readings select the best valid location.
+
+Primary criteria:
+
+1. smallest accuracy radius
+2. recent timestamp
+3. reasonable movement
+4. valid latitude/longitude
+
+Do not simply average unrelated GPS readings.
+
+If readings are unstable:
+
+continue collecting.
+
+Example UI:
+
+"Improving location accuracy..."
+
+Accuracy:
+
+28 m
+↓
+17 m
+↓
+9 m
+↓
+5 m
+
+Once an acceptable threshold is reached:
+
+"Good location accuracy"
+
+==================================================
+10. LOCATION TIMEOUT
+==================================================
+
+Never keep the user waiting forever.
+
+Configure a maximum acquisition time.
+
+Example:
+
+Initial acquisition:
+up to 15–20 seconds
+
+If excellent accuracy is unavailable:
+
+use the best valid reading.
+
+Show:
+
+"Best available location found."
+
+Do NOT freeze the UI.
+
+Do NOT crash.
+
+==================================================
+11. GPS ACCURACY UI
+==================================================
+
+Display actual accuracy.
+
+Example:
+
+Excellent
+Accuracy: 4 m
+
+Good
+Accuracy: 8 m
+
+Fair
+Accuracy: 15 m
+
+Poor
+Accuracy: 35 m
+
+Do not falsely display:
+
+"100% accurate"
+
+==================================================
+12. SHOPKEEPER MUST BE AT THE SHOP
+==================================================
+
+Add a clear instruction:
+
+"Please stand at your shop entrance while capturing location."
+
+This is extremely important.
+
+Show:
+
+For best accuracy:
+
+✓ Turn on GPS
+✓ Enable Precise Location
+✓ Stand near your shop entrance
+✓ Keep the phone outdoors if possible
+✓ Wait for accuracy to improve
+
+==================================================
+13. MAP LOCATION
+==================================================
+
+After acquiring GPS:
+
+Open map.
+
+Center map on current location.
+
+Display:
+
+Current Location Marker
+
+Allow the shopkeeper to visually verify the position.
+
+The map must support:
+
+- zoom
+- pan
+- current location
+- marker
+- recenter
+- confirm
+- adjust pin
+
+Do not automatically save the location.
+
+==================================================
+14. SHOP PIN
+==================================================
+
+There must be a dedicated Shop Location Pin.
+
+Important:
+
+Device GPS location
+and
+Shop Pin
+
+are conceptually different.
+
+Initial:
+
+Shop Pin = Current GPS Location
+
+Then user can adjust the pin if necessary.
+
+However, do NOT allow unlimited arbitrary movement without warning.
+
+If the shop pin is moved significantly away from GPS:
+
+show:
+
+"Your selected shop location is different from your current GPS location."
+
+Ask:
+
+"Are you sure this is your shop?"
+
+[Cancel]
+
+[Confirm]
+
+==================================================
+15. LOCATION ACCURACY VALIDATION
+==================================================
+
+Before allowing final confirmation:
+
+Validate:
+
+latitude != null
+longitude != null
+
+latitude between -90 and 90
+
+longitude between -180 and 180
+
+accuracy exists
+
+timestamp exists
+
+location is not stale
+
+location accuracy is acceptable
+
+If accuracy is poor:
+
+Show:
+
+"Your location is not accurate enough."
+
+Options:
+
+[Try Again]
+
+[Improve Accuracy]
+
+[Adjust Pin]
+
+==================================================
+16. LOCATION STALENESS
+==================================================
+
+Do not accept extremely old location readings.
+
+Validate location timestamp.
+
+Create configurable maximum age.
+
+Example:
+
+LOCATION_MAX_AGE_SECONDS = 30
+
+If stale:
+
+request a fresh location.
+
+==================================================
+17. REVERSE GEOCODING
+==================================================
+
+After location selection:
+
+perform reverse geocoding.
+
+Convert:
+
+latitude
+longitude
+
+into:
+
+house/building information if available
+street
+area
+village
+town/city
+district
+state
+postal code
+country
+
+Do not trust reverse geocoding as the only source of truth.
+
+GPS coordinates remain the primary location.
+
+Address is supporting information.
+
+==================================================
+18. ADDRESS CONFIRMATION
+==================================================
+
+Show:
+
+Detected Address
+
+Example:
+
+Ghusiya Kala
+Bikramganj
+Rohtas
+Bihar
+India
+
+Then allow shopkeeper to verify/edit address text.
+
+Important:
+
+Editing address text must NOT silently change latitude/longitude.
+
+Location coordinates and human-readable address are separate fields.
+
+==================================================
+19. SHOP ENTRANCE LOCATION
+==================================================
+
+The primary shop location should represent:
+
+SHOP ENTRANCE / CUSTOMER ACCESS POINT
+
+not merely:
+
+building center
+or
+street center.
+
+Instruction:
+
+"Place the pin at your shop entrance."
+
+This is important for accurate customer navigation.
+
+==================================================
+20. LOCATION CONFIRMATION
+==================================================
+
+Before saving:
+
+Show a final confirmation screen.
+
+Example:
+
+--------------------------------
+Confirm Shop Location
+--------------------------------
+
+        [MAP]
+
+Shop:
+
+ABC Medical Store
+
+Location Accuracy:
+
+8 meters
+
+Address:
+
+Ghusiya Kala
+Bikramganj
+Rohtas
+Bihar
+
+Coordinates:
+
+Latitude: XXXXX
+Longitude: XXXXX
+
+--------------------------------
+
+[ Change Location ]
+
+[ Confirm & Add Shop ]
+
+--------------------------------
+
+Only after:
+
+"Confirm & Add Shop"
+
+send the request to backend.
+
+==================================================
+21. BACKEND API
+==================================================
+
+Create/reuse a proper endpoint.
+
+Preferred:
+
+POST /api/v1/shopkeeper/businesses
+
+or if existing architecture has a better route:
+
+POST /api/v1/shopkeeper/shops
+
+Do NOT create duplicate APIs if an equivalent endpoint already exists.
+
+Request should conceptually contain:
+
+business_name
+business_domain
+phone
+email
+address
+area
+city
+district
+state
+postal_code
+latitude
+longitude
+location_accuracy
+location_captured_at
+location_source
+location_verified
+shop_location_type
+
+Example:
+
+location_source:
+
+GPS
+
+shop_location_type:
+
+SHOP_ENTRANCE
+
+==================================================
+22. POSTGIS DATABASE
+==================================================
+
+Store shop location using PostgreSQL + PostGIS.
+
+Use:
+
+geometry(Point, 4326)
+
+or geography(Point, 4326)
+
+according to the existing approved architecture.
+
+Do NOT store latitude/longitude only as text.
+
+Do NOT create unnecessary duplicate location columns.
+
+Recommended conceptual structure:
+
+business_locations
+
+id
+business_id
+location
+latitude if architecture requires it
+longitude if architecture requires it
+accuracy_meters
+source
+captured_at
+verified_at
+location_status
+address fields
+created_at
+updated_at
+
+Follow the existing final database architecture.
+
+==================================================
+23. POSTGIS INDEX
+==================================================
+
+Ensure appropriate spatial indexing exists.
+
+Example concept:
+
+GiST index on location.
+
+This is required because customer searches will later perform:
+
+Nearby shops
+Within radius
+Distance sorting
+
+Example:
+
+"Find shops within 5 km."
+
+Use PostGIS spatial queries.
+
+Do NOT calculate distances by loading every shop into Python.
+
+==================================================
+24. DISTANCE SEARCH COMPATIBILITY
+==================================================
+
+The stored location must support:
+
+ST_DWithin
+ST_Distance
+nearest-shop queries
+radius search
+distance sorting
+
+The implementation must be compatible with the customer search system.
+
+==================================================
+25. BUSINESS LOCATION VS USER LOCATION
+==================================================
+
+Keep these separate.
+
+USER LOCATION:
+
+temporary/current location of customer/shopkeeper.
+
+BUSINESS LOCATION:
+
+persistent location of the registered shop.
+
+Never overwrite business location every time the shopkeeper opens the app.
+
+Once registered:
+
+Shop location remains fixed until explicitly changed.
+
+==================================================
+26. LOCATION UPDATE
+==================================================
+
+Later provide:
+
+"Edit Shop Location"
+
+This must be a separate controlled workflow.
+
+Example:
+
+Shopkeeper
+→ Shop Settings
+→ Edit Location
+→ Fetch Current Location
+→ Adjust Pin
+→ Confirm
+→ Save
+
+Do not automatically update shop location from GPS.
+
+==================================================
+27. BUSINESS VERIFICATION
+==================================================
+
+Location capture does NOT automatically mean:
+
+business verified.
+
+Separate:
+
+location captured
+
+from:
+
+business verified.
+
+Possible statuses:
+
+PENDING
+UNDER_REVIEW
+VERIFIED
+REJECTED
+
+Business status:
+
+PENDING
+ACTIVE
+SUSPENDED
+REJECTED
+CLOSED
+
+Follow the existing database architecture.
+
+==================================================
+28. SHOPKEEPER AUTHORIZATION
+==================================================
+
+Every shop location API must verify:
+
+Authenticated User
+      ↓
+SHOPKEEPER role
+      ↓
+Business Membership
+      ↓
+Business ownership/access
+      ↓
+Permission
+      ↓
+Operation
+
+Prevent IDOR.
+
+A shopkeeper must NEVER be able to update another shop's location
+simply by changing:
+
+business_id
+
+in the API request.
+
+Always verify ownership/membership on the server.
+
+==================================================
+29. MULTIPLE SHOPS
+==================================================
+
+The architecture must support one shopkeeper managing multiple businesses.
+
+Example:
+
+Shopkeeper
+ ├── Medical Store
+ ├── Hardware Store
+ └── Sports Shop
+
+Each business must have its own:
+
+business_id
+
+location
+
+address
+
+status
+
+verification
+
+inventory
+
+products
+
+settings
+
+membership.
+
+Do NOT attach one permanent shop location directly to the user.
+
+==================================================
+30. SECURITY
+==================================================
+
+Never trust coordinates supplied by the client.
+
+Validate on backend:
+
+latitude
+longitude
+accuracy
+timestamp
+business ownership
+authorization
+
+Prevent:
+
+invalid coordinates
+SQL injection
+IDOR
+unauthorized location updates
+mass assignment
+fake business_id access
+
+Do not expose internal database fields unnecessarily.
+
+==================================================
+31. MOCK LOCATION / SUSPICIOUS LOCATION
+==================================================
+
+If the platform and existing Flutter location solution provide
+mock-location detection:
+
+capture that signal.
+
+Do not blindly reject every mock-location signal because false positives
+can occur.
+
+Instead mark:
+
+location_integrity_status
+
+such as:
+
+NORMAL
+SUSPICIOUS
+UNKNOWN
+
+The backend/admin can use this information for verification.
+
+Do not pretend that client-side mock-location detection is tamper-proof.
+
+==================================================
+32. REDIS
+==================================================
+
+If Redis already exists in the backend architecture:
+
+use Redis for temporary/rate-limited operations where appropriate.
+
+Do NOT store permanent shop location only in Redis.
+
+PostgreSQL/PostGIS is the source of truth.
+
+==================================================
+33. ERROR HANDLING
+==================================================
+
+Handle:
+
+Location permission denied
+
+Location services disabled
+
+GPS unavailable
+
+Timeout
+
+Poor accuracy
+
+Reverse geocoding failure
+
+Network failure
+
+Backend failure
+
+Duplicate shop
+
+Unauthorized user
+
+Invalid coordinates
+
+Stale location
+
+Server validation failure
+
+Show user-friendly messages.
+
+Never show raw stack traces.
+
+==================================================
+34. NETWORK FAILURE
+==================================================
+
+If location is successfully captured but network fails:
+
+DO NOT lose the entire form.
+
+Preserve local form state where safe.
+
+Show:
+
+"Location captured. We couldn't save your shop right now."
+
+Buttons:
+
+[Retry]
+
+[Edit]
+
+Do not create duplicate shops on retry.
+
+Use idempotency if appropriate.
+
+==================================================
+35. DUPLICATE SHOP PROTECTION
+==================================================
+
+Prevent accidental duplicate submissions.
+
+Disable:
+
+"Confirm & Add Shop"
+
+while request is processing.
+
+Use:
+
+loading state
+
+request state
+
+idempotency strategy where appropriate.
+
+Do not allow multiple taps to create multiple businesses.
+
+==================================================
+36. FLUTTER ARCHITECTURE
+==================================================
+
+Follow the existing project architecture.
+
+Do NOT create random files.
+
+Use existing:
+
+presentation
+domain
+data
+providers/controllers/blocs
+repositories
+services
+API clients
+
+according to the repository's existing architecture.
+
+Separate:
+
+Location Service
+Map UI
+Location State
+Shop Registration State
+API Repository
+
+Avoid putting GPS logic directly inside UI widgets.
+
+==================================================
+37. LOCATION SERVICE
+==================================================
+
+Create/reuse a dedicated location service.
+
+Responsibilities:
+
+check permission
+request permission
+check GPS
+fetch location
+collect readings
+evaluate accuracy
+return best location
+handle timeout
+handle errors
+
+The UI should not contain low-level GPS logic.
+
+==================================================
+38. LOCATION STATE
+==================================================
+
+Use explicit states such as:
+
+INITIAL
+
+REQUESTING_PERMISSION
+
+FETCHING_LOCATION
+
+IMPROVING_ACCURACY
+
+LOCATION_READY
+
+LOCATION_POOR_ACCURACY
+
+LOCATION_PERMISSION_DENIED
+
+LOCATION_SERVICE_DISABLED
+
+REVERSE_GEOCODING
+
+READY_FOR_CONFIRMATION
+
+SAVING
+
+SUCCESS
+
+ERROR
+
+Use the existing state-management approach instead of introducing
+another state-management library unnecessarily.
+
+==================================================
+39. SHOP REGISTRATION STATE
+==================================================
+
+Shop registration should preserve:
+
+business information
+selected domain
+contact information
+location
+address
+location accuracy
+location verification status
+
+across the registration flow.
+
+If user goes back:
+
+do not unnecessarily refetch GPS.
+
+If location becomes stale:
+
+refresh it before final submission.
+
+==================================================
+40. MAP PERFORMANCE
+==================================================
+
+The location screen must remain smooth.
+
+Do not continuously rebuild the entire page for every GPS update.
+
+Only update required location/map state.
+
+Avoid unnecessary API calls.
+
+Do not reverse-geocode every GPS reading.
+
+Reverse geocode only after selecting the final location.
+
+==================================================
+41. CUSTOMER SEARCH COMPATIBILITY
+==================================================
+
+The shop location implementation must be designed for future customer queries:
+
+"Find nearby pharmacies"
+
+"Find hardware shops near me"
+
+"Find restaurants within 3 km"
+
+"Find sports shops near me"
+
+"Find a product within 5 km"
+
+The database location must therefore be spatially queryable.
+
+==================================================
+42. LOCATION QUALITY METADATA
+==================================================
+
+Store useful metadata where justified by the approved schema:
+
+accuracy_meters
+captured_at
+source
+verification_status
+location_type
+
+Do not store unnecessary device surveillance data.
+
+==================================================
+43. ADMIN VIEW
+==================================================
+
+Admin should eventually be able to see:
+
+Business
+Location
+Accuracy at capture
+Address
+Location status
+Verification status
+Last location update
+
+Admin should be able to flag suspicious location.
+
+Do NOT allow normal shopkeepers to modify admin verification fields.
+
+==================================================
+44. AUDIT LOG
+==================================================
+
+Location changes must be auditable.
+
+Record:
+
+business_id
+actor_user_id
+old_location
+new_location
+old_accuracy
+new_accuracy
+action
+timestamp
+
+Follow existing audit architecture.
+
+Do not create a duplicate audit system if one already exists.
+
+==================================================
+45. TESTING
+==================================================
+
+Create tests for:
+
+Permission granted
+
+Permission denied
+
+GPS disabled
+
+Poor accuracy
+
+Good accuracy
+
+Excellent accuracy
+
+Location timeout
+
+Stale location
+
+Multiple GPS readings
+
+Best-reading selection
+
+Reverse geocoding success
+
+Reverse geocoding failure
+
+Map confirmation
+
+Pin adjustment
+
+Backend validation
+
+Invalid coordinates
+
+Unauthorized business
+
+IDOR attempt
+
+Duplicate submission
+
+Network failure
+
+Retry
+
+Multiple businesses
+
+Location update
+
+==================================================
+46. API TESTING
+==================================================
+
+Test:
+
+POST /shopkeeper/businesses
+
+GET /shopkeeper/businesses
+
+GET /shopkeeper/businesses/{id}
+
+PATCH /shopkeeper/businesses/{id}/location
+
+according to the existing API architecture.
+
+Verify:
+
+authentication
+authorization
+validation
+database transaction
+PostGIS
+spatial index
+error handling.
+
+==================================================
+47. DATABASE TESTING
+==================================================
+
+Verify:
+
+PostGIS extension
+
+correct spatial column
+
+SRID
+
+spatial index
+
+foreign keys
+
+constraints
+
+NOT NULL requirements
+
+business relationship
+
+audit relationship
+
+timestamps
+
+location status
+
+verification fields
+
+No duplicate location tables.
+
+==================================================
+48. PRODUCTION QUALITY
+==================================================
+
+The implementation must be production-ready.
+
+Do not use:
+
+fake GPS coordinates
+hardcoded latitude/longitude
+dummy shop IDs
+mock API responses
+temporary production shortcuts
+TODO placeholders
+fake success responses
+
+unless explicitly isolated inside tests.
+
+==================================================
+49. NO UNNECESSARY REFACTORING
+==================================================
+
+Do NOT rewrite unrelated parts of the application.
+
+Do NOT change:
+
+customer search
+
+customer authentication
+
+product system
+
+inventory system
+
+payment system
+
+unless required for this location feature.
+
+Reuse existing architecture.
+
+Remove duplicate/dead code only after confirming it is unused.
+
+==================================================
+50. AWS COMPATIBILITY
+==================================================
+
+The implementation must work with the planned architecture:
+
+Flutter
+    ↓
+FastAPI
+    ↓
+PostgreSQL + PostGIS
+    ↓
+Redis
+    ↓
+AWS infrastructure
+
+Keep the implementation AWS Free-Tier-conscious.
+
+Do not introduce expensive infrastructure just for location capture.
+
+==================================================
+51. ENVIRONMENT VARIABLES
+==================================================
+
+Do not hardcode:
+
+Map API keys
+Geocoding API keys
+backend URLs
+secret keys
+
+Use the existing environment/configuration architecture.
+
+==================================================
+52. MAP PROVIDER
+==================================================
+
+Inspect the current project first.
+
+If a map provider is already configured:
+
+reuse it.
+
+Do NOT introduce a second map provider unnecessarily.
+
+If no provider exists:
+
+select an appropriate production-ready provider compatible with:
+
+Flutter
+India
+geocoding
+map display
+marker placement
+
+Keep API keys secure.
+
+==================================================
+53. FINAL USER FLOW
+==================================================
+
+The final experience should be:
+
+Shopkeeper Login
+        ↓
+Dashboard
+        ↓
+Add Shop
+        ↓
+Select Business Domain
+        ↓
+Enter Shop Information
+        ↓
+Use My Current Location
+        ↓
+Location Permission
+        ↓
+Fetching your location...
+        ↓
+Improving location accuracy...
+        ↓
+High Accuracy GPS
+        ↓
+Map
+        ↓
+Shop Entrance Pin
+        ↓
+Detected Address
+        ↓
+Shopkeeper confirms
+        ↓
+Final Review
+        ↓
+Confirm & Add Shop
+        ↓
+FastAPI
+        ↓
+PostgreSQL/PostGIS
+        ↓
+Business Created
+        ↓
+Location Saved
+        ↓
+Verification Pending
+        ↓
+Shopkeeper Dashboard
+
+==================================================
+54. IMPORTANT UX DETAIL
+==================================================
+
+The initial screen should feel like:
+
+"Fetching your location..."
+
+with a loading indicator.
+
+Once location is found:
+
+"Your location found"
+
+Then:
+
+"Location accuracy: 7 m"
+
+Then:
+
+"Please confirm this is your shop location."
+
+The primary action:
+
+[ Confirm & Add Shop ]
+
+Secondary action:
+
+[ Adjust Pin ]
+
+==================================================
+55. ACCEPTANCE CRITERIA
+==================================================
+
+The feature is complete ONLY when:
+
+[ ] Shopkeeper can start Add Shop
+
+[ ] Location permission works
+
+[ ] GPS service status is checked
+
+[ ] High accuracy mode is requested
+
+[ ] Multiple readings can be collected
+
+[ ] Best reading is selected
+
+[ ] Accuracy is displayed
+
+[ ] Poor accuracy is handled
+
+[ ] Timeout is handled
+
+[ ] Map displays location
+
+[ ] Shop entrance pin can be confirmed
+
+[ ] Pin can be adjusted
+
+[ ] Address is reverse-geocoded
+
+[ ] Address can be reviewed
+
+[ ] Coordinates remain separate from address text
+
+[ ] Final confirmation exists
+
+[ ] Backend validates coordinates
+
+[ ] Backend validates shopkeeper authorization
+
+[ ] IDOR is prevented
+
+[ ] PostGIS stores location
+
+[ ] Spatial index exists
+
+[ ] Location metadata is stored
+
+[ ] Location changes are audited
+
+[ ] Duplicate submission is prevented
+
+[ ] Network failure is handled
+
+[ ] Retry works
+
+[ ] Multiple businesses are supported
+
+[ ] Existing architecture is reused
+
+[ ] No duplicate location system is created
+
+[ ] No fake coordinates exist
+
+[ ] No hardcoded production secrets exist
+
+[ ] Flutter tests pass
+
+[ ] Backend tests pass
+
+[ ] Database tests pass
+
+[ ] Existing customer functionality still works
+
+==================================================
+56. EXECUTION RULE
+==================================================
+
+IMPORTANT:
+
+Do NOT immediately start coding.
+
+FIRST perform a complete repository audit.
+
+Report:
+
+1. Existing shopkeeper auth
+2. Existing business/shop entity
+3. Existing location model
+4. Existing PostGIS implementation
+5. Existing map implementation
+6. Existing location package
+7. Existing permission handling
+8. Existing API endpoints
+9. Existing database migrations
+10. Existing duplicate code
+11. Existing dead code
+12. Existing bugs
+13. Files that must be modified
+14. Files that should NOT be modified
+15. Database changes required
+16. API changes required
+17. Flutter changes required
+18. Tests required
+
+Then create an implementation plan.
+
+Do NOT implement until the audit and plan are complete.
+
+After the plan is clear, implement in small verified steps.
+
+After each major step:
+
+RUN TESTS
+CHECK ERRORS
+VERIFY EXISTING FEATURES
+THEN CONTINUE.
+
+==================================================
+57. IMPLEMENTATION ORDER
+==================================================
+
+Implement in this exact order:
+
+STEP 1
+Repository audit
+
+STEP 2
+Database/PostGIS audit
+
+STEP 3
+Existing Flutter location/map audit
+
+STEP 4
+Location architecture design
+
+STEP 5
+Database migration if required
+
+STEP 6
+Backend location API
+
+STEP 7
+Authorization/security
+
+STEP 8
+Flutter location service
+
+STEP 9
+Permission handling
+
+STEP 10
+GPS multi-reading algorithm
+
+STEP 11
+Map screen
+
+STEP 12
+Pin confirmation
+
+STEP 13
+Reverse geocoding
+
+STEP 14
+Shop registration integration
+
+STEP 15
+Error/retry handling
+
+STEP 16
+Audit logging
+
+STEP 17
+Testing
+
+STEP 18
+End-to-end testing
+
+STEP 19
+Performance review
+
+STEP 20
+Final cleanup
+
+==================================================
+58. FINAL REPORT
+==================================================
+
+At completion provide:
+
+A. Files created
+B. Files modified
+C. Files deleted
+D. Database migrations
+E. API endpoints
+F. Flutter screens
+G. Location algorithm
+H. Accuracy rules
+I. Security changes
+J. PostGIS changes
+K. Tests executed
+L. Test results
+M. Remaining issues
+N. Production deployment requirements
+
+Do not claim the feature is complete if tests are failing.
+
+Do not hide errors.
+
+Do not silently skip requirements.
+
+Build this as a production-grade Shopkeeper Shop Location
+Registration system for the Hyperlocal Product Discovery Platform.

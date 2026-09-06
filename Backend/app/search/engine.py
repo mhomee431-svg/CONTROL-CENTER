@@ -83,6 +83,31 @@ def search_products(db: Session, params: SearchParams) -> dict:
     - Sort: relevance, distance, price, rating, availability, freshness
     - Pagination
     """
+    import time as _time
+    from app.core.observability.metrics import record_search_request
+
+    _start = _time.perf_counter()
+    outcome = "ok"
+    result = _search_products_inner(db, params)
+
+    try:
+        elapsed = _time.perf_counter() - _start
+        total = result.get("total", 0) if isinstance(result, dict) else 0
+        if total == 0:
+            outcome = "empty"
+        # Classify by params: barcode-only query vs filtered/text search
+        kind = "barcode" if (params.q and is_barcode_query(params.q)) else "products"
+        if params.latitude is not None and params.longitude is not None:
+            kind = "nearby"
+        record_search_request(kind, elapsed, outcome)
+    except Exception:  # noqa: BLE001 — telemetry must never break search
+        pass
+
+    return result
+
+
+def _search_products_inner(db: Session, params: "SearchParams") -> dict:
+    """Original search body (kept separate so telemetry wraps it cleanly)."""
     query = db.query(SearchIndex)
 
     # ── 1. Text matching (with typo tolerance) ────────────────────────────
@@ -555,7 +580,7 @@ def record_search(db: Session, *, user_id: Optional[int], query: str, result_cou
     if popular:
         popular.search_count += 1
         popular.result_count = result_count
-        popular.last_searched_at = datetime.utcnow()
+        popular.last_searched_at = datetime.now(timezone.utc)
     else:
         db.add(PopularSearch(
             query=query,
@@ -595,7 +620,7 @@ def record_search_event(db: Session, *, user_id: Optional[int], session_id: Opti
 # ── Aggregate popular searches (background task support) ───────────────────
 def aggregate_popular_searches(db: Session, since: Optional[datetime] = None) -> int:
     """Rebuild popular_searches from search_events (aggregation foundation)."""
-    since = since or datetime.utcnow() - timedelta(days=30)
+    since = since or datetime.now(timezone.utc) - timedelta(days=30)
 
     rows = (
         db.query(

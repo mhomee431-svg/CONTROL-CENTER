@@ -5,7 +5,7 @@ managers (with granted permissions) and admins may touch a shop's data.
 Unauthorized shop access always yields 403.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -22,6 +22,7 @@ from app.schemas.shopkeeper import (
     ShopkeeperProfileUpdate,
     ShopkeeperSettingsUpdate,
     ShopkeeperShopCreate,
+    ShopkeeperShopLocationUpdate,
     ShopkeeperStockAdjustment,
 )
 from app.services import media_service, shopkeeper_service
@@ -153,6 +154,54 @@ async def update_shop_settings(
     )
     db.commit()
     return success_response(data=result, message="Shop settings updated")
+
+
+@router.patch("/shops/{shop_id}/location")
+async def update_shop_location(
+    shop_id: int,
+    payload: ShopkeeperShopLocationUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Controlled shop-location update (Edit Location workflow).
+
+    The target shop is resolved from the PATH ``shop_id`` only — a body-supplied
+    id is never trusted — so cross-tenant (IDOR) updates are impossible.
+    Managers without ``update:shop`` are rejected (403). Every change is
+    appended to the hash-chained audit trail with old/new coordinates,
+    accuracies and the acting user.
+    """
+    from app.core.exceptions import AppError
+    from app.core.responses import error_response
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.update_shop_location_for_shopkeeper(
+            access,
+            db,
+            current_user,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            meta=(
+                payload.location.model_dump(exclude_none=True)
+                if payload.location
+                else None
+            ),
+            request_meta={
+                "ip_address": request.client.host if request.client else None,
+                "user_agent": request.headers.get("user-agent"),
+            },
+        )
+    except AppError as exc:
+        db.rollback()
+        return error_response(
+            message=exc.message,
+            error_code=exc.error_code,
+            status_code=exc.status_code,
+        )
+    db.commit()
+    return success_response(data=result, message="Shop location updated")
 
 
 @router.get("/shops/{shop_id}/dashboard")

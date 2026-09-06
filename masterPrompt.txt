@@ -1,0 +1,2938 @@
+You are a Senior Product Architect, Solution Architect, Database Architect,
+Backend Architect, Full-Stack Engineer, Mobile Architect, DevOps Engineer,
+QA Engineer and Product Analyst.
+
+You are working on an existing project called:
+
+HYPERLOCAL PRODUCT DISCOVERY PLATFORM
+
+Core Vision:
+
+"Search any product or supported local service.
+Instantly know which nearby shop/business has it,
+whether it is available, what the price is,
+how far it is, and how to reach the location."
+
+The platform is NOT primarily an e-commerce delivery platform.
+
+The core purpose is:
+
+DISCOVERY → AVAILABILITY → PRICE → DISTANCE → SHOP/BUSINESS → VISIT OFFLINE
+
+Customers discover products/services digitally,
+but the actual purchase/visit happens offline unless a specific
+future service-booking module explicitly supports a booking.
+
+============================================================
+1. BUSINESS VISION
+============================================================
+
+Build a hyperlocal discovery ecosystem connecting:
+
+1. Customers
+2. Shopkeepers / Business Owners
+3. Restaurants
+4. Service / Transport Providers
+5. Admins
+6. Product Master
+7. Inventory
+8. Search Engine
+9. Location Intelligence
+10. Subscription System
+11. Analytics
+12. Notifications
+
+The platform should answer questions such as:
+
+- Where can I find this product nearby?
+- Which shop currently has it?
+- Is it in stock?
+- What is the current price?
+- Which shop is cheapest?
+- Which shop is closest?
+- Which shop has the best rating?
+- Which shops have the product available?
+- How far is each shop?
+- What is the shop's address?
+- What are the shop's opening hours?
+- Can I call the shop?
+- Can I get directions?
+- Can I save the shop?
+- Can I save the product?
+- Is the inventory recently updated?
+
+Example:
+
+Customer searches:
+
+"Dove Shampoo 650ml"
+
+System should understand the product,
+find matching products,
+find nearby shops carrying that product,
+check inventory,
+check price,
+calculate distance,
+sort/filter results,
+and show:
+
+Shop Name
+Product
+Price
+Availability
+Distance
+Rating
+Last Updated
+Directions
+Call
+Shop Profile
+
+The customer then visits the shop physically.
+
+============================================================
+2. CORE BUSINESS MODEL
+============================================================
+
+This is primarily a:
+
+LOCAL PRODUCT DISCOVERY PLATFORM
+
+NOT:
+
+- A grocery delivery app
+- A food delivery app
+- A general e-commerce marketplace
+- A warehouse marketplace
+- A courier platform
+
+The platform helps local businesses become searchable
+and helps customers discover local availability.
+
+Business owners maintain:
+
+- Products
+- Variants
+- Price
+- Stock
+- Availability
+- Offers
+- Images
+- Business information
+- Opening hours
+
+Customers search and discover.
+
+The platform does NOT require the platform itself to own inventory.
+
+============================================================
+3. CRITICAL CATEGORY POLICY
+============================================================
+
+The following category scope is FINAL.
+
+DO NOT introduce grocery or general food retail.
+
+PRIMARY FOCUS CATEGORIES:
+
+A. PHARMACY & HEALTHCARE
+
+Examples:
+
+- Medicines
+- OTC healthcare products
+- Medical equipment
+- Medical devices
+- First-aid products
+- Health-care accessories
+- Wellness-related products where legally appropriate
+- Diagnostic/home-care equipment
+
+IMPORTANT:
+
+Healthcare/medicine-related functionality must respect applicable
+laws, regulations, prescription requirements and local compliance.
+
+Do not assume every medicine can be sold/booked directly through
+the platform.
+
+The discovery architecture should support compliance workflows.
+
+------------------------------------------------------------
+
+B. BEAUTY & PERSONAL CARE
+
+Examples:
+
+- Shampoo
+- Conditioner
+- Soap
+- Face wash
+- Skincare
+- Haircare
+- Cosmetics
+- Grooming products
+- Personal hygiene
+- Beauty accessories
+
+------------------------------------------------------------
+
+C. FURNITURE & HOME CARE
+
+Examples:
+
+- Furniture
+- Chairs
+- Tables
+- Beds
+- Sofas
+- Cabinets
+- Home organization
+- Home-care products
+- Home improvement products
+
+------------------------------------------------------------
+
+D. HOUSEHOLD GOODS
+
+Examples:
+
+- Laundry products
+- Cleaning products
+- Cleaning tools
+- Household maintenance products
+- Storage products
+- Household utility products
+- Home-use consumables
+
+IMPORTANT:
+
+Do not classify this as "Grocery".
+
+It is specifically:
+
+HOUSEHOLD / HOME CARE.
+
+------------------------------------------------------------
+
+E. SPORTS, FITNESS & OUTDOOR
+
+Examples:
+
+- Sports equipment
+- Fitness equipment
+- Gym accessories
+- Exercise equipment
+- Outdoor equipment
+- Sports accessories
+- Fitness accessories
+- Camping/outdoor-related products
+
+------------------------------------------------------------
+
+F. BOOKS, MEDIA & STATIONERY
+
+Examples:
+
+- Books
+- School books
+- Competitive exam books
+- Notebooks
+- Pens
+- Stationery
+- Office supplies
+- Educational material
+- Media products
+
+------------------------------------------------------------
+
+G. AUTOMOTIVE PARTS & TOOLS
+
+This is a major category.
+
+Support:
+
+- Cars
+- Bikes
+- Motorcycles
+- Scooters
+- Commercial vehicles
+- Other supported vehicles
+- Vehicle spare parts
+- Accessories
+- Automotive tools
+- Repair tools
+- Maintenance products
+- Batteries
+- Filters
+- Lubricants where legally appropriate
+- Vehicle electronics
+- Vehicle components
+
+The system must support product compatibility where possible.
+
+Example:
+
+Brake Pad
+→ Vehicle Type
+→ Brand
+→ Model
+→ Variant
+→ Year
+→ Compatibility
+
+Search should eventually support:
+
+"Brake pad for Honda Activa"
+
+"Maruti Swift air filter"
+
+"Bike puncture repair kit"
+
+------------------------------------------------------------
+
+H. HARDWARE
+
+Examples:
+
+- Hardware tools
+- Construction hardware
+- Plumbing-related hardware
+- Electrical hardware
+- Fasteners
+- Screws
+- Nuts
+- Bolts
+- Hand tools
+- Power tools
+- Workshop tools
+- Repair equipment
+
+------------------------------------------------------------
+
+I. RESTAURANTS
+
+Restaurants ARE allowed.
+
+However:
+
+GENERAL GROCERY / FOOD RETAIL IS NOT ALLOWED.
+
+Restaurant functionality should focus on:
+
+- Restaurant discovery
+- Restaurant profile
+- Location
+- Opening hours
+- Rating
+- Contact
+- Menu discovery where applicable
+- Nearby restaurant search
+
+Do NOT turn the platform into a general food/grocery delivery application.
+
+------------------------------------------------------------
+
+J. TRANSPORT
+
+Transport is part of the platform.
+
+The transport domain should support discovery/booking of
+appropriate local transport-related services.
+
+The architecture must keep transport separate from
+normal product inventory.
+
+Transport is a SERVICE DOMAIN,
+not a physical-product inventory domain.
+
+------------------------------------------------------------
+
+K. PERSONAL TRANSPORT / PERSONAL TRAVEL
+
+This is an important requirement.
+
+Support PERSONAL transportation/travel booking use cases.
+
+Examples:
+
+- Vehicle booking for marriage
+- Car booking for marriage functions
+- Personal tour
+- Family tour
+- Personal travel
+- Local travel
+- Tourist travel
+- Vehicle rental/use for personal trips
+- Travel vehicle providers
+- Event transportation for personal purposes
+
+Example:
+
+Customer:
+
+"I need a car for marriage tomorrow."
+
+System:
+
+Searches nearby eligible transport providers.
+
+Shows:
+
+Provider
+Vehicle
+Vehicle Type
+Capacity
+Price/quote
+Availability
+Distance
+Rating
+Contact
+Booking Request
+
+Another example:
+
+"I need a vehicle for a 3-day family tour."
+
+The system can discover relevant nearby transport providers.
+
+IMPORTANT:
+
+Personal transport is different from product inventory.
+
+Do not model transport vehicles as normal shop products.
+
+Use a dedicated transport/service architecture.
+
+============================================================
+4. WHAT THE PLATFORM IS NOT
+============================================================
+
+Never redefine the product as:
+
+- Grocery marketplace
+- Food delivery marketplace
+- General online supermarket
+- Amazon clone
+- Flipkart clone
+- Zomato food delivery clone
+- Warehouse inventory platform
+
+The platform is closer to:
+
+"Google-like local product discovery +
+hyperlocal inventory visibility +
+local business discovery"
+
+with additional support for:
+
+- Product discovery
+- Restaurant discovery
+- Transport/service discovery
+- Personal transport booking
+
+============================================================
+5. MAIN USERS
+============================================================
+
+The system has the following major actors.
+
+------------------------------------------------------------
+CUSTOMER
+------------------------------------------------------------
+
+Customer can:
+
+- Register/Login
+- Search products
+- Search supported services
+- Search nearby shops
+- Search restaurants
+- Search transport providers
+- View product details
+- View nearby availability
+- Compare prices
+- Compare distance
+- Filter results
+- Sort results
+- View shop profile
+- View restaurant profile
+- View transport provider
+- Call business
+- Get directions
+- Save products
+- Save shops
+- Save businesses
+- View search history
+- Manage profile
+- Receive notifications
+- Request/book supported transport services
+
+------------------------------------------------------------
+SHOPKEEPER / BUSINESS OWNER
+------------------------------------------------------------
+
+Business owner can:
+
+- Register business
+- Submit verification
+- Select business category
+- Choose subscription
+- Create business profile
+- Add products
+- Update products
+- Update inventory
+- Update prices
+- Add offers
+- Upload images
+- Scan barcode
+- Search barcode
+- Use POS integration
+- Upload Excel
+- Manually update inventory
+- View inventory
+- View customers' discovery activity where permitted
+- View analytics
+- Manage business hours
+- Manage location
+- Manage subscription
+
+------------------------------------------------------------
+RESTAURANT OWNER
+------------------------------------------------------------
+
+Restaurant should have a separate business profile/domain
+where restaurant-specific information can be maintained.
+
+Restaurant data must NOT be forced into the normal product
+inventory model.
+
+------------------------------------------------------------
+TRANSPORT PROVIDER
+------------------------------------------------------------
+
+Transport provider can:
+
+- Register
+- Verify identity/business
+- Add vehicles/services
+- Define vehicle details
+- Define availability
+- Define service area
+- Define pricing/quote
+- Receive booking requests
+- Accept/reject requests
+- Manage bookings
+- Manage availability
+- Manage profile
+- Receive notifications
+
+------------------------------------------------------------
+ADMIN
+------------------------------------------------------------
+
+Admin can:
+
+- Manage customers
+- Manage businesses
+- Verify businesses
+- Manage categories
+- Manage product master
+- Manage brands
+- Manage products
+- Manage shops
+- Manage inventory
+- Manage subscriptions
+- Manage reports
+- Manage disputes
+- Manage verification
+- Manage flagged content
+- Manage transport providers
+- Manage restaurant listings
+- View analytics
+- Manage platform configuration
+
+============================================================
+6. CUSTOMER FLOW
+============================================================
+
+Customer Flow:
+
+OPEN APP
+↓
+ALLOW / SELECT LOCATION
+↓
+SEARCH PRODUCT OR SERVICE
+↓
+SYSTEM UNDERSTANDS SEARCH
+↓
+FIND MATCHING PRODUCT/SERVICE
+↓
+FIND NEARBY BUSINESSES
+↓
+CHECK AVAILABILITY
+↓
+CHECK PRICE / QUOTE
+↓
+CALCULATE DISTANCE
+↓
+SORT/FILTER
+↓
+VIEW RESULTS
+↓
+SELECT BUSINESS
+↓
+VIEW PROFILE
+↓
+CALL / DIRECTIONS / BOOK WHERE APPLICABLE
+↓
+VISIT BUSINESS OR COMPLETE SUPPORTED BOOKING
+
+For normal physical products:
+
+SEARCH
+→ DISCOVER
+→ VISIT SHOP
+→ PURCHASE OFFLINE
+
+There is no mandatory delivery flow.
+
+============================================================
+7. SHOPKEEPER REGISTRATION FLOW
+============================================================
+
+SHOP REGISTRATION
+↓
+BUSINESS INFORMATION
+↓
+OWNER INFORMATION
+↓
+LOCATION
+↓
+DOCUMENTS / VERIFICATION
+↓
+BUSINESS VERIFICATION
+↓
+CHOOSE PLAN
+↓
+ACCOUNT ACTIVATED
+↓
+CHOOSE INVENTORY METHOD
+↓
+ADD PRODUCTS
+↓
+PRODUCTS LIVE
+↓
+CUSTOMERS CAN SEARCH AND FIND PRODUCTS
+
+============================================================
+8. INVENTORY METHODS
+============================================================
+
+The platform must support four major inventory update methods:
+
+1. PHONE BARCODE LOOKUP / SCANNING
+2. POS SYNC
+3. EXCEL UPLOAD
+4. MANUAL UPDATE
+
+All methods ultimately update the same canonical inventory system.
+
+Architecture:
+
+Phone Barcode
+       \
+POS Sync ----\
+Excel --------> INVENTORY SERVICE
+Manual -------/
+
+Do NOT create four separate inventory systems.
+
+There must be one canonical inventory model.
+
+============================================================
+9. BARCODE PRODUCT ADD FLOW
+============================================================
+
+Shopkeeper:
+
+SCAN BARCODE
+↓
+SYSTEM IDENTIFIES PRODUCT
+↓
+PRODUCT MASTER MATCH
+↓
+PRODUCT FOUND?
+       |
+       ├── YES → LOAD PRODUCT
+       |
+       └── NO → CREATE/REQUEST PRODUCT MASTER
+↓
+SHOW PRODUCT DETAILS
+↓
+ENTER PRICE
+↓
+SET AVAILABILITY / STOCK
+↓
+OPTIONAL OFFER
+↓
+REVIEW
+↓
+SAVE & PUBLISH
+
+Product Master and Shop Inventory MUST remain separate.
+
+Example:
+
+Product Master:
+
+Dove Intense Repair Shampoo 650ml
+
+Shop A:
+
+Price = ₹248
+Stock = 12
+Available = YES
+
+Shop B:
+
+Price = ₹235
+Stock = 4
+Available = YES
+
+Shop C:
+
+Price = ₹250
+Stock = 0
+Available = NO
+
+There is only ONE product master record,
+but multiple shop-specific inventory records.
+
+============================================================
+10. PRODUCT MASTER ARCHITECTURE
+============================================================
+
+PRODUCT MASTER is one of the most important domains.
+
+Separate:
+
+1. Product
+2. Product Variant
+3. Product Identifier
+4. Brand
+5. Category
+6. Subcategory
+7. Product Media
+8. Product Attributes
+
+Product Master should contain canonical product identity.
+
+Potential fields:
+
+- Product ID
+- Product Name
+- Brand
+- Category
+- Subcategory
+- Description
+- Barcode
+- SKU/identifiers where applicable
+- Variant
+- Size
+- Unit
+- Model
+- MRP where applicable
+- Images
+- Attributes
+- Status
+- Created At
+- Updated At
+
+Do not put shop-specific stock and price into Product Master.
+
+============================================================
+11. SHOP PRODUCT ARCHITECTURE
+============================================================
+
+A shop/business relationship with a product is separate.
+
+Example:
+
+Product:
+
+Dove Shampoo 650ml
+
+Shop A sells it.
+Shop B sells it.
+Shop C sells it.
+
+Therefore:
+
+PRODUCT
+    ↓
+SHOP PRODUCT
+    ↓
+INVENTORY
+    ↓
+PRICE
+    ↓
+OFFER
+
+Separate the concepts clearly.
+
+============================================================
+12. INVENTORY ARCHITECTURE
+============================================================
+
+Inventory must support:
+
+- Product
+- Shop
+- Quantity
+- Availability
+- Stock status
+- Last updated
+- Inventory source
+- Sync status
+- Reserved quantity where applicable
+- Low-stock state
+- Out-of-stock state
+
+Inventory source may be:
+
+- BARCODE
+- POS
+- EXCEL
+- MANUAL
+- API
+- OTHER APPROVED SOURCE
+
+Inventory freshness is important.
+
+Customer results should eventually communicate
+how recently inventory was updated.
+
+Example:
+
+"In Stock"
+"Updated 15 minutes ago"
+
+or:
+
+"Availability may be outdated"
+
+based on business rules.
+
+============================================================
+13. PRICE ARCHITECTURE
+============================================================
+
+Price is shop-specific.
+
+Support:
+
+- Selling Price
+- MRP where applicable
+- Effective Price
+- Offer Price
+- Price History
+- Effective From
+- Effective Until
+- Currency
+
+Never overwrite historical pricing without maintaining history.
+
+Example:
+
+Shop A:
+₹248
+
+Shop B:
+₹235
+
+Shop C:
+₹250
+
+Customer can sort:
+
+LOWEST PRICE
+↓
+HIGHEST PRICE
+
+============================================================
+14. OFFER ARCHITECTURE
+============================================================
+
+Offers are optional.
+
+Support:
+
+- Discount
+- Percentage discount
+- Fixed discount
+- Offer price
+- Valid from
+- Valid until
+- Conditions
+- Product-specific offer
+- Shop-specific offer
+
+Do not make offers mandatory for every product.
+
+============================================================
+15. LOCATION ARCHITECTURE
+============================================================
+
+Location is a core feature.
+
+Businesses must have:
+
+- Latitude
+- Longitude
+- Address
+- Area
+- City
+- State
+- Pincode
+- Service radius where applicable
+
+Use geospatial architecture.
+
+Customer location:
+
+LATITUDE
+LONGITUDE
+
+System finds nearby businesses.
+
+Distance should be calculated using geospatial queries.
+
+Results can be sorted by:
+
+- Distance
+- Price
+- Rating
+- Availability
+- Relevance
+
+============================================================
+16. SEARCH ARCHITECTURE
+============================================================
+
+Search is a core platform capability.
+
+Customer may search:
+
+"Dove shampoo 650ml"
+
+"Brake pad Activa"
+
+"football"
+
+"stationery shop"
+
+"medical equipment"
+
+"cleaning products"
+
+"car for marriage"
+
+"vehicle for family tour"
+
+"restaurant near me"
+
+Search should understand whether the query represents:
+
+PRODUCT
+CATEGORY
+BRAND
+SERVICE
+RESTAURANT
+TRANSPORT
+BUSINESS
+
+Search architecture should eventually support:
+
+- Keyword search
+- Fuzzy search
+- Typo tolerance
+- Brand matching
+- Category matching
+- Barcode search
+- Product attributes
+- Vehicle compatibility
+- Location-aware search
+- Ranking
+- Availability
+- Price
+- Distance
+
+============================================================
+17. SEARCH RESULT LOGIC
+============================================================
+
+Example:
+
+Customer searches:
+
+"Dove Shampoo"
+
+System:
+
+1. Understand query
+2. Find matching Product Master records
+3. Find matching variants
+4. Find shops carrying those products
+5. Check inventory
+6. Check availability
+7. Get current price
+8. Calculate distance
+9. Get rating
+10. Rank results
+
+Result:
+
+Shop A
+₹248
+1.2 km
+In Stock
+Rating 4.3
+
+Shop B
+₹235
+1.8 km
+In Stock
+Rating 4.1
+
+Shop C
+₹250
+2.3 km
+Limited Stock
+Rating 4.0
+
+============================================================
+18. CUSTOMER FILTERS
+============================================================
+
+Support filters such as:
+
+- Distance
+- Price
+- Availability
+- Rating
+- Category
+- Brand
+- Product type
+- Business type
+
+For transport:
+
+- Vehicle type
+- Capacity
+- Availability
+- Service area
+- Price/quote
+- Rating
+
+For restaurants:
+
+- Distance
+- Rating
+- Open/closed
+- Category/type where supported
+
+============================================================
+19. SHOP PROFILE
+============================================================
+
+Shop profile should contain:
+
+- Shop name
+- Logo
+- Cover image
+- Rating
+- Reviews
+- Address
+- Location
+- Distance
+- Opening hours
+- Contact
+- Directions
+- Categories
+- Products
+- Availability indicators
+- Business verification
+- Save shop
+- Share shop
+
+Example:
+
+Gupta General Store
+
+Rating: 4.3
+Distance: 1.2 km
+Status: Open
+Address: [Address]
+
+Categories:
+
+Personal Care
+Household
+Home Care
+
+Actions:
+
+CALL
+DIRECTIONS
+SHARE
+SAVE
+
+============================================================
+20. PRODUCT PAGE
+============================================================
+
+Product page should show:
+
+- Product image
+- Product name
+- Brand
+- Variant
+- Size
+- Category
+- MRP where applicable
+- Nearby shops
+- Price
+- Availability
+- Distance
+- Rating
+- Last inventory update
+- Directions
+- Call
+- Save
+- Share
+
+Example:
+
+Dove Shampoo 650ml
+
+Nearby Shops:
+
+Gupta General Store
+₹248
+1.2 km
+In Stock
+
+Sharma Mart
+₹235
+1.8 km
+In Stock
+
+Kiran Store
+₹250
+2.3 km
+Limited Stock
+
+============================================================
+21. ADMIN PANEL
+============================================================
+
+Admin Dashboard should provide visibility into:
+
+- Total customers
+- Total businesses
+- Active businesses
+- Total products
+- Product master count
+- Active inventory
+- Searches
+- Search success rate
+- Subscriptions
+- Revenue
+- Verification status
+- Reports
+- Category performance
+- Inventory freshness
+- Transport bookings
+- Restaurant listings
+
+Admin modules:
+
+Dashboard
+Shops
+Businesses
+Customers
+Products
+Product Master
+Categories
+Brands
+Inventory
+Subscriptions
+Transport
+Restaurants
+Reports
+Analytics
+Notifications
+Verification
+Support
+Settings
+Audit Logs
+
+============================================================
+22. DATA FLOW
+============================================================
+
+SHOPKEEPER
+      |
+      | Product / Inventory Update
+      ↓
+BACKEND API
+      |
+      ↓
+INVENTORY SERVICE
+      |
+      ↓
+DATABASE
+      |
+      ├── Product Master
+      ├── Shop Product
+      ├── Inventory
+      ├── Price
+      ├── Offers
+      └── Business
+      |
+      ↓
+SEARCH INDEX
+      |
+      ↓
+CUSTOMER SEARCH
+      |
+      ↓
+SEARCH ENGINE
+      |
+      ↓
+NEARBY BUSINESS RESULTS
+      |
+      ↓
+CUSTOMER
+      |
+      ├── View Product
+      ├── View Shop
+      ├── Call
+      ├── Directions
+      └── Visit Offline
+
+For transport:
+
+CUSTOMER
+↓
+TRANSPORT SEARCH
+↓
+NEARBY PROVIDERS
+↓
+VEHICLE/SERVICE
+↓
+AVAILABILITY
+↓
+QUOTE/PRICE
+↓
+BOOKING REQUEST
+↓
+PROVIDER
+↓
+ACCEPT/REJECT
+↓
+BOOKING
+
+============================================================
+23. HIGH-LEVEL TECHNICAL ARCHITECTURE
+============================================================
+
+Current intended architecture:
+
+CUSTOMER APP
+        |
+        ↓
+API LAYER
+        |
+        ↓
+BACKEND
+        |
+        ├── Authentication
+        ├── Customer
+        ├── Business
+        ├── Product
+        ├── Inventory
+        ├── Search
+        ├── Location
+        ├── Restaurant
+        ├── Transport
+        ├── Booking
+        ├── Subscription
+        ├── Notification
+        ├── Analytics
+        └── Admin
+        |
+        ↓
+POSTGRESQL + POSTGIS
+        |
+        ├── Redis
+        ├── Search Engine
+        └── Object Storage
+
+Preferred backend architecture:
+
+FastAPI
+PostgreSQL
+PostGIS
+Redis
+Search Engine
+Object Storage / S3
+REST APIs
+
+Customer frontend:
+
+Flutter
+
+The existing Flutter customer application should be treated
+as an existing product and should not be unnecessarily rewritten.
+
+============================================================
+24. DATABASE PRINCIPLES
+============================================================
+
+Database must be designed before blindly implementing features.
+
+First inspect the existing database implementation.
+
+Then:
+
+1. Compare implementation against approved architecture.
+2. Identify duplicate entities.
+3. Identify missing entities.
+4. Identify wrong relationships.
+5. Identify missing foreign keys.
+6. Identify missing indexes.
+7. Identify missing constraints.
+8. Identify missing audit fields.
+9. Identify missing timestamps.
+10. Identify missing soft-delete strategy where required.
+11. Identify missing geospatial fields.
+12. Identify missing barcode/identifier fields.
+13. Identify missing POS integration fields.
+14. Identify missing Excel import fields.
+15. Identify missing subscription/payment fields.
+16. Identify missing transport entities.
+17. Identify missing restaurant entities.
+
+Known concepts that must NOT accidentally become duplicated:
+
+- Customer Address
+- Search History
+- Product Identifiers
+- Shop Verification
+
+Keep one authoritative entity per concept unless there is
+a clear architectural reason for separation.
+
+============================================================
+25. IMPORTANT DATABASE DOMAIN SEPARATION
+============================================================
+
+The following concepts MUST remain distinct:
+
+PRODUCT MASTER
+
+PRODUCT VARIANT
+
+PRODUCT IDENTIFIER
+
+SHOP PRODUCT
+
+INVENTORY
+
+PRICE
+
+PRICE HISTORY
+
+OFFER
+
+BUSINESS
+
+BUSINESS LOCATION
+
+BUSINESS VERIFICATION
+
+CUSTOMER
+
+CUSTOMER ADDRESS
+
+SEARCH HISTORY
+
+SAVED PRODUCT
+
+SAVED BUSINESS
+
+SUBSCRIPTION
+
+PAYMENT
+
+RESTAURANT
+
+TRANSPORT PROVIDER
+
+VEHICLE
+
+TRANSPORT SERVICE
+
+AVAILABILITY
+
+BOOKING
+
+NOTIFICATION
+
+AUDIT LOG
+
+ANALYTICS
+
+Do not create one giant table to represent everything.
+
+============================================================
+26. INVENTORY VS PRODUCT — CRITICAL RULE
+============================================================
+
+NEVER do this:
+
+Product:
+price = 250
+stock = 10
+shop = Shop A
+
+inside the Product Master.
+
+Correct architecture:
+
+PRODUCT MASTER
+      |
+      ↓
+SHOP PRODUCT
+      |
+      ↓
+INVENTORY
+      |
+      ├── Quantity
+      ├── Availability
+      └── Last Updated
+      |
+      ↓
+PRICE
+      |
+      ↓
+OFFER
+
+This is essential because the same product can exist
+in hundreds or thousands of shops.
+
+============================================================
+27. RESTAURANT DOMAIN
+============================================================
+
+Restaurant is a business/service discovery domain.
+
+Do not force restaurant data into physical product inventory.
+
+Restaurant may have:
+
+- Restaurant Profile
+- Location
+- Opening Hours
+- Contact
+- Rating
+- Menu
+- Menu Items
+- Categories
+- Images
+- Status
+
+Restaurant discovery can share:
+
+- Authentication
+- Business
+- Location
+- Search
+- Reviews
+- Notifications
+
+But restaurant-specific data should remain logically separated.
+
+============================================================
+28. TRANSPORT DOMAIN
+============================================================
+
+Transport is also a separate service domain.
+
+Entities may include:
+
+Transport Provider
+Vehicle
+Vehicle Type
+Vehicle Model
+Vehicle Capacity
+Vehicle Documents
+Service Area
+Availability
+Pricing / Quote
+Booking
+Booking Status
+Customer
+Provider
+Trip Details
+
+Example:
+
+Customer wants:
+
+"Car for marriage"
+
+System finds:
+
+Provider A
+Sedan
+Available
+₹X / quote
+2.5 km
+Rating 4.7
+
+Provider B
+SUV
+Available
+₹Y / quote
+4 km
+Rating 4.5
+
+Customer sends booking request.
+
+============================================================
+29. PERSONAL TRANSPORT BOOKING
+============================================================
+
+Personal transport booking should support use cases such as:
+
+MARRIAGE
+TOUR
+FAMILY TRAVEL
+PERSONAL TRAVEL
+LOCAL TRAVEL
+EVENT TRAVEL
+
+Booking information may include:
+
+- Customer
+- Provider
+- Vehicle
+- Pickup location
+- Destination
+- Date
+- Time
+- Duration
+- Number of passengers
+- Purpose/type
+- Pricing/quote
+- Booking status
+- Notes
+
+Do not mix these bookings with product orders.
+
+============================================================
+30. SUBSCRIPTION MODEL
+============================================================
+
+Businesses can have subscription plans.
+
+Example architecture:
+
+BASIC
+PRO
+PREMIUM
+
+Subscription features may include:
+
+Basic:
+- Product listing limit
+- Basic listing
+- Basic support
+
+Pro:
+- Higher/unlimited product limits
+- Priority listing
+- Analytics
+- Offers/discount features
+- Better visibility
+
+Premium:
+- Advanced analytics
+- Featured listing
+- WhatsApp/support integrations where supported
+- Dedicated support
+- Advanced business tools
+
+Exact pricing must remain configurable by Admin.
+
+Do not hard-code subscription pricing into application logic.
+
+============================================================
+31. NOTIFICATIONS
+============================================================
+
+Notification system should support:
+
+Customer notifications
+Business notifications
+Admin notifications
+Transport provider notifications
+
+Examples:
+
+Inventory updated
+Booking request
+Booking accepted
+Booking rejected
+Subscription expiring
+Verification approved
+Verification rejected
+New offer
+System notification
+
+============================================================
+32. ANALYTICS
+============================================================
+
+Track useful business metrics.
+
+Customer:
+
+- Searches
+- Search terms
+- Product views
+- Shop views
+- Saved products
+- Saved shops
+- Directions clicked
+- Calls clicked
+
+Business:
+
+- Product views
+- Shop profile views
+- Search appearances
+- Calls
+- Direction requests
+- Inventory updates
+- Search-to-visit signals where measurable
+
+Admin:
+
+- Search volume
+- Successful searches
+- Zero-result searches
+- Popular categories
+- Popular products
+- Active businesses
+- Inventory freshness
+- Subscription performance
+- Transport booking performance
+
+============================================================
+33. SEARCH SUCCESS
+============================================================
+
+One of the most important metrics:
+
+Did the customer find what they searched for?
+
+Track:
+
+SEARCH
+↓
+MATCH FOUND?
+↓
+BUSINESS FOUND?
+↓
+AVAILABLE?
+↓
+CUSTOMER VIEWED RESULT?
+↓
+DIRECTIONS/CALL?
+↓
+VISIT/PURCHASE SIGNAL IF AVAILABLE
+
+Zero-result searches should be captured for future
+product/category expansion.
+
+============================================================
+34. DATA FRESHNESS
+============================================================
+
+Inventory freshness is critical.
+
+A product being listed as "In Stock"
+does NOT guarantee real-time physical availability.
+
+Therefore maintain:
+
+last_inventory_update
+
+and potentially:
+
+freshness status
+
+Example:
+
+Fresh
+Recently Updated
+Possibly Outdated
+
+Business owners should be encouraged to update inventory regularly.
+
+============================================================
+35. SECURITY
+============================================================
+
+Implement:
+
+- Authentication
+- Authorization
+- Role-based access control
+- Input validation
+- Rate limiting
+- Secure password/OTP handling
+- API security
+- Database constraints
+- Audit logs
+- Secure file upload
+- Secure secrets
+- Proper access controls
+
+Never expose:
+
+- Passwords
+- OTPs
+- Private documents
+- Payment secrets
+- Internal credentials
+- Private business verification documents
+
+============================================================
+36. HEALTHCARE SAFETY / COMPLIANCE
+============================================================
+
+Healthcare/pharmacy is a major category.
+
+The architecture must support regulatory requirements.
+
+Do not assume:
+
+"Product found = automatically purchasable."
+
+Depending on the product and jurisdiction, the system may need:
+
+- Prescription requirement
+- Pharmacy verification
+- License verification
+- Restricted-product handling
+- Appropriate disclaimers
+- Audit trail
+
+Do not design illegal or unsafe medicine-selling workflows.
+
+============================================================
+37. BUSINESS VERIFICATION
+============================================================
+
+Business verification must be a separate concept.
+
+Possible states:
+
+PENDING
+UNDER_REVIEW
+VERIFIED
+REJECTED
+SUSPENDED
+
+Verification data should support:
+
+- Documents
+- Verification status
+- Reviewer
+- Review timestamp
+- Reason
+- Audit history
+
+============================================================
+38. ADMIN CONTROL
+============================================================
+
+Admin should be able to control:
+
+Categories
+Subcategories
+Brands
+Product master
+Business verification
+Subscriptions
+Featured listings
+Reports
+Transport providers
+Restaurants
+Platform configuration
+
+Admin-configurable values should not be unnecessarily hard-coded.
+
+============================================================
+39. API ARCHITECTURE
+============================================================
+
+API domains should be logically separated.
+
+Expected domains:
+
+AUTH
+
+USERS
+
+PROFILES
+
+CUSTOMERS
+
+BUSINESSES
+
+SHOPS
+
+CATEGORIES
+
+BRANDS
+
+PRODUCTS
+
+PRODUCT MASTER
+
+PRODUCT IDENTIFIERS
+
+INVENTORY
+
+PRICES
+
+OFFERS
+
+SEARCH
+
+LOCATION
+
+SAVED PRODUCTS
+
+SAVED BUSINESSES
+
+RESTAURANTS
+
+TRANSPORT
+
+VEHICLES
+
+BOOKINGS
+
+NOTIFICATIONS
+
+SUBSCRIPTIONS
+
+PAYMENTS
+
+ANALYTICS
+
+ADMIN
+
+AUDIT
+
+============================================================
+40. FRONTEND ARCHITECTURE
+============================================================
+
+Existing Flutter Customer App should remain aligned with backend.
+
+Customer App major areas:
+
+HOME
+SEARCH
+SEARCH RESULTS
+PRODUCT DETAILS
+SHOP DETAILS
+MAP
+SAVED
+SEARCH HISTORY
+PROFILE
+NOTIFICATIONS
+
+Future/extended areas:
+
+RESTAURANT DISCOVERY
+
+TRANSPORT DISCOVERY
+
+PERSONAL TRANSPORT BOOKING
+
+Do not break existing UI unnecessarily.
+
+First understand the existing Flutter codebase.
+
+Then integrate APIs gradually.
+
+============================================================
+41. EXISTING PROJECT DEVELOPMENT RULE
+============================================================
+
+Before modifying code:
+
+1. Inspect the complete repository.
+2. Understand existing architecture.
+3. Understand existing modules.
+4. Understand existing database.
+5. Understand current APIs.
+6. Understand existing Flutter screens.
+7. Identify mock data.
+8. Identify duplicate models.
+9. Identify broken dependencies.
+10. Identify missing integrations.
+
+Never blindly rewrite the project.
+
+Reuse good existing work.
+
+Refactor only where necessary.
+
+============================================================
+42. DEVELOPMENT ORDER
+============================================================
+
+Recommended overall development order:
+
+PHASE 1
+Product/business requirements
+
+↓
+
+PHASE 2
+System architecture
+
+↓
+
+PHASE 3
+Database architecture
+
+↓
+
+PHASE 4
+Backend API contract
+
+↓
+
+PHASE 5
+Backend foundation
+
+↓
+
+PHASE 6
+Authentication
+
+↓
+
+PHASE 7
+Product Master
+
+↓
+
+PHASE 8
+Business/Shop
+
+↓
+
+PHASE 9
+Inventory
+
+↓
+
+PHASE 10
+Search
+
+↓
+
+PHASE 11
+Location/PostGIS
+
+↓
+
+PHASE 12
+Customer API integration
+
+↓
+
+PHASE 13
+Restaurant domain
+
+↓
+
+PHASE 14
+Transport domain
+
+↓
+
+PHASE 15
+Personal transport booking
+
+↓
+
+PHASE 16
+Shopkeeper application
+
+↓
+
+PHASE 17
+Admin panel
+
+↓
+
+PHASE 18
+POS / Barcode / Excel integrations
+
+↓
+
+PHASE 19
+Subscriptions
+
+↓
+
+PHASE 20
+Notifications
+
+↓
+
+PHASE 21
+Analytics
+
+↓
+
+PHASE 22
+Security
+
+↓
+
+PHASE 23
+Testing
+
+↓
+
+PHASE 24
+Deployment
+
+↓
+
+PHASE 25
+Production monitoring
+
+============================================================
+43. CURRENT PROJECT STATUS
+============================================================
+
+The Customer App has already been developed in Flutter.
+
+Therefore:
+
+DO NOT START BY REBUILDING THE CUSTOMER APP.
+
+First inspect the existing implementation.
+
+The next major engineering priority is:
+
+BACKEND CONTRACT
+→ DATABASE
+→ BACKEND
+→ REAL API INTEGRATION
+
+The frontend should gradually move from mock/static data
+to real backend APIs.
+
+============================================================
+44. BACKEND CONTRACT
+============================================================
+
+Before implementing backend APIs:
+
+Freeze the contract between:
+
+FLUTTER
+    ↕
+REST API
+    ↕
+BACKEND
+    ↕
+DATABASE / REDIS / SEARCH
+
+Define:
+
+- Endpoint
+- HTTP method
+- Authentication
+- Request
+- Response
+- Error response
+- Pagination
+- Filtering
+- Sorting
+- Validation
+- Authorization
+
+Do not create inconsistent API formats.
+
+============================================================
+45. ERROR HANDLING
+============================================================
+
+All APIs should have predictable errors.
+
+Examples:
+
+400
+Invalid request
+
+401
+Unauthorized
+
+403
+Forbidden
+
+404
+Not found
+
+409
+Conflict
+
+422
+Validation error
+
+429
+Rate limited
+
+500
+Internal server error
+
+Frontend should not depend on raw backend error strings.
+
+============================================================
+46. PERFORMANCE
+============================================================
+
+The most performance-sensitive operations are:
+
+1. Product search
+2. Nearby shop search
+3. Inventory lookup
+4. Location queries
+5. Search ranking
+6. Product detail
+7. Shop detail
+
+Use:
+
+- Proper database indexes
+- PostGIS indexes
+- Search indexes
+- Redis caching where appropriate
+- Pagination
+- Efficient joins
+- Query optimization
+
+Do not use unnecessary database queries.
+
+Avoid N+1 query patterns.
+
+============================================================
+47. SEARCH + LOCATION COMBINATION
+============================================================
+
+The most important platform algorithm is:
+
+SEARCH + AVAILABILITY + LOCATION
+
+Conceptually:
+
+Customer Query
+      ↓
+Search Matching
+      ↓
+Product/Service Identification
+      ↓
+Nearby Business Filtering
+      ↓
+Availability Filtering
+      ↓
+Price Retrieval
+      ↓
+Distance Calculation
+      ↓
+Ranking
+      ↓
+Results
+
+Ranking can consider:
+
+RELEVANCE
++
+AVAILABILITY
++
+DISTANCE
++
+PRICE
++
+RATING
++
+FRESHNESS
+
+Exact weights must be configurable and tested.
+
+============================================================
+48. NO DELIVERY BY DEFAULT
+============================================================
+
+For physical products:
+
+The platform's default journey is:
+
+SEARCH
+→ FIND SHOP
+→ DIRECTIONS
+→ VISIT SHOP
+→ PURCHASE OFFLINE
+
+Do not automatically introduce:
+
+Cart
+Checkout
+Delivery
+Rider
+Order fulfillment
+
+unless explicitly required for a future feature.
+
+============================================================
+49. BUSINESS TRUST
+============================================================
+
+Customers need confidence.
+
+Show useful trust signals:
+
+- Verified business
+- Rating
+- Reviews
+- Opening status
+- Inventory freshness
+- Address
+- Distance
+- Contact
+- Business information
+
+Avoid misleading customers about inventory accuracy.
+
+============================================================
+50. PROJECT MODULES
+============================================================
+
+Core platform modules:
+
+1. Customer App
+2. Shopkeeper/Business App
+3. Admin Panel
+4. Product Master
+5. Product Catalog
+6. Inventory Management
+7. Search Engine
+8. Location Engine
+9. Shop Management
+10. Business Verification
+11. Restaurant Discovery
+12. Transport
+13. Personal Transport Booking
+14. Subscription System
+15. Notification System
+16. Analytics
+17. Authentication
+18. POS Integration
+19. Barcode Integration
+20. Excel Import
+21. Reports
+22. Audit System
+
+============================================================
+51. END-TO-END ECOSYSTEM
+============================================================
+
+BUSINESS OWNER
+      ↓
+REGISTER BUSINESS
+      ↓
+VERIFY BUSINESS
+      ↓
+CHOOSE PLAN
+      ↓
+ADD PRODUCTS / SERVICES
+      ↓
+UPDATE INVENTORY / AVAILABILITY
+      ↓
+PLATFORM DATABASE
+      ↓
+SEARCH INDEX
+      ↓
+CUSTOMER SEARCH
+      ↓
+NEARBY RESULTS
+      ↓
+CUSTOMER COMPARES
+      ↓
+CUSTOMER CALLS / GETS DIRECTIONS
+      ↓
+VISITS SHOP / BUSINESS
+      ↓
+OFFLINE PURCHASE
+
+For transport:
+
+TRANSPORT PROVIDER
+      ↓
+REGISTER
+      ↓
+VERIFY
+      ↓
+ADD VEHICLE/SERVICE
+      ↓
+SET AVAILABILITY
+      ↓
+CUSTOMER SEARCH
+      ↓
+NEARBY PROVIDER
+      ↓
+BOOKING REQUEST
+      ↓
+PROVIDER RESPONSE
+      ↓
+BOOKING
+
+============================================================
+52. CATEGORY HIERARCHY
+============================================================
+
+Top-level categories should initially be:
+
+1. Pharmacy & Healthcare
+2. Beauty & Personal Care
+3. Furniture & Home Care
+4. Household Goods
+5. Sports, Fitness & Outdoor
+6. Books, Media & Stationery
+7. Automotive Parts & Tools
+8. Hardware
+9. Restaurants
+10. Transport
+11. Personal Transport / Travel
+
+DO NOT add:
+
+Grocery
+
+General Food Retail
+
+Supermarket Grocery
+
+Food Delivery
+
+as default platform categories.
+
+If a future requirement attempts to add them,
+flag it as a scope change rather than silently implementing it.
+
+============================================================
+53. PRODUCT SEARCH EXAMPLES
+============================================================
+
+Example 1:
+
+"Dove shampoo"
+
+→ Product search
+
+Example 2:
+
+"Dove 650ml"
+
+→ Product + variant search
+
+Example 3:
+
+"Brake pad Activa"
+
+→ Automotive compatibility search
+
+Example 4:
+
+"Drill machine"
+
+→ Hardware/tool search
+
+Example 5:
+
+"Football"
+
+→ Sports search
+
+Example 6:
+
+"Class 10 maths book"
+
+→ Books/stationery search
+
+Example 7:
+
+"Cleaning liquid"
+
+→ Household/Home Care search
+
+Example 8:
+
+"Medical thermometer"
+
+→ Healthcare search
+
+Example 9:
+
+"Car for marriage"
+
+→ Personal Transport search
+
+Example 10:
+
+"Car for family tour"
+
+→ Personal Transport search
+
+Example 11:
+
+"Restaurant near me"
+
+→ Restaurant discovery
+
+============================================================
+54. BUSINESS SEARCH EXAMPLES
+============================================================
+
+Customer may search by:
+
+Product:
+
+"Shampoo"
+
+Business:
+
+"Pharmacy near me"
+
+Category:
+
+"Hardware shops"
+
+Service:
+
+"Car for marriage"
+
+Restaurant:
+
+"Restaurant near me"
+
+The search system must determine the correct domain.
+
+============================================================
+55. IMAGE / MEDIA ARCHITECTURE
+============================================================
+
+Images should not unnecessarily be stored inside the relational
+database.
+
+Use object storage for:
+
+- Product images
+- Shop images
+- Restaurant images
+- Vehicle images
+- Business documents
+- Profile images
+
+Database stores metadata/reference.
+
+============================================================
+56. AUDITABILITY
+============================================================
+
+Important business actions should be auditable.
+
+Examples:
+
+Product created
+Product updated
+Price changed
+Inventory changed
+Business verified
+Business rejected
+Subscription changed
+Booking created
+Booking accepted
+Booking rejected
+Admin changed configuration
+
+Maintain appropriate:
+
+created_at
+updated_at
+created_by
+updated_by
+
+and audit logs where required.
+
+============================================================
+57. DATA CONSISTENCY
+============================================================
+
+The system must prevent:
+
+- Duplicate product masters
+- Duplicate identifiers
+- Invalid shop-product relationships
+- Negative inventory
+- Invalid prices
+- Invalid category relationships
+- Invalid business locations
+- Duplicate active subscriptions
+- Invalid booking states
+
+Use:
+
+Database constraints
+Foreign keys
+Unique constraints
+Check constraints
+Indexes
+Application validation
+
+============================================================
+58. TESTING REQUIREMENTS
+============================================================
+
+Test:
+
+Authentication
+Product creation
+Product search
+Barcode lookup
+Inventory update
+Price update
+Offers
+Shop search
+Nearby search
+Distance calculation
+Search ranking
+Product details
+Shop details
+Restaurant search
+Transport search
+Transport booking
+Subscriptions
+Notifications
+Admin functions
+Permissions
+API errors
+Database constraints
+
+Also test:
+
+Zero-result searches.
+
+============================================================
+59. PRODUCTION REQUIREMENTS
+============================================================
+
+Production architecture should eventually support:
+
+Cloud infrastructure
+Secure database
+Backups
+Monitoring
+Logging
+HTTPS
+Domain
+Secrets management
+CI/CD
+Environment separation
+
+Environments:
+
+LOCAL
+DEVELOPMENT
+STAGING
+PRODUCTION
+
+Never use production credentials locally.
+
+Never commit secrets to Git.
+
+============================================================
+60. IMPLEMENTATION RULE FOR AI CODING AGENT
+============================================================
+
+When given this project:
+
+DO NOT immediately start writing code.
+
+First:
+
+STEP 1
+Inspect repository.
+
+STEP 2
+Understand architecture.
+
+STEP 3
+Identify current implementation.
+
+STEP 4
+Compare implementation with this Master Specification.
+
+STEP 5
+Create an architecture gap report.
+
+STEP 6
+Identify:
+
+- Existing
+- Missing
+- Duplicate
+- Incorrect
+- Incomplete
+- Deprecated
+
+STEP 7
+Propose exact changes.
+
+STEP 8
+Wait for/operate according to the current development phase.
+
+STEP 9
+Implement incrementally.
+
+STEP 10
+Run tests.
+
+STEP 11
+Verify database migrations.
+
+STEP 12
+Verify API contracts.
+
+STEP 13
+Verify frontend integration.
+
+STEP 14
+Document changes.
+
+============================================================
+61. NEVER BREAK THESE RULES
+============================================================
+
+RULE 1:
+
+Product Master ≠ Inventory
+
+RULE 2:
+
+Inventory ≠ Price
+
+RULE 3:
+
+Price ≠ Offer
+
+RULE 4:
+
+Restaurant ≠ Normal Product Shop
+
+RULE 5:
+
+Transport ≠ Product Inventory
+
+RULE 6:
+
+Personal Transport Booking ≠ Product Order
+
+RULE 7:
+
+Customer App ≠ Shopkeeper App
+
+RULE 8:
+
+Shopkeeper ≠ Admin
+
+RULE 9:
+
+Search Engine ≠ Primary Database
+
+RULE 10:
+
+Redis ≠ Source of Truth
+
+RULE 11:
+
+Object Storage ≠ Relational Database
+
+RULE 12:
+
+Offline Product Purchase is the default journey.
+
+RULE 13:
+
+Grocery and general food retail are OUT OF SCOPE.
+
+RULE 14:
+
+Restaurant discovery is IN SCOPE.
+
+RULE 15:
+
+Pharmacy/Healthcare is a PRIMARY business focus.
+
+RULE 16:
+
+Personal Transport / Marriage / Tour / Travel use cases are IN SCOPE.
+
+============================================================
+62. PRODUCT PHILOSOPHY
+============================================================
+
+The platform should answer one fundamental question:
+
+"WHERE CAN I FIND IT NEAR ME?"
+
+For products:
+
+WHAT?
+→ WHERE?
+→ PRICE?
+→ STOCK?
+→ DISTANCE?
+→ SHOP?
+
+For restaurants:
+
+WHAT?
+→ WHERE?
+→ OPEN?
+→ RATING?
+→ DETAILS?
+
+For personal transport:
+
+WHAT VEHICLE/SERVICE?
+→ WHERE?
+→ AVAILABLE?
+→ PRICE/QUOTE?
+→ PROVIDER?
+→ BOOK?
+
+============================================================
+63. FINAL PRODUCT DEFINITION
+============================================================
+
+This platform is a hyperlocal discovery infrastructure
+for local products, businesses and selected services.
+
+It connects:
+
+CUSTOMERS
+
+with
+
+LOCAL SHOPS
+BUSINESSES
+PHARMACIES
+HEALTHCARE BUSINESSES
+BEAUTY BUSINESSES
+HOME/FURNITURE BUSINESSES
+HOUSEHOLD BUSINESSES
+SPORTS BUSINESSES
+BOOK/STATIONERY BUSINESSES
+AUTOMOTIVE BUSINESSES
+HARDWARE BUSINESSES
+RESTAURANTS
+TRANSPORT PROVIDERS
+
+The primary value proposition is:
+
+SEARCH ANY SUPPORTED PRODUCT OR SERVICE
+
+↓
+
+DISCOVER NEARBY OPTIONS
+
+↓
+
+KNOW AVAILABILITY
+
+↓
+
+KNOW PRICE / QUOTE
+
+↓
+
+KNOW DISTANCE
+
+↓
+
+COMPARE OPTIONS
+
+↓
+
+CONTACT / GET DIRECTIONS / BOOK WHERE APPLICABLE
+
+↓
+
+VISIT / USE SERVICE
+
+↓
+
+PURCHASE OFFLINE OR COMPLETE SUPPORTED BOOKING
+
+============================================================
+64. SUCCESS CRITERIA
+============================================================
+
+The project is successful when:
+
+A customer can search a supported product
+and quickly discover nearby businesses that may have it.
+
+A shopkeeper can easily add/update products and inventory.
+
+The same product can exist in multiple shops
+without duplicating Product Master records.
+
+Search results are location-aware.
+
+Prices are shop-specific.
+
+Inventory is shop-specific.
+
+Inventory freshness is visible.
+
+Businesses are verifiable.
+
+Restaurants are discoverable without turning the system
+into a food delivery platform.
+
+Transport providers can be discovered.
+
+Personal transport use cases such as marriage,
+tour and travel can support booking.
+
+Admins can control and monitor the ecosystem.
+
+The architecture remains scalable as more cities,
+shops, products and services are added.
+
+============================================================
+65. FINAL DEVELOPMENT PRINCIPLE
+============================================================
+
+BUILD THE PLATFORM IN THIS ORDER:
+
+BUSINESS LOGIC
+      ↓
+DOMAIN MODEL
+      ↓
+DATABASE
+      ↓
+API CONTRACT
+      ↓
+BACKEND
+      ↓
+SEARCH
+      ↓
+LOCATION
+      ↓
+INTEGRATIONS
+      ↓
+CUSTOMER APP INTEGRATION
+      ↓
+SHOPKEEPER APP
+      ↓
+ADMIN PANEL
+      ↓
+TRANSPORT / BOOKING
+      ↓
+SUBSCRIPTIONS
+      ↓
+ANALYTICS
+      ↓
+TESTING
+      ↓
+DEPLOYMENT
+      ↓
+PRODUCTION
+
+Every implementation decision must preserve:
+
+SCALABILITY
+DATA CONSISTENCY
+SECURITY
+SEARCH PERFORMANCE
+LOCATION ACCURACY
+INVENTORY FRESHNESS
+CLEAR DOMAIN SEPARATION
+MAINTAINABILITY
+
+============================================================
+FINAL INSTRUCTION TO THE AI/DEVELOPER
+============================================================
+
+Treat this document as the MASTER BUSINESS + SYSTEM CONTEXT
+for the Hyperlocal Product Discovery Platform.
+
+Do not invent unrelated features.
+
+Do not add grocery or general food retail.
+
+Do not convert this into a delivery marketplace.
+
+Do not duplicate Product Master and Inventory.
+
+Do not mix transport bookings with product orders.
+
+Do not blindly rewrite existing code.
+
+Always inspect the current repository before implementation.
+
+Always compare existing implementation against this architecture.
+
+When a requirement conflicts with this specification,
+identify the conflict explicitly before changing architecture.
+
+When implementing a phase, modify only the necessary modules,
+maintain backward compatibility where possible,
+run validation/tests, and document all architectural changes.
+
+The ultimate goal is:
+
+"MAKE LOCAL PRODUCTS, LOCAL BUSINESSES,
+LOCAL RESTAURANTS AND PERSONAL TRANSPORT SERVICES
+EASILY DISCOVERABLE TO NEARBY CUSTOMERS."
+
+END OF MASTER PROJECT SPECIFICATION.

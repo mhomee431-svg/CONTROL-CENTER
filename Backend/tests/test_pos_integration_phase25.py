@@ -110,7 +110,7 @@ from sqlalchemy.orm import Session as _Session  # noqa: E402
 
 @event.listens_for(_Session, "before_flush")
 def _stamp_portable_defaults(session, flush_context, instances):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     for obj in session.new:
         if hasattr(obj, "created_at") and obj.created_at is None:
             obj.created_at = now
@@ -686,11 +686,11 @@ class TestFailuresRetriesAndLifecycle:
         assert [i.id for i in pos_sync_service.find_due_integrations(db)] == [integration.id]
 
         # Recently successful → not due until the interval elapses.
-        integration.last_successful_sync_at = datetime.utcnow() - timedelta(minutes=10)
+        integration.last_successful_sync_at = datetime.now(timezone.utc) - timedelta(minutes=10)
         assert pos_sync_service.find_due_integrations(db) == []
 
         # Stale but paused → still not due.
-        integration.last_successful_sync_at = datetime.utcnow() - timedelta(hours=5)
+        integration.last_successful_sync_at = datetime.now(timezone.utc) - timedelta(hours=5)
         integration.sync_enabled = False
         assert pos_sync_service.find_due_integrations(db) == []
         integration.sync_enabled = True

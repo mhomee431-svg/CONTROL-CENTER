@@ -1,0 +1,8 @@
+[aws_db_instance:this] {"address": "hyperlocal-production-db.czuwyk426jbf.ap-south-1.rds.amazonaws.com", "db_name": "hyperlocal", "endpoint": "hyperlocal-production-db.czuwyk426jbf.ap-south-1.rds.amazonaws.com:5432", "engine": "postgres", "id": "db-LP5DLV3QBWUKBMSFIHGRICYJIY", "port": 5432, "publicly_accessible": false, "status": "available", "username": "hyperlocal"}
+[aws_eip:app] {"address": null, "id": "eipalloc-0a84114756edca422", "public_dns": "ec2-13-234-167-97.ap-south-1.compute.amazonaws.com", "public_ip": "13.234.167.97"}
+[aws_instance:app] {"id": "i-065d808a03be03f5e", "public_dns": "ec2-35-154-204-178.ap-south-1.compute.amazonaws.com", "public_ip": "35.154.204.178"}
+[aws_ssm_parameter:database_url] {"id": "/hyperlocal/production/database_url", "name": "/hyperlocal/production/database_url", "value": "post***al"}
+    SSM_NAME=/hyperlocal/production/database_url TYPE=SecureString VALUE_MASKED=post***al
+[aws_ssm_parameter:github_token] {"id": "/hyperlocal/production/github_token", "name": "/hyperlocal/production/github_token", "value": "PLAC***AT"}
+    SSM_NAME=/hyperlocal/production/github_token TYPE=SecureString VALUE_MASKED=PLAC***AT
+[random_password:master] {"id": "none"}

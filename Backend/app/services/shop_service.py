@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.logging import get_logger
 from app.models.shop import (
+    LocationIntegrityStatus,
+    LocationSource,
+    LocationStatus,
+    LocationType,
     Shop,
     ShopAddress,
     ShopCategory,
@@ -24,7 +28,7 @@ from app.models.shop import (
     VerificationStatus,
 )
 from app.models.user import User
-from app.services.geo_service import haversine_km
+from app.services.geo_service import haversine_km, resolve_shop_coordinates
 
 logger = get_logger("app.services.shop")
 
@@ -141,6 +145,10 @@ def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
         counter += 1
 
     # ── Create Shop (status=REGISTERED) ──
+    # Location capture provenance (Phase: Shop Location System). `location` is
+    # the optional metadata block; coordinates + geometry are always set
+    # regardless of provenance.
+    loc_meta = data.pop("location", None) or {}
     shop = Shop(
         name=data["name"],
         slug=slug,
@@ -160,6 +168,13 @@ def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
         latitude=data["latitude"],
         longitude=data["longitude"],
         location=_get_wkt_point(data["latitude"], data["longitude"]),
+        accuracy_meters=loc_meta.get("accuracy_meters"),
+        location_captured_at=loc_meta.get("location_captured_at"),
+        location_source=loc_meta.get("location_source") or LocationSource.GPS.value,
+        location_type=loc_meta.get("location_type") or LocationType.SHOP_ENTRANCE.value,
+        location_status=loc_meta.get("location_status") or LocationStatus.CAPTURED.value,
+        location_integrity_status=loc_meta.get("location_integrity_status") or LocationIntegrityStatus.UNKNOWN.value,
+        location_verified=bool(loc_meta.get("location_verified", False)),
         is_open_24x7=data.get("is_open_24x7", False),
         is_accepting_orders=data.get("is_accepting_orders", True),
         min_order_amount=data.get("min_order_amount", 0.0),
@@ -257,6 +272,49 @@ def update_shop(db: Session, shop_id: int, data: dict) -> Optional[Shop]:
     return shop
 
 
+def update_shop_location(
+    db: Session, shop_id: int, latitude: float, longitude: float, meta: dict | None = None
+) -> Optional[Shop]:
+    """Controlled, ownership-checked location update (Phase: Shop Location System).
+
+    Replaces the shop's spatial anchor and scalar lat/long with the
+    shopkeeper-confirmed coordinates and persists the accompanying capture
+    metadata. Ownership is enforced by the caller (shopkeeper_service resolves a
+    ``ShopAccess`` first), so this function never trusts a caller-supplied
+    ``shop_id`` on its own.
+
+    Args:
+        db: SQLAlchemy session.
+        shop_id: Target shop (already authorized by the caller).
+        latitude / longitude: Shop-entrance coordinates confirmed by the shopkeeper.
+        meta: Optional capture provenance dict (accuracy_meters,
+            location_captured_at, location_source, location_type,
+            location_status, location_integrity_status, location_verified).
+    """
+    validate_geolocation(latitude, longitude)
+    shop = db.query(Shop).filter(Shop.id == shop_id, Shop.is_deleted == False).first()  # noqa: E712
+    if shop is None:
+        return None
+
+    meta = meta or {}
+    shop.latitude = latitude
+    shop.longitude = longitude
+    shop.location = _get_wkt_point(latitude, longitude)
+    shop.accuracy_meters = meta.get("accuracy_meters", shop.accuracy_meters)
+    shop.location_captured_at = meta.get("location_captured_at", shop.location_captured_at)
+    if "location_source" in meta and meta["location_source"]:
+        shop.location_source = str(meta["location_source"])
+    if "location_type" in meta and meta["location_type"]:
+        shop.location_type = str(meta["location_type"])
+    # A corrected location is no longer "stale".
+    shop.location_status = LocationStatus.CORRECTED.value
+    if "location_integrity_status" in meta and meta["location_integrity_status"]:
+        shop.location_integrity_status = str(meta["location_integrity_status"])
+    if "location_verified" in meta:
+        shop.location_verified = bool(meta["location_verified"])
+
+    db.flush()
+    return shop
 # ── Address management ─────────────────────────────────────────────────────
 def add_shop_address(db: Session, shop_id: int, data: dict) -> ShopAddress:
     """Add a new address to the shop."""
@@ -816,17 +874,18 @@ def nearby_shops(
 
     results = []
     for shop in shops:
-        if shop.latitude is None or shop.longitude is None:
+        shop_longitude, shop_latitude = resolve_shop_coordinates(shop)
+        if shop_longitude is None or shop_latitude is None:
             continue
-        dist = haversine_km(latitude, longitude, shop.latitude, shop.longitude)
+        dist = haversine_km(latitude, longitude, shop_latitude, shop_longitude)
         if dist <= radius_km:
             results.append(
                 {
                     "id": shop.id,
                     "name": shop.name,
                     "image_url": shop.image_url,
-                    "latitude": shop.latitude,
-                    "longitude": shop.longitude,
+                    "latitude": shop_latitude,
+                    "longitude": shop_longitude,
                     "distance_km": round(dist, 2),
                     "rating": shop.rating,
                     "is_verified": shop.is_verified,

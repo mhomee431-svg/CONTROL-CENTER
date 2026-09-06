@@ -61,6 +61,15 @@ class ShopDetail {
     this.deliveryRadiusKm = 5,
     this.deliveryFee = 0,
     this.freeDeliveryAbove = 0,
+    // Location metadata (Phase: Shop Location System).
+    this.latitude,
+    this.longitude,
+    this.accuracyMeters,
+    this.locationVerified = false,
+    this.locationStatus,
+    this.locationSource,
+    this.locationType,
+    this.locationCapturedAt,
   });
 
   final ShopSummary summary;
@@ -85,6 +94,16 @@ class ShopDetail {
   final double deliveryFee;
   final double freeDeliveryAbove;
 
+  // Location metadata (Phase: Shop Location System).
+  final double? latitude;
+  final double? longitude;
+  final double? accuracyMeters;
+  final bool locationVerified;
+  final String? locationStatus;
+  final String? locationSource;
+  final String? locationType;
+  final String? locationCapturedAt;
+
   factory ShopDetail.fromJson(Map<String, dynamic> json) => ShopDetail(
         summary: ShopSummary.fromJson(json),
         description: json['description'] as String?,
@@ -107,6 +126,14 @@ class ShopDetail {
         deliveryRadiusKm: (json['delivery_radius_km'] as num?)?.toDouble() ?? 5,
         deliveryFee: (json['delivery_fee'] as num?)?.toDouble() ?? 0,
         freeDeliveryAbove: (json['free_delivery_above'] as num?)?.toDouble() ?? 0,
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        accuracyMeters: (json['accuracy_meters'] as num?)?.toDouble(),
+        locationVerified: json['location_verified'] as bool? ?? false,
+        locationStatus: json['location_status'] as String?,
+        locationSource: json['location_source'] as String?,
+        locationType: json['location_type'] as String?,
+        locationCapturedAt: json['location_captured_at'] as String?,
       );
 }
 

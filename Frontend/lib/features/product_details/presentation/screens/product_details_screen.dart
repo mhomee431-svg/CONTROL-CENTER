@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../providers/product_details_providers.dart';
+import '../../../../features/customer/presentation/controllers/customer_controller.dart';
 import '../../domain/models/product_details_models.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -25,6 +26,17 @@ class ProductDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productAsync = ref.watch(productDetailsProvider(productId));
     final isSaved = ref.watch(productIsSavedProvider(productId));
+
+    // Phase 17 — record this view so the customer's "Recently Viewed" feed
+    // stays in sync with the backend (fire-and-forget; never blocks the UI).
+    ref.listen(productDetailsProvider(productId), (previous, next) {
+      final pid = int.tryParse(productId);
+      if (next.hasValue && pid != null) {
+        ref.read(recordRecentViewProvider(
+          RecentViewRequest(pid),
+        ));
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(

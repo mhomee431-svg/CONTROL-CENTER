@@ -1,9 +1,11 @@
-"""JWT token creation, validation, and claim helpers."""
+"""JWT token creation, validation, claim helpers, and password hashing."""
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
+import bcrypt
 from jose import jwt, JWTError
 
 from app.core.config import settings
@@ -12,6 +14,7 @@ from app.core.config import settings
 class TokenPurpose(str, Enum):
     ACCESS = "access"
     REFRESH = "refresh"
+    PASSWORD_RESET = "password_reset"
 
 
 def _now() -> datetime:
@@ -65,6 +68,15 @@ def create_refresh_token(
     return _create_token(subject, TokenPurpose.REFRESH, delta, extra_claims)
 
 
+def create_password_reset_token(
+    subject: str,
+    expires_minutes: int = 30,
+) -> tuple[str, str]:
+    """Create a password reset token. Returns (token, jti)."""
+    delta = timedelta(minutes=expires_minutes)
+    return _create_token(subject, TokenPurpose.PASSWORD_RESET, delta)
+
+
 def decode_token(token: str) -> dict:
     """Decode and validate a JWT token. Raises JWTError if invalid."""
     return jwt.decode(
@@ -101,9 +113,37 @@ def get_token_claims(token: str) -> dict:
 
 
 def validate_token_type(token: str, expected: TokenPurpose) -> bool:
-    """Check that the token is of the expected type (access/refresh)."""
+    """Check that the token is of the expected type (access/refresh/password_reset)."""
     try:
         payload = decode_token(token)
         return payload.get("type") == expected.value
     except JWTError:
+        return False
+
+
+# ── Password Hashing (bcrypt — production-grade) ───────────────────────────
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt with a random salt.
+
+    Uses bcrypt with a work factor of 12 (2^12 iterations) for strong
+    resistance against brute-force attacks.
+    """
+    password_bytes = password.encode("utf-8")
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its bcrypt hash using constant-time comparison."""
+    import hmac
+
+    password_bytes = plain_password.encode("utf-8")
+    hashed_bytes = hashed_password.encode("utf-8")
+    try:
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except (ValueError, TypeError):
+        # Invalid hash format — fail securely
+        # Perform a dummy comparison to prevent timing attacks
+        hmac.compare_digest(b"dummy", b"comparison")
         return False

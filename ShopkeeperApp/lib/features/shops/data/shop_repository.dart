@@ -14,6 +14,10 @@ abstract class ShopRepository {
       int shopId, Map<String, dynamic> fields, String token);
   Future<void> updateSettings(
       int shopId, Map<String, dynamic> fields, String token);
+
+  /// Controlled Edit-Location workflow (IDOR-safe PATCH on the backend).
+  Future<Map<String, dynamic>> updateShopLocation(
+      int shopId, Map<String, dynamic> payload, String token);
 }
 
 class ApiShopRepository implements ShopRepository {
@@ -59,6 +63,14 @@ class ApiShopRepository implements ShopRepository {
       int shopId, Map<String, dynamic> fields, String token) async {
     await _api.put(ApiEndpoints.shopSettings('$shopId'),
         body: fields, token: token);
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateShopLocation(
+      int shopId, Map<String, dynamic> payload, String token) async {
+    final data = await _api.patch(ApiEndpoints.shopLocation('$shopId'),
+        body: payload, token: token) as Map<String, dynamic>;
+    return data;
   }
 }
 

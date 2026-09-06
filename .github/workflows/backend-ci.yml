@@ -1,0 +1,34 @@
+# Phase 25 — Backend Continuous Integration gate.
+#
+# Runs the full quality battery (steps 1–8 of the release process) on every
+# code change: checkout → install → static analysis → unit tests → integration
+# tests (PostGIS + Redis) → build → security scan → migration rehearsal.
+# The CD workflow reuses the same battery before it deploys anything.
+name: Backend CI — quality gates
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-ci.yml'
+      - '.github/workflows/reusable-backend-checks.yml'
+      - 'infra/scripts/*'
+  push:
+    branches: [main]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-ci.yml'
+      - '.github/workflows/reusable-backend-checks.yml'
+      - 'infra/scripts/*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Backend quality gates (static, unit, integration, build, security, migrations)
+    uses: ./.github/workflows/reusable-backend-checks.yml
+    with:
+      python-version: "3.14"

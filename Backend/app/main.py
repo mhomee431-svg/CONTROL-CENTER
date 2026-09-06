@@ -103,6 +103,18 @@ app.add_middleware(
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIDMiddleware)
+# Phase 22 — API versioning middleware
+from app.core.api_versioning import ApiVersionMiddleware
+app.add_middleware(ApiVersionMiddleware, default_version=settings.API_VERSION_DEFAULT)
+# Phase 23 — API security middleware (input sanitization, size limits)
+from app.core.security_middleware import (
+    InputSanitizationMiddleware,
+    RequestSizeLimitMiddleware,
+    ContentTypeValidationMiddleware,
+)
+app.add_middleware(InputSanitizationMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware)
+app.add_middleware(ContentTypeValidationMiddleware)
 # Phase 24 — observability middlewares (outermost so they time/observe everything,
 # but inside request-ID handling so access logs carry the request id).
 app.add_middleware(AccessLogMiddleware)
@@ -177,8 +189,36 @@ app.include_router(interactions.router, prefix=API_PREFIX)
 # Google OAuth — mounted at the exact path derived from GOOGLE_CALLBACK_URL
 app.include_router(google_auth.router)
 
+# Restaurant Discovery (Phase 15 — Master Spec §27, Rule 4: discovery-only)
+from app.api.routes import restaurant as restaurant_routes
+app.include_router(restaurant_routes.router, prefix=API_PREFIX)
+
+# Transport & Personal Transport Booking (Phase 16 — Master Spec §28-§29, Rules 5-6)
+from app.api.routes import transport as transport_routes
+app.include_router(transport_routes.router, prefix=API_PREFIX)
+
+# Reviews (Phase 17 — Master Spec §§19-20, 49)
+from app.api.routes import reviews as review_routes
+app.include_router(review_routes.router, prefix=API_PREFIX)
+
+# Shopkeeper Analytics & Business Intelligence
+from app.api.routes import shopkeeper_analytics as shopkeeper_analytics_routes
+app.include_router(shopkeeper_analytics_routes.router, prefix=API_PREFIX)
+
+# Shopkeeper Management (documents, hours, holidays, notifications)
+from app.api.routes import shopkeeper_extra as shopkeeper_extra_routes
+app.include_router(shopkeeper_extra_routes.router, prefix=API_PREFIX)
+
+# Customer experience (favourites, recently viewed, product share)
+from app.api.routes import customer as customer_routes
+app.include_router(customer_routes.router, prefix=API_PREFIX)
+
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])
+
+# Phase 22 — API version information (no API prefix)
+from app.api.routes import version as version_routes
+app.include_router(version_routes.router, tags=["Version"])
 
 # Phase 24 — Observability: Prometheus metrics + admin overview/alerts.
 app.include_router(observability_router)
@@ -194,5 +234,7 @@ async def root():
         "docs": "/docs",
         "health": "/health",
         "readiness": "/ready",
-        "api_prefix": API_PREFIX,
+        "api_prefix": settings.API_PREFIX,
+        "api_version": settings.API_VERSION_DEFAULT,
+        "supported_versions": settings.API_VERSION_SUPPORTED.split(","),
     }

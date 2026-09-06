@@ -45,6 +45,40 @@ def strip_geo_columns() -> None:
                     table.indexes.discard(idx)
 
 
+def make_timestamp_defaults_portable() -> None:
+    """Replace literal "now()" server defaults / onupdates with Python-side
+    callables so SQLite stores real timestamps (mirrors Postgres semantics).
+
+    Shared helper extracted from the per-file pattern used by the SQLite-based
+    test modules (admin_phase26 etc.). Idempotent: safe to call multiple times.
+    """
+    from datetime import datetime as _dt
+
+    from sqlalchemy import ColumnDefault
+
+    def _now(ctx=None):
+        return _dt.utcnow()
+
+    for table in Base.metadata.tables.values():
+        for col in table.columns:
+            sd = getattr(col, "server_default", None)
+            sd_arg = getattr(sd, "arg", None)
+            if sd_arg == "now()":
+                if col.default is None:
+                    col.default = ColumnDefault(_now)
+                col.server_default = None
+            elif isinstance(sd_arg, str) and sd_arg.lower() == "false":
+                if col.default is None and (
+                    getattr(getattr(col.type, "python_type", None), "__name__", "")
+                    == "bool"
+                ):
+                    col.default = ColumnDefault(False)
+                col.server_default = None
+            ou = getattr(col, "onupdate", None)
+            if ou is not None and getattr(ou, "arg", None) == "now()":
+                col.onupdate = ColumnDefault(_now, for_update=True)
+
+
 def restore_geo_columns() -> None:
     """Restore pristine Geography types for every column stripped so far."""
     for (table_name, col_name), pristine in _ORIGINAL_GEO.items():

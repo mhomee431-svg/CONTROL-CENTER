@@ -17,7 +17,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // Check auth status on startup; the router redirect will handle navigation
     Future.microtask(() {
       ref.read(authControllerProvider.notifier).checkAuthStatus();
-      ref.read(locationControllerProvider.notifier).loadSavedLocation();
+            // Auto-detect location on app start (force: true to bypass throttle)
+      ref.read(locationControllerProvider.notifier).fetchCurrentLocation(force: true);
     });
   }
 

@@ -1,112 +1,153 @@
 # app/repositories/product_repository.py
-from typing import List, Dict, Optional
-from app.schemas.product import ProductMaster, ShopInventory, ProductComparisonResponse, AvailabilityStatus
+"""Async repository for product catalog operations."""
 
-# --- MOCK DATABASE ---
-# In a real application, this data would come from a PostgreSQL database.
-# Products would be in a 'products' table.
-# Shops would be in a 'shops' table.
-# Inventory would be in a 'shop_inventory' join table with shop_id, product_id, price, etc.
+from typing import List, Optional
 
-MOCK_PRODUCTS: Dict[int, ProductMaster] = {
-    1: ProductMaster(
-        id=1,
-        name="Dove Shampoo (1L)",
-        brand="Dove",
-        category="Hair Care",
-        barcode="8901030634213",
-        description="Dove Intense Repair Shampoo for damaged hair.",
-        image_url="https://example.com/images/dove_shampoo.jpg",
-    ),
-    2: ProductMaster(
-        id=2,
-        name="Maggi Noodles (Family Pack)",
-        brand="Maggi",
-        category="Instant Foods",
-        barcode="8901058861614",
-        description="2-minute instant noodles, family pack of 4.",
-        image_url="https://example.com/images/maggi_noodles.jpg",
-    ),
-}
+from sqlalchemy import select, func, and_, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-MOCK_INVENTORY: List[Dict] = [
-    # Inventories for Product 1 (Dove Shampoo)
-    {"product_id": 1, "shop_id": 101, "shop_name": "All-in-One Supermarket", "price": 250.00, "status": AvailabilityStatus.IN_STOCK, "distance": 1.2},
-    {"product_id": 1, "shop_id": 102, "shop_name": "QuickMart", "price": 240.00, "status": AvailabilityStatus.OUT_OF_STOCK, "distance": 0.8},
-    {"product_id": 1, "shop_id": 103, "shop_name": "GreenLeaf Organics", "price": 265.00, "status": AvailabilityStatus.LIMITED, "distance": 2.5},
+from app.models.product import (
+    ProductMaster,
+    ProductStatus,
+    ShopProduct,
+    ShopProductStatus,
+    Inventory,
+    StockStatus,
+    PriceHistory,
+    Offer,
+    OfferStatus,
+    Category,
+    Brand,
+)
+from app.models.shop import Shop, ShopStatus
 
-    # Inventories for Product 2 (Maggi Noodles)
-    {"product_id": 2, "shop_id": 101, "shop_name": "All-in-One Supermarket", "price": 95.00, "status": AvailabilityStatus.IN_STOCK, "distance": 1.2},
-    {"product_id": 2, "shop_id": 102, "shop_name": "QuickMart", "price": 100.00, "status": AvailabilityStatus.IN_STOCK, "distance": 0.8},
-]
 
-class MockProductRepository:
-    """
-    A mock repository for fetching product and inventory data.
-    This simulates the behavior of a real database repository.
-    """
+class ProductRepository:
+    """Async repository for product catalog operations."""
 
-    def __init__(self):
-        # In a real scenario, this would hold a database session (e.g., self.db: AsyncSession).
-        pass
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_product_by_id(self, product_id: int) -> Optional[ProductMaster]:
+        """Fetch a product master by ID with related data."""
+        stmt = (
+            select(ProductMaster)
+            .where(
+                ProductMaster.id == product_id,
+                ProductMaster.is_deleted == False,  # noqa: E712
+            )
+            .options(
+                selectinload(ProductMaster.brand),
+                selectinload(ProductMaster.category),
+                selectinload(ProductMaster.identifiers),
+                selectinload(ProductMaster.barcode_relationships),
+                selectinload(ProductMaster.variants),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_product_by_barcode(self, barcode: str) -> Optional[ProductMaster]:
-        """
-        Fetches a master product by its barcode.
-        
-        SQLALCHEMY+POSTGIS TRANSITION:
-        - This method would perform an async query:
-          `result = await self.db.execute(select(ProductModel).where(ProductModel.barcode == barcode))`
-        - It would return the first result, which Pydantic would then use to serialize the response.
-        """
-        print(f"Mock DB: Searching for barcode {barcode}")
-        for product in MOCK_PRODUCTS.values():
-            if product.barcode == barcode:
-                return product
+        """Fetch a product master by barcode value."""
+        stmt = (
+            select(ProductMaster)
+            .where(
+                ProductMaster.is_deleted == False,  # noqa: E712
+            )
+            .options(
+                selectinload(ProductMaster.identifiers),
+                selectinload(ProductMaster.barcode_relationships),
+            )
+        )
+        result = await self.session.execute(stmt)
+        products = result.scalars().all()
+
+        for product in products:
+            # Check identifiers
+            for ident in product.identifiers:
+                if ident.is_active and ident.identifier_value == barcode:
+                    return product
+            # Check barcode relationships
+            for br in product.barcode_relationships:
+                if br.is_active and br.barcode == barcode:
+                    return product
         return None
 
-    async def get_product_comparison(self, product_id: int) -> Optional[ProductComparisonResponse]:
-        """
-        Fetches product details and its availability in nearby shops, sorted by distance.
+    async def search_products(
+        self,
+        query: str,
+        *,
+        category_id: Optional[int] = None,
+        brand_id: Optional[int] = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[List[ProductMaster], int]:
+        """Search products by name, brand, or category with pagination."""
+        search_pattern = f"%{query}%"
 
-        SQLALCHEMY+POSTGIS TRANSITION:
-        - The `product_id` would be used to fetch the master product details.
-        - A much more complex geospatial query would be run to find nearby shops with the product.
-        - Using PostGIS `ST_DWithin`, we would query the `shop_inventory` and `shops` tables:
-          `SELECT si.*, s.name, ST_Distance(s.location, :user_location) as distance
-           FROM shop_inventory si JOIN shops s ON si.shop_id = s.id
-           WHERE si.product_id = :product_id AND ST_DWithin(s.location, :user_location, :radius_meters)
-           ORDER BY distance;`
-        - The results of this query would be used to build the `ShopInventory` list.
-        """
-        print(f"Mock DB: Comparing prices for product_id {product_id}")
-        master_product = MOCK_PRODUCTS.get(product_id)
-        if not master_product:
-            return None
-
-        shop_inventories: List[ShopInventory] = []
-        for inv in MOCK_INVENTORY:
-            if inv["product_id"] == product_id:
-                shop_inventories.append(
-                    ShopInventory(
-                        shop_id=inv["shop_id"],
-                        shop_name=inv["shop_name"],
-                        price=inv["price"],
-                        availability_status=inv["status"],
-                        distance_km=inv["distance"]
-                    )
-                )
-        
-        # Sort by distance (as a default behavior)
-        shop_inventories.sort(key=lambda x: x.distance_km)
-
-        return ProductComparisonResponse(
-            product_details=master_product,
-            shop_inventories=shop_inventories,
+        # Build base query
+        stmt = (
+            select(ProductMaster)
+            .where(
+                ProductMaster.is_deleted == False,  # noqa: E712
+                ProductMaster.status == ProductStatus.APPROVED,
+                or_(
+                    ProductMaster.name.ilike(search_pattern),
+                    ProductMaster.description.ilike(search_pattern),
+                ),
+            )
+            .options(
+                selectinload(ProductMaster.brand),
+                selectinload(ProductMaster.category),
+            )
         )
 
-# Dependency for FastAPI
-# In a real app, we might have a more complex dependency system
-# to switch between Mock and real (e.g., based on an environment variable).
-def get_product_repository() -> MockProductRepository:
-    return MockProductRepository()
+        # Apply filters
+        if category_id:
+            stmt = stmt.where(ProductMaster.category_id == category_id)
+        if brand_id:
+            stmt = stmt.where(ProductMaster.brand_id == brand_id)
+
+        # Get total count
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar() or 0
+
+        # Apply pagination
+        stmt = stmt.offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        products = list(result.scalars().all())
+
+        return products, total
+
+    async def get_categories(self) -> List[Category]:
+        """Get all active categories."""
+        stmt = (
+            select(Category)
+            .where(
+                Category.is_active == True,  # noqa: E712
+                Category.is_deleted == False,  # noqa: E712
+            )
+            .order_by(Category.sort_order, Category.name)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_brands(self) -> List[Brand]:
+        """Get all active brands."""
+        stmt = (
+            select(Brand)
+            .where(
+                Brand.is_active == True,  # noqa: E712
+                Brand.is_deleted == False,  # noqa: E712
+            )
+            .order_by(Brand.name)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+
+def get_product_repository(session: AsyncSession) -> ProductRepository:
+    """Factory function to create a ProductRepository instance."""
+    return ProductRepository(session)

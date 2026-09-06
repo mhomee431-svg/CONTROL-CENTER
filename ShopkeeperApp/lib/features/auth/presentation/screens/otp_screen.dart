@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_controller.dart';
+import '../../data/auth_repository.dart';
+import '../../data/mock_auth_repository.dart';
+import '../../data/phone_utils.dart';
 
 /// OTP verification — handles both LOGIN and REGISTRATION flows
 /// (registration is detected via the pending name in auth state).
@@ -32,7 +35,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         : (ref.read(authControllerProvider).phoneNumber ?? '');
     final ok = await ref
         .read(authControllerProvider.notifier)
-        .submitOtp(phoneNumber: phone, otp: _otpController.text.trim());
+        .submitOtp(phoneNumber: normalizeIndianPhone(phone), otp: _otpController.text.trim());
     if (!mounted) return;
     if (ok) {
       // Router guard lands on /shops or /shop-register automatically.
@@ -51,11 +54,27 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final phone = widget.phoneNumber.isNotEmpty
         ? widget.phoneNumber
         : (ref.read(authControllerProvider).phoneNumber ?? '');
-    await ref.read(authControllerProvider.notifier).sendOtp(phone);
+    await ref
+        .read(authControllerProvider.notifier)
+        .sendOtp(normalizeIndianPhone(phone));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('A new code has been sent')),
-    );
+    if (kUseMockAuth) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Your OTP is: ${MockAuthRepository.mockOtp}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          duration: const Duration(seconds: 8),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A new code has been sent')),
+      );
+    }
   }
 
   @override
@@ -79,6 +98,32 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               ),
               const SizedBox(height: 8),
               Text('Sent to ${widget.phoneNumber.isEmpty ? state.phoneNumber ?? '' : widget.phoneNumber}'),
+              // In mock mode the OTP is fixed & shown here permanently, so the
+              // test flow never blocks on an SMS that cannot arrive.
+              if (kUseMockAuth) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'DEMO CODE: ${MockAuthRepository.mockOtp}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 6,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               TextFormField(
                 controller: _otpController,

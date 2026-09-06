@@ -1,0 +1,280 @@
+# Phase 25 — Backend Continuous Delivery pipeline (steps 1–14).
+#
+#   1-8   reuse `reusable-backend-checks.yml` (checkout → deps → static analysis
+#        → unit tests → integration tests → build → security scan → artifact)
+#   9     deploy-staging      — SSM Run Command → compose stack (or ECS), env `staging`
+#   10    smoke-test-staging   — external health + readiness + contract battery
+#   11    production approval  — `environment: production` (protected with required
+#                               reviewers); on every push an approver gates release
+#   12    deploy-production    — SSM Run Command → compose stack (or ECS), env `production`
+#   13    verify-production    — post-deploy health + sha verification
+#   14    rollback-production  — automatic on ANY upstream failure (images/stacks are
+#                               versioned by git SHA; the server self-rolls-back too)
+#
+# Dangerous database migrations are NEVER auto-applied: the migration gate
+# blocks the deploy unless `migrate_approved` is set on a manual re-run.
+name: Backend CD — deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-cd.yml'
+      - '.github/workflows/reusable-backend-checks.yml'
+      - 'infra/scripts/aws_run_command.sh'
+      - 'infra/scripts/cicd_migrate.sh'
+      - 'infra/scripts/cicd_smoke_test.sh'
+      - 'infra/scripts/cicd_rollback.sh'
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: Deployment target — compose (EC2 instance, default) or ecs (Fargate services)
+        type: choice
+        options: [compose, ecs]
+        default: compose
+      migrate_approved:
+        description: 'Approve DB migration(s) the safety scan flagged DANGEROUS (review the migration-safety report artifact first)'
+        type: boolean
+        default: false
+
+# Serialize releases per branch — never two deploys at once.
+concurrency:
+  group: backend-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'hyperlocal-backend' }}
+
+jobs:
+  check:
+    name: Quality gates (steps 1–8) + migration rehearsal
+    uses: ./.github/workflows/reusable-backend-checks.yml
+    with:
+      python-version: "3.14"
+
+  migration-gate:
+    name: Migration safety gate
+    runs-on: ubuntu-latest
+    needs: check
+    outputs:
+      verdict: ${{ steps.gate.outputs.verdict }}
+    steps:
+      - name: Gate automatic deploys on dangerous migrations
+        id: gate
+        run: |
+          DANGEROUS="${{ needs.check.outputs.dangerous }}"
+          APPROVED="${{ github.event.inputs.migrate_approved }}"
+          echo "migration verdict: ${DANGEROUS:-no}   |   approved: ${APPROVED:-no}"
+          if [ "${DANGEROUS:-no}" = "yes" ] && [ "$APPROVED" != "true" ]; then
+            echo "::error::Dangerous migration(s) detected and NOT approved — refusing to auto-deploy."
+            echo "::error::Review 'migration-safety-report' artifact, then re-run Backend CD with migrate_approved=true."
+            exit 1
+          fi
+          echo "verdict=ok" >> "$GITHUB_OUTPUT"
+
+  push-image:
+    name: Build & push container image (step 8)
+    runs-on: ubuntu-latest
+    needs: [check, migration-gate]
+    if: ${{ vars.ECR_ENABLED == 'true' && vars.DEPLOY_TARGET != 'ecs' && github.event.inputs.deploy_target != 'ecs' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push (sha + latest)
+        uses: docker/build-push-action@v6
+        with:
+          context: Backend/
+          file: Backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy staging (step 9)
+    runs-on: ubuntu-latest
+    needs: [check, migration-gate]
+    if: ${{ vars.STAGING_DEPLOY_ENABLED == 'true' && vars.DEPLOY_TARGET != 'ecs' && github.event.inputs.deploy_target != 'ecs' }}
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy to staging
+        env:
+          DEPLOY_TARGET: ${{ github.event.inputs.deploy_target || vars.DEPLOY_TARGET || 'compose' }}
+          IMAGE_ID: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          APPROVED: ${{ github.event.inputs.migrate_approved }}
+        run: |
+          set -euo pipefail
+          chmod +x infra/scripts/aws_run_command.sh infra/scripts/ecs_deploy.sh
+          if [ "$DEPLOY_TARGET" = "ecs" ]; then
+            echo "target: ECS — rolling services to ${IMAGE_ID}"
+            ./infra/scripts/ecs_deploy.sh \
+              "${{ vars.STAGING_WEB_SERVICE || vars.WEB_SERVICE || 'hyperlocal-staging-web' }}" \
+              "${{ vars.STAGING_WEB_SERVICE || vars.WEB_SERVICE || 'hyperlocal-staging-web' }}" \
+              api "$IMAGE_ID" "$AWS_REGION" "${{ vars.ECS_CLUSTER_NAME || vars.ECS_CLUSTER || 'hyperlocal-cluster' }}"
+            ./infra/scripts/ecs_deploy.sh \
+              "${{ vars.STAGING_WORKER_SERVICE || vars.WORKER_SERVICE || 'hyperlocal-staging-worker' }}" \
+              "${{ vars.STAGING_WORKER_SERVICE || vars.WORKER_SERVICE || 'hyperlocal-staging-worker' }}" \
+              worker "$IMAGE_ID" "$AWS_REGION" "${{ vars.ECS_CLUSTER_NAME || vars.ECS_CLUSTER || 'hyperlocal-cluster' }}"
+          else
+            TAG="${{ vars.STAGING_INSTANCE_TAG || 'hyperlocal-staging-app' }}"
+            echo "target: compose — SSM ${TAG} (fetch ${GITHUB_SHA} → gated migrate → deploy)"
+            ./infra/scripts/aws_run_command.sh --instance-tag "$TAG" --region "$AWS_REGION" \
+              --command "cd /opt/hyperlocal && git fetch --quiet origin && git reset --hard ${GITHUB_SHA} && MIGRATION_APPROVED=${APPROVED:-no} ${SNAPSHOT_BUCKET:-} ./infra/scripts/cicd_migrate.sh 2>&1" \
+              --comment "cicd staging migrate ${GITHUB_SHA}"
+            ./infra/scripts/aws_run_command.sh --instance-tag "$TAG" --region "$AWS_REGION" \
+              --command "cd /opt/hyperlocal && ./infra/scripts/deploy_backend.sh deploy ${GITHUB_SHA} 2>&1" \
+              --comment "cicd deploy staging ${GITHUB_SHA}"
+          fi
+
+  smoke-test-staging:
+    name: Smoke test staging (step 10)
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: ${{ needs.deploy-staging.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke battery against staging
+        run: |
+          chmod +x infra/scripts/cicd_smoke_test.sh
+          ./infra/scripts/cicd_smoke_test.sh \
+            --url "${{ vars.STAGING_API_URL }}" \
+            --expect-env staging \
+            --sha "${{ github.sha }}" \
+            --ssm-instance-tag "${{ vars.STAGING_INSTANCE_TAG || 'hyperlocal-staging-app' }}" \
+            --region "${{ env.AWS_REGION }}"
+
+  deploy-production:
+    name: Deploy production (steps 11-12)
+    runs-on: ubuntu-latest
+    needs: [check, migration-gate]
+    if: ${{ vars.PROD_DEPLOY_ENABLED != 'false' && vars.DEPLOY_TARGET != 'ecs' }}
+    # Protected environment: required reviewers pause here until approval.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy to production
+        env:
+          DEPLOY_TARGET: ${{ github.event.inputs.deploy_target || vars.DEPLOY_TARGET || 'compose' }}
+          IMAGE_ID: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          APPROVED: ${{ github.event.inputs.migrate_approved }}
+        run: |
+          set -euo pipefail
+          chmod +x infra/scripts/aws_run_command.sh infra/scripts/ecs_deploy.sh
+          if [ "$DEPLOY_TARGET" = "ecs" ]; then
+            echo "target: ECS -- rolling production services to $IMAGE_ID"
+            CLUSTER="${{ vars.ECS_CLUSTER_NAME || vars.ECS_CLUSTER || 'hyperlocal-cluster' }}"
+            ./infra/scripts/ecs_deploy.sh "${{ vars.WEB_SERVICE }}" "${{ vars.WEB_SERVICE }}" api "$IMAGE_ID" "$AWS_REGION" "$CLUSTER"
+            ./infra/scripts/ecs_deploy.sh "${{ vars.WORKER_SERVICE }}" "${{ vars.WORKER_SERVICE }}" worker "$IMAGE_ID" "$AWS_REGION" "$CLUSTER"
+            ./infra/scripts/ecs_deploy.sh "${{ vars.BEAT_SERVICE }}" "${{ vars.BEAT_SERVICE }}" beat "$IMAGE_ID" "$AWS_REGION" "$CLUSTER"
+          else
+            TAG="${{ vars.PROD_INSTANCE_TAG || 'hyperlocal-production-app' }}"
+            echo "target: compose -- SSM (fetch ${{ github.sha }} -> gated migrate -> deploy -> self health-poll)"
+            ./infra/scripts/aws_run_command.sh --instance-tag "$TAG" --region "$AWS_REGION" \
+              --command "cd /opt/hyperlocal && git fetch --quiet origin && git reset --hard ${{ github.sha }} && MIGRATION_APPROVED=${APPROVED:-no} ./infra/scripts/cicd_migrate.sh 2>&1" \
+              --comment "cicd production migrate ${{ github.sha }}"
+            ./infra/scripts/aws_run_command.sh --instance-tag "$TAG" --region "$AWS_REGION" \
+              --command "cd /opt/hyperlocal && ./infra/scripts/deploy_backend.sh deploy ${{ github.sha }} 2>&1" \
+              --comment "cicd production deploy ${{ github.sha }}"
+          fi
+
+  verify-production:
+    name: Verify production health (step 13)
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: ${{ needs.deploy-production.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Production health + deployment identity
+        run: |
+          chmod +x infra/scripts/cicd_smoke_test.sh
+          ./infra/scripts/cicd_smoke_test.sh \
+            --url "${{ vars.PROD_API_URL }}" \
+            --expect-env production \
+            --sha "${{ github.sha }}" \
+            --ssm-instance-tag "${{ vars.PROD_INSTANCE_TAG || 'hyperlocal-production-app' }}" \
+            --region "${{ env.AWS_REGION }}"
+
+  rollback-production:
+    name: Automatic rollback (production, step 14)
+    runs-on: ubuntu-latest
+    needs: [deploy-production, verify-production]
+    if: ${{ failure() }}
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Roll back production (compose or ECS)
+        env:
+          DEPLOY_TARGET: ${{ github.event.inputs.deploy_target || vars.DEPLOY_TARGET || 'compose' }}
+        run: |
+          set -euo pipefail
+          chmod +x infra/scripts/cicd_rollback.sh
+          ./infra/scripts/cicd_rollback.sh \
+            --target "$DEPLOY_TARGET" --region "$AWS_REGION" \
+            --instance-tag "${{ vars.PROD_INSTANCE_TAG || 'hyperlocal-production-app' }}" \
+            --service "${{ vars.WEB_SERVICE }}" \
+            --family "${{ vars.WEB_SERVICE }}" \
+            --container api \
+            --image "${{ vars.LAST_GOOD_IMAGE }}" \
+            --cluster "${{ vars.ECS_CLUSTER_NAME || vars.ECS_CLUSTER || 'hyperlocal-cluster' }}"
+
+  rollback-staging:
+    name: Automatic rollback (staging)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, smoke-test-staging]
+    if: ${{ failure() }}
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Roll back staging
+        env:
+          DEPLOY_TARGET: ${{ github.event.inputs.deploy_target || vars.DEPLOY_TARGET || 'compose' }}
+        run: |
+          set -euo pipefail
+          chmod +x infra/scripts/cicd_rollback.sh
+          ./infra/scripts/cicd_rollback.sh \
+            --target "$DEPLOY_TARGET" --region "$AWS_REGION" \
+            --instance-tag "${{ vars.STAGING_INSTANCE_TAG || 'hyperlocal-staging-app' }}" \
+            --service "${{ vars.STAGING_WEB_SERVICE || vars.WEB_SERVICE || 'hyperlocal-staging-web' }}" \
+            --family "${{ vars.STAGING_WEB_SERVICE || vars.WEB_SERVICE || 'hyperlocal-staging-web' }}" \
+            --container api \
+            --image "${{ vars.STAGING_LAST_GOOD_IMAGE }}" \
+            --cluster "${{ vars.ECS_CLUSTER_NAME || vars.ECS_CLUSTER || 'hyperlocal-cluster' }}"

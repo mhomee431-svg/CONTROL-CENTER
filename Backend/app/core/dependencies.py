@@ -367,3 +367,82 @@ def require_admin_permission(resource: str, action: str):
         return user
 
     return checker
+
+
+def require_shop_permission(
+    shop_id: str,  # Path parameter name
+    resource: str,
+    action: str,
+):
+    """Dependency factory enforcing a shop-scoped permission.
+    
+    Usage:
+        @router.put("/shops/{shop_id}/products")
+        def update_products(
+            shop_id: int,
+            user: User = Depends(require_shop_permission("shop_id", "product", "update")),
+        ):
+            ...
+    
+    Args:
+        shop_id: Path parameter name containing the shop ID
+        resource: Permission resource (e.g., "product", "inventory")
+        action: Permission action (e.g., "read", "update")
+    """
+    def checker(
+        request: __import__("fastapi").Request,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        # Get shop_id from path parameters
+        try:
+            sid = int(request.path_params.get(shop_id, 0))
+        except (ValueError, TypeError):
+            raise ForbiddenError("Invalid shop ID")
+        
+        # Verify shop access
+        from app.core.resource_ownership import verify_shop_ownership
+        verify_shop_ownership(db, user, sid)
+        
+        # Check permission
+        from app.core.shopkeeper_permissions import has_permission, effective_shop_permissions
+        
+        is_owner = is_shop_owner(db, user, sid)
+        manager = None
+        if not is_owner:
+            manager = (
+                db.query(ShopManager)
+                .filter(
+                    ShopManager.shop_id == sid,
+                    ShopManager.user_id == user.id,
+                    ShopManager.is_active == True,  # noqa: E712
+                )
+                .first()
+            )
+        
+        perms = effective_shop_permissions(
+            user.role.name if user.role else None,
+            is_owner,
+            manager,
+        )
+        
+        if not has_permission(perms, resource, action):
+            # Log denied access
+            from app.services.authorization_audit_service import log_authorization_check
+            log_authorization_check(
+                db,
+                user_id=user.id,
+                resource=resource,
+                action=action,
+                resource_id=sid,
+                is_allowed=False,
+                reason=f"Missing permission {action}:{resource}",
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+            db.commit()
+            raise ForbiddenError(f"Missing permission: {action}:{resource}")
+        
+        return user
+    
+    return checker

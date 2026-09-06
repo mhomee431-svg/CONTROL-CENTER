@@ -150,7 +150,7 @@ def track_event(
         props=sanitize_props(props),
         device_type=device_type[:20] if device_type else None,
         app_version=app_version[:20] if app_version else None,
-        occurred_at=occurred_at or datetime.utcnow(),
+        occurred_at=occurred_at or datetime.now(timezone.utc),
     )
     db.add(event)
     db.flush()
@@ -240,7 +240,7 @@ def aggregate_daily(db: Session, day=None) -> dict:
     """
     if isinstance(day, datetime):
         day = day.date()
-    day = day or datetime.utcnow().date()
+    day = day or datetime.now(timezone.utc).date()
     start, end = _day_bounds(day)
 
     rows = (
@@ -294,7 +294,7 @@ def aggregate_daily(db: Session, day=None) -> dict:
 
 def aggregate_range(db: Session, days: int = 30, end_day=None) -> dict:
     """Aggregate the trailing ``days`` days ending at ``end_day`` (inclusive)."""
-    end_day = end_day or datetime.utcnow().date()
+    end_day = end_day or datetime.now(timezone.utc).date()
     total = 0
     for offset in range(days):
         result = aggregate_daily(db, end_day - timedelta(days=offset))
@@ -333,7 +333,7 @@ def read_aggregates(
 
 # ── Dashboard builders (all derived from raw events) ─────────────────────────
 def _window_start(days: int) -> datetime:
-    return datetime.utcnow() - timedelta(days=max(int(days), 1))
+    return datetime.now(timezone.utc) - timedelta(days=max(int(days), 1))
 
 
 def search_trends(db: Session, days: int = 30) -> dict:
@@ -606,7 +606,7 @@ def subscription_metrics(db: Session, days: int = 90) -> dict:
 
 def platform_health(db: Session, hours: int = 24) -> dict:
     """API performance + error + search-outcome health from platform events."""
-    since = datetime.utcnow() - timedelta(hours=max(int(hours), 1))
+    since = datetime.now(timezone.utc) - timedelta(hours=max(int(hours), 1))
 
     durations = [
         float(v[0])
@@ -692,7 +692,7 @@ def generate_report(
         parameters_json={"report_type": report_type, **params},
         generated_by=generated_by,
         status="GENERATING",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
     db.add(report)
     db.flush()
@@ -703,11 +703,11 @@ def generate_report(
         payload = builder(db, **kwargs)
         report.result_json = {
             "report_type": report_type,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "data": payload,
         }
         report.status = "READY"
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(timezone.utc)
     except Exception as exc:  # noqa: BLE001 — persist failure state for observability
         report.status = "FAILED"
         report.error_message = str(exc)[:2000]

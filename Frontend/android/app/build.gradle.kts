@@ -44,7 +44,7 @@ val releaseStoreFile: String =
     keyProperties.getProperty("storeFile") ?: "release.keystore"
 
 android {
-    namespace = "com.hyperlocal.hyperlocal_customer_app"
+    namespace = "com.hyperlocal.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -54,7 +54,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.hyperlocal.hyperlocal_customer_app"
+        applicationId = "com.hyperlocal.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // google_maps_flutter_android requires an Android SDK level of at least 24.

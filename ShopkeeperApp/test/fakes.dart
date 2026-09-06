@@ -84,16 +84,11 @@ class FakeAuthRepository implements AuthRepository {
   String? lastRegisteredName;
 
   @override
-  Future<void> sendOtp(String phoneNumber) async {
-    if (sendOtpError != null) throw sendOtpError!;
-    otpSends++;
-  }
-
-  @override
-  Future<AuthSession> register({
+  Future<AuthSession> registerWithFirebase({
     required String phoneNumber,
-    required String otp,
+    required String firebaseIdToken,
     required String name,
+    String? password,
   }) async {
     registerCalls++;
     lastRegisteredName = name;
@@ -102,13 +97,46 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthSession> login({
-    required String phoneNumber,
-    required String otp,
+  Future<AuthSession> loginWithFirebase({
+    required String firebaseIdToken,
   }) async {
     loginCalls++;
     if (submitError != null) throw submitError!;
     return restoreResult ?? makeSession();
+  }
+
+  @override
+  Future<AuthSession> loginWithFirebaseAuto({
+    required String firebaseIdToken,
+    String? name,
+  }) async {
+    loginCalls++;
+    lastRegisteredName = name;
+    if (submitError != null) throw submitError!;
+    return restoreResult ?? makeSession();
+  }
+
+  @override
+  Future<AuthSession> loginWithPassword({
+    required String identifier,
+    required String password,
+  }) async {
+    loginCalls++;
+    if (submitError != null) throw submitError!;
+    return restoreResult ?? makeSession();
+  }
+
+  @override
+  Future<void> forgotPassword(String identifier) async {
+    if (sendOtpError != null) throw sendOtpError!;
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    if (submitError != null) throw submitError!;
   }
 
   @override
@@ -170,6 +198,17 @@ class FakeShopRepo implements ShopRepository {
   @override
   Future<void> updateSettings(
           int shopId, Map<String, dynamic> fields, String token) async {}
+
+  @override
+  Future<Map<String, dynamic>> updateShopLocation(
+          int shopId, Map<String, dynamic> payload, String token) async {
+    return {
+      'latitude': payload['latitude'],
+      'longitude': payload['longitude'],
+      'accuracy_meters': payload['location']?['accuracy_meters'],
+      'location_status': 'CORRECTED',
+    };
+  }
 }
 
 class FakeDashboardRepo implements DashboardRepository {

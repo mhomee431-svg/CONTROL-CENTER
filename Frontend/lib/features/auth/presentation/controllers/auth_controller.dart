@@ -49,7 +49,14 @@ class AuthController extends Notifier<AuthState> {
     return AuthState.initial();
   }
 
-  /// Restore a persisted session on app startup.
+    /// Determine the starting auth state on app launch.
+  ///
+  /// ── Phase 11: guest-first experience ──────────────────────────────
+  /// The customer is always treated as a guest on first open. There is
+  /// no welcome / login wall — they land directly on the Home screen.
+  /// Login (phone OTP) is only prompted later when the customer tries
+  /// to perform a write action that requires an account (e.g. shop
+  /// ratings). Until then they remain a guest.
   Future<bool> checkAuthStatus() async {
     state = AuthState.loading();
     try {
@@ -57,8 +64,6 @@ class AuthController extends Notifier<AuthState> {
       final session = await service.restoreSession();
 
       if (session != null && session.isValid) {
-        // Attempt a silent refresh to validate the token.
-        // If refresh fails, fall back to logged-out state.
         try {
           final newToken = await service.refreshAccessToken();
           if (newToken != null) {
@@ -68,15 +73,21 @@ class AuthController extends Notifier<AuthState> {
         } catch (_) {
           // Token refresh failed -> session is invalid/expired.
         }
-        state = AuthState.sessionExpired();
+        // Session exists but isn't valid anymore — downgrade to guest so
+        // the customer can still browse without being shown a login wall.
+        state = AuthState.guest();
         return false;
       }
 
-      final isGuest = await service.isGuestMode();
-      state = isGuest ? AuthState.guest() : AuthState.unauthenticated();
+      // No valid session: ensure we're in guest mode so the router sends
+      // the customer straight to the Home screen.
+      await service.setGuestMode(true);
+      state = AuthState.guest();
       return false;
     } catch (e) {
-      state = AuthState.error(authErrorMessage(e));
+      // Even if anything fails, fall back to guest (never to the
+      // welcome screen).
+      state = AuthState.guest();
       return false;
     }
   }

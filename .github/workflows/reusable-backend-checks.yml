@@ -1,0 +1,222 @@
+# Phase 25 — shared backend quality gates used by both CI (PR/push) and CD (deploy).
+#
+# Maps pipeline steps 1–8 of the release process to jobs:
+#   1 Checkout                 actions/checkout (per job)
+#   2 Install dependencies     setup-python + pip install
+#   3 Static analysis          static-analysis   (compileall + ruff real-bug rules + bandit)
+#   4 Unit tests               unit-tests        (pytest, no external services)
+#   5 Integration tests        integration-tests (PostGIS 16 + Redis 7 services,
+#                                migration rehearsal, verify_rds, recovery drill, full pytest)
+#   6 Build                    build             (docker build of Backend/Dockerfile)
+#   7 Security scan            security-scan     (gitleaks + pip-audit + local scanner)
+#   8 Artifact                 (the caller pushes the image / records the SHA)
+#
+# Also runs the migration-safety classification (migration_safety_check.py) and
+# exposes its verdict as outputs consumed by the deployment workflows.
+name: Backend checks (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version used for tests/lint
+        type: string
+        required: false
+        default: "3.14"
+    outputs:
+      dangerous:
+        description: "yes when migrations changed in this run are classified dangerous"
+        value: ${{ jobs.migration-safety.outputs.dangerous }}
+      head_revision:
+        description: Alembic head revision detected by the safety scan
+        value: ${{ jobs.migration-safety.outputs.head_revision }}
+
+permissions:
+  contents: read
+
+env:
+  PIP_TOOLS: "ruff==0.16.5 bandit==1.9.4 pip-audit==2.10.1"
+
+jobs:
+  static-analysis:
+    name: Static analysis (compile + ruff + bandit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+          cache-dependency-path: Backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Install static-analysis tools
+        run: pip install ${{ env.PIP_TOOLS }}
+      - name: Byte-compile every module
+        run: python -m compileall -q app alembic scripts tests
+      - name: Ruff — real-bug rules (undefined names / redefinitions / syntax)
+        run: python -m ruff check app tests scripts alembic --select E9,F821,F822,F811,F823
+      - name: Bandit — security lints, regression-gated on committed baseline
+        run: python -m bandit -q -r app -ll --baseline bandit_baseline.json
+
+  unit-tests:
+    name: Unit tests (pytest, no services)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      ENVIRONMENT: test
+      HYPERLOCAL_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+          cache-dependency-path: Backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m pytest -q -p no:cacheprovider --maxfail=20
+
+  integration-tests:
+    name: Integration tests (PostGIS + Redis + migration rehearsal)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hyperlocal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hyperlocal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      ENVIRONMENT: test
+      HYPERLOCAL_ENV: test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/hyperlocal
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      RATE_LIMIT_STORAGE_URI: redis://localhost:6379/3
+      OTP_STORAGE_URI: redis://localhost:6379/4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+          cache-dependency-path: Backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Migration rehearsal — apply the full chain on a real PostGIS DB
+        run: alembic upgrade head
+      - name: Verify approved architecture (verify_rds.py)
+        run: python scripts/verify_rds.py
+      - name: Recovery rehearsal — dump → restore → verify identical
+        run: python scripts/recovery_test.py --report-file recovery_report.json
+      - name: Phase 26 — migration automation rehearsal (forward + rollback + data safety + index + FK + PostGIS)
+        run: python scripts/migration_rehearsal.py --report-file migration_rehearsal_report.json --full-chain-rollback
+      - name: Phase 26 — ORM↔DB migration drift report (audit; enables --fail-on-drift)
+        run: python scripts/check_migration_drift.py --report-file migration_drift_report.json
+      - name: Run the full test suite against the real services
+        run: python -m pytest -q -p no:cacheprovider --maxfail=20
+      - name: Upload Phase 26 migration rehearsal + drift reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase26-migration-reports
+          path: |
+            Backend/migration_rehearsal_report.json
+            Backend/migration_drift_report.json
+          if-no-files-found: error
+
+  migration-safety:
+    name: Migration safety scan
+    runs-on: ubuntu-latest
+    outputs:
+      dangerous: ${{ steps.scan.outputs.dangerous }}
+      head_revision: ${{ steps.scan.outputs.head_revision }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Classify migration changes (AST)
+        id: scan
+        working-directory: Backend
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha || github.event.before || '' }}"
+          ARGS=""
+          if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ]; then
+            ARGS="--base-sha $BASE"
+          fi
+          python scripts/migration_safety_check.py $ARGS --output migration_safety_report.json --dump > verdict.txt
+          cat verdict.txt
+          echo "dangerous=$(grep '^DANGEROUS=' verdict.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          echo "head_revision=$(grep '^HEAD_REVISION=' verdict.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+      - name: Upload migration safety report
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-safety-report
+          path: Backend/migration_safety_report.json
+
+  security-scan:
+    name: Secret + dependency scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks (working tree + history)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: pip-audit — runtime + dev dependencies
+        run: |
+          pip install ${{ env.PIP_TOOLS }}
+          pip-audit -r Backend/requirements.prod.txt --desc --disable-pip
+          pip-audit -r Backend/requirements.txt --desc --disable-pip
+      - name: Local tracked-files secret scanner
+        run: python3 scripts/security/scan_secrets.py --tracked
+
+  build:
+    name: Build backend image
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (artifact, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: Backend/
+          file: Backend/Dockerfile
+          push: false
+          tags: hyperlocal-backend:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

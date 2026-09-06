@@ -68,7 +68,7 @@ def _portable_timestamp_defaults():
     from sqlalchemy import ColumnDefault
 
     def _now(ctx=None):
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     for table in Base.metadata.tables.values():
         for col in table.columns:

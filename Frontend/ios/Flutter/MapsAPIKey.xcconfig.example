@@ -1,0 +1,7 @@
+// Phase 15 — Google Maps API key (iOS).
+// Copy this file to `MapsAPIKey.xcconfig` and put your real key here:
+//
+//   MAPS_API_KEY = AIzaSy...
+//
+// `MapsAPIKey.xcconfig` is gitignored — never commit a real key.
+MAPS_API_KEY =

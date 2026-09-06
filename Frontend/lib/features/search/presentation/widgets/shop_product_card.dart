@@ -14,8 +14,15 @@ class ShopProductCard extends StatelessWidget {
   final ShopProductResult result;
   final VoidCallback? onTap;
   final VoidCallback? onShopTap;
+  final VoidCallback? onShare;
 
-  const ShopProductCard({super.key, required this.result, this.onTap, this.onShopTap});
+  const ShopProductCard({
+    super.key,
+    required this.result,
+    this.onTap,
+    this.onShopTap,
+    this.onShare,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +58,28 @@ class ShopProductCard extends StatelessWidget {
                       imageUrl: result.productImageUrl,
                       borderRadius: 8,
                     ),
+                    // Share action (top-right of the image)
+                    if (onShare != null)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Material(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: onShare,
+                            child: const Padding(
+                              padding: EdgeInsets.all(5),
+                              child: Icon(
+                                Icons.share,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (result.hasDiscount)
                       Positioned(
                         top: 4,

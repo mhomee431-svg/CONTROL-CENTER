@@ -1,5 +1,7 @@
-import 'package:geolocator/geolocator.dart';
+// ignore_for_file: prefer_initializing_formals — private fields can't use this._
+import 'package:dio/dio.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import '../domain/location_repository.dart';
 import '../domain/models/location_exception.dart';
 import '../domain/models/location_permission_status.dart';
@@ -8,15 +10,28 @@ import '../../../core/env/env_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 
-/// Device-based location provider using `geolocator` + `geocoding`.
+/// Device-based location provider using `geolocator` + Google Geocoding API.
 ///
-/// This is the default implementation of [LocationRepository]. To swap
-/// providers (e.g. Google Maps SDK, Mapbox), create a new class that
-/// implements [LocationRepository] and override [locationRepositoryProvider].
+/// Reverse geocoding uses the Google Geocoding REST API (not the native
+/// Android Geocoder) for reliable area / city / pincode extraction across
+/// India — the same implementation the map picker uses.
 class DeviceLocationRepository implements LocationRepository {
   final ApiClient? _apiClient;
+  final Dio _googleMapsDio;
 
-  DeviceLocationRepository({this._apiClient});
+  DeviceLocationRepository({
+    ApiClient? apiClient,
+    Dio? googleMapsDio,
+  })  : _apiClient = apiClient,
+        _googleMapsDio = googleMapsDio ??
+            Dio(
+              BaseOptions(
+                baseUrl: 'https://maps.googleapis.com',
+                connectTimeout: const Duration(seconds: 12),
+                receiveTimeout: const Duration(seconds: 12),
+                responseType: ResponseType.json,
+              ),
+            );
 
   @override
   Future<bool> isLocationServiceEnabled() async =>
@@ -33,6 +48,10 @@ class DeviceLocationRepository implements LocationRepository {
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+    }
+    // If permanently denied, requestPermission() won't show a dialog — map it.
+    if (permission == LocationPermission.deniedForever) {
+      return LocationPermissionStatus.permanentlyDenied;
     }
     return _mapPermission(permission);
   }
@@ -53,18 +72,26 @@ class DeviceLocationRepository implements LocationRepository {
 
   @override
   Future<UserLocation> getCurrentLocation() async {
-    final permission = await checkPermission();
-    if (permission != LocationPermissionStatus.granted) {
-      throw LocationException(
-        permission == LocationPermissionStatus.permanentlyDenied
-            ? LocationErrorType.permissionPermanentlyDenied
-            : LocationErrorType.permissionDenied,
-        permission == LocationPermissionStatus.permanentlyDenied
-            ? 'Location permission permanently denied. Please enable in settings.'
-            : 'Location permission denied.',
+    // 1. Request permission — shows the system dialog if not yet granted.
+    final permission = await requestPermission();
+
+    // ignore: avoid_print
+    print('[REPO] getCurrentLocation permission=$permission');
+    if (permission == LocationPermissionStatus.permanentlyDenied) {
+      throw const LocationException(
+        LocationErrorType.permissionPermanentlyDenied,
+        'Location permission permanently denied. Please enable in settings.',
       );
     }
 
+    if (permission != LocationPermissionStatus.granted) {
+      throw const LocationException(
+        LocationErrorType.permissionDenied,
+        'Location permission denied.',
+      );
+    }
+
+    // 2. Ensure location services (GPS) are turned on.
     final serviceEnabled = await isLocationServiceEnabled();
     if (!serviceEnabled) {
       throw const LocationException(
@@ -73,6 +100,7 @@ class DeviceLocationRepository implements LocationRepository {
       );
     }
 
+    // 3. Get a high-accuracy GPS fix.
     try {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -88,6 +116,8 @@ class DeviceLocationRepository implements LocationRepository {
         );
       }
 
+      // ignore: avoid_print
+      print('[REPO] GPS fix obtained: ${position.latitude},${position.longitude}');
       return await _buildLocationFromPosition(position);
     } on LocationException {
       rethrow;
@@ -104,54 +134,214 @@ class DeviceLocationRepository implements LocationRepository {
     try {
       final position = await Geolocator.getLastKnownPosition();
       if (position == null) return null;
+      // ignore: avoid_print
+      print('[REPO] GPS fix obtained: ${position.latitude},${position.longitude}');
       return await _buildLocationFromPosition(position);
     } catch (_) {
       return null;
     }
   }
 
+  /// Reverse-geocodes [position] into a rich [UserLocation] (area / city /
+  /// pincode). Uses Nominatim (OpenStreetMap) as the primary geocoder because
+  /// it is free, needs no API key, and works in India — so the app delivers
+  /// live area + city + pincode regardless of how a Google key is restricted.
+  /// Falls back to an approximate (coordinates-only) location if the network
+  /// is unreachable or returns no result, so nearby-shop discovery still works.
   Future<UserLocation> _buildLocationFromPosition(Position position) async {
+    // 1. NATIVE Android Geocoder — uses Google Play Services on the device.
+    //    No API key, no web service, no IP blocking. Most reliable on Android.
+    final native = await _reverseGeocodeNative(position);
+    if (native != null) return native;
+
+    // 2. Optional fallback: Google Geocoding API (only when a key is configured
+    /// and its restrictions allow web-service calls). Harmless no-op otherwise.
+    final google = await _reverseGeocodeGoogle(position);
+    if (google != null) return google;
+
+    // 3. Last resort: coordinates only, marked approximate.
+    return UserLocation.withCapturedAt(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      address: 'Current Location',
+      city: '',
+      state: '',
+      pincode: '',
+      label: 'Current Location',
+      isManual: false,
+      isApproximate: true,
+      accuracyMeters: position.accuracy,
+      capturedAt: DateTime.now(),
+    );
+  }
+  /// Reverse-geocodes using the NATIVE Android Geocoder (Google Play Services).
+  /// No API key, no web service, no IP blocking. Returns null on any failure.
+  Future<UserLocation?> _reverseGeocodeNative(Position position) async {
     try {
-      final placemarks = await Geocoding().placemarkFromCoordinates(
+      final geocoding = Geocoding();
+      final placemarks = await geocoding.placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
+      if (placemarks.isEmpty) return null;
       final place = placemarks.first;
+
+      // ignore: avoid_print
+      print('[NATIVE] Geocoder result: ${place.subLocality}, ${place.locality}, ${place.postalCode}');
+
+      // All Placemark fields are nullable in geocoding v5 — normalize to ''.
+      String s(String? v) => (v ?? '').trim();
+
+      // Area / sublocality - the Zepto-style headline.
+      final areaParts = <String>[
+        if (s(place.subLocality).isNotEmpty) s(place.subLocality),
+        if (s(place.subAdministrativeArea).isNotEmpty) s(place.subAdministrativeArea),
+        if (s(place.name).isNotEmpty) s(place.name),
+      ];
+      var area = areaParts.join(', ');
+
+      final city = s(place.locality).isNotEmpty
+          ? s(place.locality)
+          : (s(place.subAdministrativeArea).isNotEmpty
+              ? s(place.subAdministrativeArea)
+              : s(place.administrativeArea));
+      final state = s(place.administrativeArea);
+      final pincode = s(place.postalCode);
+      final label = city.isNotEmpty ? city : 'Current Location';
 
       return UserLocation.withCapturedAt(
         latitude: position.latitude,
         longitude: position.longitude,
-        address: '${place.street}, ${place.subLocality}',
-        city: place.locality ?? place.subAdministrativeArea ?? 'Unknown City',
-        state: place.administrativeArea ?? 'Unknown State',
-        pincode: place.postalCode ?? '',
-        label: place.locality ?? 'Current Location',
+        address: area,
+        city: city,
+        state: state,
+        pincode: pincode,
+        label: label,
         isManual: false,
         isApproximate: false,
-        accuracyMeters: position.accuracy,
+        accuracyMeters: 0,
         capturedAt: DateTime.now(),
       );
     } catch (e) {
-      // Fallback if reverse geocoding fails but we have coords for PostGIS.
-      // Mark as approximate so business logic can decide how to handle it.
-      return UserLocation.withCapturedAt(
-        latitude: position.latitude,
-        longitude: position.longitude,
-        address: 'Current Location',
-        city: 'Unknown City',
-        state: '',
-        pincode: '',
-        label: 'Current Location',
-        isManual: false,
-        isApproximate: true,
-        accuracyMeters: position.accuracy,
-        capturedAt: DateTime.now(),
-      );
+      // ignore: avoid_print
+      print('[NATIVE] Geocoder ERROR: $e');
+      return null;
     }
   }
 
+  /// Reverse-geocodes via Google Geocoding API. Returns null if the key is empty
+  /// or the call fails (e.g. key restricted to Android apps only).
+  Future<UserLocation?> _reverseGeocodeGoogle(Position position) async {
+    if (EnvConfig.mapsApiKey.isEmpty) return null;
+    try {
+      final response = await _googleMapsDio.get(
+        '/maps/api/geocode/json',
+        queryParameters: {
+          'latlng': '${position.latitude},${position.longitude}',
+          'key': EnvConfig.mapsApiKey,
+          'language': 'en',
+          'region': 'IN',
+          'result_type': 'street_address|route|sublocality|locality|administrative_area_level_2|administrative_area_level_1|postal_code'
+        }
+      );
+      return _reverseGeocodeFromJson(response.data, position.latitude, position.longitude);
+    } catch (e) {
+      // ignore: avoid_print
+      print('[GEOCODE] ERROR: $e');
+      return null;
+    }
+  }
+
+  /// Parses a Google Geocoding API response into a [UserLocation], extracting
+  /// area / sublocality, city, state and pincode from the address components.
+  UserLocation? _reverseGeocodeFromJson(
+    Map<String, dynamic> json,
+    double latitude,
+    double longitude,
+  ) {
+    if (json['status'] != 'OK') return null;
+    final results = json['results'];
+    if (results is! List || results.isEmpty) return null;
+
+    final place = results.first;
+    if (place is! Map) return null;
+
+    final addressComponents = place['address_components'];
+    final components = <Map<String, String>>[];
+
+    if (addressComponents is List) {
+      for (final component in addressComponents) {
+        if (component is! Map) continue;
+        final types = (component['types'] as List?) ?? const [];
+        components.add({
+          'long_name': (component['long_name'] ?? '').toString(),
+          'short_name': (component['short_name'] ?? '').toString(),
+          'types': types.join('|'),
+        });
+      }
+    }
+
+    String componentFor(String type) {
+      for (final c in components) {
+        if ((c['types'] ?? '').split('|').contains(type)) {
+          return c['long_name'] ?? '';
+        }
+      }
+      return '';
+    }
+
+    final neighborhood = componentFor('neighborhood');
+    final subLocality1 = componentFor('sublocality_level_1');
+    final subLocality2 = componentFor('sublocality_level_2');
+    final route = componentFor('route');
+    final locality = componentFor('locality');
+    final district = componentFor('administrative_area_level_2');
+    final state = componentFor('administrative_area_level_1');
+    final pincode = componentFor('postal_code');
+    final formatted = place['formatted_address']?.toString() ?? '';
+
+    // Area / sublocality - the Zepto-style area line.
+    final areaParts = <String>[
+      if (subLocality1.isNotEmpty) subLocality1,
+      if (subLocality2.isNotEmpty) subLocality2,
+      if (neighborhood.isNotEmpty) neighborhood,
+      if (route.isNotEmpty) route,
+    ];
+    var area = areaParts.join(', ');
+    if (area.isEmpty && formatted.isNotEmpty) {
+      area = formatted.split(',').first.trim();
+    }
+
+    final city = locality.isNotEmpty
+        ? locality
+        : (district.isNotEmpty ? district : subLocality1);
+    final label = city.isNotEmpty ? city : 'Current Location';
+
+    return UserLocation.withCapturedAt(
+      latitude: latitude,
+      longitude: longitude,
+      address: area,
+      city: city,
+      state: state,
+      pincode: pincode,
+      label: label,
+      isManual: false,
+      isApproximate: false,
+      accuracyMeters: 0,
+      capturedAt: DateTime.now(),
+    );
+  }
+
   @override
-  Future<void> openLocationSettings() async => await Geolocator.openAppSettings();
+  Future<void> openLocationSettings() async {
+    // Geolocator.openAppSettings() is unsupported on web and throws; guard
+    // it so callers (permission dialogs) never crash on that platform.
+    try {
+      await Geolocator.openAppSettings();
+    } catch (_) {
+      // No-op where app-settings deep links don't exist (web).
+    }
+  }
 
   @override
   Future<List<UserLocation>> searchManualLocations(String query) async {
