@@ -72,6 +72,9 @@ backend/_tfstate.json
 storage/_run_*.cmd
 storage/*.log.err
 
+# Redundant base64-encoded copies of scripts / configs (never commit)
+*.b64
+
 # Mobile signing material / keystores (never commit — Phase 8)
 **/android/key.properties
 **/ios/**/key.properties

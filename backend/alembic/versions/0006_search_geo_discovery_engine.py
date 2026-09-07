@@ -157,7 +157,7 @@ def downgrade() -> None:
     op.drop_index("ix_search_index_shop_available", table_name="search_indexes")
     op.execute("DROP INDEX IF EXISTS ix_search_index_barcode_trgm")
     op.execute("DROP INDEX IF EXISTS ix_search_index_search_text_trgm")
-    op.execute("DROP INDEX IF EXISTS ix_search_index_search_vector_gin")
+    op.execute("DROP INDEX IF EXISTS ix_search_index_search_vector")
     op.drop_table("search_indexes")
     op.execute("DROP TYPE IF EXISTS search_index_sync_status")
     op.execute("DROP TYPE IF EXISTS search_index_entity_type")

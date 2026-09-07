@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.responses import success_response
 from app.database.session import get_db
 from app.models.product import (
+    Brand,
     Category,
+    ProductImage,
     ProductMaster,
     ShopProduct,
 )
@@ -51,9 +53,15 @@ async def get_home_feed(
     ]
 
     # Popular products: products with the most shop_product entries
+    # Eager-load brand + images alongside shop_products to avoid N+1 queries
+    # when rendering the product card list.
     products = (
         db.query(ProductMaster)
-        .options(joinedload(ProductMaster.shop_products))
+        .options(
+            joinedload(ProductMaster.shop_products),
+            joinedload(ProductMaster.brand),
+            selectinload(ProductMaster.images),
+        )
         .all()
     )
     product_data = []
