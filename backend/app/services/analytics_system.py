@@ -21,7 +21,7 @@ Design rules:
 from __future__ import annotations
 
 from datetime import date as date_cls
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session

@@ -277,6 +277,33 @@ SHOPKEEPER_PHONE = "+917709000100"
 CUSTOMER_LAT, CUSTOMER_LNG = 25.5941, 85.1336     # Patna (customer location)
 GAYA_LAT, GAYA_LNG = 24.7914, 85.0002            # Gaya (~90 km away)
 
+# Fake Firebase ID tokens -> phone numbers. The shopkeeper routes now verify a
+# Firebase ID token server-side; these tokens stand in for a real phone-OTP
+# sign-in and are mapped back by the _patch_shopkeeper_firebase_verify fixture.
+_FIREBASE_TOKENS = {
+    SHOPKEEPER_PHONE: "phase20-shopkeeper-firebase-token-00000000000000000000",
+}
+
+
+def _patch_shopkeeper_firebase_verify() -> None:
+    """Point the shopkeeper auth route's token verifier at a local mapping so
+    the real HTTP flow works without a live Firebase project.
+
+    Permanent module-level patch: test_phase28 reuses phase21's
+    ``_build_world`` (which in turn relies on this patch) in the same pytest
+    process, so the verifier must stay patched for the whole session.
+    """
+    import app.api.routes.shopkeeper_auth as _sk_auth
+    from app.services.firebase_verification import FirebaseVerificationError
+
+    def _verify(token: str) -> str:
+        for phone, tok in _FIREBASE_TOKENS.items():
+            if token == tok:
+                return phone
+        raise FirebaseVerificationError("Invalid token")
+
+    _sk_auth.verify_firebase_id_token = _verify
+
 CATEGORIES = [
     ("Grocery & Staples", "grocery-staples"),
     ("Dairy & Chilled", "dairy-chilled"),
@@ -341,19 +368,18 @@ def _register_customer(client, phone, name) -> dict:  # noqa: ANN001
 
 
 def _register_shopkeeper(client, phone, name) -> dict:  # noqa: ANN001
-    data = _ok(
-        _req(client, "POST", f"{API}/shopkeeper/auth/send-otp", json={"phone_number": phone}),
-        what="shopkeeper send-otp",
-    )
-    otp = _dev_otp(data)
+    # Shopkeeper auth is Firebase-based: the Flutter app completes phone-OTP
+    # client-side and sends the resulting ID token. We use the combined
+    # login-or-register endpoint with a fake token that
+    # _patch_shopkeeper_firebase_verify() maps back to the phone number.
+    token = _FIREBASE_TOKENS[phone]
     return _ok(
         _req(
             client,
             "POST",
-            f"{API}/shopkeeper/auth/register",
+            f"{API}/shopkeeper/auth/firebase-login",
             json={
-                "phone_number": phone,
-                "otp": otp,
+                "firebase_id_token": token,
                 "name": name,
                 "device_id": "phase20-shopkeeper",
                 "device_name": "Phase 20 shopkeeper",
@@ -645,6 +671,9 @@ def _build_world() -> dict:
 
     from app.database.session import get_db
     from app.main import app as fastapi_app
+
+    # Shopkeeper auth is Firebase-based; map our fake tokens to phones.
+    _patch_shopkeeper_firebase_verify()
 
     db = SyncSession()
 

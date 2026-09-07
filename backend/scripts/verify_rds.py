@@ -65,6 +65,11 @@ EXPECTED_TABLES: set[str] = {
     "transport_bookings", "booking_status_history", "trip_details",
     # 0017 reviews + pharmacy compliance
     "reviews",
+    # 0019 merchant onboarding & verification
+    "merchant_categories", "merchant_verification_requirements",
+    "merchant_onboardings", "business_identity_verifications",
+    "bank_account_verifications", "category_document_verifications",
+    "verification_attempts", "verification_provider_logs",
 }
 
 # Geography POINT columns that must be typed for PostGIS.

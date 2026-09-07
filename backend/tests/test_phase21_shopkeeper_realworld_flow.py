@@ -286,6 +286,31 @@ SHOPKEEPER_PHONE = "+917709000120"
 CUSTOMER_LAT, CUSTOMER_LNG = 25.5941, 85.1336     # Patna (customer location)
 SHOP_LAT, SHOP_LNG = 25.612, 85.137              # ~2 km from the customer
 
+# Fake Firebase ID tokens -> phone numbers for the shopkeeper auth flow.
+_FAKE_FIREBASE_TOKENS = {
+    SHOPKEEPER_PHONE: "phase21-shopkeeper-firebase-token-00000000000000000000",
+}
+
+
+def _patch_shopkeeper_firebase_verify() -> None:
+    """Point the shopkeeper auth route's token verifier at a local mapping so
+    the real HTTP flow works without a live Firebase project.
+
+    This is a permanent module-level patch (not a fixture): test_phase28
+    reuses this module's ``_build_world`` in the same pytest process, so the
+    verifier must stay patched for the whole session.
+    """
+    import app.api.routes.shopkeeper_auth as _sk_auth
+    from app.services.firebase_verification import FirebaseVerificationError
+
+    def _verify(token: str) -> str:
+        for phone, tok in _FAKE_FIREBASE_TOKENS.items():
+            if token == tok:
+                return phone
+        raise FirebaseVerificationError("Invalid token")
+
+    _sk_auth.verify_firebase_id_token = _verify
+
 CATEGORIES = [
     ("Grocery & Staples", "grocery-staples"),
     ("Dairy & Chilled", "dairy-chilled"),
@@ -366,19 +391,17 @@ def _register_customer(client, phone, name) -> dict:  # noqa: ANN001
 
 
 def _register_shopkeeper(client, phone, name) -> dict:  # noqa: ANN001
-    data = _ok(
-        _req(client, "POST", f"{API}/shopkeeper/auth/send-otp", json={"phone_number": phone}),
-        what="shopkeeper send-otp",
-    )
-    otp = _dev_otp(data)
+    # Shopkeeper auth is Firebase-based (phone-OTP verified client-side). The
+    # combined login-or-register endpoint runs with a fake token mapped back to
+    # the phone by _patch_shopkeeper_firebase_verify().
+    token = _FAKE_FIREBASE_TOKENS[phone]
     return _ok(
         _req(
             client,
             "POST",
-            f"{API}/shopkeeper/auth/register",
+            f"{API}/shopkeeper/auth/firebase-login",
             json={
-                "phone_number": phone,
-                "otp": otp,
+                "firebase_id_token": token,
                 "name": name,
                 "device_id": "phase21-shopkeeper",
                 "device_name": "Phase 21 shopkeeper device",
@@ -761,11 +784,22 @@ def _build_world() -> dict:
     """Run the ENTIRE Phase-21 real-world flow through the real HTTP APIs and
     return a handle the tests use for customer-side verification + read-only
     DB assertions. This is the production-level proof that a shopkeeper can go
-    from 'no account' to 'live published shop' with zero manual DB editing."""
+    from 'no account' to 'live published shop' with zero manual DB editing.
+
+    The module-level ``_TMP_DB`` file is shared process-wide: test_phase28
+    reuses this builder in the same pytest process, so each world-build must
+    start from an empty schema or the second build collides with the first.
+    """
+    Base.metadata.drop_all(SYNC_ENGINE)
+    Base.metadata.create_all(SYNC_ENGINE)
+
     from fastapi.testclient import TestClient
 
     from app.database.session import get_db
     from app.main import app as fastapi_app
+
+    # Shopkeeper auth is Firebase-based; map our fake tokens to phones.
+    _patch_shopkeeper_firebase_verify()
 
     db = SyncSession()
 
@@ -959,22 +993,14 @@ def test_shopkeeper_registration_creates_verified_account(world):
     assert user is not None
     assert user.role.name == "shopkeeper"
 
-    # The same phone can sign back in through the shopkeeper login flow.
+    # The same phone can sign back in through the shopkeeper Firebase
+    # login-or-register flow (returns the existing account).
     resp = _req(
         world["client"],
         "POST",
-        f"{API}/shopkeeper/auth/send-otp",
-        json={"phone_number": SHOPKEEPER_PHONE},
-    )
-    data = _ok(resp, what="shopkeeper login send-otp")
-    otp = _dev_otp(data)
-    resp = _req(
-        world["client"],
-        "POST",
-        f"{API}/shopkeeper/auth/login",
+        f"{API}/shopkeeper/auth/firebase-login",
         json={
-            "phone_number": SHOPKEEPER_PHONE,
-            "otp": otp,
+            "firebase_id_token": _FAKE_FIREBASE_TOKENS[SHOPKEEPER_PHONE],
             "device_id": "phase21-shopkeeper-relogin",
             "device_type": "android",
             "platform": "android",

@@ -159,6 +159,10 @@ def db():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # Re-strip Geography columns: earlier test modules may have called
+    # restore_geo_columns(), which puts pristine PostGIS types back into the
+    # shared metadata. strip_geo_columns() is idempotent.
+    strip_geo_columns()
     Base.metadata.create_all(engine, tables=TABLES)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()

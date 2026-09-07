@@ -21,7 +21,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 ROOT_DIR = BACKEND_DIR.parent
 VERSIONS = BACKEND_DIR / "alembic" / "versions"
 RECOVERY = BACKEND_DIR / "scripts" / "recovery_test.py"
-SCRIPTS = ROOT_DIR / "infra" / "scripts"
+SCRIPTS = ROOT_DIR / "infrastructure" / "scripts"
 
 
 def _migration_files():

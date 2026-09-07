@@ -263,6 +263,11 @@ EXPECTED_TABLES: set[str] = {
     "booking_status_history", "trip_details",
     # 0017 reviews + pharmacy compliance
     "reviews",
+    # 0019 merchant onboarding & verification
+    "merchant_categories", "merchant_verification_requirements",
+    "merchant_onboardings", "business_identity_verifications",
+    "bank_account_verifications", "category_document_verifications",
+    "verification_attempts", "verification_provider_logs",
 }
 EXPECTED_INDEXES: set[str] = {
     "ix_users_phone_number",                # 0001 unique
@@ -283,6 +288,14 @@ EXPECTED_INDEXES: set[str] = {
     "ix_trip_details_booking_id",           # 0016 unique
     "ix_reviews_shop_status",               # 0017 composite filter index
     "ix_product_masters_prescription_required",  # 0017 partial index
+    # 0019 merchant onboarding & verification
+    "ix_merchant_onboardings_status",       # 0019
+    "ix_merchant_onboardings_user_id",      # 0019
+    "ix_business_identity_verifications_onboarding",  # 0019
+    "ix_bank_account_verifications_onboarding",       # 0019
+    "ix_category_document_verifications_onboarding",  # 0019
+    "ix_verification_attempts_onboarding",  # 0019
+    "ix_verification_provider_logs_onboarding",  # 0019
 }
 # (table, expected default Alembic FK constraint name). Default naming is
 # {table}_{columns}_fkey unless the migration named it explicitly.

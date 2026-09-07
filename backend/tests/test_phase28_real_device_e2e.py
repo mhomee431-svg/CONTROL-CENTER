@@ -200,7 +200,12 @@ def test_admin_login_and_identity(world):
     )
     assert data["user_id"] is not None
     assert data["level"] == "SUPER"
-    assert len(data["permissions"]) == 50  # full admin permission set (ADMIN_MODULE_PERMISSIONS)
+    # Full admin permission set — compare against the live catalog so the
+    # test never needs editing when a module (e.g. merchant onboarding) adds
+    # permissions.
+    from app.core.admin_permissions import ADMIN_MODULE_PERMISSIONS
+
+    assert len(data["permissions"]) == len(ADMIN_MODULE_PERMISSIONS)
 
 
 def test_admin_verification_record_exists(world):

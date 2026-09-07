@@ -73,7 +73,7 @@ requires_db = pytest.mark.skipif(not _database_available(),
 def test_chain_is_linear_with_single_head():
     revisions = rehearsal.parse_revisions(VERSIONS_DIR)
     assert rehearsal.chain_issues(revisions) == []
-    assert rehearsal.head_revision(revisions) == "0017"
+    assert rehearsal.head_revision(revisions) == "0019"
 
 
 def test_revision_ids_are_sequential_and_unique():
@@ -182,19 +182,20 @@ def test_no_silent_not_null_column_adds():
 # ═══════════════════════════════════════════════════════════════════════════
 def test_migration_generator_computes_next_revision():
     gen = _load_script_module("generate_migration", BACKEND_DIR / "scripts" / "generate_migration.py")
-    assert gen.next_rev_id(VERSIONS_DIR) == "0018"
+    assert gen.next_rev_id(VERSIONS_DIR) == "0020"
 
 
 def test_drift_checker_self_consistent():
     """The ORM schema compared against itself must have zero drift — proves the
-    checker is wired correctly before any live database is required."""
+    checker is wired correctly before any live database is required.
+
+    Note: we intentionally do NOT call restore_geo_columns() here. The whole
+    SQLite test suite shares the process-global ``Base.metadata``; restoring
+    pristine PostGIS types mid-session makes every later module's
+    ``create_all`` fail with "near POINT: syntax error". Self-diff is
+    identical whether the Geography columns are stripped to Text or not.
+    """
     drift = _load_script_module("check_migration_drift", DRIFT)
-    # Reverse any Geography->Text stripping another test module may have applied.
-    try:
-        from tests.geo_compat import restore_geo_columns
-        restore_geo_columns()
-    except Exception:  # noqa: BLE001
-        pass
     from app.database.session import Base
     import app.models  # noqa: F401
 

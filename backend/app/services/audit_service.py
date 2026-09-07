@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -28,6 +28,22 @@ from app.core.exceptions import ForbiddenError
 from app.models.admin import AuditLog
 
 GENESIS_HASH = "0" * 64
+
+
+def _stable_isoformat(value: datetime | None) -> str | None:
+    """Normalize a timestamp to UTC-naive before ISO formatting.
+
+    SQLite round-trips timezone-aware datetimes as naive strings, so a
+    hash computed from an aware ``created_at`` (+00:00 offset) never matches a
+    re-verification that reads the row back naive. Normalizing on both sides
+    keeps the chain stable regardless of how the column default was generated
+    (aware now() vs naive utcnow()), which otherwise depends on test ordering.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.isoformat()
 
 
 def _canonical(payload: dict) -> bytes:
@@ -60,7 +76,7 @@ def _compute_record_hash(
         "description": description,
         "ip_address": ip_address,
         "request_id": request_id,
-        "created_at": created_at.isoformat() if created_at else None,
+        "created_at": _stable_isoformat(created_at),
         "prev_record_hash": prev_hash,
     }
     return hashlib.sha256(_canonical(payload)).hexdigest()

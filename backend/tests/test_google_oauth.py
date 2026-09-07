@@ -10,6 +10,12 @@ import pytest
 
 from app.core.config import settings
 
+# The route is exercised directly (no HTTP layer), so the slowapi decorator
+# would reject the call for lacking a starlette Request. Disable the limiter
+# instance itself — it captured `enabled` from settings at import time, so
+# flipping the setting later has no effect. Mirrors test_admin_moderation_flow.
+settings.RATE_LIMIT_ENABLED = False
+
 
 def _rsa_key_pair():
     """Generate a throwaway RSA key pair as JWK dicts for signing tests."""
@@ -194,9 +200,26 @@ def run_async(coro):
 # ── Routes ────────────────────────────────────────────────────────────────────
 class TestGoogleAuthRoutes:
     def test_google_login_url_endpoint(self):
-        from app.api.routes.google_auth import google_login_url
+        from starlette.requests import Request
 
-        response = run_async(google_login_url())
+        from app.api.routes.google_auth import google_login_url
+        from app.core.rate_limit import limiter
+
+        limiter.enabled = False
+        # The route is called directly (no FastAPI DI), so hand it a minimal
+        # real Request — the rate-limit decorator requires a starlette Request
+        # instance and the route signature requires `request`.
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/auth/google/login",
+            "headers": [],
+            "query_string": b"",
+            "client": ("127.0.0.1", 12345),
+            "server": ("testserver", 80),
+            "scheme": "http",
+        }
+        response = run_async(google_login_url(Request(scope)))
         assert response.status_code == 200
         body = response.body
         assert b"auth_url" in body

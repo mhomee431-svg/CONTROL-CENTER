@@ -97,6 +97,12 @@ ALLOWLIST_PATHS = [
         r"(^|/)\.vscode/",
         r"(^|/)pubspec\.lock$",
         r"(^|/)package-lock\.json$",
+        # Firebase/Google Android client config — the API key inside is a public
+        # identifier (restricted by package name), not a server secret.
+        r"(^|/)google-services\.json$",
+        # Build script references the key by variable (%MAPS_API_KEY% injected
+        # from gitignored local.properties at build time) — no literal secret.
+        r"(^|/)build_customer_app\.bat$",
     ]
 ]
 

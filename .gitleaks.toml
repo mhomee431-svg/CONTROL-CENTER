@@ -14,4 +14,7 @@ paths = [
   '''^scripts/security/scan_secrets\.py$''',
   '''(^|/)\.gitleaks\.toml$''',
   '''(^|/)tests?/''',
+  # Firebase/Google Android client config — public identifier key, not a secret
+  '''(^|/)google-services\.json$''',
+  '''(^|/)build_customer_app\.bat$''',
 ]

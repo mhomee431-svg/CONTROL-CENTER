@@ -64,10 +64,10 @@ void main() {
     expect(container.read(authControllerProvider).status, AuthStatus.initial);
   });
 
-  test('checkAuthStatus: no session -> unauthenticated', () async {
+  test('checkAuthStatus: no session -> guest (guest-first)', () async {
     final restored = await controller.checkAuthStatus();
     expect(restored, isFalse);
-    expect(container.read(authControllerProvider).status, AuthStatus.unauthenticated);
+    expect(container.read(authControllerProvider).status, AuthStatus.guest);
   });
 
   test('checkAuthStatus: guest mode -> guest', () async {
@@ -95,7 +95,7 @@ void main() {
     expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
   });
 
-  test('checkAuthStatus: expired session -> sessionExpired', () async {
+  test('checkAuthStatus: expired session -> guest (no login wall)', () async {
     when(mockStorage.getToken()).thenAnswer((_) async => 'jwt');
     when(mockStorage.getSessionId()).thenAnswer((_) async => 's1');
     when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'rt');
@@ -105,7 +105,7 @@ void main() {
 
     final restored = await controller.checkAuthStatus();
     expect(restored, isFalse);
-    expect(container.read(authControllerProvider).status, AuthStatus.sessionExpired);
+    expect(container.read(authControllerProvider).status, AuthStatus.guest);
   });
 
   test('sendOtp: success -> otpSent with phone', () async {

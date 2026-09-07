@@ -164,7 +164,7 @@ def test_production_trust_x_forwarded_for():
 
 @pytest.fixture
 def caddyfile_template_path():
-    return REPO_ROOT / "infra" / "terraform" / "Caddyfile.tftpl"
+    return REPO_ROOT / "infrastructure" / "terraform" / "Caddyfile.tftpl"
 
 
 def _render_caddyfile(template_path, domain_name, acme_email):

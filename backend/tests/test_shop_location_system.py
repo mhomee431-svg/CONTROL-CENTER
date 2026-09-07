@@ -244,11 +244,20 @@ class TestLocationModel:
         from geoalchemy2 import Geography
 
         from app.models.shop import Shop
+        from sqlalchemy import Text
+        from tests.geo_compat import declared_type
 
+        # Other SQLite test modules may have stripped Geography -> Text on the
+        # shared global metadata; declared_type() returns the pristine type
+        # regardless of that mutation.
         col = Shop.__table__.columns["location"]
-        assert isinstance(col.type, Geography)
-        assert col.type.geometry_type == "POINT"
-        assert col.type.srid == 4326
+        pristine = declared_type("shops", "location")
+        assert isinstance(pristine, Geography)
+        assert pristine.geometry_type == "POINT"
+        assert pristine.srid == 4326
+        # The current (possibly stripped) column type must still be one of the
+        # two valid forms: pristine Geography, or the SQLite-compatible Text.
+        assert isinstance(col.type, (Geography, Text))
 
 
 # ── Registration persists provenance ──────────────────────────────────────
