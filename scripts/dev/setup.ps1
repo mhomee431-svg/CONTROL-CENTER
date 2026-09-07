@@ -1,7 +1,7 @@
 # setup.ps1 - One-command, idempotent local backend setup (Phase 1).
 #
-#   * Creates a Python virtualenv and installs Backend/requirements.txt
-#   * Bootstraps Backend/.env from .env.example (never overwrites existing)
+#   * Creates a Python virtualenv and installs backend/requirements.txt
+#   * Bootstraps backend/.env from .env.example (never overwrites existing)
 #   * Starts the PostGIS + Redis infra stack (Docker required)
 #   * Runs Alembic migrations to head
 #
@@ -10,7 +10,7 @@
 $ErrorActionPreference = 'Stop'
 
 $root    = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$backend = Join-Path $root 'Backend'
+$backend = Join-Path $root 'backend'
 $compose = Join-Path $backend 'docker-compose.infra.yml'
 
 function Fail { param([string]$m) Write-Host "ERROR: $m" -ForegroundColor Red; exit 1 }
@@ -30,7 +30,7 @@ Write-Host "== [2/6] Install backend dependencies" -ForegroundColor Cyan
 & $py -m pip install -r (Join-Path $backend 'requirements.txt')
 if ($LASTEXITCODE -ne 0) { Fail 'pip install failed' }
 
-Write-Host "== [3/6] Ensure Backend/.env exists" -ForegroundColor Cyan
+Write-Host "== [3/6] Ensure backend/.env exists" -ForegroundColor Cyan
 $envFile = Join-Path $backend '.env'
 if (-not (Test-Path $envFile)) {
     Copy-Item (Join-Path $backend '.env.example') $envFile

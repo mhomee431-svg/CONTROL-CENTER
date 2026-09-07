@@ -10,7 +10,7 @@ REM ============================================================
 setlocal enabledelayedexpansion
 
 set APP_NAME=Hyperlocal Shopkeeper App
-set FLUTTER_PROJECT=ShopkeeperApp
+set FLUTTER_PROJECT=apps\shopkeeper_app
 set DEFAULT_ENV=production
 
 set ENV=%~1

@@ -3,7 +3,7 @@ name: Flutter Customer App — Test & Build
 on:
   push:
     branches: [main]
-    paths: ['Frontend/**']
+    paths: ['apps/customer_app/**']
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Frontend
+        working-directory: apps/customer_app
     steps:
       - uses: actions/checkout@v4
 
@@ -44,4 +44,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: customer-app-release
-          path: Frontend/build/app/outputs/flutter-apk/app-release.apk
+          path: apps/customer_app/build/app/outputs/flutter-apk/app-release.apk

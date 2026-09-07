@@ -3,7 +3,7 @@ name: AWS IAM Foundation — Validate & Verify
 on:
   push:
     branches: [main]
-    paths: ['infra/terraform/foundation/**', '.github/workflows/aws-iam-foundation.yml', 'infra/scripts/iam_verify.ps1']
+    paths: ['infrastructure/terraform/foundation/**', '.github/workflows/aws-iam-foundation.yml', 'infrastructure/scripts/iam_verify.ps1']
   workflow_dispatch:
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra/terraform/foundation
+        working-directory: infrastructure/terraform/foundation
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -52,8 +52,8 @@ jobs:
           OP_ROLE_ARN: ${{ secrets.AWS_OPERATOR_ROLE_ARN }}
           CI_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
         run: |
-          chmod +x infra/scripts/iam_verify.ps1
-          pwsh -File infra/scripts/iam_verify.ps1 \
+          chmod +x infrastructure/scripts/iam_verify.ps1
+          pwsh -File infrastructure/scripts/iam_verify.ps1 \
             -Region "$AWS_REGION" \
             -AccountId "$AWS_IAM_ACCOUNT_ID" \
             -OpRole "$OP_ROLE_ARN" \

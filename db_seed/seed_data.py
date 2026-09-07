@@ -12,7 +12,7 @@ in a ``system_settings`` manifest row (``dummy_seed_manifest_v1``) so
 ``cleanup_data.py`` can roll back ONLY this dummy data later.
 
 Usage:
-    python seed_data.py                         # connect via Backend/.env
+    python seed_data.py                         # connect via backend/.env
     python seed_data.py --url "postgresql+psycopg://user:pw@host:5432/db"
     python seed_data.py --dry-run               # print the insert plan, no DB
     python seed_data.py --reset                 # cleanup old seed first, then seed
@@ -1506,7 +1506,7 @@ def main(argv: list | None = None) -> int:
         description="Bulk-insert area-wise dummy data into the AWS hyperlocal DB.",
     )
     ap.add_argument("--url", default=None,
-                    help="DB URL (sync or async). Default: $DATABASE_URL / Backend/.env")
+                    help="DB URL (sync or async). Default: $DATABASE_URL / backend/.env")
     ap.add_argument("--scale", choices=("small", "medium", "full"), default="full",
                     help="Volume multiplier (default full = maximum data)")
     ap.add_argument("--dry-run", action="store_true",
@@ -1532,7 +1532,7 @@ def main(argv: list | None = None) -> int:
     url = resolve_db_url(args.url)
     if not url:
         print("[X] No database URL found.", file=sys.stderr)
-        print("    Pass --url, set $DATABASE_URL, or add Backend/.env", file=sys.stderr)
+        print("    Pass --url, set $DATABASE_URL, or add backend/.env", file=sys.stderr)
         return 2
     print(f"[i] Connecting to {mask_url(url)}  (scale={args.scale})")
 

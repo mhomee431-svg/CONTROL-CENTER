@@ -17,7 +17,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/test_docker_phase10.ps1 -KeepStack
 # ==============================================================================
 param(
-    [string]$ComposeFile = "Backend/docker-compose.yml",
+    [string]$ComposeFile = "backend/docker-compose.yml",
     [switch]$KeepStack
 )
 

@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root    = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$backend = Join-Path $root 'Backend'
+$backend = Join-Path $root 'backend'
 $py      = Join-Path $backend '.venv\Scripts\python.exe'
 
 if (-not (Test-Path $py)) {

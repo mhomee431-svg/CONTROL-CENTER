@@ -41,7 +41,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$backend  = Join-Path $repoRoot 'Backend'
+$backend  = Join-Path $repoRoot 'backend'
 $py       = 'python'
 
 function Invoke-Py([string]$Description, [string[]]$Args) {
@@ -57,7 +57,7 @@ function Resolve-EnvUrl {
         $line = Get-Content $envFile | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1
         if ($line) { return ($line -replace '^DATABASE_URL=', '').Trim() }
     }
-    throw 'DATABASE_URL not found in Backend/.env.free. Provision first (or pass -Url).'
+    throw 'DATABASE_URL not found in backend/.env.free. Provision first (or pass -Url).'
 }
 
 # ── 1. Provision (idempotent; skipped for -MigrateOnly or when -Url given) ──
@@ -120,6 +120,6 @@ Write-Host @"
 
 ALL GREEN — free cloud PostgreSQL provisioned, migrated, verified and seeded.
   DB      : $($Url -replace '://[^@]+@', '://***:***@')
-  Next    : point the app at the DB by exporting the URL or using Backend/.env.free
-  Verify  : cd Backend && python scripts/verify_rds.py --url `"$Url`"
+  Next    : point the app at the DB by exporting the URL or using backend/.env.free
+  Verify  : cd backend && python scripts/verify_rds.py --url `"$Url`"
 "@ -ForegroundColor Green

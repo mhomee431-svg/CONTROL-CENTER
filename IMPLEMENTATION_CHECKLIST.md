@@ -7,31 +7,31 @@
 ## Backend Files
 
 ### Created Files
-- [x] `Backend/app/services/password_service.py` - Password reset business logic
-- [x] `Backend/tests/test_shopkeeper_auth.py` - Comprehensive auth tests
+- [x] `backend/app/services/password_service.py` - Password reset business logic
+- [x] `backend/tests/test_shopkeeper_auth.py` - Comprehensive auth tests
 
 ### Modified Files
-- [x] `Backend/app/core/security.py` - Added password hashing, verification, reset tokens
-- [x] `Backend/app/core/config.py` - Reduced token expiry, added password settings
-- [x] `Backend/app/api/routes/shopkeeper_auth.py` - Added login, forgot-password, reset-password endpoints
-- [x] `Backend/app/schemas/shopkeeper.py` - Added new request/response schemas
-- [x] `Backend/app/services/shopkeeper_service.py` - Added password_hash parameter
+- [x] `backend/app/core/security.py` - Added password hashing, verification, reset tokens
+- [x] `backend/app/core/config.py` - Reduced token expiry, added password settings
+- [x] `backend/app/api/routes/shopkeeper_auth.py` - Added login, forgot-password, reset-password endpoints
+- [x] `backend/app/schemas/shopkeeper.py` - Added new request/response schemas
+- [x] `backend/app/services/shopkeeper_service.py` - Added password_hash parameter
 
 ---
 
 ## Flutter Files
 
 ### Created Files
-- [x] `ShopkeeperApp/lib/features/auth/presentation/screens/forgot_password_screen.dart`
-- [x] `ShopkeeperApp/lib/features/auth/presentation/screens/reset_password_screen.dart`
+- [x] `apps/shopkeeper_app/lib/features/auth/presentation/screens/forgot_password_screen.dart`
+- [x] `apps/shopkeeper_app/lib/features/auth/presentation/screens/reset_password_screen.dart`
 
 ### Modified Files
-- [x] `ShopkeeperApp/lib/features/auth/data/auth_repository.dart` - kUseMockAuth=false, password methods
-- [x] `ShopkeeperApp/lib/features/auth/presentation/screens/login_screen.dart` - Password field + toggle
-- [x] `ShopkeeperApp/lib/features/auth/presentation/screens/register_screen.dart` - Password fields
-- [x] `ShopkeeperApp/lib/features/auth/presentation/controllers/auth_controller.dart` - Password methods
-- [x] `ShopkeeperApp/lib/core/network/api_endpoints.dart` - forgotPassword, resetPassword
-- [x] `ShopkeeperApp/lib/core/router/app_router.dart` - New routes
+- [x] `apps/shopkeeper_app/lib/features/auth/data/auth_repository.dart` - kUseMockAuth=false, password methods
+- [x] `apps/shopkeeper_app/lib/features/auth/presentation/screens/login_screen.dart` - Password field + toggle
+- [x] `apps/shopkeeper_app/lib/features/auth/presentation/screens/register_screen.dart` - Password fields
+- [x] `apps/shopkeeper_app/lib/features/auth/presentation/controllers/auth_controller.dart` - Password methods
+- [x] `apps/shopkeeper_app/lib/core/network/api_endpoints.dart` - forgotPassword, resetPassword
+- [x] `apps/shopkeeper_app/lib/core/router/app_router.dart` - New routes
 
 ---
 

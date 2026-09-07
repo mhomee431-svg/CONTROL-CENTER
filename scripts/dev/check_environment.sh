@@ -21,4 +21,4 @@ check dart      '3.x'              --version
 check redis-cli '7+ (in container)' --version
 check psql      '16 (optional)'    --version
 echo ""
-echo "Done. See Backend/docs/PHASE1_LOCAL_DEVELOPMENT.md for next steps."
+echo "Done. See backend/docs/PHASE1_LOCAL_DEVELOPMENT.md for next steps."

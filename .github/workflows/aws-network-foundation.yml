@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'infra/terraform/*.tf'
-      - 'infra/terraform/*.tfvars*'
-      - 'infra/scripts/network_verify.ps1'
+      - 'infrastructure/terraform/*.tf'
+      - 'infrastructure/terraform/*.tfvars*'
+      - 'infrastructure/scripts/network_verify.ps1'
       - '.github/workflows/aws-network-foundation.yml'
   workflow_dispatch:
 
@@ -21,11 +21,11 @@ env:
 jobs:
   # ── 0. Static checks (no AWS credentials required) ────────────────────────
   validate:
-    name: Terraform fmt + validate (infra/terraform)
+    name: Terraform fmt + validate (infrastructure/terraform)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: infrastructure/terraform
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -54,8 +54,8 @@ jobs:
         env:
           API_URL: ${{ vars.API_URL || '' }}
         run: |
-          chmod +x infra/scripts/network_verify.ps1
-          pwsh -File infra/scripts/network_verify.ps1 \
+          chmod +x infrastructure/scripts/network_verify.ps1
+          pwsh -File infrastructure/scripts/network_verify.ps1 \
             -Region "$AWS_REGION" \
             -Env "" \
             -ApiUrl "$API_URL"

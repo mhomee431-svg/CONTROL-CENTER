@@ -22,7 +22,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$composeFile = Join-Path $repo 'Backend\docker-compose.yml'
+$composeFile = Join-Path $repo 'backend\docker-compose.yml'
 
 function Invoke-Compose {
     param([string[]]$ComposeArgs)

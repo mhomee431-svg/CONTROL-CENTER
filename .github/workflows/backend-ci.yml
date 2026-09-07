@@ -10,17 +10,17 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'Backend/**'
+      - 'backend/**'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/reusable-backend-checks.yml'
-      - 'infra/scripts/*'
+      - 'infrastructure/scripts/*'
   push:
     branches: [main]
     paths:
-      - 'Backend/**'
+      - 'backend/**'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/reusable-backend-checks.yml'
-      - 'infra/scripts/*'
+      - 'infrastructure/scripts/*'
   workflow_dispatch:
 
 permissions:

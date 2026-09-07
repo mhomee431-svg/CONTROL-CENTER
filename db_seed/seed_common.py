@@ -23,7 +23,7 @@ from typing import Iterable
 
 # -- Paths ----------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[1]          # hyperlocal_customer_app/
-BACKEND_DIR = PROJECT_ROOT / "Backend"
+BACKEND_DIR = PROJECT_ROOT / "backend"
 SEED_DIR = Path(__file__).resolve().parent
 
 # Allow `from app.models...` imports (the same ORM models the API uses)
@@ -132,13 +132,13 @@ def resolve_db_url(explicit: str | None) -> str | None:
     """Credential resolution order:
     1. --url flag
     2. $DATABASE_URL / $DATABASE_URL_SYNC
-    3. Backend/.env, Backend/.env.free, db_seed/.env, Backend/.env.staging
+    3. backend/.env, backend/.env.free, db_seed/.env, backend/.env.staging
     """
     candidates = [
-        PROJECT_ROOT / "Backend/.env",
-        PROJECT_ROOT / "Backend/.env.free",
+        PROJECT_ROOT / "backend/.env",
+        PROJECT_ROOT / "backend/.env.free",
         SEED_DIR / ".env",
-        PROJECT_ROOT / "Backend/.env.staging",
+        PROJECT_ROOT / "backend/.env.staging",
     ]
     try:
         from dotenv import load_dotenv

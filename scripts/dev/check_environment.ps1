@@ -37,13 +37,13 @@ Write-Host "Data services (must be reachable on localhost):" -ForegroundColor Cy
 $pgOpen = Get-NetTCPConnection -State Listen -LocalPort 5432 -ErrorAction SilentlyContinue
 $rdOpen = Get-NetTCPConnection -State Listen -LocalPort 6379 -ErrorAction SilentlyContinue
 if ($pgOpen) { Write-Host "  [OK]  PostgreSQL  listening on 5432" -ForegroundColor Green }
-else         { Write-Host "  [OFF] PostgreSQL not listening on 5432 (start: docker compose -f Backend/docker-compose.infra.yml up -d)" -ForegroundColor Yellow }
+else         { Write-Host "  [OFF] PostgreSQL not listening on 5432 (start: docker compose -f backend/docker-compose.infra.yml up -d)" -ForegroundColor Yellow }
 if ($rdOpen) { Write-Host "  [OK]  Redis       listening on 6379" -ForegroundColor Green }
-else         { Write-Host "  [OFF] Redis not listening on 6379 (start: docker compose -f Backend/docker-compose.infra.yml up -d)" -ForegroundColor Yellow }
+else         { Write-Host "  [OFF] Redis not listening on 6379 (start: docker compose -f backend/docker-compose.infra.yml up -d)" -ForegroundColor Yellow }
 
 Write-Host ""
 Write-Host "Backend import smoke test:" -ForegroundColor Cyan
-$backend = Join-Path $PSScriptRoot '..\..\Backend'
+$backend = Join-Path $PSScriptRoot '..\..\backend'
 Push-Location $backend
 try {
     $envLine = (& python -c "import app.main; print(app.main.settings.ENVIRONMENT)" 2>$null | Select-Object -Last 1)
@@ -53,4 +53,4 @@ try {
 }
 Pop-Location
 Write-Host ""
-Write-Host "Done. See Backend/docs/PHASE1_LOCAL_DEVELOPMENT.md for next steps." -ForegroundColor Cyan
+Write-Host "Done. See backend/docs/PHASE1_LOCAL_DEVELOPMENT.md for next steps." -ForegroundColor Cyan

@@ -15,7 +15,7 @@ REM ============================================================
 setlocal enabledelayedexpansion
 
 set APP_NAME=Hyperlocal Customer App
-set FLUTTER_PROJECT=Frontend
+set FLUTTER_PROJECT=apps\customer_app
 set DEFAULT_ENV=production
 
 REM Parse environment argument

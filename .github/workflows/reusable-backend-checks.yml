@@ -7,7 +7,7 @@
 #   4 Unit tests               unit-tests        (pytest, no external services)
 #   5 Integration tests        integration-tests (PostGIS 16 + Redis 7 services,
 #                                migration rehearsal, verify_rds, recovery drill, full pytest)
-#   6 Build                    build             (docker build of Backend/Dockerfile)
+#   6 Build                    build             (docker build of backend/Dockerfile)
 #   7 Security scan            security-scan     (gitleaks + pip-audit + local scanner)
 #   8 Artifact                 (the caller pushes the image / records the SHA)
 #
@@ -43,14 +43,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Backend
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
           cache: pip
-          cache-dependency-path: Backend/requirements.txt
+          cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Install static-analysis tools
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Backend
+        working-directory: backend
     env:
       ENVIRONMENT: test
       HYPERLOCAL_ENV: test
@@ -77,7 +77,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           cache: pip
-          cache-dependency-path: Backend/requirements.txt
+          cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run unit tests
@@ -111,7 +111,7 @@ jobs:
           --health-retries 20
     defaults:
       run:
-        working-directory: Backend
+        working-directory: backend
     env:
       ENVIRONMENT: test
       HYPERLOCAL_ENV: test
@@ -127,7 +127,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           cache: pip
-          cache-dependency-path: Backend/requirements.txt
+          cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Migration rehearsal — apply the full chain on a real PostGIS DB
@@ -148,8 +148,8 @@ jobs:
         with:
           name: phase26-migration-reports
           path: |
-            Backend/migration_rehearsal_report.json
-            Backend/migration_drift_report.json
+            backend/migration_rehearsal_report.json
+            backend/migration_drift_report.json
           if-no-files-found: error
 
   migration-safety:
@@ -165,7 +165,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
       - name: Classify migration changes (AST)
         id: scan
-        working-directory: Backend
+        working-directory: backend
         run: |
           set -euo pipefail
           BASE="${{ github.event.pull_request.base.sha || github.event.before || '' }}"
@@ -181,7 +181,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: migration-safety-report
-          path: Backend/migration_safety_report.json
+          path: backend/migration_safety_report.json
 
   security-scan:
     name: Secret + dependency scan
@@ -200,8 +200,8 @@ jobs:
       - name: pip-audit — runtime + dev dependencies
         run: |
           pip install ${{ env.PIP_TOOLS }}
-          pip-audit -r Backend/requirements.prod.txt --desc --disable-pip
-          pip-audit -r Backend/requirements.txt --desc --disable-pip
+          pip-audit -r backend/requirements.prod.txt --desc --disable-pip
+          pip-audit -r backend/requirements.txt --desc --disable-pip
       - name: Local tracked-files secret scanner
         run: python3 scripts/security/scan_secrets.py --tracked
 
@@ -214,8 +214,8 @@ jobs:
       - name: Build image (artifact, no push)
         uses: docker/build-push-action@v6
         with:
-          context: Backend/
-          file: Backend/Dockerfile
+          context: backend/
+          file: backend/Dockerfile
           push: false
           tags: hyperlocal-backend:ci-${{ github.sha }}
           cache-from: type=gha

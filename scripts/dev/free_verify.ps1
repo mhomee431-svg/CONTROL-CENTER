@@ -1,18 +1,18 @@
 # scripts/dev/free_verify.ps1
 # ---------------------------------------------------------------------------
-# Post-deploy verification for the FREE-TIER cloud instance (infra/free).
+# Post-deploy verification for the FREE-TIER cloud instance (infrastructure/free).
 #
 #   powershell -ExecutionPolicy Bypass -File scripts/dev/free_verify.ps1
 #   powershell -ExecutionPolicy Bypass -File scripts/dev/free_verify.ps1 -PublicIp 1.2.3.4
 #
-# With no args, reads terraform output via AWS CLI (run from infra/free).
+# With no args, reads terraform output via AWS CLI (run from infrastructure/free).
 [CmdletBinding()]
 param([string]$PublicIp = '')
 
 $ErrorActionPreference = 'Stop'
 
 if (-not $PublicIp) {
-    $tfDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'infra\free'
+    $tfDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'infrastructure\free'
     if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
         Write-Host "[X] AWS CLI not found and no -PublicIp given." -ForegroundColor Red
         exit 1

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-BACKEND="$ROOT/Backend"
+BACKEND="$ROOT/backend"
 COMPOSE="$BACKEND/docker-compose.infra.yml"
 PY="$BACKEND/.venv/bin/python"
 

@@ -3,7 +3,7 @@ name: Flutter Shopkeeper App — Test & Build
 on:
   push:
     branches: [main]
-    paths: ['ShopkeeperApp/**']
+    paths: ['apps/shopkeeper_app/**']
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ShopkeeperApp
+        working-directory: apps/shopkeeper_app
     steps:
       - uses: actions/checkout@v4
 
@@ -43,4 +43,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: shopkeeper-app-release
-          path: ShopkeeperApp/build/app/outputs/flutter-apk/app-release.apk
+          path: apps/shopkeeper_app/build/app/outputs/flutter-apk/app-release.apk

@@ -12,26 +12,26 @@ All phases of the Shopkeeper Authentication System have been implemented.
 
 | File | Status | Description |
 |------|--------|-------------|
-| `Backend/app/services/password_service.py` | NEW | Password reset business logic |
-| `Backend/tests/test_shopkeeper_auth.py` | NEW | Comprehensive auth tests |
+| `backend/app/services/password_service.py` | NEW | Password reset business logic |
+| `backend/tests/test_shopkeeper_auth.py` | NEW | Comprehensive auth tests |
 
 ### Flutter Files
 
 | File | Status | Description |
 |------|--------|-------------|
-| `ShopkeeperApp/.../forgot_password_screen.dart` | NEW | Forgot password UI |
-| `ShopkeeperApp/.../reset_password_screen.dart` | NEW | Reset password UI |
+| `apps/shopkeeper_app/.../forgot_password_screen.dart` | NEW | Forgot password UI |
+| `apps/shopkeeper_app/.../reset_password_screen.dart` | NEW | Reset password UI |
 
 ---
 
 ## FILES MODIFIED
 
 ### Backend
-- `Backend/app/core/security.py` - Added password hashing, verification, reset tokens
-- `Backend/app/core/config.py` - Reduced token expiry to 30 min, added password settings
-- `Backend/app/api/routes/shopkeeper_auth.py` - Added login, forgot-password, reset-password endpoints
-- `Backend/app/schemas/shopkeeper.py` - Added new request/response schemas
-- `Backend/app/services/shopkeeper_service.py` - Added password_hash parameter
+- `backend/app/core/security.py` - Added password hashing, verification, reset tokens
+- `backend/app/core/config.py` - Reduced token expiry to 30 min, added password settings
+- `backend/app/api/routes/shopkeeper_auth.py` - Added login, forgot-password, reset-password endpoints
+- `backend/app/schemas/shopkeeper.py` - Added new request/response schemas
+- `backend/app/services/shopkeeper_service.py` - Added password_hash parameter
 
 ### Flutter
 - `auth_repository.dart` - Set kUseMockAuth=false, added password methods
@@ -85,7 +85,7 @@ Note: Full integration tests require PostgreSQL with PostGIS.
 
 1. Run migration:
    ```bash
-   cd Backend
+   cd backend
    alembic revision --autogenerate -m "shopkeeper_auth"
    alembic upgrade head
    ```

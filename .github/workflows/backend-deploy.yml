@@ -14,11 +14,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'Backend/**'
+      - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
       - '.github/workflows/reusable-backend-checks.yml'
-      - 'infra/scripts/ecs_deploy.sh'
-      - 'infra/scripts/cicd_rollback.sh'
+      - 'infrastructure/scripts/ecs_deploy.sh'
+      - 'infrastructure/scripts/cicd_rollback.sh'
   workflow_dispatch:
     inputs:
       migrate_approved:
@@ -78,8 +78,8 @@ jobs:
       - name: Build and push (sha + latest)
         uses: docker/build-push-action@v6
         with:
-          context: Backend/
-          file: Backend/Dockerfile
+          context: backend/
+          file: backend/Dockerfile
           push: true
           tags: |
             ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
@@ -103,16 +103,16 @@ jobs:
       - name: Roll staging services (api / worker / beat)
         run: |
           set -euo pipefail
-          chmod +x infra/scripts/ecs_deploy.sh
+          chmod +x infrastructure/scripts/ecs_deploy.sh
           IMG="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           CLUSTER="${{ vars.ECS_CLUSTER_NAME || 'hyperlocal-cluster' }}"
-          ./infra/scripts/ecs_deploy.sh \
+          ./infrastructure/scripts/ecs_deploy.sh \
             "${{ vars.STAGING_WEB_SERVICE || 'hyperlocal-staging-web' }}" \
             "${{ vars.STAGING_WEB_SERVICE || 'hyperlocal-staging-web' }}" api "$IMG" "$AWS_REGION" "$CLUSTER"
-          ./infra/scripts/ecs_deploy.sh \
+          ./infrastructure/scripts/ecs_deploy.sh \
             "${{ vars.STAGING_WORKER_SERVICE || 'hyperlocal-staging-worker' }}" \
             "${{ vars.STAGING_WORKER_SERVICE || 'hyperlocal-staging-worker' }}" worker "$IMG" "$AWS_REGION" "$CLUSTER"
-          ./infra/scripts/ecs_deploy.sh \
+          ./infrastructure/scripts/ecs_deploy.sh \
             "${{ vars.STAGING_BEAT_SERVICE || 'hyperlocal-staging-beat' }}" \
             "${{ vars.STAGING_BEAT_SERVICE || 'hyperlocal-staging-beat' }}" beat "$IMG" "$AWS_REGION" "$CLUSTER"
 
@@ -124,8 +124,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          chmod +x infra/scripts/cicd_smoke_test.sh
-          ./infra/scripts/cicd_smoke_test.sh \
+          chmod +x infrastructure/scripts/cicd_smoke_test.sh
+          ./infrastructure/scripts/cicd_smoke_test.sh \
             --url "${{ vars.STAGING_API_URL }}" \
             --expect-env staging \
             --sha "${{ github.sha }}"
@@ -146,12 +146,12 @@ jobs:
       - name: Roll production services (web / worker / beat)
         run: |
           set -euo pipefail
-          chmod +x infra/scripts/ecs_deploy.sh
+          chmod +x infrastructure/scripts/ecs_deploy.sh
           IMG="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           CLUSTER="${{ vars.ECS_CLUSTER_NAME || 'hyperlocal-cluster' }}"
-          ./infra/scripts/ecs_deploy.sh "${{ vars.WEB_SERVICE }}" "${{ vars.WEB_SERVICE }}" api "$IMG" "$AWS_REGION" "$CLUSTER"
-          ./infra/scripts/ecs_deploy.sh "${{ vars.WORKER_SERVICE }}" "${{ vars.WORKER_SERVICE }}" worker "$IMG" "$AWS_REGION" "$CLUSTER"
-          ./infra/scripts/ecs_deploy.sh "${{ vars.BEAT_SERVICE }}" "${{ vars.BEAT_SERVICE }}" beat "$IMG" "$AWS_REGION" "$CLUSTER"
+          ./infrastructure/scripts/ecs_deploy.sh "${{ vars.WEB_SERVICE }}" "${{ vars.WEB_SERVICE }}" api "$IMG" "$AWS_REGION" "$CLUSTER"
+          ./infrastructure/scripts/ecs_deploy.sh "${{ vars.WORKER_SERVICE }}" "${{ vars.WORKER_SERVICE }}" worker "$IMG" "$AWS_REGION" "$CLUSTER"
+          ./infrastructure/scripts/ecs_deploy.sh "${{ vars.BEAT_SERVICE }}" "${{ vars.BEAT_SERVICE }}" beat "$IMG" "$AWS_REGION" "$CLUSTER"
 
   verify-production:
     name: Verify production health (step 13)
@@ -161,8 +161,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          chmod +x infra/scripts/cicd_smoke_test.sh
-          ./infra/scripts/cicd_smoke_test.sh \
+          chmod +x infrastructure/scripts/cicd_smoke_test.sh
+          ./infrastructure/scripts/cicd_smoke_test.sh \
             --url "${{ vars.PROD_API_URL }}" \
             --expect-env production \
             --sha "${{ github.sha }}"
@@ -182,8 +182,8 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - name: Roll back production services
         run: |
-          chmod +x infra/scripts/cicd_rollback.sh
-          ./infra/scripts/cicd_rollback.sh --target ecs --region "$AWS_REGION" \
+          chmod +x infrastructure/scripts/cicd_rollback.sh
+          ./infrastructure/scripts/cicd_rollback.sh --target ecs --region "$AWS_REGION" \
             --cluster "${{ vars.ECS_CLUSTER_NAME || 'hyperlocal-cluster' }}" \
             --service "${{ vars.WEB_SERVICE }}" \
             --family "${{ vars.WEB_SERVICE }}" \

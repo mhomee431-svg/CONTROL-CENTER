@@ -5,7 +5,7 @@ REM Dart runtime via --dart-define, exactly as the AndroidManifest placeholder
 REM receives it from Gradle at build time. Without it the map tiles render but
 REM the Google Geocoding / Directions REST calls fail their key check.
 setlocal
-set "APP_DIR=C:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\Frontend"
+set "APP_DIR=C:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps\customer_app"
 set "KEY="
 for /f "usebackq tokens=1,* delims==" %%A in ("%APP_DIR%\android\local.properties") do (
   if "%%A"=="MAPS_API_KEY" set "KEY=%%B"

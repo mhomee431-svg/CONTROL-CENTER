@@ -11,7 +11,7 @@
 # they never live in the repository or runtime configuration.
 set -euo pipefail
 
-cd "$(dirname "$0")/../Frontend"
+cd "$(dirname "$0")/../apps/customer_app"
 
 : "${API_BASE_URL:?API_BASE_URL is required (e.g. https://api.example.com/v1)}"
 : "${MAPS_API_KEY:?MAPS_API_KEY is required for maps in production}"
@@ -24,4 +24,4 @@ flutter build apk --release \
   --dart-define=API_BASE_URL="$API_BASE_URL" \
   --dart-define=MAPS_API_KEY="$MAPS_API_KEY"
 
-echo "✅ APK: Frontend/build/app/outputs/flutter-apk/app-release.apk"
+echo "✅ APK: apps/customer_app/build/app/outputs/flutter-apk/app-release.apk"

@@ -1,0 +1,30 @@
+# Copy to terraform.tfvars and fill real values. NEVER put secret values here.
+# Phase 2 — AWS Account & IAM Foundation.
+
+aws_region  = "ap-south-1"          # single deployment region
+environment = "production"
+account_id  = "123456789012"        # YOUR 12-digit AWS account id (required)
+
+project_name = "hyperlocal"
+
+# GitHub Actions OIDC (used to scope the CI/CD role). No static keys.
+github_org  = "Akasharyan47"
+github_repo = "hyperlocal_customer_app"
+# github_allowed_subjects = null          # defaults:
+#   ["repo:org/repo:ref:refs/heads/main", "repo:org/repo:environment:production"]
+
+# App resources the CI/CD + operator roles may touch (match infrastructure/terraform defaults)
+ecr_repository_name = "hyperlocal-backend"
+ecs_cluster_name    = "hyperlocal-cluster"
+secrets_secret_name = "hyperlocal"
+
+# Optional extra IAM principals allowed to assume the operator role.
+# operator_principals = ["arn:aws:iam::123456789012:user/you"]
+
+# Route53 zone id if the operator should manage DNS records for the API. Empty = skip.
+# hosted_zone_id = "Z0123456789ABCDEF0GH"
+
+# State bucket override (defaults to <project_name>-terraform-state and matches the
+# s3 backend block commented in ../providers.tf / this module's main.tf).
+# state_bucket = "hyperlocal-terraform-state"
+# lock_table   = "terraform-locks"

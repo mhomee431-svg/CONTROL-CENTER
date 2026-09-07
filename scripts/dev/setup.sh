@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-BACKEND="$ROOT/Backend"
+BACKEND="$ROOT/backend"
 COMPOSE="$BACKEND/docker-compose.infra.yml"
 PY="$BACKEND/.venv/bin/python"
 
@@ -17,7 +17,7 @@ echo "== [2/6] Install backend dependencies"
 "$PY" -m pip install --upgrade pip >/dev/null
 "$PY" -m pip install -r "$BACKEND/requirements.txt"
 
-echo "== [3/6] Ensure Backend/.env exists"
+echo "== [3/6] Ensure backend/.env exists"
 if [ ! -f "$BACKEND/.env" ]; then
   cp "$BACKEND/.env.example" "$BACKEND/.env"
   echo "  created .env from .env.example"

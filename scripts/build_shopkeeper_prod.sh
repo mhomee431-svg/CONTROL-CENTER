@@ -9,7 +9,7 @@
 # Demo login is forced OFF for production builds.
 set -euo pipefail
 
-cd "$(dirname "$0")/../ShopkeeperApp"
+cd "$(dirname "$0")/../apps/shopkeeper_app"
 
 : "${API_BASE_URL:?API_BASE_URL is required (e.g. https://api.example.com/v1)}"
 
@@ -21,4 +21,4 @@ flutter build apk --release \
   --dart-define=SHOPKEEPER_API_BASE_URL="$API_BASE_URL" \
   --dart-define=SHOPKEEPER_ENABLE_DEMO_LOGIN=false
 
-echo "✅ APK: ShopkeeperApp/build/app/outputs/flutter-apk/app-release.apk"
+echo "✅ APK: apps/shopkeeper_app/build/app/outputs/flutter-apk/app-release.apk"
