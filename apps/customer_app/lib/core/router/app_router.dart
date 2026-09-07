@@ -97,7 +97,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/coming-soon',
-        builder: (context, state) => const ComingSoonScreen(),
+        builder: (context, state) => const Scaffold(
+          body: ComingSoonScreen(),
+        ),
       ),
       GoRoute(
         path: '/search-results-by-pin/:pin',

@@ -37,8 +37,13 @@ void main() {
       // Verify Splash Screen
       expect(find.text('Hyperlocal'), findsOneWidget);
 
-      // Fast forward past the splash timer and auth check.
-      await tester.pumpAndSettle(const Duration(seconds: 3));
+      // Fast-forward past the splash timer and auth check with explicit
+      // pumps — pumpAndSettle cannot settle here because the guest-first
+      // Home shell keeps scheduling frames (shimmer loaders, cursor blinks)
+      // and non-overridden providers fire HTTP calls that 400 in tests.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
 
       // Guest-first: no login wall — the customer lands on the Home shell.
       expect(find.text('Discover Local, Shop Local'), findsNothing);

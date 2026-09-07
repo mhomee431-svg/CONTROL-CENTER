@@ -16,61 +16,65 @@ class ComingSoonScreen extends ConsumerWidget {
     final locationState = ref.watch(locationControllerProvider);
     final location = locationState.location;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(
-                Icons.rocket_launch,
-                size: 90,
+    // NOTE: intentionally NO Scaffold here. This widget is embedded inside the
+    // HomeScreen's CustomScrollView (SliverToBoxAdapter) where an inner
+    // Scaffold gets unbounded height and crashes layout ("RenderCustomMulti
+    // ChildLayoutBox object was given an infinite size"). The /coming-soon
+    // route wraps this widget in its own Scaffold.
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(
+              Icons.rocket_launch,
+              size: 90,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Coming Soon!',
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                'Coming Soon!',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-                textAlign: TextAlign.center,
-              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'We are expanding to your area.\n'
+              'Enter your pin code to check if we have launched there.',
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.textMuted, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
+            if (location != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(
-                'We are expanding to your area.\n'
-                'Enter your pin code to check if we have launched there.',
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textMuted, height: 1.4),
+                'Detected location: ${location.displayAddress}',
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.primary),
                 textAlign: TextAlign.center,
               ),
-              if (location != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Detected location: ${location.displayAddress}',
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AppColors.primary),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-              const SizedBox(height: AppSpacing.xl),
-              ElevatedButton(
-                onPressed: () => _showPinDialog(context, ref),
-                child: const Text('Manually write your area pin'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton(
-                onPressed: () {
-                  ref
-                      .read(locationControllerProvider.notifier)
-                      .fetchCurrentLocation(force: true);
-                },
-                child: const Text('Retry Location'),
-              ),
             ],
-          ),
+            const SizedBox(height: AppSpacing.xl),
+            ElevatedButton(
+              onPressed: () => _showPinDialog(context, ref),
+              child: const Text('Manually write your area pin'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: () {
+                ref
+                    .read(locationControllerProvider.notifier)
+                    .fetchCurrentLocation(force: true);
+              },
+              child: const Text('Retry Location'),
+            ),
+          ],
         ),
       ),
     );

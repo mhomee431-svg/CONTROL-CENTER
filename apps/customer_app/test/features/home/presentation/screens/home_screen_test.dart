@@ -132,7 +132,7 @@ void main() {
     expect(find.byType(SearchScreen), findsOneWidget);
   });
 
-  testWidgets('HomeScreen shows empty state when no nearby shops', (tester) async {
+  testWidgets('HomeScreen shows coming-soon state when no nearby shops', (tester) async {
     // Create a repository that returns empty nearby shops
     final emptyRepo = _EmptyNearbyShopsRepository();
 
@@ -149,17 +149,12 @@ void main() {
 
     // Wait for data to load
     await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
 
-    // Scroll to nearby shops section
-    await tester.scrollUntilVisible(
-      find.text('Nearby Shops'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-
-    // Empty state should be visible
-    expect(find.text('No nearby shops found'), findsOneWidget);
-    expect(find.text('Search Products'), findsOneWidget);
+    // The HomeScreen renders the ComingSoonScreen (pin-code entry) when the
+    // customer's location has no registered shops yet.
+    expect(find.text('Coming Soon!'), findsOneWidget);
+    expect(find.text('Manually write your area pin'), findsOneWidget);
   });
 }
 
