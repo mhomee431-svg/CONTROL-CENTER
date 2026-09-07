@@ -11,7 +11,6 @@ paths = [
   '''(^|/)\.env(\.[^/]*)?\.example$''',
   '''^docs/''',
   '''(^|/)README(\..*)?$''',
-  '''^PRODUCTION_READINESS_REPORT\.md$''',
   '''^scripts/security/scan_secrets\.py$''',
   '''(^|/)\.gitleaks\.toml$''',
   '''(^|/)tests?/''',
