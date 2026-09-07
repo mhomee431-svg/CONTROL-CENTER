@@ -89,8 +89,7 @@ ALLOWLIST_PATHS = [
         r"(^|/)tests?/",                             # synthetic test fixtures
         r"(^|/)docs/",
         r"(^|/)readme(\..*)?$",
-        r"production_readiness_report\.md$",
-        r"(^|/)task_progress\.md$",
+        r"production_readiness_report\.md$",         # archived under docs/deployment
         r"(^|/)\.pytest_cache/",
         r"(^|/)\.dart_tool/",
         r"(^|/)\.idea/",
