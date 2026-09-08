@@ -54,6 +54,9 @@ dependencies:
   intl: ^0.19.0
   connectivity_plus: ^7.3.1
   shared_preferences: ^2.5.5
+  # Firebase Phone Auth — OTP delivered client-side (no SMS gateway account)
+  firebase_core: ^4.0.0
+  firebase_auth: ^6.0.0
   # Shared platform models (API envelope, pagination) — one source of truth
   hyperlocal_shared_models:
     path: ../../packages/shared_models

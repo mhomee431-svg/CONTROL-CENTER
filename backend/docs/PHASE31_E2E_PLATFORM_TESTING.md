@@ -100,11 +100,11 @@ in-memory SQLite engine with the production ORM models:
 
 ## 5. Verification summary
 
-- ✅ Full backend suite green (619 passed / 6 skipped / 0 failed).
-- ✅ New Phase 31 E2E suite green (7 passed).
-- ✅ Customer Frontend (242) and ShopkeeperApp (11) suites green.
-- ✅ No critical or high-severity issue remains open after fixes.
-- ✅ The shopkeeper→customer business journey is verified end-to-end.
+-  Full backend suite green (619 passed / 6 skipped / 0 failed).
+-  New Phase 31 E2E suite green (7 passed).
+-  Customer Frontend (242) and ShopkeeperApp (11) suites green.
+-  No critical or high-severity issue remains open after fixes.
+-  The shopkeeper→customer business journey is verified end-to-end.
 |----------|--------------|
 | Redis / broker unavailable | `test_redis_down_enqueue_does_not_hang_or_raise` — daemon-thread + hard 1s timeout regression for `hang_trace.txt` |
 | Background job failure | `index_shop_product` task now survives a broker error (never crashes a thread) |

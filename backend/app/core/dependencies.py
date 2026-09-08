@@ -20,6 +20,11 @@ from app.models.session import AuthSession
 from app.models.shop import ShopManager, ShopOwner
 from app.models.user import User
 from app.services.auth_service import is_token_blacklisted
+from app.services.firebase_auth_service import get_user_by_firebase_uid
+from app.services.firebase_verification import (
+    FirebaseVerificationError,
+    verify_firebase_id_token,
+)
 
 security = HTTPBearer(auto_error=False)
 
@@ -35,6 +40,10 @@ def get_current_user(
       - Token not blacklisted
       - Session is active and not revoked
       - User exists and account is not suspended/banned
+
+    .. deprecated::
+        Use :func:`get_current_user_firebase` for new code. This function
+        validates the legacy custom JWT tokens.
     """
     if credentials is None:
         record_auth_result("access_token", False, "missing")
@@ -42,7 +51,21 @@ def get_current_user(
 
     token = credentials.credentials
 
-    # Ensure it's an access token
+    # Try Firebase token first (new flow)
+    try:
+        firebase_uid, _ = verify_firebase_id_token(token)
+        user = get_user_by_firebase_uid(db, firebase_uid)
+        if user is not None:
+            if not user.is_active or user.status.value in ("SUSPENDED", "BANNED", "INACTIVE"):
+                record_auth_result("firebase_token", False, "account_inactive")
+                raise ForbiddenError("User account is not active")
+            record_auth_result("firebase_token", True, "success")
+            return user
+    except FirebaseVerificationError:
+        # Not a valid Firebase token, fall through to legacy JWT validation
+        pass
+
+    # Legacy JWT validation (backward compatibility)
     if not validate_token_type(token, TokenPurpose.ACCESS):
         record_auth_result("access_token", False, "invalid_type")
         raise UnauthorizedError("Invalid token type")
@@ -85,6 +108,51 @@ def get_current_user(
         raise ForbiddenError("User account is not active")
 
     record_auth_result("access_token", True, "success")
+    return user
+
+
+def get_current_user_firebase(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """Resolve the current authenticated user from a Firebase ID token.
+
+    This is the NEW recommended authentication dependency. It:
+      - Verifies the Firebase ID token cryptographically
+      - Extracts firebase_uid
+      - Loads the user from PostgreSQL
+      - Validates account state
+
+    Usage:
+        @router.get("/profile")
+        def profile(user: User = Depends(get_current_user_firebase)):
+            ...
+    """
+    if credentials is None:
+        record_auth_result("firebase_token", False, "missing")
+        raise UnauthorizedError("Not authenticated")
+
+    token = credentials.credentials
+
+    try:
+        firebase_uid, _ = verify_firebase_id_token(token)
+    except FirebaseVerificationError as exc:
+        record_auth_result("firebase_token", False, "invalid_token")
+        raise UnauthorizedError(
+            message=exc.message,
+            error_code=exc.error_code,
+        ) from exc
+
+    user = get_user_by_firebase_uid(db, firebase_uid)
+    if user is None:
+        record_auth_result("firebase_token", False, "user_not_found")
+        raise UnauthorizedError("User not found")
+
+    if not user.is_active or user.status.value in ("SUSPENDED", "BANNED", "INACTIVE"):
+        record_auth_result("firebase_token", False, "account_inactive")
+        raise ForbiddenError("User account is not active")
+
+    record_auth_result("firebase_token", True, "success")
     return user
 
 

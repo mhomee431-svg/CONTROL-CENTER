@@ -187,7 +187,7 @@ class ApiAuthRepository implements AuthRepository {
 /// - Because the app now uses Firebase Phone Auth, mock mode installs a
 ///   FakePhoneAuthService so OTP works offline on emulators/devices.
 /// Set this to false to use real Firebase + backend calls.
-const bool kUseMockAuth = true;
+const bool kUseMockAuth = false;
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final tokens = ref.watch(tokenStoreProvider);

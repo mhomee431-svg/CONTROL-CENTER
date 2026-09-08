@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/phone_utils.dart';
 import '../controllers/auth_controller.dart';
 
 /// Registration screen for first-time users.
@@ -21,7 +22,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _handleContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final phone = _phoneController.text.trim();
+    final phone = normalizeIndianPhone(_phoneController.text.trim());
     final name = _nameController.text.trim();
 
     // First register the name, then proceed to OTP verification.

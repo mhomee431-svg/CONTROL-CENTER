@@ -26,6 +26,7 @@ class AuthService {
     required String phoneNumber,
     required String otpCode,
     required bool isNewUser,
+    String? name,
   }) async {
     final deviceId = await _getOrCreateDeviceId();
 
@@ -34,7 +35,7 @@ class AuthService {
       result = await _repository.register(
         phoneNumber: phoneNumber,
         otpCode: otpCode,
-        name: 'Customer',
+        name: (name != null && name.trim().isNotEmpty) ? name.trim() : 'Customer',
         deviceId: deviceId,
         deviceName: authDeviceName,
         deviceType: authDeviceType,

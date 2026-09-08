@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 
-import 'api_client.dart';
 import 'api_endpoints.dart';
 import 'token_store.dart';
 

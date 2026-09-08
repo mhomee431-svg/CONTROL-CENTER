@@ -109,6 +109,7 @@ class AuthController extends Notifier<AuthState> {
     required String phoneNumber,
     required String otpCode,
     required bool isNewUser,
+    String? name,
   }) async {
     state = AuthState.loading();
     try {
@@ -117,6 +118,7 @@ class AuthController extends Notifier<AuthState> {
         phoneNumber: phoneNumber,
         otpCode: otpCode,
         isNewUser: isNewUser,
+        name: name,
       );
 
       // Mark that onboarding has been seen for this successful login.

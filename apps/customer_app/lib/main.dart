@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
@@ -8,6 +9,12 @@ import 'core/security/safe_logger.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase must be ready before any auth call. In mock mode (no API base URL
+  // configured) auth uses FakePhoneAuthService, so we skip initialization.
+  if (EnvConfig.hasApiBaseUrl) {
+    Firebase.initializeApp();
+  }
 
   // ── Phase 14: production API guard ─────────────────────────────────────
   // Fail fast if a release build is misconfigured (http://, empty, or

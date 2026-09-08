@@ -2,8 +2,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/env/env_config.dart';
 import '../../../core/network/api_client.dart';
+import '../data/phone_auth_service.dart';
 import '../data/api_auth_repository.dart';
 import '../data/mock_auth_repository.dart';
+
+/// Bypass Firebase entirely when no real backend is configured (local dev /
+/// widget tests). With no API base URL the app uses the mock auth repository
+/// and a fake phone-auth service — no Firebase project needed.
+final bool kUseMockAuth = !EnvConfig.hasApiBaseUrl;
+
+/// Firebase Phone Auth service. Uses the offline [FakePhoneAuthService] while
+/// mock auth is enabled so the app works without a real Firebase project.
+final phoneAuthServiceProvider = Provider<PhoneAuthService>((ref) {
+  if (kUseMockAuth) {
+    return FakePhoneAuthService();
+  }
+  return FirebasePhoneAuthService();
+});
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   // Backend-integration seam: when an API base URL is configured at build
@@ -11,7 +26,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   // Otherwise fall back to the mock so auth flows stay fully usable during
   // local development — no UI changes are needed when swapping.
   if (EnvConfig.hasApiBaseUrl) {
-    return ApiAuthRepository(ref.watch(apiClientProvider));
+    return ApiAuthRepository(
+      ref.watch(apiClientProvider),
+      ref.watch(phoneAuthServiceProvider),
+    );
   }
   return MockAuthRepository();
 });

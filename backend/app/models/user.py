@@ -1,6 +1,6 @@
 """User model with lifecycle/status and role relationship."""
 from datetime import datetime
-from sqlalchemy import String, DateTime, Boolean, ForeignKey, Enum, Text
+from sqlalchemy import String, DateTime, Boolean, ForeignKey, Enum, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
@@ -18,8 +18,15 @@ class UserStatus(str, enum.Enum):
 
 class User(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
+    __table_args__ = (
+        Index("ix_users_firebase_uid", "firebase_uid", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    # Firebase UID — stable external identity identifier from Firebase Authentication.
+    # This is the PRIMARY link between Firebase and the application user.
+    # Phone number can change/recycle; firebase_uid is permanent.
+    firebase_uid: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
     # Phone may be NULL for Google-only signups; OTP-registered users always have one.
     phone_number: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
     google_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)

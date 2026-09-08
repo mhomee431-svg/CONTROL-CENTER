@@ -4,6 +4,8 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Google Services plugin for Firebase (Phone Auth OTP)
+    id("com.google.gms.google-services")
 }
 
 // -- Google Maps API key (Phase 15) -----------------------------------------
@@ -54,7 +56,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.hyperlocal.app"
+        // Must match the package name registered in Firebase Console
+        // (android/app/google-services.json registers "com.Hyperlocal.app").
+        applicationId = "com.Hyperlocal.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // google_maps_flutter_android requires an Android SDK level of at least 24.
@@ -99,4 +103,10 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Firebase dependencies
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+    implementation("com.google.firebase:firebase-auth")
 }

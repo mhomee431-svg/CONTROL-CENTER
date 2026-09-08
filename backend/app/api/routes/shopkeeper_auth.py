@@ -37,12 +37,11 @@ from app.schemas.shopkeeper import (
     ShopkeeperSendOTPRequest,
 )
 from app.services import shopkeeper_service
-from app.services.auth_service import issue_tokens, logout_session, refresh_session
+from app.services.firebase_auth_service import authenticate_with_firebase
 from app.services.firebase_verification import (
     FirebaseVerificationError,
     verify_firebase_id_token,
 )
-from app.services.password_service import request_password_reset, reset_password
 
 logger = get_logger("app.api.shopkeeper_auth")
 
@@ -116,38 +115,77 @@ async def register(
     """Register a NEW shopkeeper account (phone + Firebase ID token + name + password).
 
     Phone verification happens client-side via Firebase Phone Auth. The Flutter
-    app sends the Firebase ID token here; we verify it to extract the phone
-    number and confirm it actually belongs to the user.
+    app sends the Firebase ID token here; we verify it to extract the firebase_uid
+    and phone number, then create the account.
     """
+    client_ip = request.client.host if request.client else None
+
     try:
-        phone = verify_firebase_id_token(payload.firebase_id_token)
-    except FirebaseVerificationError as exc:
-        record_auth_result("shopkeeper_register", False, "firebase_verification_failed")
+        result = authenticate_with_firebase(
+            db=db,
+            firebase_id_token=payload.firebase_id_token,
+            ip_address=client_ip,
+            requested_role="shopkeeper",
+            name=payload.name,
+        )
+    except (UnauthorizedError, ForbiddenError) as exc:
+        record_auth_result("shopkeeper_register", False, "authentication_failed")
         return error_response(
             message=exc.message,
             error_code=exc.error_code,
             status_code=exc.status_code,
         )
-    
-    # Check for existing user by phone or email
-    existing = db.query(User).filter(
-        (User.phone_number == phone) | (User.email == payload.email)
-    ).first()
-    if existing is not None:
+    except Exception as exc:
+        record_auth_result("shopkeeper_register", False, "registration_failed")
+        logger.exception("Shopkeeper registration failed")
         return error_response(
-            message="Account already exists. Please sign in instead.",
-            error_code="ACCOUNT_EXISTS",
-            status_code=409,
+            message="Registration failed",
+            error_code="REGISTRATION_FAILED",
+            status_code=500,
         )
 
-    # Create user with hashed password
-    user = shopkeeper_service.create_shopkeeper_account(
-        db, phone_number=phone, name=payload.name, email=payload.email,
-        password_hash=hash_password(payload.password)
-    )
+    user = result.user
 
-    meta = _client_meta(request)
-    token_data = issue_tokens(
+    # Update additional fields if provided
+    if payload.email and not user.email:
+        # Check email uniqueness
+        existing_email = db.query(User).filter(User.email == payload.email).first()
+        if existing_email and existing_email.id != user.id:
+            return error_response(
+                message="Email already in use",
+                error_code="EMAIL_EXISTS",
+                status_code=409,
+            )
+        user.email = payload.email
+
+    # Set password if provided
+    if payload.password:
+        user.password_hash = hash_password(payload.password)
+
+    db.commit()
+
+    # Load shops for response
+    shops = shopkeeper_service.list_authorized_shops(db, user)
+
+    record_auth_result("shopkeeper_register", True, "success")
+
+    return success_response(
+        data={
+            "user": {
+                "id": user.id,
+                "firebase_uid": user.firebase_uid,
+                "phone_number": user.phone_number,
+                "name": user.name,
+                "email": user.email,
+                "status": user.status.value,
+                "role": user.role.name if user.role else None,
+            },
+            "shops": shops,
+            "is_new_user": result.is_new_user,
+        },
+        message="Registration successful",
+        status_code=201,
+    )
         user,
         db,
         device_id=payload.device_id,

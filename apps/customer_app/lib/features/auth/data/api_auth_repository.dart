@@ -1,26 +1,38 @@
+import 'dart:async';
+
 import '../../../core/error/failures.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_handler.dart';
+import 'phone_auth_service.dart';
+import 'phone_utils.dart';
 import '../domain/auth_repository.dart';
 
 /// Real backend implementation of [AuthRepository].
+///
+/// OTP delivery is handled client-side by Firebase Phone Auth — the Flutter
+/// app calls [PhoneAuthService] directly (Google sends the SMS, no third-party
+/// gateway). On a successful sign-in we forward the resulting Firebase ID
+/// token to the backend, which verifies it and returns session tokens.
 class ApiAuthRepository implements AuthRepository {
   final ApiClient _apiClient;
+  final PhoneAuthService _phoneAuth;
 
-  ApiAuthRepository(this._apiClient);
+  ApiAuthRepository(this._apiClient, this._phoneAuth);
 
   @override
   Future<void> sendOtp(String phoneNumber) async {
-    try {
-      await _apiClient.post(
-        ApiEndpoints.sendOtp,
-        data: {'phone_number': phoneNumber},
-        requiresAuth: false,
-      );
-    } catch (e) {
-      throw _mapToFailure(e, operation: 'send_otp');
-    }
+    final completer = Completer<void>();
+    await _phoneAuth.sendOtp(
+      phoneNumber: normalizeIndianPhone(phoneNumber),
+      onCodeSent: (_) {
+        if (!completer.isCompleted) completer.complete();
+      },
+      onError: (message) {
+        if (!completer.isCompleted) completer.completeError(ServerFailure(message));
+      },
+    );
+    return completer.future;
   }
 
   @override
@@ -33,11 +45,14 @@ class ApiAuthRepository implements AuthRepository {
     String? appVersion,
   }) async {
     try {
+      // Verify the SMS code with Firebase → obtain a Firebase ID token.
+      final authResult = await _phoneAuth.verifyOtp(smsCode: otpCode);
+
+      // The backend verifies the Firebase ID token to extract the phone.
       final data = await _apiClient.post(
         ApiEndpoints.verifyOtp,
         data: {
-          'phone_number': phoneNumber,
-          'otp': otpCode,
+          'firebase_id_token': authResult.idToken,
           'device_id': deviceId,
           'device_name': deviceName,
           'device_type': deviceType,
@@ -63,11 +78,12 @@ class ApiAuthRepository implements AuthRepository {
     String? appVersion,
   }) async {
     try {
+      final authResult = await _phoneAuth.verifyOtp(smsCode: otpCode);
+
       final data = await _apiClient.post(
         ApiEndpoints.register,
         data: {
-          'phone_number': phoneNumber,
-          'otp': otpCode,
+          'firebase_id_token': authResult.idToken,
           'name': name,
           'device_id': deviceId,
           'device_name': deviceName,
@@ -120,6 +136,8 @@ class ApiAuthRepository implements AuthRepository {
       // Logout failure should never prevent local session clearing.
       // Swallow and let the caller clear local state.
     }
+    // Also sign out of Firebase so the next user starts clean.
+    await _phoneAuth.signOut();
   }
 
   /// Parse the backend's success-response envelope into [AuthResult].
@@ -162,8 +180,28 @@ class ApiAuthRepository implements AuthRepository {
     );
   }
 
-  /// Map an HTTP/network exception into a domain [Failure].
+  /// Map an HTTP/network/Firebase exception into a domain [Failure].
   Failure _mapToFailure(Object e, {required String operation}) {
+    if (e is PhoneAuthException) {
+      switch (e.code) {
+        case 'invalid-phone-number':
+        case 'missing-phone-number':
+          return const InvalidPhoneNumberFailure();
+        case 'invalid-verification-code':
+          return const InvalidOtpFailure();
+        case 'invalid-verification-id':
+        case 'session-expired':
+        case 'no_verification':
+          return const ExpiredOtpFailure();
+        case 'too-many-requests':
+        case 'quota-exceeded':
+          return const OtpRateLimitFailure();
+        case 'network-request-failed':
+          return const NetworkFailure();
+        default:
+          return ServerFailure(e.message);
+      }
+    }
     if (e is ApiException) {
       switch (e.type) {
         case ApiErrorType.offline:

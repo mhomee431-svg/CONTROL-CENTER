@@ -1,26 +1,36 @@
-{
+﻿{
   "project_info": {
-    "project_number": "357522455251",
-    "project_id": "hyperlocal--discovery",
-    "storage_bucket": "hyperlocal--discovery.firebasestorage.app"
+    "project_number": "356092661742",
+    "project_id": "local-pier-506805-g5",
+    "storage_bucket": "local-pier-506805-g5.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:357522455251:android:626b388e32e3c14ecfb226",
+        "mobilesdk_app_id": "1:356092661742:android:dd589bd7bd86ecf54788ff",
         "android_client_info": {
-          "package_name": "com.Hyperlocal.app"
+          "package_name": "com.hyperlocal.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "356092661742-o725sac08pmf5iin90oe8p05sh128pk0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyD_7vCR1ajk5MUs5nSc31mM-GR8X7q1150"
+          "current_key": "AIzaSyATSoTQd5Fepy53aYYYot3l72RAHIz61Ro"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "356092661742-o725sac08pmf5iin90oe8p05sh128pk0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

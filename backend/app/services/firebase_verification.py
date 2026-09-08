@@ -4,7 +4,7 @@ Replaces Fast2SMS for OTP delivery — the Flutter client performs the full
 phone-OTP flow with the ``firebase_auth`` package (SMS is sent by Google, no
 third-party gateway needed) and forwards the resulting Firebase ID token to
 the backend. This service verifies that token via Firebase Admin and extracts
-the authenticated phone number.
+the authenticated phone number AND the firebase_uid.
 
 Safe on platforms without firebase_admin (test, local mock): the import is
 deferred and the verify function raises a clear error if the SDK is missing.
@@ -12,7 +12,7 @@ deferred and the verify function raises a clear error if the SDK is missing.
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from app.core.config import settings
 
@@ -104,16 +104,18 @@ def _ensure_initialized() -> None:
     )
 
 
-def verify_firebase_id_token(id_token: str) -> str:
-    """Verify a Firebase ID token and return the authenticated phone number.
+def verify_firebase_id_token(id_token: str) -> Tuple[str, str]:
+    """Verify a Firebase ID token and return (firebase_uid, phone_number).
 
     The Flutter ``firebase_auth`` package produces this token after a successful
     phone-OTP sign-in. Verifying it here confirms:
       - The token is genuine (signature checked by Firebase Admin)
       - It belongs to a phone-authenticated user
       - The phone number is the one Google actually sent the OTP to
+      - The firebase_uid is the stable Firebase identity
 
-    Returns the phone number in E.164 format (e.g. ``+919999999999``).
+    Returns a tuple of (firebase_uid, phone_number).
+    Phone number may be empty string if not present in token.
 
     Raises FirebaseVerificationError on any failure.
     """
@@ -128,15 +130,28 @@ def verify_firebase_id_token(id_token: str) -> str:
             f"Invalid or expired Firebase token: {type(exc).__name__}"
         ) from exc
 
-    phone = decoded.get("phone_number")
-    if not phone:
+    firebase_uid = decoded.get("sub")  # 'sub' is the Firebase UID
+    if not firebase_uid:
         raise FirebaseVerificationError(
-            "Firebase token has no phone_number claim",
-            error_code="FIREBASE_PHONE_MISSING",
+            "Firebase token has no subject (UID) claim",
+            error_code="FIREBASE_UID_MISSING",
             status_code=401,
         )
 
-    logger.info("Firebase token verified for phone %s", phone)
+    phone = decoded.get("phone_number", "")
+
+    logger.info("Firebase token verified for uid %s", firebase_uid)
+    return firebase_uid, phone
+
+
+def verify_firebase_id_token_phone(id_token: str) -> str:
+    """Legacy helper: Verify a Firebase ID token and return only the phone number.
+
+    .. deprecated:: 0.21
+        Use :func:`verify_firebase_id_token` instead which returns both
+        firebase_uid and phone_number.
+    """
+    _, phone = verify_firebase_id_token(id_token)
     return phone
 
 

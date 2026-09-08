@@ -25,19 +25,19 @@ credential-bearing checkpoint commit exists in local git object history).
 
 | # | Tool | Scope | Result |
 |---|------|-------|--------|
-| 1 | `scripts/security/scan_secrets.py --tracked` | all 754 git-tracked files | ✅ **CLEAN** — 0 findings |
+| 1 | `scripts/security/scan_secrets.py --tracked` | all 754 git-tracked files |  **CLEAN** — 0 findings |
 | 2 | `scripts/security/scan_secrets.py --history` | full git history blobs | ⚠️ flags 2 blobs — see §4 (commit is **not** on `main`/`origin`) |
-| 3 | OSV batch query (`api.osv.dev/v1/querybatch`) | 26 pinned runtime deps | ✅ no known vulnerabilities |
-| 4 | `python -m compileall app tests` | all Python source | ✅ compiles |
-| 5 | pytest suites (hardening/phase30, subscription/phase28, S3/phase7, identity/access, phase20/21 E2E) | security-relevant + integration | ✅ **119 + 8 + 16 + targeted subsets all pass** |
-| 6 | OpenAPI introspection (`app.openapi()`) | route-level auth presence | ✅ all previously-anonymous mutations now require auth |
-| 7 | compose YAML parse | 3 compose files | ✅ valid |
+| 3 | OSV batch query (`api.osv.dev/v1/querybatch`) | 26 pinned runtime deps |  no known vulnerabilities |
+| 4 | `python -m compileall app tests` | all Python source |  compiles |
+| 5 | pytest suites (hardening/phase30, subscription/phase28, S3/phase7, identity/access, phase20/21 E2E) | security-relevant + integration |  **119 + 8 + 16 + targeted subsets all pass** |
+| 6 | OpenAPI introspection (`app.openapi()`) | route-level auth presence |  all previously-anonymous mutations now require auth |
+| 7 | compose YAML parse | 3 compose files |  valid |
 ---
 
 ## 3. Checklist findings → status
 
 ### IAM
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - `infrastructure/terraform/foundation/github_oidc.tf` — GitHub Actions assumes AWS via
   OIDC (no long-lived CI keys); trust scoped with `StringLike` on
   `token.actions.githubusercontent.com:sub` to
@@ -54,7 +54,7 @@ credential-bearing checkpoint commit exists in local git object history).
 - CI/CD deploy role (foundation) — ECR push + ECS update only.
 
 ### Database exposure
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - RDS (`infrastructure/terraform/rds.tf`): `publicly_accessible = false`, in the data
   subnet with **no** default route, security group allows **5432 from the app
   SG only**, `storage_encrypted = true`, `deletion_protection = true`,
@@ -62,14 +62,14 @@ credential-bearing checkpoint commit exists in local git object history).
   stored in state + SSM SecureString only — never source-controlled.
 
 ### Redis exposure
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - No ElastiCache on the free-tier topology. Redis runs as a local Docker
   container bound to the host loopback / compose network only
   (`docker-compose.cloud.yml` `redis` — no published ports; the only host port
   published is API → `127.0.0.1`).
 
 ### S3 exposure
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - Uploads bucket is PRIVATE (`aws_s3_bucket_public_access_block` — all four
   blocks **true**), TLS-only bucket policy (Deny on `aws:SecureTransport` =
   false), SSE (AES256) by default, lifecycle rule aborts incomplete multipart
@@ -90,7 +90,7 @@ credential-bearing checkpoint commit exists in local git object history).
   `*firebase-adminsdk*.json`, keystores, `.env*`, etc.
 
 ### JWT
-**Status: ✅ PASS (no change required — already hardened)**
+**Status:  PASS (no change required — already hardened)**
 - HS256 with strong secret enforced by the production startup gate
   (`app/core/startup_checks.py`: rejects known defaults and secrets < 32
   chars). Claims include `iss`, `aud`, `iat`, `exp`, `jti`, `type`
@@ -100,7 +100,7 @@ credential-bearing checkpoint commit exists in local git object history).
   every request.
 
 ### Authentication
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - OTP: CSPRNG 6-digit codes, **salted HMAC-SHA256 digest stored** (raw never
   persisted), constant-time compare, single-use atomic flip, 5-min expiry,
   max-attempt lockout, resend cooldown. Google OAuth: signed one-time state
@@ -111,7 +111,7 @@ credential-bearing checkpoint commit exists in local git object history).
   arg required by slowapi — fixed.
 
 ### Authorization
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - RBAC with roles/permissions + shop-association checks
   (`resolve_shop_access`), admin sub-role catalog
   (`app/core/admin_permissions.py`, e.g. `admin_support`, `admin_moderator`,
@@ -120,7 +120,7 @@ credential-bearing checkpoint commit exists in local git object history).
   dependency for consistency (same 403 semantics, clearer contract).
 
 ### Rate limits
-**Status: ✅ PASS with critical XFF fix**
+**Status:  PASS with critical XFF fix**
 - Auth endpoints: `5/minute`; everything else: `100/minute`; Redis-backed
   counters in prod (`RATE_LIMIT_STORAGE_URI=redis://…/3`), in-memory fallback
   on outage.
@@ -136,26 +136,26 @@ credential-bearing checkpoint commit exists in local git object history).
     (`backend/Dockerfile`, `docker-compose.cloud.yml`).
   - The direct-to-:80 free stack no longer passes `--proxy-headers` at all.
 ### CORS
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - Explicit origins (`CORS_ORIGINS`, `allow_origins=…`), `allow_credentials=True`
   only ever paired with an explicit allow-list; the startup gate refuses to
   boot in production if origins are empty or `*` while credentials are allowed.
   Mobile apps are CORS-exempt (native HTTP).
 
 ### SQL injection
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - All queries routed through the SQLAlchemy ORM with bound parameters; no
   string-concatenated SQL anywhere in `app/` (search engine uses
   parameterized `text()` constructs with positional binds + PostGIS functions).
 
 ### Validation
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - Pydantic v2 schemas with bounds/patterns across all routes; query params
   clamped (page≥1, limit≤200/100/50, lat/lng ranges, radii≤100km); barcode
   format (digits, ≤32 chars) validated before touching the catalog.
 
 ### File upload
-**Status: ✅ PASS with improvement**
+**Status:  PASS with improvement**
 - Existing: per-category extension allow-lists, **magic-byte sniffing** for
   direct uploads (`.xlsx` `PK\x03\x04`; jpeg/png/webp/pdf), size caps for
   images (5 MB) and documents (15 MB) enforced at intent + confirm time,
@@ -167,7 +167,7 @@ credential-bearing checkpoint commit exists in local git object history).
   entire body unboundedly (OOM risk on multi-GB uploads).
 
 ### API abuse
-**Status: ✅ PASS with fixes**
+**Status:  PASS with fixes**
 - XFF fix (above) + rate limits. Google OAuth endpoints rate-limited. All
   previously-anonymous **write** endpoints are now authenticated (§6).
 - `POST /search/v2/events` and `POST /analytics/events` remain anonymous by
@@ -193,7 +193,7 @@ credential-bearing checkpoint commit exists in local git object history).
     first boot and persist it across reboots.
   - `.env.production.example` / `.env.example` document the requirement.
 ### Logging
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - Structured JSON logging with request/correlation IDs from middleware;
   payloads are never logged (only paths, ids, counts); OTP code values are
   never logged (only phone + mock-mode console print which is dev-only; the
@@ -202,13 +202,13 @@ credential-bearing checkpoint commit exists in local git object history).
   verbose error leakage.
 
 ### Sensitive information
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - No provider secrets hardcoded; `.env.production.example` contains
   placeholders only; API contract docs mark auth requirements; schema
   serializers select safe fields (no password/token/hash columns returned).
 
 ### Dependency vulnerabilities
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - OSV batch query on the pinned/locked runtime dependency set (fastapi 0.141.1,
   uvicorn 0.52.4, pydantic 2.13.4, cryptography 50.0.0, sqlalchemy 2.0.52,
   bcrypt 5.0.0, redis 8.1.0, celery 5.6.3, httpx 0.28.1, python-jose 3.5.0,
@@ -217,14 +217,14 @@ credential-bearing checkpoint commit exists in local git object history).
   pipeline (or add `pip-audit` to CI) to prevent future drift.
 
 ### Docker security
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - Single-stage `python:3.14-slim`, non-root `appuser`, healthcheck via stdlib
   (no curl), `.dockerignore` excludes `.env*`, credentials, tests, docs,
   scripts. New `MOCK_PAYMENT_SECRET` arrives at runtime only (hence the startup
   gate rather than image-time enforcement).
 
 ### Network security
-**Status: ✅ PASS (no change required)**
+**Status:  PASS (no change required)**
 - HTTPS via Caddy auto-TLS with HTTP→HTTPS redirect, HSTS preload headers at
   both Caddy and app levels; SG opens only 80/443 to the world (no SSH — SSM
   Session Manager instead); data subnet has no internet route; S3 Gateway

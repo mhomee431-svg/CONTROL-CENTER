@@ -113,33 +113,6 @@ def _dedupe_barcode_index() -> None:
 _dedupe_barcode_index()
 
 
-# ── SQLite timezone shim for the DB-backed OTP flow ─────────────────────────
-# SQLite has no native datetime-with-timezone type, so ``DateTime(timezone=True)``
-# columns are read back as *naive* datetimes. The production OTP service compares
-# them against ``datetime.now(timezone.utc)`` (aware), which works on PostgreSQL
-# but raises on SQLite. This is a test-only compatibility shim (the same spirit
-# as the PostGIS SQL function shims): it re-attaches UTC to the OTP row's
-# datetimes when the record is loaded, leaving the real service logic untouched.
-import app.services.fast2sms_otp_service as _f2sms_otp  # noqa: E402
-
-_orig_latest_record = _f2sms_otp._latest_record
-
-
-def _tzsafe_latest_record(db, phone):  # noqa: ANN001
-    record = _orig_latest_record(db, phone)
-    if record is not None:
-        from datetime import timezone as _tz
-
-        for attr in ("created_at", "expires_at"):
-            value = getattr(record, attr, None)
-            if value is not None and getattr(value, "tzinfo", None) is None:
-                setattr(record, attr, value.replace(tzinfo=_tz.utc))
-    return record
-
-
-_f2sms_otp._latest_record = _tzsafe_latest_record
-
-
 # ── SQLite geometry shim for shop registration ─────────────────────────────
 # ``register_shop`` stores ``location=_get_wkt_point(lat, lng)`` which returns a
 # geoalchemy ``WKTElement``. On PostgreSQL that binds to the Geography column;
@@ -277,22 +250,26 @@ SHOPKEEPER_PHONE = "+917709000100"
 CUSTOMER_LAT, CUSTOMER_LNG = 25.5941, 85.1336     # Patna (customer location)
 GAYA_LAT, GAYA_LNG = 24.7914, 85.0002            # Gaya (~90 km away)
 
-# Fake Firebase ID tokens -> phone numbers. The shopkeeper routes now verify a
-# Firebase ID token server-side; these tokens stand in for a real phone-OTP
-# sign-in and are mapped back by the _patch_shopkeeper_firebase_verify fixture.
+# Fake Firebase ID tokens -> phone numbers. The customer + shopkeeper auth
+# routes now verify a Firebase ID token server-side; these tokens stand in for
+# a real phone-OTP sign-in and are mapped back by
+# _patch_shopkeeper_firebase_verify().
 _FIREBASE_TOKENS = {
+    ADMIN_PHONE: "phase20-admin-firebase-token-000000000000000000000000000",
+    CUSTOMER_PHONE: "phase20-customer-firebase-token-0000000000000000000000",
     SHOPKEEPER_PHONE: "phase20-shopkeeper-firebase-token-00000000000000000000",
 }
 
 
 def _patch_shopkeeper_firebase_verify() -> None:
-    """Point the shopkeeper auth route's token verifier at a local mapping so
-    the real HTTP flow works without a live Firebase project.
+    """Point the customer + shopkeeper auth routes' token verifiers at a local
+    mapping so the real HTTP flow works without a live Firebase project.
 
     Permanent module-level patch: test_phase28 reuses phase21's
     ``_build_world`` (which in turn relies on this patch) in the same pytest
     process, so the verifier must stay patched for the whole session.
     """
+    import app.api.routes.auth as _customer_auth
     import app.api.routes.shopkeeper_auth as _sk_auth
     from app.services.firebase_verification import FirebaseVerificationError
 
@@ -303,6 +280,7 @@ def _patch_shopkeeper_firebase_verify() -> None:
         raise FirebaseVerificationError("Invalid token")
 
     _sk_auth.verify_firebase_id_token = _verify
+    _customer_auth.verify_firebase_id_token = _verify
 
 CATEGORIES = [
     ("Grocery & Staples", "grocery-staples"),
@@ -336,25 +314,19 @@ def _ok(resp, what="", statuses=(200, 201)) -> dict:  # noqa: ANN001
     return body.get("data")
 
 
-def _dev_otp(data) -> str:  # noqa: ANN001
-    otp = (data or {}).get("dev_otp")
-    return otp or settings.OTP_DEV_VALUE
-
-
 def _register_customer(client, phone, name) -> dict:  # noqa: ANN001
-    data = _ok(
-        _req(client, "POST", f"{API}/auth/send-otp", json={"phone_number": phone}),
-        what="customer send-otp",
-    )
-    otp = _dev_otp(data)
+    # Customer auth is Firebase-based: the Flutter app completes phone-OTP
+    # client-side and sends the resulting ID token. We use the combined
+    # login-or-register endpoint with a fake token that
+    # _patch_shopkeeper_firebase_verify() maps back to the phone number.
+    token = _FIREBASE_TOKENS[phone]
     return _ok(
         _req(
             client,
             "POST",
-            f"{API}/auth/register",
+            f"{API}/auth/firebase-login",
             json={
-                "phone_number": phone,
-                "otp": otp,
+                "firebase_id_token": token,
                 "name": name,
                 "device_id": "phase20-customer",
                 "device_name": "Phase 20 device",
@@ -393,19 +365,16 @@ def _register_shopkeeper(client, phone, name) -> dict:  # noqa: ANN001
 
 
 def _admin_login(client) -> dict:  # noqa: ANN001
-    data = _ok(
-        _req(client, "POST", f"{API}/auth/send-otp", json={"phone_number": ADMIN_PHONE}),
-        what="admin send-otp",
-    )
-    otp = _dev_otp(data)
+    # Admin auth now also runs through Firebase phone auth (the seeded admin
+    # already exists, so firebase-login logs in without a name).
+    token = _FIREBASE_TOKENS[ADMIN_PHONE]
     return _ok(
         _req(
             client,
             "POST",
-            f"{API}/auth/verify-otp",
+            f"{API}/auth/firebase-login",
             json={
-                "phone_number": ADMIN_PHONE,
-                "otp": otp,
+                "firebase_id_token": token,
                 "device_id": "phase20-admin",
                 "device_name": "Phase 20 admin",
                 "device_type": "web",
@@ -413,7 +382,7 @@ def _admin_login(client) -> dict:  # noqa: ANN001
                 "app_version": "1.0",
             },
         ),
-        what="admin verify-otp",
+        what="admin firebase-login",
     )
 
 
@@ -672,7 +641,7 @@ def _build_world() -> dict:
     from app.database.session import get_db
     from app.main import app as fastapi_app
 
-    # Shopkeeper auth is Firebase-based; map our fake tokens to phones.
+    # Customer + shopkeeper auth are Firebase-based; map our fake tokens to phones.
     _patch_shopkeeper_firebase_verify()
 
     db = SyncSession()

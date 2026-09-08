@@ -115,8 +115,9 @@ class Settings(BaseSettings):
     TOKEN_AUDIENCE: str = "hyperlocal-app"
 
     # ── OTP ─────────────────────────────────────────────────────────────────────
-    OTP_DEV_MODE: bool = True
-    OTP_DEV_VALUE: str = "123456"
+    # Phone OTP delivery is handled client-side by Firebase Phone Auth; the
+    # backend verifies Firebase ID tokens (app/services/firebase_verification.py).
+    # The settings below only tune the legacy Redis-backed OTP service.
     OTP_EXPIRE_MINUTES: int = Field(5, ge=1)
     OTP_MAX_ATTEMPTS: int = Field(5, ge=1)
     OTP_COOLDOWN_SECONDS: int = Field(60, ge=0)
@@ -148,13 +149,6 @@ class Settings(BaseSettings):
     AWS_SNS_REGION: str = "us-east-1"
     AWS_SNS_SENDER_ID: Optional[str] = None
 
-    # ── Fast2SMS OTP delivery ────────────────────────────────────────────────────
-    # Sends OTPs via Fast2SMS' "otp" route (https://www.fast2sms.com/dev/bulkV2).
-    #   OTP_MODE=mock → the OTP is printed to the server console (₹0 testing).
-    #   OTP_MODE=live → a real SMS is sent and the Fast2SMS balance is debited.
-    FAST2SMS_API_KEY: Optional[str] = None
-    OTP_MODE: str = "mock"  # mock | live
-
     # ── Google OAuth (social login) ─────────────────────────────────────────────
     # Credentials from a Google Cloud Console "OAuth 2.0 Client" (Web application).
     # GOOGLE_CALLBACK_URL must be registered as the authorized redirect URI and
@@ -171,6 +165,10 @@ class Settings(BaseSettings):
     # Used by the pincode lookup fallback to resolve city/state from a pincode
     # via Geocoding when the PostPin API has no match.
     GOOGLE_MAPS_API_KEY: Optional[str] = None
+
+    # ── GCP Service Account ─────────────────────────────────────────────────
+    GCP_PROJECT_ID: str = "hyperlocal--discovery"
+    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None
 
     # ── Push Provider (replaceable; Phase 27) ──────────────────────────────────
     PUSH_PROVIDER: str = "mock"  # mock | fcm
@@ -333,14 +331,6 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_environment(cls, v):
         return str(v).lower()
-
-    @field_validator("OTP_MODE", mode="before")
-    @classmethod
-    def _normalize_otp_mode(cls, v):
-        val = str(v).lower()
-        if val not in ("mock", "live"):
-            raise ValueError("OTP_MODE must be one of: mock, live")
-        return val
 
     @model_validator(mode="after")
     def _warn_insecure_production(self):

@@ -76,6 +76,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           phoneNumber: widget.phoneNumber,
           otpCode: _otpController.text,
           isNewUser: widget.isNewUser,
+          name: widget.name,
         );
 
     if (success && mounted) {
@@ -125,7 +126,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Enter the 6-digit code sent to +91 ${widget.phoneNumber}',
+                  'Enter the 6-digit code sent to ${widget.phoneNumber}',
                   style: const TextStyle(fontSize: 16, color: AppColors.textMuted),
                   textAlign: TextAlign.center,
                 ),

@@ -122,7 +122,7 @@ final mapPickerControllerProvider = NotifierProvider.autoDispose<
 class MapPickerController extends Notifier<MapPickerState> {
   /// Debounce for reverse-geocoding while the map is dragged (avoids
   /// hammering the Geocoding API with one request per camera frame).
-  static const _geocodeDebounceDuration = Duration(milliseconds: 400);
+  static const _geocodeDebounceDuration = Duration(milliseconds: 300);
 
   Timer? _geocodeDebounce;
   int _geocodeRequestSeq = 0;

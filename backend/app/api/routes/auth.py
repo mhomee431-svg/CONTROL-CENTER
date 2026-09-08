@@ -12,11 +12,10 @@ from app.models.customer import Customer
 from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
+    CustomerFirebaseAuthRequest,
     LogoutRequest,
     RefreshTokenRequest,
-    RegisterRequest,
     SendOTPRequest,
-    VerifyOTPRequest,
 )
 from app.services.auth_service import (
     get_account_status,
@@ -27,17 +26,9 @@ from app.services.auth_service import (
     refresh_session,
     revoke_session_by_id,
 )
-from app.services.fast2sms import Fast2SMSDeliveryError
-from app.services.fast2sms_otp_service import (
-    VERIFY_ALREADY_USED,
-    VERIFY_EXPIRED,
-    VERIFY_INVALID,
-    VERIFY_VALID,
-    OTPCooldownError,
-    OTPLimitExceeded,
-    clear_otp,
-    generate_otp,
-    verify_otp,
+from app.services.firebase_verification import (
+    FirebaseVerificationError,
+    verify_firebase_id_token,
 )
 
 logger = get_logger("app.api.auth")
@@ -45,25 +36,18 @@ logger = get_logger("app.api.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _otp_failure_response(result: str):
-    """Map a Fast2SMS OTP verification result to a precise error response."""
-    if result == VERIFY_EXPIRED:
-        return error_response(
-            message="OTP has expired. Please request a new one.",
-            error_code="OTP_EXPIRED",
-            status_code=400,
+def _verify_customer_firebase_token(payload: CustomerFirebaseAuthRequest, operation: str):
+    """Verify the Firebase ID token → return (phone, None) or (None, error_response)."""
+    try:
+        phone = verify_firebase_id_token(payload.firebase_id_token)
+    except FirebaseVerificationError as exc:
+        record_auth_result(operation, False, "firebase_verification_failed")
+        return None, error_response(
+            message=exc.message,
+            error_code=exc.error_code,
+            status_code=exc.status_code,
         )
-    if result == VERIFY_ALREADY_USED:
-        return error_response(
-            message="This OTP has already been used. Please request a new one.",
-            error_code="OTP_ALREADY_USED",
-            status_code=400,
-        )
-    return error_response(
-        message="Invalid OTP",
-        error_code="INVALID_OTP",
-        status_code=400,
-    )
+    return phone, None
 
 
 def _default_role(db: Session) -> Role | None:
@@ -84,165 +68,27 @@ def _get_client_meta(request: Request) -> dict:
 async def send_otp(
     payload: SendOTPRequest,
     request: Request,
-    db: Session = Depends(get_db),
 ):
-    """Send OTP to the user's phone number with retry/cooldown limits.
+    """Acknowledge an OTP request.
 
-    Generates a 6-digit code, persists it in the ``otps`` table with a
-    5-minute expiry (``is_verified=False``), and delivers it via Fast2SMS
-    (mock mode prints it to the server console; live mode sends a real SMS).
+    OTP delivery is handled by Firebase Phone Auth on the client — the Flutter
+    app calls ``firebase_auth`` directly and Google sends the SMS. This endpoint
+    remains for API-contract compatibility so older clients do not break; it
+    simply acknowledges the request (no third-party SMS gateway involved).
     """
-    try:
-        result = generate_otp(db, payload.phone_number)
-    except Fast2SMSDeliveryError:
-        return error_response(
-            message="Failed to deliver the OTP via SMS. Please try again.",
-            error_code="SMS_DELIVERY_FAILED",
-            status_code=502,
-        )
-    except OTPCooldownError as exc:
-        return error_response(
-            message=exc.message,
-            error_code="OTP_COOLDOWN",
-            status_code=429,
-            data={"retry_after_seconds": exc.retry_after_seconds},
-        )
-    except OTPLimitExceeded as exc:
-        return error_response(
-            message=exc.message,
-            error_code="OTP_RESEND_LIMIT_REACHED",
-            status_code=429,
-        )
-
-    record_auth_result("otp", True, "sent")
+    record_auth_result("otp", True, "firebase_client_delivery")
     return success_response(
-        data=result,
-        message="OTP sent successfully",
+        data={"delivered_by": "firebase"},
+        message="OTP delivery is handled by Firebase Phone Auth",
     )
 
 
-@router.post("/verify-otp")
-@auth_rate_limit()
-async def verify_otp_endpoint(
-    payload: VerifyOTPRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """Verify OTP and issue access + refresh tokens.
-
-    Single-use: a successful match immediately marks the record
-    ``is_verified = True`` so the same code can never be reused.
-
-    Creates a new user if one doesn't exist (phone-based registration).
-    Assigns the default 'customer' role to new signups.
-    """
-    # Verify OTP — returns valid|invalid|expired|already_used (single-use).
-    verification = verify_otp(db, payload.phone_number, payload.otp)
-    if verification != VERIFY_VALID:
-        record_auth_result("otp", False, verification)
-        return _otp_failure_response(verification)
-
-    # Normalize phone for lookup (matches OTP service normalization)
-    phone = payload.phone_number.strip()
-    if not phone.startswith("+"):
-        phone = "+" + phone
-
-    user = db.query(User).filter(User.phone_number == phone).first()
-
-    if user is None:
-        # ── Phone-based registration ──────────────────────────────────────
-        default_role = _default_role(db)
-        user = User(
-            phone_number=phone,
-            role_id=default_role.id if default_role else None,
-            status=UserStatus.ACTIVE,
-            is_active=True,
-        )
-        db.add(user)
-        db.flush()
-
-        # Create customer profile
-        customer = Customer(user_id=user.id)
-        db.add(customer)
-        db.flush()
-    else:
-        # ── Existing user ─────────────────────────────────────────────────
-        if not is_account_allowed(user):
-            clear_otp(db, phone)  # Invalidate OTP
-            return error_response(
-                message="Account is not active",
-                error_code="ACCOUNT_NOT_ACTIVE",
-                status_code=403,
-            )
-
-        # Refresh profile on re-login
-        if user.customer_profile is None:
-            customer = Customer(user_id=user.id)
-            db.add(customer)
-            db.flush()
-
-    # Issue tokens with session
-    meta = _get_client_meta(request)
-    token_data = issue_tokens(
-        user,
-        db,
-        device_id=payload.device_id,
-        device_name=payload.device_name,
-        device_type=payload.device_type,
-        platform=payload.platform,
-        app_version=payload.app_version,
-        ip_address=meta["ip_address"],
-        user_agent=meta["user_agent"],
-    )
-
-    db.commit()
-
-    record_auth_result("otp", True, "success")
-    return success_response(
-        data=token_data,
-        message="Login successful",
-    )
-
-
-@router.post("/register")
-@auth_rate_limit()
-async def register_endpoint(
-    payload: RegisterRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """Register a new customer account with a display name.
-
-    Verifies the OTP, creates the user (with the chosen name) and the
-    customer profile, then issues access + refresh tokens. Existing
-    accounts are rejected — they must sign in via /verify-otp instead.
-    """
-    # Verify OTP — single-use; a successful match consumes the code.
-    verification = verify_otp(db, payload.phone_number, payload.otp)
-    if verification != VERIFY_VALID:
-        record_auth_result("otp", False, verification)
-        return _otp_failure_response(verification)
-
-    # Normalize phone for lookup (matches OTP service normalization)
-    phone = payload.phone_number.strip()
-    if not phone.startswith("+"):
-        phone = "+" + phone
-
-    user = db.query(User).filter(User.phone_number == phone).first()
-
-    if user is not None:
-        clear_otp(db, phone)  # OTP was consumed; invalidate it either way
-        return error_response(
-            message="Account already exists. Please sign in instead.",
-            error_code="ACCOUNT_EXISTS",
-            status_code=409,
-        )
-
-    # ── Create the account with the provided display name ────────────────
+def _create_customer_account(db: Session, phone: str, name: str | None) -> User:
+    """Create a new customer user (+ profile) with the default 'customer' role."""
     default_role = _default_role(db)
     user = User(
         phone_number=phone,
-        name=payload.name.strip(),
+        name=(name.strip() if name and name.strip() else None),
         role_id=default_role.id if default_role else None,
         status=UserStatus.ACTIVE,
         is_active=True,
@@ -254,10 +100,18 @@ async def register_endpoint(
     customer = Customer(user_id=user.id)
     db.add(customer)
     db.flush()
+    return user
 
-    # Issue tokens with session
+
+def _issue_customer_tokens(
+    db: Session,
+    user: User,
+    payload: CustomerFirebaseAuthRequest,
+    request: Request,
+) -> dict:
+    """Issue access + refresh tokens bound to a new session."""
     meta = _get_client_meta(request)
-    token_data = issue_tokens(
+    return issue_tokens(
         user,
         db,
         device_id=payload.device_id,
@@ -269,9 +123,162 @@ async def register_endpoint(
         user_agent=meta["user_agent"],
     )
 
+
+@router.post("/firebase-login")
+@auth_rate_limit()
+async def firebase_login(
+    payload: CustomerFirebaseAuthRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Combined Firebase login-or-register endpoint for the Customer App.
+
+    The Flutter app completes the phone-OTP flow client-side with
+    ``firebase_auth`` and sends the resulting Firebase ID token here.
+
+    Flow:
+      1. Verify the Firebase ID token (confirms the phone belongs to the user).
+      2. Extract the phone number from the verified token.
+      3. Look up the user by phone in PostgreSQL.
+      4. If found and active → issue JWT session tokens (login).
+      5. If not found → auto-register a new customer account, then login.
+         (``name`` is required when auto-registering.)
+
+    This "login on first use" pattern is the standard for phone-auth apps.
+    """
+    phone, err = _verify_customer_firebase_token(payload, "customer_firebase_login")
+    if err is not None:
+        return err
+
+    user = db.query(User).filter(User.phone_number == phone).first()
+
+    if user is None:
+        if not payload.name or not payload.name.strip():
+            return error_response(
+                message="Name is required for new account registration",
+                error_code="NAME_REQUIRED",
+                status_code=400,
+            )
+        user = _create_customer_account(db, phone, payload.name)
+        is_new_account = True
+        record_auth_result("customer_firebase_login", True, "auto_registered")
+    else:
+        is_new_account = False
+        if not is_account_allowed(user):
+            record_auth_result("customer_firebase_login", False, "account_inactive")
+            return error_response(
+                message="Account is not active",
+                error_code="ACCOUNT_NOT_ACTIVE",
+                status_code=403,
+            )
+        # Refresh profile on re-login
+        if user.customer_profile is None:
+            db.add(Customer(user_id=user.id))
+            db.flush()
+        record_auth_result("customer_firebase_login", True, "login_success")
+
+    token_data = _issue_customer_tokens(db, user, payload, request)
     db.commit()
 
-    record_auth_result("otp", True, "register_success")
+    return success_response(
+        data={
+            **token_data,
+            "is_new_account": is_new_account,
+        },
+        message="Account created and logged in" if is_new_account else "Login successful",
+    )
+
+
+@router.post("/verify-otp")
+@auth_rate_limit()
+async def verify_otp_endpoint(
+    payload: CustomerFirebaseAuthRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Firebase-phone-OTP login for an EXISTING account via the Customer App.
+
+    The Flutter app completes the OTP flow client-side with ``firebase_auth``
+    and sends the resulting Firebase ID token here. We verify it to extract
+    the phone number and look up the user. New users must register via
+    /register or /firebase-login instead.
+    """
+    phone, err = _verify_customer_firebase_token(payload, "customer_login")
+    if err is not None:
+        return err
+
+    user = db.query(User).filter(User.phone_number == phone).first()
+
+    if user is None:
+        record_auth_result("customer_login", False, "account_not_found")
+        return error_response(
+            message="Account not found. Please register first.",
+            error_code="ACCOUNT_NOT_FOUND",
+            status_code=404,
+        )
+
+    if not is_account_allowed(user):
+        record_auth_result("customer_login", False, "account_inactive")
+        return error_response(
+            message="Account is not active",
+            error_code="ACCOUNT_NOT_ACTIVE",
+            status_code=403,
+        )
+
+    # Refresh profile on re-login
+    if user.customer_profile is None:
+        db.add(Customer(user_id=user.id))
+        db.flush()
+
+    token_data = _issue_customer_tokens(db, user, payload, request)
+    db.commit()
+
+    record_auth_result("customer_login", True, "success")
+    return success_response(
+        data=token_data,
+        message="Login successful",
+    )
+
+
+@router.post("/register")
+@auth_rate_limit()
+async def register_endpoint(
+    payload: CustomerFirebaseAuthRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Register a new customer account with a display name.
+
+    Verifies the Firebase ID token, creates the user (with the chosen name)
+    and the customer profile, then issues access + refresh tokens. Existing
+    accounts are rejected — they must sign in via /verify-otp instead.
+    """
+    phone, err = _verify_customer_firebase_token(payload, "customer_register")
+    if err is not None:
+        return err
+
+    user = db.query(User).filter(User.phone_number == phone).first()
+    if user is not None:
+        record_auth_result("customer_register", False, "account_exists")
+        return error_response(
+            message="Account already exists. Please sign in instead.",
+            error_code="ACCOUNT_EXISTS",
+            status_code=409,
+        )
+
+    if not payload.name or not payload.name.strip():
+        return error_response(
+            message="Name is required for registration",
+            error_code="NAME_REQUIRED",
+            status_code=400,
+        )
+
+    user = _create_customer_account(db, phone, payload.name)
+
+    token_data = _issue_customer_tokens(db, user, payload, request)
+    db.commit()
+
+    record_auth_result("customer_register", True, "register_success")
     return success_response(
         data=token_data,
         message="Registration successful",
@@ -283,34 +290,15 @@ async def register_endpoint(
 async def resend_otp_endpoint(
     payload: SendOTPRequest,
     request: Request,
-    db: Session = Depends(get_db),
 ):
-    """Resend OTP with cooldown and resend-limit enforcement."""
-    try:
-        result = generate_otp(db, payload.phone_number)
-    except Fast2SMSDeliveryError:
-        return error_response(
-            message="Failed to deliver the OTP via SMS. Please try again.",
-            error_code="SMS_DELIVERY_FAILED",
-            status_code=502,
-        )
-    except OTPCooldownError as exc:
-        return error_response(
-            message=exc.message,
-            error_code="OTP_COOLDOWN",
-            status_code=429,
-            data={"retry_after_seconds": exc.retry_after_seconds},
-        )
-    except OTPLimitExceeded as exc:
-        return error_response(
-            message=exc.message,
-            error_code="OTP_RESEND_LIMIT_REACHED",
-            status_code=429,
-        )
+    """Acknowledge an OTP resend request.
 
+    Resend throttling is enforced by Firebase Phone Auth on the client; the
+    backend no longer sends any SMS.
+    """
     return success_response(
-        data=result,
-        message="OTP resent successfully",
+        data={"delivered_by": "firebase"},
+        message="OTP delivery is handled by Firebase Phone Auth",
     )
 
 

@@ -18,6 +18,7 @@ os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("HYPERLOCAL_ENV", "test")
 
 import pytest  # noqa: E402
+from unittest.mock import patch  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.services import otp_service  # noqa: E402
@@ -177,27 +178,30 @@ class TestOTPServiceWithRedisBackend:
         monkeypatch.setattr(settings, "OTP_RESEND_COOLDOWN_SECONDS", 0)
         return store
 
-    def test_generate_and_verify(self, redis_backed_service):
+    def test_generate_and_verify(self, redis_backed_service, monkeypatch):
         phone = "+919810000007"
+        monkeypatch.setattr(otp_service, "_generate_otp_code", lambda: "654321")
         otp_service.generate_otp(phone)
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is True
+        assert otp_service.verify_otp(phone, "654321") is True
 
     def test_verify_unknown_phone(self, redis_backed_service):
         assert otp_service.verify_otp("+919810000008", "000000") is False
 
-    def test_single_use(self, redis_backed_service):
+    def test_single_use(self, redis_backed_service, monkeypatch):
         phone = "+919810000009"
+        monkeypatch.setattr(otp_service, "_generate_otp_code", lambda: "654321")
         otp_service.generate_otp(phone)
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is True
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
+        assert otp_service.verify_otp(phone, "654321") is True
+        assert otp_service.verify_otp(phone, "654321") is False
 
     def test_max_attempts_invalidate(self, redis_backed_service, monkeypatch):
         monkeypatch.setattr(settings, "OTP_MAX_ATTEMPTS", 2)
+        monkeypatch.setattr(otp_service, "_generate_otp_code", lambda: "654321")
         phone = "+919810000010"
         otp_service.generate_otp(phone)
         assert otp_service.verify_otp(phone, "000000") is False
         assert otp_service.verify_otp(phone, "000000") is False
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
+        assert otp_service.verify_otp(phone, "654321") is False
 
     def test_resend_limit_persists_in_backend(self, redis_backed_service, monkeypatch):
         monkeypatch.setattr(settings, "OTP_MAX_RESENDS", 2)
@@ -207,20 +211,22 @@ class TestOTPServiceWithRedisBackend:
         with pytest.raises(otp_service.OTPLimitExceeded):
             otp_service.resend_otp(phone)
 
-    def test_expiry_pops_record(self, redis_backed_service):
+    def test_expiry_pops_record(self, redis_backed_service, monkeypatch):
         phone = "+919810000012"
+        monkeypatch.setattr(otp_service, "_generate_otp_code", lambda: "654321")
         otp_service.generate_otp(phone)
         record = redis_backed_service.get(phone)
         record["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
         redis_backed_service.set(phone, record, ttl_seconds=60)
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
+        assert otp_service.verify_otp(phone, "654321") is False
         assert redis_backed_service.get(phone) is None
 
-    def test_clear_otp(self, redis_backed_service):
+    def test_clear_otp(self, redis_backed_service, monkeypatch):
         phone = "+919810000013"
+        monkeypatch.setattr(otp_service, "_generate_otp_code", lambda: "654321")
         otp_service.generate_otp(phone)
         otp_service.clear_otp(phone)
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
+        assert otp_service.verify_otp(phone, "654321") is False
 
 
 # ── Live Redis integration (skipped without Docker/Redis) ────────────────────
@@ -250,10 +256,11 @@ class TestLiveRedis:
             phone = "+919810099999"
             otp_store_module._active_store = store
             otp_store_module._active_uri = self.TEST_DB_URI
-            otp_service.generate_otp(phone)
+            with patch("app.services.otp_service._generate_otp_code", return_value="654321"):
+                otp_service.generate_otp(phone)
             # The record really is in Redis:
             assert store.get(phone) is not None
-            assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is True
+            assert otp_service.verify_otp(phone, "654321") is True
             # Single-use → record gone from Redis:
             assert store.get(phone) is None
         finally:

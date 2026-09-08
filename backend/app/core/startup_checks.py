@@ -6,11 +6,10 @@ application MUST refuse to boot when a critical control is misconfigured
 
 Checks:
     1. JWT_SECRET_KEY is not a known default and has adequate entropy length
-    2. OTP dev mode disabled (no universal ``123456`` backdoor)
-    3. DEBUG off (no verbose error leakage)
-    4. CORS origins explicitly configured — never ``*`` while allowing
+    2. DEBUG off (no verbose error leakage)
+    3. CORS origins explicitly configured — never ``*`` while allowing
        credentials
-    5. Rate limiting enabled (API abuse protection active)
+    4. Rate limiting enabled (API abuse protection active)
 
 Non-production environments only log warnings so local development stays
 frictionless.
@@ -59,14 +58,7 @@ def run_startup_security_checks(settings: Settings) -> list[str]:
             "vulnerable to brute force"
         )
 
-    # 2. OTP dev backdoor ───────────────────────────────────────────────────
-    if settings.OTP_DEV_MODE:
-        findings.append(
-            "CRITICAL: OTP_DEV_MODE is enabled — every phone number authenticates "
-            f"with the universal code '{settings.OTP_DEV_VALUE}'"
-        )
-
-    # 3. Debug mode ─────────────────────────────────────────────────────────
+    # 2. Debug mode ─────────────────────────────────────────────────────────
     if settings.DEBUG:
         findings.append("HIGH: DEBUG is enabled — stack traces leak internals")
 

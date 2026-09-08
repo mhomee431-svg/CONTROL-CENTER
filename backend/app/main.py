@@ -156,6 +156,10 @@ app.include_router(profile.router, prefix=API_PREFIX)
 app.include_router(locations.router, prefix=API_PREFIX)
 app.include_router(home.router, prefix=API_PREFIX)
 
+# Firebase Authentication — new Firebase-based auth endpoints
+from app.api.routes import firebase_auth
+app.include_router(firebase_auth.router, prefix=API_PREFIX)
+
 # Phase 22 — Shopkeeper App (isolated module; customer routes untouched)
 app.include_router(shopkeeper_auth.router, prefix=API_PREFIX)
 app.include_router(shopkeeper_portal.router, prefix=API_PREFIX)
@@ -220,6 +224,10 @@ app.include_router(admin_merchant_onboarding_routes.router, prefix=API_PREFIX)
 # Customer experience (favourites, recently viewed, product share)
 from app.api.routes import customer as customer_routes
 app.include_router(customer_routes.router, prefix=API_PREFIX)
+
+# High-Precision Geospatial Location Engine (PostGIS + Redis + Google Maps)
+from app.api.routes import geospatial as geospatial_routes
+app.include_router(geospatial_routes.router, prefix=API_PREFIX)
 
 # 5. Health / Readiness (no API prefix — infra probes)
 app.include_router(health_router, tags=["Health"])

@@ -35,27 +35,27 @@ now yields `findings: []`.)
 
 | Item | Status | Implementation |
 |------|--------|----------------|
-| Production configuration | ✅ | `.env.<environment>` profiles + fail-fast `startup_checks.py` gate |
-| Environment loading | ✅ | `core/config.py` resolves `HYPERLOCAL_ENV` → `ENVIRONMENT` → `development`; `core/env.py` profile helpers |
-| Database connection pool | ✅ | `database/session.py` — `AsyncAdaptedQueuePool` (size/overflow/timeout/recycle/pre-ping) + sync engine for Alembic/Celery |
-| Redis connection | ✅ | `core/redis.py` — bounded timeouts, exponential-with-jitter retry, health checks; `core/cache.py` circuit-breaker + graceful degradation |
-| S3 integration | ✅ | `core/storage.py` — provider-agnostic (local/S3/Cloudinary), signed PUT/GET, private ACL, typed 503 failures; `media.py` route |
-| Authentication | ✅ | JWT access/refresh with `iss/aud/jti/type` claims, blacklist, session revocation (`core/security.py`, `core/dependencies.py`) |
-| Authorization | ✅ | RBAC `require_permission`/`require_role`, admin sub-role catalog, shop owner/manager scoping |
-| Validation | ✅ | Pydantic v2 schemas with bounds/patterns on every route; `RequestValidationError` → 422 envelope |
-| Rate limiting | ✅ | slowapi, 100/min default + 5/min auth, proxy-aware keying, Redis storage with in-memory fallback |
-| CORS | ✅ | Explicit origin list from settings; wildcard+credentials blocked by startup gate in production |
-| Security headers | ✅ | CSP, HSTS (https-only), X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy |
-| Health endpoints | ✅ | `GET /health` liveness (always 200) |
-| Readiness endpoints | ✅ | `GET /ready` — DB + Redis + PostGIS probes; Docker `HEALTHCHECK` wired to it |
-| Graceful shutdown | ✅ | lifespan disposes DB **and now closes Redis**; compose `stop_grace_period`; Celery `acks_late` + `reject_on_worker_lost` |
-| Background jobs | ✅ | Celery worker + beat: search-index sync/reconcile, popular-search aggregation, notification retry sweep; explicit queues |
-| Transaction management | ✅ | `transaction()` / `unit_of_work()` context managers; dependency-level commit/rollback |
-| Pagination | ✅ | bounded `page`/`limit` + `total`/`has_more` across list routes and the search engine |
-| Filtering | ✅ | category, brand, price range, rating, availability, freshness, status — composed dynamically per request |
-| Sorting | ✅ | `relevance|distance|price_asc|price_desc|rating|availability|freshness|recently_updated` (regex whitelist) |
-| Search | ✅ | `app/search/engine.py` — exact → LIKE → pg_trgm typo tolerance, barcode lookup, search history/events |
-| Geospatial queries | ✅ | PostGIS `ST_DWithin`/`ST_Distance` on geography columns; PostGIS bootstrap + health probe |
+| Production configuration |   | `.env.<environment>` profiles + fail-fast `startup_checks.py` gate |
+| Environment loading |   | `core/config.py` resolves `HYPERLOCAL_ENV` → `ENVIRONMENT` → `development`; `core/env.py` profile helpers |
+| Database connection pool |   | `database/session.py` — `AsyncAdaptedQueuePool` (size/overflow/timeout/recycle/pre-ping) + sync engine for Alembic/Celery |
+| Redis connection |   | `core/redis.py` — bounded timeouts, exponential-with-jitter retry, health checks; `core/cache.py` circuit-breaker + graceful degradation |
+| S3 integration |   | `core/storage.py` — provider-agnostic (local/S3/Cloudinary), signed PUT/GET, private ACL, typed 503 failures; `media.py` route |
+| Authentication |   | JWT access/refresh with `iss/aud/jti/type` claims, blacklist, session revocation (`core/security.py`, `core/dependencies.py`) |
+| Authorization |   | RBAC `require_permission`/`require_role`, admin sub-role catalog, shop owner/manager scoping |
+| Validation |   | Pydantic v2 schemas with bounds/patterns on every route; `RequestValidationError` → 422 envelope |
+| Rate limiting |   | slowapi, 100/min default + 5/min auth, proxy-aware keying, Redis storage with in-memory fallback |
+| CORS |   | Explicit origin list from settings; wildcard+credentials blocked by startup gate in production |
+| Security headers |   | CSP, HSTS (https-only), X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy |
+| Health endpoints |   | `GET /health` liveness (always 200) |
+| Readiness endpoints |   | `GET /ready` — DB + Redis + PostGIS probes; Docker `HEALTHCHECK` wired to it |
+| Graceful shutdown |   | lifespan disposes DB **and now closes Redis**; compose `stop_grace_period`; Celery `acks_late` + `reject_on_worker_lost` |
+| Background jobs |   | Celery worker + beat: search-index sync/reconcile, popular-search aggregation, notification retry sweep; explicit queues |
+| Transaction management |   | `transaction()` / `unit_of_work()` context managers; dependency-level commit/rollback |
+| Pagination |   | bounded `page`/`limit` + `total`/`has_more` across list routes and the search engine |
+| Filtering |   | category, brand, price range, rating, availability, freshness, status — composed dynamically per request |
+| Sorting |   | `relevance|distance|price_asc|price_desc|rating|availability|freshness|recently_updated` (regex whitelist) |
+| Search |   | `app/search/engine.py` — exact → LIKE → pg_trgm typo tolerance, barcode lookup, search history/events |
+| Geospatial queries |   | PostGIS `ST_DWithin`/`ST_Distance` on geography columns; PostGIS bootstrap + health probe |
 
 ## 3. Arbitrary filter/sort/page/search/location combinations
 
@@ -93,6 +93,6 @@ python -m pytest tests -q      # 795 passed, 11 skipped, 0 failed
 #   ENVIRONMENT=production JWT_SECRET_KEY=<48 chars> → run_startup_security_checks → []
 ```
 
-| Error handling | ✅ | `core/exceptions.py` — typed `AppError` hierarchy, IntegrityError→409, SQLAlchemy→500, catch-all→500, all with request IDs |
-| Structured logging | ✅ | `core/logging.py` — JSON formatter, contextvars enrichment, rotating file option |
-| Request IDs | ✅ | `core/middleware.py` — `X-Request-ID` / `X-Correlation-ID` generated, echoed, injected into logs |
+| Error handling |   | `core/exceptions.py` — typed `AppError` hierarchy, IntegrityError→409, SQLAlchemy→500, catch-all→500, all with request IDs |
+| Structured logging |   | `core/logging.py` — JSON formatter, contextvars enrichment, rotating file option |
+| Request IDs |   | `core/middleware.py` — `X-Request-ID` / `X-Correlation-ID` generated, echoed, injected into logs |

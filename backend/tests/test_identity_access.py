@@ -45,46 +45,56 @@ def run_async(coro):
 
 # ── OTP Service ─────────────────────────────────────────────────────────
 class TestOTPService:
+    FIXED_OTP = "654321"
+
     def setup_method(self):
         from app.services import otp_service
         otp_service.clear_all_otps()
 
+    def _generate(self, phone: str) -> dict:
+        """generate_otp with a deterministic code (real codes are random)."""
+        from app.services import otp_service
+        from app.services.otp_service import generate_otp
+
+        with patch("app.services.otp_service._generate_otp_code", return_value=self.FIXED_OTP):
+            return generate_otp(phone)
+
     def test_generate_and_verify_otp(self):
-        from app.services.otp_service import generate_otp, verify_otp
+        from app.services.otp_service import verify_otp
 
-        result = generate_otp("+919999999999")
+        result = self._generate("+919999999999")
         assert result["expires_in"] > 0
-        assert "dev_otp" in result  # dev mode
+        # Dev mode removed — the raw code is never returned in the response.
+        assert "dev_otp" not in result
+        assert "otp" not in result
 
-        assert verify_otp("+919999999999", result["dev_otp"]) is True
+        assert verify_otp("+919999999999", self.FIXED_OTP) is True
 
     def test_invalid_otp(self):
-        from app.services.otp_service import generate_otp, verify_otp
+        from app.services.otp_service import verify_otp
 
-        generate_otp("+919999999998")
+        self._generate("+919999999998")
         assert verify_otp("+919999999998", "000000") is False
 
     def test_otp_single_use(self):
-        from app.services.otp_service import generate_otp, verify_otp
+        from app.services.otp_service import verify_otp
 
-        result = generate_otp("+919999999997")
-        otp = result["dev_otp"]
-        assert verify_otp("+919999999997", otp) is True
+        self._generate("+919999999997")
+        assert verify_otp("+919999999997", self.FIXED_OTP) is True
         # Second use should fail (single-use)
-        assert verify_otp("+919999999997", otp) is False
+        assert verify_otp("+919999999997", self.FIXED_OTP) is False
 
     def test_otp_max_attempts(self):
-        from app.services.otp_service import generate_otp, verify_otp
+        from app.services.otp_service import verify_otp
 
-        result = generate_otp("+919999999996")
-        otp = result["dev_otp"]
+        self._generate("+919999999996")
 
         # Exhaust all attempts with wrong OTP
         for _ in range(settings.OTP_MAX_ATTEMPTS):
             assert verify_otp("+919999999996", "111111") is False
 
         # Even correct OTP fails after max attempts
-        assert verify_otp("+919999999996", otp) is False
+        assert verify_otp("+919999999996", self.FIXED_OTP) is False
 
     def test_otp_expiry(self):
         from app.services.otp_service import verify_otp
@@ -121,11 +131,11 @@ class TestOTPService:
             generate_otp("+919999999994")
 
     def test_phone_normalization(self):
-        from app.services.otp_service import generate_otp, verify_otp
+        from app.services.otp_service import verify_otp
 
         # Same phone with and without + should match
-        result = generate_otp("919999999993")
-        assert verify_otp("+919999999993", result["dev_otp"]) is True
+        self._generate("919999999993")
+        assert verify_otp("+919999999993", self.FIXED_OTP) is True
 
 
 # ── Security / Tokens ──────────────────────────────────────────────────
@@ -401,96 +411,122 @@ class TestRoleSeeding:
 
 # ── Auth Routes (integration-style with mocked services) ───────────────
 class TestAuthRoutes:
-    def test_send_otp_route(self):
+    FIREBASE_TOKEN = "test-firebase-id-token-0000000000000000000000000"
+
+    def _firebase_payload(self, **overrides):
+        from app.schemas.auth import CustomerFirebaseAuthRequest
+
+        data = {
+            "firebase_id_token": self.FIREBASE_TOKEN,
+            "device_id": "test-device",
+            "device_name": "pytest",
+            "device_type": "web",
+        }
+        data.update(overrides)
+        return CustomerFirebaseAuthRequest(**data)
+
+    def _issue_mock(self):
+        return {
+            "access_token": "token",
+            "refresh_token": "refresh",
+            "session_id": "abc",
+            "expires_in": 3600,
+            "user": {"id": 1, "phone_number": "+919999999999", "role": "customer"},
+        }
+
+    def test_send_otp_route_acknowledges(self):
         from app.api.routes.auth import send_otp
         from app.schemas.auth import SendOTPRequest
 
-        with patch("app.api.routes.auth.generate_otp") as mock_gen:
-            mock_gen.return_value = {"expires_in": 300, "dev_otp": "123456"}
-            mock_request = MagicMock()
+        # OTP delivery is client-side (Firebase); the endpoint only acknowledges.
+        response = run_async(
+            send_otp(SendOTPRequest(phone_number="+919999999999"), MagicMock())
+        )
 
-            response = run_async(send_otp(SendOTPRequest(phone_number="+919999999999"), mock_request))
+        body = response.body
+        assert b"success" in body
+        assert b"firebase" in body
 
-            # unwrap JSONResponse
-            body = response.body
-            assert b"success" in body
-            assert b"123456" in body  # dev mode returns OTP
-
-    def test_send_otp_route_cooldown(self):
-        from app.api.routes.auth import send_otp
-        from app.schemas.auth import SendOTPRequest
-        from app.services.otp_service import OTPCooldownError
-
-        with patch("app.api.routes.auth.generate_otp") as mock_gen:
-            mock_gen.side_effect = OTPCooldownError("Wait", 30)
-            mock_request = MagicMock()
-
-            response = run_async(send_otp(SendOTPRequest(phone_number="+919999999999"), mock_request))
-            assert response.status_code == 429
-
-    def test_send_otp_route_limit(self):
-        from app.api.routes.auth import send_otp
-        from app.schemas.auth import SendOTPRequest
-        from app.services.otp_service import OTPLimitExceeded
-
-        with patch("app.api.routes.auth.generate_otp") as mock_gen:
-            mock_gen.side_effect = OTPLimitExceeded("Limit reached", None)
-            mock_request = MagicMock()
-
-            response = run_async(send_otp(SendOTPRequest(phone_number="+919999999999"), mock_request))
-            assert response.status_code == 429
-
-    def test_verify_otp_route_invalid(self):
-        from app.api.routes.auth import verify_otp_endpoint
-        from app.schemas.auth import VerifyOTPRequest
-
-        with patch("app.api.routes.auth.verify_otp") as mock_verify:
-            mock_verify.return_value = False
-
-            response = run_async(verify_otp_endpoint(
-                VerifyOTPRequest(phone_number="+919999999999", otp="000000"),
-                request=MagicMock(),
-                db=MagicMock(),
-            ))
-            # unwrap
-            assert response.status_code == 400
-
-    def test_verify_otp_route_new_user(self):
-        from app.api.routes.auth import verify_otp_endpoint
-        from app.schemas.auth import VerifyOTPRequest
-        from app.services.fast2sms_otp_service import VERIFY_VALID
+    def test_firebase_login_new_account(self):
+        from app.api.routes.auth import firebase_login
 
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
 
-        mock_role = MagicMock()
-        mock_role.id = 1
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_role  # default role
-
-        mock_user = MagicMock()
-        mock_user.id = 1
-        mock_user.role = mock_role
-        mock_user.role.name = "customer"
-
-        with patch("app.api.routes.auth.verify_otp", return_value=VERIFY_VALID), \
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"), \
              patch("app.api.routes.auth.issue_tokens") as mock_issue:
 
-            mock_issue.return_value = {
-                "access_token": "token",
-                "refresh_token": "refresh",
-                "session_id": "abc",
-                "expires_in": 3600,
-                "user": {"id": 1, "phone_number": "+919999999999", "role": "customer"},
-            }
-            mock_request = MagicMock()
-            mock_request.client.host = "127.0.0.1"
-
-            response = run_async(verify_otp_endpoint(
-                VerifyOTPRequest(phone_number="+919999999999", otp="123456"),
-                request=mock_request,
+            mock_issue.return_value = self._issue_mock()
+            response = run_async(firebase_login(
+                self._firebase_payload(name="Aarav"),
+                request=MagicMock(),
                 db=mock_db,
             ))
-            assert response.status_code == 200
+        assert response.status_code == 200
+        assert b"is_new_account" in response.body
+
+    def test_firebase_login_new_account_requires_name(self):
+        from app.api.routes.auth import firebase_login
+
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
+
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"):
+            response = run_async(firebase_login(
+                self._firebase_payload(),  # no name
+                request=MagicMock(),
+                db=mock_db,
+            ))
+        assert response.status_code == 400
+
+    def test_verify_otp_route_invalid_token(self):
+        from app.api.routes.auth import verify_otp_endpoint
+        from app.services.firebase_verification import FirebaseVerificationError
+
+        with patch(
+            "app.api.routes.auth.verify_firebase_id_token",
+            side_effect=FirebaseVerificationError("Invalid token"),
+        ):
+            response = run_async(verify_otp_endpoint(
+                self._firebase_payload(),
+                request=MagicMock(),
+                db=MagicMock(),
+            ))
+        assert response.status_code == 401
+
+    def test_verify_otp_route_account_not_found(self):
+        from app.api.routes.auth import verify_otp_endpoint
+
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
+
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"):
+            response = run_async(verify_otp_endpoint(
+                self._firebase_payload(),
+                request=MagicMock(),
+                db=mock_db,
+            ))
+        assert response.status_code == 404
+
+    def test_verify_otp_route_success(self):
+        from app.api.routes.auth import verify_otp_endpoint
+
+        mock_user = MagicMock()
+        mock_user.customer_profile = MagicMock()  # profile exists on re-login
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"), \
+             patch("app.api.routes.auth.is_account_allowed", return_value=True), \
+             patch("app.api.routes.auth.issue_tokens") as mock_issue:
+
+            mock_issue.return_value = self._issue_mock()
+            response = run_async(verify_otp_endpoint(
+                self._firebase_payload(),
+                request=MagicMock(),
+                db=mock_db,
+            ))
+        assert response.status_code == 200
 
     def test_refresh_token_route(self):
         from app.api.routes.auth import refresh_token

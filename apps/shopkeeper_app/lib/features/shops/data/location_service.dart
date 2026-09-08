@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'geocoding_service.dart';
@@ -159,20 +160,26 @@ class LocationAcquisitionEngine {
   const LocationAcquisitionEngine._();
 
   /// Selects the best valid reading:
-  ///   1. discard invalid coordinates, mock fixes and obviously poor readings,
+  ///   1. discard invalid coordinates and obviously poor readings,
   ///   2. smallest accuracy radius wins,
   ///   3. ties broken by the most recent timestamp.
-  static GpsReading? bestOf(Iterable<GpsReading> readings) {
-    final valid = readings
+  ///
+  /// When [includeMock] is false (default), mock-flagged readings are
+  /// excluded. If that leaves no candidates, pass [includeMock: true] to
+  /// fall back to mock readings rather than returning nothing.
+  static GpsReading? bestOf(Iterable<GpsReading> readings, {bool includeMock = false}) {
+    var valid = readings
         .where((r) => r.hasValidCoordinates)
-        .where((r) => !r.isMockOrUnknown)
         .where((r) =>
             r.accuracy == null ||
-            r.accuracy! <= LocationAccuracyConfig.discardAboveMeters)
-        .toList(growable: false);
-    if (valid.isEmpty) return null;
-    GpsReading best = valid.first;
-    for (final r in valid.skip(1)) {
+            r.accuracy! <= LocationAccuracyConfig.discardAboveMeters);
+    if (!includeMock) {
+      valid = valid.where((r) => !r.isMockOrUnknown);
+    }
+    final list = valid.toList(growable: false);
+    if (list.isEmpty) return null;
+    GpsReading best = list.first;
+    for (final r in list.skip(1)) {
       final bestAcc = best.accuracy ?? double.infinity;
       final acc = r.accuracy ?? double.infinity;
       if (acc < bestAcc ||
@@ -203,9 +210,12 @@ class GeolocatorPositionSource implements PositionSource {
   @override
   Future<LocationPermissionStatus> resolvePermission() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    debugPrint('[LOC] serviceEnabled=$serviceEnabled');
     var permission = await Geolocator.checkPermission();
+    debugPrint('[LOC] checkPermission=$permission');
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      debugPrint('[LOC] requestPermission=$permission');
     }
     return LocationPermissionStatus(
       serviceEnabled: serviceEnabled,
@@ -215,13 +225,38 @@ class GeolocatorPositionSource implements PositionSource {
 
   @override
   Future<GpsReading> readOnce({Duration? timeLimit}) async {
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: LocationSettings(
-        accuracy: LocationAccuracyConfig.geolocatorAccuracy,
-        timeLimit: timeLimit ?? LocationAccuracyConfig.singleReadingTimeLimit,
-      ),
-    );
-    return GpsReading.fromPosition(position);
+    // Fast path: try last-known position first (instant, no GPS wait).
+    try {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        final age = DateTime.now().difference(lastKnown.timestamp);
+        // Use last-known if it's fresh enough (< 2 minutes).
+        if (age.inMinutes < 2) {
+          debugPrint('[LOC] Using last-known position (${age.inSeconds}s old)');
+          return GpsReading.fromPosition(lastKnown);
+        }
+        debugPrint('[LOC] Last-known too old (${age.inMinutes}min), fetching fresh...');
+      } else {
+        debugPrint('[LOC] No last-known position, fetching fresh...');
+      }
+    } catch (e) {
+      debugPrint('[LOC] getLastKnownPosition error: $e');
+    }
+
+    // Slow path: get a fresh high-accuracy GPS fix.
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: LocationSettings(
+          accuracy: LocationAccuracyConfig.geolocatorAccuracy,
+          timeLimit: timeLimit ?? LocationAccuracyConfig.singleReadingTimeLimit,
+        ),
+      );
+      debugPrint('[LOC] Fresh GPS fix: ${position.latitude}, ${position.longitude} (acc: ${position.accuracy}m)');
+      return GpsReading.fromPosition(position);
+    } catch (e) {
+      debugPrint('[LOC] getCurrentPosition error: $e');
+      rethrow;
+    }
   }
 
   @override
@@ -271,6 +306,8 @@ class LocationService {
     final readings = <GpsReading>[];
     GpsReading? best;
 
+    debugPrint('[LOC] acquireBestLocation started (timeout: ${effectiveTimeout.inSeconds}s)');
+
     // STEP 1 — immediate single high-accuracy fix (fast path).
     try {
       final first = await _source
@@ -279,14 +316,15 @@ class LocationService {
       readings.add(first);
       best = LocationAcquisitionEngine.bestOf(readings);
       onReading?.call(first);
+      debugPrint('[LOC] STEP 1: got reading #${readings.length}, best=${best != null}');
       if (best != null && LocationAcquisitionEngine.reachedTarget(best)) {
         return LocationAcquisition(
             best: best, readings: readings, timedOut: false);
       }
     } on TimeoutException {
-      // fall through to the streaming window below
-    } catch (_) {
-      // fall through to the streaming window below
+      debugPrint('[LOC] STEP 1: timed out');
+    } catch (e) {
+      debugPrint('[LOC] STEP 1: error: $e');
     }
 
     // STEP 2 — collect a short stream of readings and improve accuracy.
@@ -300,15 +338,25 @@ class LocationService {
         readings.add(reading);
         best = LocationAcquisitionEngine.bestOf(readings);
         onReading?.call(reading);
+        debugPrint('[LOC] STEP 2: got reading #${readings.length}, best=${best != null}');
         if (best != null && LocationAcquisitionEngine.reachedTarget(best)) {
           return LocationAcquisition(
               best: best, readings: readings, timedOut: false);
         }
       }
-    } catch (_) {
-      // stream unavailable — return whatever we have below
+      debugPrint('[LOC] STEP 2: stream ended with ${readings.length} readings');
+    } catch (e) {
+      debugPrint('[LOC] STEP 2: error: $e');
     }
 
+    // FALLBACK — if no clean (non-mock) readings were found, try again
+    // including mock-flagged readings rather than returning nothing.
+    if (best == null && readings.isNotEmpty) {
+      best = LocationAcquisitionEngine.bestOf(readings, includeMock: true);
+      debugPrint('[LOC] FALLBACK: using mock readings, best=${best != null}');
+    }
+
+    debugPrint('[LOC] acquireBestLocation ended: best=${best != null}, readings=${readings.length}');
     return LocationAcquisition(
       best: best,
       readings: readings,

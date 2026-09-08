@@ -45,7 +45,8 @@ REDIS_URL = os.getenv("PHASE13_REDIS_URL")
 S3_BUCKET = os.getenv("PHASE13_S3_BUCKET")
 S3_KEY_PREFIX = os.getenv("PHASE13_S3_KEY_PREFIX", "phase13-verify").strip("/")
 S3_REGION = os.getenv("PHASE13_S3_REGION", "ap-south-1")
-OTP_CODE = os.getenv("PHASE13_OTP_CODE")
+OTP_CODE = os.getenv("PHASE13_OTP_CODE")  # legacy; unused since Firebase OTP migration
+FIREBASE_TOKEN = os.getenv("PHASE13_FIREBASE_TOKEN")
 _DELAY = int(os.getenv("PHASE13_DELAY_MS", "150"))
 DESTRUCTIVE = os.getenv("PHASE13_DESTRUCTIVE", "0") in  ("1", "true", "yes")
 AUTH_EXTRA = os.getenv("PHASE13_AUTH_EXTRA", "0") in  ("1", "true", "yes")
@@ -66,6 +67,7 @@ CUSTOMER_AUTH_PATHS = {
     "send": "/api/v1/auth/send-otp",
     "register": "/api/v1/auth/register",
     "verify": "/api/v1/auth/verify-otp",
+    "firebase": "/api/v1/auth/firebase-login",
 }
 SHOPKEEPER_AUTH_PATHS = {
     "send": "/api/v1/shopkeeper/auth/send-otp",
@@ -120,40 +122,29 @@ def assert_err(r, *, statuses=None):
     return body
 
 
-def _send_otp(http, phone, *, shopkeeper=False):
-    path = SHOPKEEPER_AUTH_PATHS["send"] if shopkeeper else CUSTOMER_AUTH_PATHS["send"]
-    r = _req(http, "POST", path, json_body={"phone_number": phone})
-    data = assert_ok(r)
-    dev = (data or {}).get("dev_otp") if isinstance(data,dict) else None
-    if dev:
-        return dev
-    return OTP_CODE
-
-
-def _otp_value(http, phone, *, shopkeeper=False):
-    dev = _send_otp(http, phone, shopkeeper=shopkeeper)
-    if dev:
-        return dev
-    raise AuthUnavailable("no dev_otp and PHASE13_OTP_CODE unset — cannot drive live auth flow")
-
-
 def _login_customer(http, phone, *, register=False):
-    otp = _otp_value(http, phone)
+    """Drive the customer auth flow (register flag kept for call-site compat).
+
+    Customer auth is Firebase-based: the Flutter app completes the phone-OTP
+    flow client-side and sends the resulting Firebase ID token. For live
+    verification a real token must be injected with ``PHASE13_FIREBASE_TOKEN``;
+    without it the dependent tests are skipped with a precise reason.
+    """
+    if not FIREBASE_TOKEN:
+        raise AuthUnavailable(
+            "PHASE13_FIREBASE_TOKEN unset — customer auth now requires a "
+            "Firebase ID token (no dev OTP / Fast2SMS backdoor exists)"
+        )
     payload = {
-        "phone_number": phone,
-        "otp": otp,
+        "firebase_id_token": FIREBASE_TOKEN,
         "device_id": str(uuid.uuid4()),
         "device_name": "phase13-verifier",
         "device_type": "web",
         "platform": "phase13-verify",
         "app_version": "1.0.0",
     }
-    path = CUSTOMER_AUTH_PATHS["register"] if register else CUSTOMER_AUTH_PATHS["verify"]
+    path = CUSTOMER_AUTH_PATHS["firebase"]
     r = _req(http, "POST", path, json_body=payload)
-    if r.status_code == 409 and register:
-        otp = _otp_value(http, phone)
-        payload["otp"] = otp
-        r = _req(http, "POST", CUSTOMER_AUTH_PATHS["verify"], json_body=payload)
     if r.status_code not in _OK:
         raise AuthUnavailable(f"{path} -> {r.status_code}: {r.text[:250]}")
     data = assert_ok(r)

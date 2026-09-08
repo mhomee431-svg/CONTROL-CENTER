@@ -27,6 +27,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
@@ -183,7 +184,6 @@ def _prod_settings(**overrides) -> Settings:
     base = dict(
         ENVIRONMENT="production",
         JWT_SECRET_KEY="x" * 48,
-        OTP_DEV_MODE=False,
         DEBUG=False,
         CORS_ORIGINS="https://app.example.com",
         RATE_LIMIT_ENABLED=True,
@@ -209,10 +209,6 @@ class TestStartupSecurityGate:
     def test_short_jwt_secret_blocks_production(self):
         with pytest.raises(ProductionSecurityError, match="brute force"):
             run_startup_security_checks(_prod_settings(JWT_SECRET_KEY="short"))
-
-    def test_otp_dev_backdoor_blocks_production(self):
-        with pytest.raises(ProductionSecurityError, match="OTP_DEV_MODE"):
-            run_startup_security_checks(_prod_settings(OTP_DEV_MODE=True))
 
     def test_cors_wildcard_blocks_production(self):
         with pytest.raises(ProductionSecurityError, match="CORS"):
@@ -259,10 +255,9 @@ class TestStartupSecurityGate:
         insecure = Settings(
             ENVIRONMENT="development",
             JWT_SECRET_KEY="change-me-in-production",
-            OTP_DEV_MODE=True,
         )
         findings = run_startup_security_checks(insecure)
-        assert len(findings) >= 2  # warned, not raised
+        assert len(findings) >= 1  # warned, not raised
 
 
 # ── Secure uploads ───────────────────────────────────────────────────────────
@@ -401,34 +396,40 @@ class TestTokenSecurity:
 
 # ── OTP protection ───────────────────────────────────────────────────────────
 class TestOTPProtection:
+    FIXED_OTP = "654321"
+
     def setup_method(self):
         otp_service.clear_all_otps()
 
+    def _generate(self, phone: str) -> None:
+        """generate_otp with a deterministic code (real codes are random)."""
+        with patch("app.services.otp_service._generate_otp_code", return_value=self.FIXED_OTP):
+            otp_service.generate_otp(phone)
+
     def test_brute_force_lockout(self):
         phone = "+9198765000042"
-        otp_service.generate_otp(phone)
-        real_otp = settings.OTP_DEV_VALUE  # dev mode returns a fixed code
+        self._generate(phone)
         for _ in range(settings.OTP_MAX_ATTEMPTS):
             assert otp_service.verify_otp(phone, "000000") is False
         # Even the CORRECT code is now rejected — record destroyed on lockout.
-        assert otp_service.verify_otp(phone, real_otp) is False
+        assert otp_service.verify_otp(phone, self.FIXED_OTP) is False
 
     def test_expired_otp_rejected(self):
         from app.services.otp_store import get_otp_store
 
         phone = "+9198765000043"
-        otp_service.generate_otp(phone)
+        self._generate(phone)
         store = get_otp_store(settings.OTP_STORAGE_URI)
         record = store.get(phone)
         record["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
         store.set(phone, record, ttl_seconds=60)
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
+        assert otp_service.verify_otp(phone, self.FIXED_OTP) is False
 
     def test_otp_is_single_use(self):
         phone = "+9198765000044"
-        otp_service.generate_otp(phone)
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is True
-        assert otp_service.verify_otp(phone, settings.OTP_DEV_VALUE) is False
+        self._generate(phone)
+        assert otp_service.verify_otp(phone, self.FIXED_OTP) is True
+        assert otp_service.verify_otp(phone, self.FIXED_OTP) is False
 
 
 # ── Access control / IDOR ────────────────────────────────────────────────────

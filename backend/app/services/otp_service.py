@@ -27,8 +27,6 @@ def _hash_otp(otp: str, salt: str) -> str:
 
 def _generate_otp_code() -> str:
     """Generate a cryptographically-secure numeric OTP."""
-    if settings.OTP_DEV_MODE:
-        return settings.OTP_DEV_VALUE
     length = settings.OTP_LENGTH
     return "".join(str(secrets.randbelow(10)) for _ in range(length))
 
@@ -42,19 +40,14 @@ def _ensure_phone_normalized(phone_number: str) -> str:
 
 
 def generate_otp(phone_number: str) -> dict:
-    """Generate and store an OTP for the phone number, then DELIVER it.
+    """Generate and store an OTP for the phone number.
 
-    Delivery is handled by :func:`app.services.fast2sms.send_otp_sms`, which
-    respects ``OTP_MODE``:
-      - ``mock`` → prints the code to the server console (₹0 testing).
-      - ``live`` → sends a real SMS through Fast2SMS (balance debited).
+    SMS delivery is handled client-side by Firebase Phone Auth; this legacy
+    Redis-backed service no longer sends any SMS.
 
     Returns a dict with:
-      - otp:        the raw OTP (only returned in dev mode)
       - expires_in: seconds until expiry
     """
-    from app.services.fast2sms import send_otp_sms  # local import avoids cycles
-
     phone = _ensure_phone_normalized(phone_number)
     now = datetime.now(timezone.utc)
     store = _store()
@@ -93,30 +86,14 @@ def generate_otp(phone_number: str) -> dict:
         "last_resend_at": now,
         "created_at": now,
     }
-    # TTL gets a small buffer beyond the logical expiry so verify_otp can
-    # still distinguish "expired" from "never issued" in its response path.
     ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60 + 60
     store.set(phone, record, ttl_seconds)
 
-    # Deliver the code. Mock mode prints it to the console; live mode sends a
-    # real SMS via Fast2SMS. On live-mode failure the exception propagates and
-    # the stored record is dropped so a code the user never received cannot be
-    # redeemed later.
-    try:
-        send_otp_sms(phone, otp)
-    except Exception:
-        store.pop(phone)
-        raise
-
     logger.info("OTP generated for %s (expires in %s minutes)", phone, settings.OTP_EXPIRE_MINUTES)
 
-    result: dict = {
+    return {
         "expires_in": settings.OTP_EXPIRE_MINUTES * 60,
     }
-    if settings.OTP_DEV_MODE:
-        result["dev_otp"] = otp
-
-    return result
 
 
 def verify_otp(phone_number: str, otp: str) -> bool:

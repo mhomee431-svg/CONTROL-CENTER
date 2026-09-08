@@ -17,6 +17,12 @@ __pycache__/
 *.mobileprovision
 **/*.mobileprovision
 
+# GCP service account keys (NEVER commit)
+config/gcp-key.json
+**/gcp-key.json
+*gcp*.json
+**/*gcp*.json
+
 # Firebase service-account keys (NEVER commit)
 *firebase-adminsdk*.json
 **/*firebase-adminsdk*.json

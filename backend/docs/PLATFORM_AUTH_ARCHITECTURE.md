@@ -9,11 +9,11 @@ model with cost-optimised SMS (Fast2SMS) and Google OAuth.
 | Activity | Auth required? |
 |---|---|
 | Browse shops, products, listings, search | ❌ No (100% public) |
-| View contact / Call Now | ✅ JWT (phone-OTP **or** Google login) |
-| Send message / chat to a shop | ✅ JWT |
-| Give rating & review (with a review message) | ✅ JWT |
-| Shopkeeper registers/adds a shop | ✅ Compulsory phone-OTP verification |
-| Shopkeeper views inbound leads | ✅ JWT + own/manage scope |
+| View contact / Call Now |  JWT (phone-OTP **or** Google login) |
+| Send message / chat to a shop |  JWT |
+| Give rating & review (with a review message) |  JWT |
+| Shopkeeper registers/adds a shop |  Compulsory phone-OTP verification |
+| Shopkeeper views inbound leads |  JWT + own/manage scope |
 
 Browsing never requires login. The moment a customer performs a restricted
 action (`POST /api/v1/interactions/action`), the JWT gate fires: an anonymous

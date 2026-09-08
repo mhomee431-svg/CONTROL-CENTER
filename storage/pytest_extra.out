@@ -1,0 +1,3141 @@
+..................................sssssssssss...F....................... [ 96%]
+...                                                                      [100%]
+================================== FAILURES ===================================
+___________________ test_git_history_has_no_untracked_leaks ___________________
+
+    def test_git_history_has_no_untracked_leaks():
+        """Guarantee 1b: no NEW secrets in history.
+    
+        Two documented local-only incidents exist in Cline checkpoint snapshots
+        (never pushed to origin). Any OTHER historical finding is a regression.
+        """
+        proc = _run_scanner("--history", "--json")
+        payload = json.loads(proc.stdout)
+        unexpected = [
+            f for f in payload["findings"]
+            if not f["path"].startswith(KNOWN_LOCAL_INCIDENTS)
+        ]
+>       assert unexpected == [], json.dumps(unexpected, indent=2)
+E       AssertionError: [
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "hyperlocal-prod-key.pem",
+E             "line": 1,
+E             "detector": "private-key-block",
+E             "description": "Embedded private key material",
+E             "masked_line": "[REDACTED]"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "hyperlocal-prod-key.pem",
+E             "line": 1,
+E             "detector": "private-key-block",
+E             "description": "Embedded private key material",
+E             "masked_line": "[REDACTED]"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu_nominatim.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_custo\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_emu.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d emulator-5554 --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\stora\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome_debug.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome_debug.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > c:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=MAPS_API_KEY=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/_run_chrome.cmd",
+E             "line": 3,
+E             "detector": "generic-secret-assignment",
+E             "description": "Hardcoded secret-like assignment (entropy heuristic)",
+E             "masked_line": "\"C:\\flutter\\bin\\flutter.bat\" run -d chrome --dart-define=[REDACTED] > C:\\Users\\akash\\OneDrive\\Documents\\hyperlocal_customer_app\\storage\\chro\u2026"
+E           },
+E           {
+E             "source": "history",
+E             "path": "storage/chrome_run.log.err",
+E             "line": 1,
+E             "detector": "google-api-key",
+E             "description": "Google / Firebase API key",
+E             "masked_line": "Target file \"[REDACTED]\" not found."
+E           },
+E           {
+E             "source": "history",
+E             "path": "Backend/hyperlocal--discovery-firebase-adminsdk-fbsvc-3e2c39a88e.json",
+E             "line": 2,
+E             "detector": "gcp-service-account-json",
+E             "description": "GCP service-account JSON (private key embedded)",
+E             "masked_line": "[REDACTED],"
+E           },
+E           {
+E             "source": "history",
+E             "path": "Backend/hyperlocal--discovery-firebase-adminsdk-fbsvc-3e2c39a88e.json",
+E             "line": 5,
+E             "detector": "private-key-block",
+E             "description": "Embedded private key material",
+E             "masked_line": "\"private_key\": \"[REDACTED]\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC0kepfso8irsLg\\nr0G+LbjKAgBygJWiNJgqQOkyoQ/iAQoGPNJLch5E06tJ+B\u2026"
+E           }
+E         ]
+E       assert [{'source': '...y', ...}, ...] == []
+E         
+E         Left contains 389 more items, first extra item: {'source': 'history', 'path': 'storage/_run_chrome.cmd', 'line': 3, 'detector': 'google-api-key', ...}
+E         Use -v to get more diff
+
+tests\test_secrets_management_phase8.py:96: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_secrets_management_phase8.py::test_git_history_has_no_untracked_leaks
+1 failed, 63 passed, 11 skipped in 403.67s (0:06:43)

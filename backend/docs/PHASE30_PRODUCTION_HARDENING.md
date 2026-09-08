@@ -44,42 +44,42 @@ history with `git filter-repo` / BFG. See §9 (accepted risks).
 
 | Area | Status | Where implemented / tested |
 |------|--------|---------------------------|
-| Authentication security | ✅ | JWT access/refresh, opaque hashed refresh tokens, session revocation (`app/core/security.py`, `app/services/auth_service.py`) |
-| Authorization (RBAC) | ✅ | Role+permission checks (`require_permission`, `require_role`, `has_permission`) + admin sub-role catalog (`app/core/admin_permissions.py`) |
-| Token security | ✅ | `iss`/`aud`/`jti`/`type` claims, token-type validation, blacklist, refresh rotation + **reuse detection** (revokes session) (`test_identity_access.py::TestSecurityTokens/TestAuthService`) |
-| OTP protection | ✅ | CSPRNG OTP, salted HMAC storage (never raw), expiry, max-attempt lockout, single-use, resend cooldown/limits, constant-time compare (`app/services/otp_service.py`) |
-| Rate limiting | ✅ | slowapi, stricter auth limit (5/min vs 100/min default), proxy-aware client keying (`app/core/rate_limit.py`, `tests::TestRateLimiting`) |
-| Input validation | ✅ | Pydantic schemas with bounds/patterns; query params clamped across routes |
-| SQL injection prevention | ✅ | SQLAlchemy ORM + parameterized queries end-to-end; no string-concatenated SQL |
-| Secure file uploads | ✅ | Filename sanitization, size caps, extension allow-list, magic-byte sniffing (`app/core/upload_security.py`, `tests::TestUploadSecurity`) |
-| Excel validation | ✅ | Row-level validation, header aliasing, numeric/barcode/availability parsing, never trusts cells (`app/services/excel_import_service.py`) |
-| Barcode validation | ✅ | GS1 check-digit, allowed lengths 8/12/13/14, numeric-only (`app/services/barcode_intake_service.py`) |
-| API abuse protection | ✅ | Global + auth rate limits; startup gate forces `RATE_LIMIT_ENABLED=true` in production |
-| CORS | ✅ | Explicit allow-list; **startup gate blocks `*` + credentials in production** |
-| Secrets management | ⚠️→✅ | **Fixed this phase** (see §1). No secrets in tracked files; `.env.example` retained |
-| Sensitive data handling | ✅ | Analytics `sanitize_props` strips PII keys; refresh tokens and OTPs hashed |
-| Secure storage | ✅ | Provider abstraction (local/S3/Cloudinary), `S3_ACL=private` in production, random ids |
-| Admin protection | ✅ | Admin-family role gate + explicit `(resource, action)` on every admin route (`require_admin_permission`) |
-| Audit logging | ✅ | Hash-chained immutable trail, no self-modifying trails, admin-gated reads (`audit_service.py`, `test_analytics_audit_phase29.py`) |
-| IDOR / broken access control | ✅ | `resolve_shop_access` on every shopkeeper route (403); `require_shop_access/owner` (`dependencies.py`, `TestShopOwnership`) |
-| Privilege escalation | ✅ | Sub-roles are strict subsets; admin wildcard is the only full-role; explicit per-op checks |
-| Mass assignment | ✅ | Pydantic request models whitelist fields; schema fuzz tests (`tests::TestMassAssignment`) |
-| Unsafe file upload | ✅ | Magic-byte sniffing blocks renamed/polyglot executables |
-| Excessive API access | ✅ | Rate limiting + pagination caps |
+| Authentication security |  | JWT access/refresh, opaque hashed refresh tokens, session revocation (`app/core/security.py`, `app/services/auth_service.py`) |
+| Authorization (RBAC) |  | Role+permission checks (`require_permission`, `require_role`, `has_permission`) + admin sub-role catalog (`app/core/admin_permissions.py`) |
+| Token security |  | `iss`/`aud`/`jti`/`type` claims, token-type validation, blacklist, refresh rotation + **reuse detection** (revokes session) (`test_identity_access.py::TestSecurityTokens/TestAuthService`) |
+| OTP protection |  | CSPRNG OTP, salted HMAC storage (never raw), expiry, max-attempt lockout, single-use, resend cooldown/limits, constant-time compare (`app/services/otp_service.py`) |
+| Rate limiting |  | slowapi, stricter auth limit (5/min vs 100/min default), proxy-aware client keying (`app/core/rate_limit.py`, `tests::TestRateLimiting`) |
+| Input validation |  | Pydantic schemas with bounds/patterns; query params clamped across routes |
+| SQL injection prevention |  | SQLAlchemy ORM + parameterized queries end-to-end; no string-concatenated SQL |
+| Secure file uploads |  | Filename sanitization, size caps, extension allow-list, magic-byte sniffing (`app/core/upload_security.py`, `tests::TestUploadSecurity`) |
+| Excel validation |  | Row-level validation, header aliasing, numeric/barcode/availability parsing, never trusts cells (`app/services/excel_import_service.py`) |
+| Barcode validation |  | GS1 check-digit, allowed lengths 8/12/13/14, numeric-only (`app/services/barcode_intake_service.py`) |
+| API abuse protection |  | Global + auth rate limits; startup gate forces `RATE_LIMIT_ENABLED=true` in production |
+| CORS |  | Explicit allow-list; **startup gate blocks `*` + credentials in production** |
+| Secrets management | ⚠️→ | **Fixed this phase** (see §1). No secrets in tracked files; `.env.example` retained |
+| Sensitive data handling |  | Analytics `sanitize_props` strips PII keys; refresh tokens and OTPs hashed |
+| Secure storage |  | Provider abstraction (local/S3/Cloudinary), `S3_ACL=private` in production, random ids |
+| Admin protection |  | Admin-family role gate + explicit `(resource, action)` on every admin route (`require_admin_permission`) |
+| Audit logging |  | Hash-chained immutable trail, no self-modifying trails, admin-gated reads (`audit_service.py`, `test_analytics_audit_phase29.py`) |
+| IDOR / broken access control |  | `resolve_shop_access` on every shopkeeper route (403); `require_shop_access/owner` (`dependencies.py`, `TestShopOwnership`) |
+| Privilege escalation |  | Sub-roles are strict subsets; admin wildcard is the only full-role; explicit per-op checks |
+| Mass assignment |  | Pydantic request models whitelist fields; schema fuzz tests (`tests::TestMassAssignment`) |
+| Unsafe file upload |  | Magic-byte sniffing blocks renamed/polyglot executables |
+| Excessive API access |  | Rate limiting + pagination caps |
 ---
 
 ## 3. Performance coverage
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Database indexes | ✅ | Indexes on FKs + filtered columns across migrations (`ix_*`); verified in `test_database_schema.py` |
-| Slow / N+1 queries | ✅ | N+1 guard on dashboards (query-count bound ≤ 40) (`TestPerformance::test_dashboard_no_n1_query_explosion`) |
-| Search performance | ✅ | Indexed lookup budget (<0.5s), search-tracking throughput, PostGIS `ST_DWithin` via index (`test_search_geo.py`) |
-| PostGIS queries | ✅ | `ST_DWithin` geo queries; PostGIS readiness check (`health.py::check_postgis`) |
-| Redis caching | ✅ | Async `Cache` wrapper with TTL; cache-down does not crash app |
-| API response time | ✅ | `API_PERFORMANCE` analytics events + latency p95 metrics (`platform_health`) |
-| Pagination | ✅ | `limit` clamped; `page ≥ 1` everywhere (`TestPerformance::test_pagination_limits_are_respected`) |
-| Background jobs | ✅ | Celery explicit queues, time limits, acks-late, prefetch=1 |
+| Database indexes |  | Indexes on FKs + filtered columns across migrations (`ix_*`); verified in `test_database_schema.py` |
+| Slow / N+1 queries |  | N+1 guard on dashboards (query-count bound ≤ 40) (`TestPerformance::test_dashboard_no_n1_query_explosion`) |
+| Search performance |  | Indexed lookup budget (<0.5s), search-tracking throughput, PostGIS `ST_DWithin` via index (`test_search_geo.py`) |
+| PostGIS queries |  | `ST_DWithin` geo queries; PostGIS readiness check (`health.py::check_postgis`) |
+| Redis caching |  | Async `Cache` wrapper with TTL; cache-down does not crash app |
+| API response time |  | `API_PERFORMANCE` analytics events + latency p95 metrics (`platform_health`) |
+| Pagination |  | `limit` clamped; `page ≥ 1` everywhere (`TestPerformance::test_pagination_limits_are_respected`) |
+| Background jobs |  | Celery explicit queues, time limits, acks-late, prefetch=1 |
 | Image optimization | ⚠️ | Cloudinary/S3 CDN transforms + `thumbnail_url`; no server-side Pillow pipeline — accepted |
 | Mobile network performance | ⚠️ | Client-side caching/debounce; paginated payloads — no request-batching layer (accepted) |
 
@@ -89,15 +89,15 @@ history with `git filter-repo` / BFG. See §9 (accepted risks).
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Retry strategy | ✅ | Exponential backoff on POS sync + notification delivery, bounded retries (`_schedule_retry`, notification retry sweep) |
-| Timeouts | ✅ | Celery task time/soft limits; DB pool timeout; Redis ops bounded |
+| Retry strategy |  | Exponential backoff on POS sync + notification delivery, bounded retries (`_schedule_retry`, notification retry sweep) |
+| Timeouts |  | Celery task time/soft limits; DB pool timeout; Redis ops bounded |
 | Circuit-breaking | ⚠️ | No dedicated breaker lib; mitigated by bounded retries + failure-flag degradation — accepted |
-| Job failure handling | ✅ | Celery acks_late + reject_on_worker_lost; retry sweep beat task; failures persisted |
-| Idempotency | ✅ | Upload idempotency-key + upsert keyed on (shop, master, variant); daily aggregation idempotent; retry-of-failed-rows only when partial |
-| DB transaction integrity | ✅ | Unit-of-work commit/rollback atomic; `expire_on_commit=False`; pooled `pre_ping` |
+| Job failure handling |  | Celery acks_late + reject_on_worker_lost; retry sweep beat task; failures persisted |
+| Idempotency |  | Upload idempotency-key + upsert keyed on (shop, master, variant); daily aggregation idempotent; retry-of-failed-rows only when partial |
+| DB transaction integrity |  | Unit-of-work commit/rollback atomic; `expire_on_commit=False`; pooled `pre_ping` |
 | Backup strategy | ⚠️ | Rely on managed Postgres + S3 backups; no in-repo script — operational (accepted) |
 | Recovery strategy | ⚠️ | Readiness probes + search-index reconcile self-healing; runbook to be defined — operational |
-| Health checks | ✅ | `/health` liveness, `/ready` readiness (DB/Redis/PostGIS); cache-down ⇒ degraded not crash |
+| Health checks |  | `/health` liveness, `/ready` readiness (DB/Redis/PostGIS); cache-down ⇒ degraded not crash |
 
 ---
 
@@ -105,11 +105,11 @@ history with `git filter-repo` / BFG. See §9 (accepted risks).
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Structured logs | ✅ | JSON formatter, rotating file handler, env-based level (`app/core/logging.py`) |
-| Metrics | ✅ | `system_metrics` table + `API_PERFORMANCE`/`ERROR` events; admin dashboards |
+| Structured logs |  | JSON formatter, rotating file handler, env-based level (`app/core/logging.py`) |
+| Metrics |  | `system_metrics` table + `API_PERFORMANCE`/`ERROR` events; admin dashboards |
 | Error tracking | ⚠️ | Alerting via analytics ERROR events; **no Sentry/Rollbar — accepted risk** |
-| Request tracing / correlation | ✅ | `X-Request-ID` / `X-Correlation-ID` middleware, propagated to logs + error responses + audit logs |
-| Background job monitoring | ✅ | Celery result backend + health task + observable retry sweeps |
+| Request tracing / correlation |  | `X-Request-ID` / `X-Correlation-ID` middleware, propagated to logs + error responses + audit logs |
+| Background job monitoring |  | Celery result backend + health task + observable retry sweeps |
 ---
 
 ## 6. Test coverage (executed this phase)
@@ -184,8 +184,8 @@ critical vulnerability**.
 
 ## 10. Verification summary
 
-- ✅ Secrets untracked, still on disk, now git-ignored; `.env.example` retained.
-- ✅ Full backend test suite green (groups 1–5; the one pre-existing failure
+-  Secrets untracked, still on disk, now git-ignored; `.env.example` retained.
+-  Full backend test suite green (groups 1–5; the one pre-existing failure
   fixed). Phase-30 hardening: **39 passed**.
-- ✅ No critical security or reliability issue remains unresolved.
-- ✅ All remaining items are documented accepted risks / deployment actions.
+-  No critical security or reliability issue remains unresolved.
+-  All remaining items are documented accepted risks / deployment actions.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/phone_utils.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -18,7 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleSendOtp() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final phone = _phoneController.text.trim();
+    final phone = normalizeIndianPhone(_phoneController.text.trim());
     final success = await ref
         .read(authControllerProvider.notifier)
         .sendOtp(phone);

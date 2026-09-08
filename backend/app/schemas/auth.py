@@ -2,36 +2,38 @@ from pydantic import BaseModel, Field
 
 
 class SendOTPRequest(BaseModel):
+    """Acknowledgment-only payload.
+
+    OTP delivery is handled client-side by Firebase Phone Auth; the backend
+    never sends an SMS. This schema is kept for API-contract compatibility.
+    """
+
     phone_number: str = Field(..., min_length=10, max_length=15, description="User's phone number")
 
 
 class SendOTPResponse(BaseModel):
-    message: str = "OTP sent successfully"
-    expires_in: int
-    dev_otp: str | None = None  # Only returned in OTP_DEV_MODE
+    message: str = "OTP delivery is handled by Firebase Phone Auth"
 
 
-class VerifyOTPRequest(BaseModel):
-    phone_number: str = Field(..., min_length=10, max_length=15)
-    otp: str = Field(..., min_length=4, max_length=8)
-    device_id: str | None = Field(None, description="Stable device identifier")
-    device_name: str | None = None
-    device_type: str | None = Field(None, description="android, ios, web")
-    platform: str | None = Field(None, description="OS version / platform info")
-    app_version: str | None = None
+class CustomerFirebaseAuthRequest(BaseModel):
+    """Firebase Phone Auth login / register payload for the Customer App.
 
-
-class RegisterRequest(BaseModel):
-    """Explicit first-time registration with a display name.
-
-    The customer app sends this after the OTP screen when the user is new.
-    Behaves like verify-otp but also persists the chosen display name and
-    rejects accounts that already exist (those should sign in instead).
+    The Flutter app completes the phone-OTP flow client-side with
+    ``firebase_auth`` and sends the resulting Firebase ID token
+    (``firebase_id_token``). The backend verifies the token to extract and
+    trust the phone number — no SMS gateway is involved.
     """
 
-    phone_number: str = Field(..., min_length=10, max_length=15)
-    otp: str = Field(..., min_length=4, max_length=8)
-    name: str = Field(..., min_length=1, max_length=100)
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token from the client phone-OTP sign-in",
+    )
+    name: str | None = Field(
+        None,
+        max_length=100,
+        description="Display name (required when creating a new account)",
+    )
     device_id: str | None = Field(None, description="Stable device identifier")
     device_name: str | None = None
     device_type: str | None = Field(None, description="android, ios, web")
@@ -86,3 +88,44 @@ class AccountStatusResponse(BaseModel):
     is_active: bool
     status: str
     last_login_at: str | None = None
+
+
+class FirebaseAuthRequest(BaseModel):
+    """Firebase Authentication request payload.
+
+    The Flutter app completes the phone-OTP flow client-side with
+    ``firebase_auth`` and sends the resulting Firebase ID token.
+    The backend verifies the token to extract firebase_uid and phone_number.
+    """
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token from the client phone-OTP sign-in",
+    )
+    requested_role: str | None = Field(
+        None,
+        description="Role to assign for new users (customer, shopkeeper)",
+    )
+    name: str | None = Field(
+        None,
+        max_length=100,
+        description="Display name for new users",
+    )
+
+
+class FirebaseRegisterRequest(BaseModel):
+    """Firebase Registration request payload for first-time users."""
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token from the client phone-OTP sign-in",
+    )
+    requested_role: str | None = Field(
+        "customer",
+        description="Role to assign (customer, shopkeeper)",
+    )
+    name: str = Field(
+        ...,
+        max_length=100,
+        description="Display name for the new user",
+    )
