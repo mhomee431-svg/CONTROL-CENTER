@@ -7,26 +7,15 @@ import '../../../../core/network/token_store.dart';
 import '../domain/auth_models.dart';
 import 'mock_auth_repository.dart';
 
-/// Shopkeeper authentication contract.
-///
-/// OTP delivery is handled client-side by Firebase Phone Auth, so there is no
-/// `sendOtp` here — the controller calls [PhoneAuthService] directly. The
-/// `registerWithFirebase` / `loginWithFirebase` methods accept a Firebase ID
-/// token that the backend verifies.
+/// Shopkeeper authentication contract — simple phone + password login.
 abstract class AuthRepository {
-  Future<AuthSession> registerWithFirebase({
-    required String phoneNumber,
-    required String firebaseIdToken,
+  /// Simple registration: phone + password.
+  Future<AuthSession> registerWithPassword({
     required String name,
-    String? password,
+    required String phoneNumber,
+    required String password,
   });
-  Future<AuthSession> loginWithFirebase({
-    required String firebaseIdToken,
-  });
-  Future<AuthSession> loginWithFirebaseAuto({
-    required String firebaseIdToken,
-    String? name,
-  });
+
   Future<AuthSession> loginWithPassword({
     required String identifier,
     required String password,
@@ -46,50 +35,17 @@ class ApiAuthRepository implements AuthRepository {
   final TokenStore _tokens;
 
   @override
-  Future<AuthSession> registerWithFirebase({
-    required String phoneNumber,
-    required String firebaseIdToken,
+  Future<AuthSession> registerWithPassword({
     required String name,
-    String? password,
+    required String phoneNumber,
+    required String password,
   }) async {
     final data = await _api.post(
       ApiEndpoints.register,
       body: {
         'phone_number': phoneNumber,
-        'firebase_id_token': firebaseIdToken,
         'name': name,
         'password': password,
-        'device_type': 'mobile',
-      },
-    ) as Map<String, dynamic>;
-    return _persist(data);
-  }
-
-  @override
-  Future<AuthSession> loginWithFirebase({
-    required String firebaseIdToken,
-  }) async {
-    final data = await _api.post(
-      ApiEndpoints.verifyOtp,
-      body: {
-        'firebase_id_token': firebaseIdToken,
-        'device_type': 'mobile',
-      },
-    ) as Map<String, dynamic>;
-    return _persist(data);
-  }
-
-  /// Login-or-register via Firebase — auto-creates account if phone is new.
-  @override
-  Future<AuthSession> loginWithFirebaseAuto({
-    required String firebaseIdToken,
-    String? name,
-  }) async {
-    final data = await _api.post(
-      ApiEndpoints.firebaseLogin,
-      body: {
-        'firebase_id_token': firebaseIdToken,
-        'name': name,
         'device_type': 'mobile',
       },
     ) as Map<String, dynamic>;
@@ -132,10 +88,15 @@ class ApiAuthRepository implements AuthRepository {
     final access = data['access_token'] as String?;
     final refresh = data['refresh_token'] as String?;
     final sessionId = data['session_id'] as String?;
+    final businessId = (data['business_id'] ??
+            (data['user'] as Map?)?['business_id']) as String?;
     if (access != null && refresh != null) {
       await _tokens.saveTokens(accessToken: access, refreshToken: refresh);
     }
     if (sessionId != null) await _tokens.saveSessionId(sessionId);
+    if (businessId != null && businessId.isNotEmpty) {
+      await _tokens.saveBusinessId(businessId);
+    }
     return AuthSession(
       user: ShopkeeperUser.fromJson(
           ((data['user'] as Map?)?.cast<String, dynamic>()) ?? const {}),
@@ -183,21 +144,17 @@ class ApiAuthRepository implements AuthRepository {
   }
 }
 
-/// Set this to true to use mock auth (no backend / no Firebase required).
-/// - Because the app now uses Firebase Phone Auth, mock mode installs a
-///   FakePhoneAuthService so OTP works offline on emulators/devices.
-/// Set this to false to use real Firebase + backend calls.
+/// Set this to true to use the mock auth repository (no backend required),
+/// useful for offline development on emulators/devices.
 const bool kUseMockAuth = false;
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final tokens = ref.watch(tokenStoreProvider);
-  
+
   if (kUseMockAuth) {
-    // Use mock repository for testing without backend
     return MockAuthRepository(tokens);
   }
-  
-  // Use real API repository
+
   final api = ref.watch(apiClientProvider);
   return ApiAuthRepository(api, tokens);
 });

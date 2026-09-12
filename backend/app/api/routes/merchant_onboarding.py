@@ -47,6 +47,55 @@ def _get_onboarding_for_user(
     return onboarding
 
 
+@router.get("/categories")
+async def list_registration_categories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Active merchant categories for the shop-registration dropdown.
+
+    The wizard renders exactly what this returns — no category codes are
+    hardcoded in the Flutter app.
+    """
+    categories = merchant_onboarding_service.list_active_categories(db)
+    return success_response(
+        data={
+            "categories": [
+                {
+                    "code": c.code,
+                    "name": c.name,
+                    "description": c.description,
+                    "sort_order": c.sort_order,
+                }
+                for c in categories
+            ]
+        },
+        message="OK",
+    )
+
+
+@router.get("/categories/{category_code}/requirements")
+async def get_registration_category_requirements(
+    category_code: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Backend-driven document/info requirements for a merchant category.
+
+    The registration wizard's Documents step is rendered from this contract —
+    required/optional documents and the verification steps (OTP, identity,
+    bank, category documents, admin review) all originate here.
+    """
+    data = merchant_onboarding_service.registration_requirements(
+        db, category_code.upper()
+    )
+    if data is None:
+        return error_response(
+            message=f"Unknown category: {category_code}",
+            error_code="CATEGORY_NOT_FOUND",
+            status_code=404,
+        )
+    return success_response(data=data, message="OK")
 @router.post("/{business_id}/onboarding", status_code=201)
 async def start_onboarding(
     business_id: int,

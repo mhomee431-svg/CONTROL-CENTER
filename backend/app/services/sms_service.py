@@ -4,7 +4,6 @@ Supported providers:
     mock      → log only (default for development/test)
     twilio    → Twilio API
     aws-sns   → AWS Simple Notification Service
-    msg91     → MSG91 API
 """
 
 import logging
@@ -80,36 +79,6 @@ class AWSSNSProvider(BaseSMSProvider):
             return False
 
 
-class MSG91SMSProvider(BaseSMSProvider):
-    """Send SMS via MSG91."""
-
-    async def send(self, phone_number: str, message: str) -> bool:
-        import httpx
-
-        url = "https://control.msg91.com/api/v5/send"
-        headers = {
-            "authkey": settings.SMS_PROVIDER_API_KEY or "",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "sender": settings.SMS_PROVIDER_SENDER_ID or "HYPERLOCAL",
-            "route": "4",
-            "country": "91",
-            "sms": [
-                {
-                    "to": phone_number,
-                    "message": message,
-                }
-            ],
-        }
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            if resp.status_code >= 400:
-                logger.error("MSG91 error: %s", resp.text)
-                return False
-            return True
-
-
 def get_sms_provider() -> BaseSMSProvider:
     """Factory to return the configured SMS provider."""
     provider = settings.SMS_PROVIDER.lower()
@@ -117,8 +86,6 @@ def get_sms_provider() -> BaseSMSProvider:
         return TwilioSMSProvider()
     if provider == "aws-sns":
         return AWSSNSProvider()
-    if provider == "msg91":
-        return MSG91SMSProvider()
     return MockSMSProvider()
 
 

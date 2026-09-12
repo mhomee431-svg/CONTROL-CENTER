@@ -1,0 +1,690 @@
+00:00 +0: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/apps/shopkeeper_app/test/auth_flow_test.dart
+00:00 +0 -1: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/apps/shopkeeper_app/test/auth_flow_test.dart [E]
+  Failed to load "C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/apps/shopkeeper_app/test/auth_flow_test.dart":
+  Compilation failed for testPath=C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/apps/shopkeeper_app/test/auth_flow_test.dart: lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:429:28: Error: Can't find ')' to match '('.
+                FormFieldCard(
+                             ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:400:23: Error: Can't find ']' to match '['.
+              children: [
+                        ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:398:26: Error: Can't find ')' to match '('.
+            child: ListView(
+                           ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:397:17: Error: Can't find ')' to match '('.
+          Expanded(
+                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:395:17: Error: Can't find ']' to match '['.
+        children: [
+                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:394:18: Error: Can't find ')' to match '('.
+      return Column(
+                   ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:444:37: Error: Can't find ')' to match '('.
+      await showModalBottomSheet<void>(
+                                      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:706:23: Error: Can't find ')' to match '('.
+                SizedBox(
+                        ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:695:17: Error: Can't find ')' to match '('.
+          Expanded(
+                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:693:17: Error: Can't find ']' to match '['.
+        children: [
+                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:692:18: Error: Can't find ')' to match '('.
+      return Column(
+                   ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:829:21: Error: Can't find ')' to match '('.
+              SizedBox(
+                      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:828:21: Error: Can't find ']' to match '['.
+            children: [
+                      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:826:19: Error: Can't find ')' to match '('.
+          child: Row(
+                    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:824:27: Error: Can't find ')' to match '('.
+        return const Padding(
+                            ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:945:28: Error: Can't find ')' to match '('.
+                FormFieldCard(
+                             ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:874:23: Error: Can't find ']' to match '['.
+              children: [
+                        ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:872:26: Error: Can't find ')' to match '('.
+            child: ListView(
+                           ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:871:17: Error: Can't find ')' to match '('.
+          Expanded(
+                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:869:17: Error: Can't find ']' to match '['.
+        children: [
+                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:868:18: Error: Can't find ')' to match '('.
+      return Column(
+                   ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:812:48: Error: Can't find '}' to match '{'.
+  class _LocationActions extends StatelessWidget {
+                                                 ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:435:1: Error: Classes can't be declared inside other classes.
+  Try moving the class to the top-level.
+  class _CategoryField extends void StatelessWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:435:22: Error: Expected a class member, but got 'extends'.
+  class _CategoryField extends void StatelessWidget {
+                       ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:435:35: Error: A method declaration needs an explicit list of parameters.
+  Try adding a parameter list to the method declaration.
+  class _CategoryField extends void StatelessWidget {
+                                    ^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:17: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+  Try adding the name of the type of the variable or the keyword 'var'.
+                  icon: void Icons.badge_outlined,
+                  ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:17: Error: Expected ';' after this.
+                  icon: void Icons.badge_outlined,
+                  ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:21: Error: Expected a declaration, but got ':'.
+                  icon: void Icons.badge_outlined,
+                      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:28: Error: A function declaration needs an explicit list of parameters.
+  Try adding a parameter list to the function declaration.
+                  icon: void Icons.badge_outlined,
+                             ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:33: Error: Expected '{' before this.
+                  icon: void Icons.badge_outlined,
+                                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:33: Error: Expected a declaration, but got '.'.
+                  icon: void Icons.badge_outlined,
+                                  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:646:34: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+  Try adding the name of the type of the variable or the keyword 'var'.
+                  icon: void Icons.badge_outlined,
+                                   ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:647:17: Error: Expected ';' after this.
+                  textCapitalization: void TextCapitalization.characters,
+                  ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:647:35: Error: Expected a declaration, but got ':'.
+                  textCapitalization: void TextCapitalization.characters,
+                                    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:647:42: Error: A function declaration needs an explicit list of parameters.
+  Try adding a parameter list to the function declaration.
+                  textCapitalization: void TextCapitalization.characters,
+                                           ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:647:60: Error: Expected '{' before this.
+                  textCapitalization: void TextCapitalization.characters,
+                                                             ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:647:60: Error: Expected a declaration, but got '.'.
+                  textCapitalization: void TextCapitalization.characters,
+                                                             ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:647:61: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+  Try adding the name of the type of the variable or the keyword 'var'.
+                  textCapitalization: void TextCapitalization.characters,
+                                                              ^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:648:17: Error: Expected ';' after this.
+                  validator: void ShopRegistrationValidators.udyam,
+                  ^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:648:26: Error: Expected a declaration, but got ':'.
+                  validator: void ShopRegistrationValidators.udyam,
+                           ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:648:33: Error: A function declaration needs an explicit list of parameters.
+  Try adding a parameter list to the function declaration.
+                  validator: void ShopRegistrationValidators.udyam,
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:648:59: Error: Expected '{' before this.
+                  validator: void ShopRegistrationValidators.udyam,
+                                                            ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:648:59: Error: Expected a declaration, but got '.'.
+                  validator: void ShopRegistrationValidators.udyam,
+                                                            ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:648:60: Error: Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+  Try adding the name of the type of the variable or the keyword 'var'.
+                  validator: void ShopRegistrationValidators.udyam,
+                                                             ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:649:15: Error: Expected an identifier, but got ')'.
+  Try inserting an identifier before ')'.
+                ),
+                ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:650:15: Error: Expected an identifier, but got 'void'.
+  Try inserting an identifier before 'void'.
+                void SizedBox(height: RegistrationSpacing.sectionGap),
+                ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:649:16: Error: Expected ';' after this.
+                ),
+                 ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:650:35: Error: Non-optional parameters can't have a default value.
+  Try removing the default value or making the parameter optional.
+                void SizedBox(height: RegistrationSpacing.sectionGap),
+                                    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:650:68: Error: Expected '{' before this.
+                void SizedBox(height: RegistrationSpacing.sectionGap),
+                                                                     ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:650:68: Error: Expected a declaration, but got ','.
+                void SizedBox(height: RegistrationSpacing.sectionGap),
+                                                                     ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:652:22: Error: Non-optional parameters can't have a default value.
+  Try removing the default value or making the parameter optional.
+                  label: 'Next',
+                       ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:653:21: Error: Non-optional parameters can't have a default value.
+  Try removing the default value or making the parameter optional.
+                  icon: Icons.arrow_forward,
+                      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:654:26: Error: Non-optional parameters can't have a default value.
+  Try removing the default value or making the parameter optional.
+                  onPressed: onNext,
+                           ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:655:16: Error: Expected '{' before this.
+                ),
+                 ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:655:16: Error: Expected a declaration, but got ','.
+                ),
+                 ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:656:35: Error: Non-optional parameters can't have a default value.
+  Try removing the default value or making the parameter optional.
+                void SizedBox(height: 16),
+                                    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:656:40: Error: Expected '{' before this.
+                void SizedBox(height: 16),
+                                         ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:656:40: Error: Expected a declaration, but got ','.
+                void SizedBox(height: 16),
+                                         ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:657:13: Error: Expected a declaration, but got ']'.
+              ],
+              ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:657:14: Error: Expected a declaration, but got ','.
+              ],
+               ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:658:11: Error: Expected a declaration, but got ')'.
+            ),
+            ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:658:12: Error: Expected a declaration, but got ','.
+            ),
+             ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:659:9: Error: Expected a declaration, but got ')'.
+          ),
+          ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:659:10: Error: Expected a declaration, but got ','.
+          ),
+           ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:660:7: Error: Expected a declaration, but got ']'.
+        ],
+        ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:660:8: Error: Expected a declaration, but got ','.
+        ],
+         ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:661:5: Error: Expected a declaration, but got ')'.
+      );
+      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:661:6: Error: Unexpected token ';'.
+      );
+       ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:662:3: Error: Expected a declaration, but got '}'.
+    }
+    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:663:1: Error: Expected a declaration, but got '}'.
+  }
+  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:665:1: Error: Expected a declaration, but got '}'.
+  }
+  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1153:1: Error: Classes can't be declared inside other classes.
+  Try moving the class to the top-level.
+  class _LocationActions extends StatelessWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1153:24: Error: Expected a class member, but got 'extends'.
+  class _LocationActions extends StatelessWidget {
+                         ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1153:32: Error: A method declaration needs an explicit list of parameters.
+  Try adding a parameter list to the method declaration.
+  class _LocationActions extends StatelessWidget {
+                                 ^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:656:20: Error: 'SizedBox' is already declared in this scope.
+                void SizedBox(height: 16),
+                     ^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:650:20: Context: Previous declaration of 'SizedBox'.
+                void SizedBox(height: RegistrationSpacing.sectionGap),
+                     ^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:575:10: Error: 'build' is already declared in this scope.
+    Widget build(BuildContext context) {
+           ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:386:10: Context: Previous declaration of 'build'.
+    Widget build(BuildContext context) {
+           ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:93:17: Error: No named parameter with the name 'key'.
+                  key: const ValueKey('business'),
+                  ^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:369:9: Context: Found this candidate, but the arguments don't match.
+    const _BusinessInfoStep({
+          ^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:102:17: Error: No named parameter with the name 'key'.
+                  key: const ValueKey('location'),
+                  ^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:670:9: Context: Found this candidate, but the arguments don't match.
+    const _LocationStep({
+          ^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:112:43: Error: The method '_DocumentsStep' isn't defined for the type '_ShopRegistrationWizardState'.
+   - '_ShopRegistrationWizardState' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing method, or defining a method named '_DocumentsStep'.
+              RegistrationStep.documents => _DocumentsStep(
+                                            ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:121:41: Error: The method '_SuccessStep' isn't defined for the type '_ShopRegistrationWizardState'.
+   - '_ShopRegistrationWizardState' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing method, or defining a method named '_SuccessStep'.
+              RegistrationStep.success => _SuccessStep(
+                                          ^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:232:22: Error: Too few positional arguments: 3 required, 0 given.
+          PrimaryButton(
+                       ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:651:20: Context: Found this candidate, but the arguments don't match.
+                void PrimaryButton(
+                     ^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:215:23: Error: The getter 'visibility_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'visibility_outlined'.
+            icon: Icons.visibility_outlined,
+                        ^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:221:23: Error: The getter 'dashboard_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'dashboard_outlined'.
+            icon: Icons.dashboard_outlined,
+                        ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:227:23: Error: The getter 'verified_user_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'verified_user_outlined'.
+            icon: Icons.verified_user_outlined,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:280:22: Error: The getter 'storefront' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'storefront'.
+            Icon(Icons.storefront, size: 64, color: scheme.primary),
+                       ^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:294:33: Error: The getter 'location_on' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'location_on'.
+                child: Icon(Icons.location_on,
+                                  ^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:432:50: Error: Expected ';' after this.
+                  placeholder: 'Enter Udyam Number',
+                                                   ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:388:38: Error: The method 'category' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing method, or defining a method named 'category'.
+          ? ShopRegistrationValidators.category(state.category)
+                                       ^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:391:38: Error: The method 'businessType' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing method, or defining a method named 'businessType'.
+          ? ShopRegistrationValidators.businessType(state.businessType)
+                                       ^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:411:29: Error: The getter 'store_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'store_outlined'.
+                  icon: Icons.store_outlined,
+                              ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:412:56: Error: The getter 'words' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'words'.
+                  textCapitalization: TextCapitalization.words,
+                                                         ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:413:55: Error: The getter 'shopName' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'shopName'.
+                  validator: ShopRegistrationValidators.shopName,
+                                                        ^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:416:15: Error: The method '_CategoryField' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing method, or defining a method named '_CategoryField'.
+                _CategoryField(state: state, error: categoryError),
+                ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:418:15: Error: The method '_BusinessTypeField' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing method, or defining a method named '_BusinessTypeField'.
+                _BusinessTypeField(state: state, error: typeError),
+                ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:424:29: Error: The getter 'receipt_long_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'receipt_long_outlined'.
+                  icon: Icons.receipt_long_outlined,
+                              ^^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:425:56: Error: The getter 'characters' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'characters'.
+                  textCapitalization: TextCapitalization.characters,
+                                                         ^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:426:55: Error: The getter 'gstin' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'gstin'.
+                  validator: ShopRegistrationValidators.gstin,
+                                                        ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:436:34: Error: Expected ',' before this.
+    const _CategoryField({required this.state, required this.error});
+                                   ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:436:55: Error: Expected ',' before this.
+    const _CategoryField({required this.state, required this.error});
+                                                        ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:436:9: Error: Not a constant expression.
+    const _CategoryField({required this.state, required this.error});
+          ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:510:8: Error: Expected ';' after this.
+        ),
+         ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:1: Error: 'class' can't be used as an identifier because it's a keyword.
+  Try renaming this to be an identifier that isn't a keyword.
+  class _BusinessTypeField extends StatelessWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:1: Error: Expected ';' after this.
+  class _BusinessTypeField extends StatelessWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:7: Error: Expected ';' after this.
+  class _BusinessTypeField extends StatelessWidget {
+        ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:26: Error: 'extends' can't be used as an identifier because it's a keyword.
+  Try renaming this to be an identifier that isn't a keyword.
+  class _BusinessTypeField extends StatelessWidget {
+                           ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:26: Error: Expected ';' after this.
+  class _BusinessTypeField extends StatelessWidget {
+                           ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:34: Error: Expected ';' after this.
+  class _BusinessTypeField extends StatelessWidget {
+                                   ^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:514:38: Error: Expected ',' before this.
+    const _BusinessTypeField({required this.state, required this.error});
+                                       ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:514:59: Error: Expected ',' before this.
+    const _BusinessTypeField({required this.state, required this.error});
+                                                            ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:514:9: Error: Not a constant expression.
+    const _BusinessTypeField({required this.state, required this.error});
+          ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:529:36: Error: Not a constant expression.
+              prefixIcon: const Icon(Icons.business_center_outlined, size: 20),
+                                     ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:571:5: Error: Expected an identifier, but got ')'.
+  Try inserting an identifier before ')'.
+      )
+      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:569:1: Error: Expected ';' after this.
+  }
+  ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:571:5: Error: Unexpected token ';'.
+      )
+      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:466:17: Error: Final variable 'state' must be assigned before it can be used.
+              if (state.categoriesLoading)
+                  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:475:30: Error: Final variable 'state' must be assigned before it can be used.
+                    itemCount: state.categories.length,
+                               ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:478:36: Error: Final variable 'state' must be assigned before it can be used.
+                      final option = state.categories[i];
+                                     ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:480:25: Error: Final variable 'state' must be assigned before it can be used.
+                          state.category?.code == option.code;
+                          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:484:37: Error: The getter 'radio_button_checked' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'radio_button_checked'.
+                              ? Icons.radio_button_checked
+                                      ^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:485:37: Error: The getter 'radio_button_off' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'radio_button_off'.
+                              : Icons.radio_button_off,
+                                      ^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:1: Error: The getter 'class' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'class'.
+  class _BusinessTypeField extends StatelessWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:7: Error: The getter '_BusinessTypeField' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named '_BusinessTypeField'.
+  class _BusinessTypeField extends StatelessWidget {
+        ^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:513:26: Error: The getter 'extends' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'extends'.
+  class _BusinessTypeField extends StatelessWidget {
+                           ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:525:25: Error: Final variable 'state' must be assigned before it can be used.
+            initialValue: state.businessType,
+                          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:529:42: Error: The getter 'business_center_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'business_center_outlined'.
+              prefixIcon: const Icon(Icons.business_center_outlined, size: 20),
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:564:29: Error: Final variable 'error' must be assigned before it can be used.
+            validator: (v) => error,
+                              ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:606:30: Error: Not a constant expression.
+                    const Icon(Icons.category_outlined,
+                               ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:627:32: Error: Not a constant expression.
+                      const Icon(Icons.expand_more,
+                                 ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:585:56: Error: The method '_openPicker' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing method, or defining a method named '_openPicker'.
+                  state.categoriesLoading ? null : () => _openPicker(context),
+                                                         ^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:599:26: Error: The getter 'error' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'error'.
+                    color: error != null
+                           ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:606:36: Error: The getter 'category_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'category_outlined'.
+                    const Icon(Icons.category_outlined,
+                                     ^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:627:38: Error: The getter 'expand_more' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'expand_more'.
+                      const Icon(Icons.expand_more,
+                                       ^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:634:13: Error: The getter 'error' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'error'.
+          if (error != null) ...[
+              ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:636:16: Error: The getter 'error' isn't defined for the type '_BusinessInfoStep'.
+   - '_BusinessInfoStep' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'error'.
+            Text(error!,
+                 ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:653:23: Error: Not a constant expression.
+                  icon: Icons.arrow_forward,
+                        ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:654:28: Error: Undefined name 'onNext'.
+                  onPressed: onNext,
+                             ^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:653:29: Error: The getter 'arrow_forward' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'arrow_forward'.
+                  icon: Icons.arrow_forward,
+                              ^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:715:54: Error: Not a constant expression.
+                            target: state.pin ?? const LatLng(25.5941, 85.1376),
+                                                       ^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:722:51: Error: Not a constant expression.
+                                    markerId: const MarkerId('shop_pin'),
+                                                    ^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:798:28: Error: Too few positional arguments: 3 required, 0 given.
+                PrimaryButton(
+                             ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:651:20: Context: Found this candidate, but the arguments don't match.
+                void PrimaryButton(
+                     ^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:829:21: Error: Expected ';' after this.
+              SizedBox(
+                      ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:1: Error: 'class' can't be used as an identifier because it's a keyword.
+  Try renaming this to be an identifier that isn't a keyword.
+  class _DocumentsStep extends StatefulWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:1: Error: Expected ';' after this.
+  class _DocumentsStep extends StatefulWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:7: Error: Expected ';' after this.
+  class _DocumentsStep extends StatefulWidget {
+        ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:22: Error: 'extends' can't be used as an identifier because it's a keyword.
+  Try renaming this to be an identifier that isn't a keyword.
+  class _DocumentsStep extends StatefulWidget {
+                       ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:22: Error: Expected ';' after this.
+  class _DocumentsStep extends StatefulWidget {
+                       ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:30: Error: Expected ';' after this.
+  class _DocumentsStep extends StatefulWidget {
+                               ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:836:14: Error: Expected ',' before this.
+      required this.state,
+               ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:837:14: Error: Expected ',' before this.
+      required this.description,
+               ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:838:14: Error: Expected ',' before this.
+      required this.website,
+               ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:839:14: Error: Expected ',' before this.
+      required this.social,
+               ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:840:14: Error: Expected ',' before this.
+      required this.onBack,
+               ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:841:14: Error: Expected ',' before this.
+      required this.onSubmit,
+               ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:835:9: Error: Not a constant expression.
+    const _DocumentsStep({
+          ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:852:9: Error: '_DocumentsStep' isn't a type.
+    State<_DocumentsStep> createState() => _DocumentsStepState();
+          ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:1: Error: 'class' can't be used as an identifier because it's a keyword.
+  Try renaming this to be an identifier that isn't a keyword.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:1: Error: Expected ';' after this.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:7: Error: Expected ';' after this.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+        ^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:27: Error: 'extends' can't be used as an identifier because it's a keyword.
+  Try renaming this to be an identifier that isn't a keyword.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+                            ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:27: Error: Expected ';' after this.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+                            ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:55: Error: A comparison expression can't be an operand of another comparison expression.
+  Try putting parentheses around one of the comparisons.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+                                                        ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:856:10: Error: 'PickedFile' isn't a type.
+    Future<PickedFile?> _pick(PickSource source, DocumentSlot slot) {
+           ^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:856:23: Error: A function expression can't have a name.
+    Future<PickedFile?> _pick(PickSource source, DocumentSlot slot) {
+                        ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:856:29: Error: 'PickSource' isn't a type.
+    Future<PickedFile?> _pick(PickSource source, DocumentSlot slot) {
+                              ^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:863:3: Error: Expected '}' before this.
+    @override
+    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1150:3: Error: Expected ';' after this.
+    }
+    ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:1: Error: The getter 'class' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'class'.
+  class _DocumentsStep extends StatefulWidget {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:7: Error: The getter '_DocumentsStep' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named '_DocumentsStep'.
+  class _DocumentsStep extends StatefulWidget {
+        ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:834:22: Error: The getter 'extends' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'extends'.
+  class _DocumentsStep extends StatefulWidget {
+                       ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:852:42: Error: The method '_DocumentsStepState' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing method, or defining a method named '_DocumentsStepState'.
+    State<_DocumentsStep> createState() => _DocumentsStepState();
+                                           ^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:1: Error: The getter 'class' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'class'.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+  ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:7: Error: The getter '_DocumentsStepState' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named '_DocumentsStepState'.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+        ^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:27: Error: The getter 'extends' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'extends'.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+                            ^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:41: Error: The getter '_DocumentsStep' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named '_DocumentsStep'.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+                                          ^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:855:40: Error: The operator '<' isn't defined for the type 'Type'.
+   - 'Type' is from 'dart:core'.
+  Try correcting the operator to an existing operator, or defining a '<' operator.
+  class _DocumentsStepState extends State<_DocumentsStep> {
+                                         ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:858:15: Error: The getter 'documentPickerProvider' isn't defined for the type '_LocationActions'.
+   - '_LocationActions' is from 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/screens/shop_registration_wizard.dart' ('lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'documentPickerProvider'.
+          .read(documentPickerProvider);
+                ^^^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:819:10: Error: A non-null value must be returned since the return type 'Widget' doesn't allow null.
+   - 'Widget' is from 'package:flutter/src/widgets/framework.dart' ('/C:/flutter/packages/flutter/lib/src/widgets/framework.dart').
+    Widget build(BuildContext context) {
+           ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1154:36: Error: Expected ',' before this.
+    const _LocationActions({required this.state, required this.controllerState});
+                                     ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1154:57: Error: Expected ',' before this.
+    const _LocationActions({required this.state, required this.controllerState});
+                                                          ^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1154:25: Error: Too many positional arguments: 0 allowed, but 1 found.
+  Try removing the extra positional arguments.
+    const _LocationActions({required this.state, required this.controllerState});
+                          ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:813:9: Context: Found this candidate, but the arguments don't match.
+    const _LocationActions({required this.state, required this.controllerState});
+          ^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1203:25: Error: Too few positional arguments: 3 required, 0 given.
+      return PrimaryButton(
+                          ^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:651:20: Context: Found this candidate, but the arguments don't match.
+                void PrimaryButton(
+                     ^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1163:9: Error: Final variable 'state' must be assigned before it can be used.
+      if (state == RegistrationLocationStatus.requestingPermission ||
+          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1164:9: Error: Final variable 'state' must be assigned before it can be used.
+          state == RegistrationLocationStatus.locating) {
+          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1180:9: Error: Final variable 'state' must be assigned before it can be used.
+      if (state == RegistrationLocationStatus.permissionDenied) {
+          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1182:21: Error: The getter 'lock_outline' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'lock_outline'.
+          icon: Icons.lock_outline,
+                      ^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1188:9: Error: Final variable 'state' must be assigned before it can be used.
+      if (state == RegistrationLocationStatus.serviceDisabled) {
+          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1190:21: Error: The getter 'location_off_outlined' isn't defined for the type 'void Function()'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'location_off_outlined'.
+          icon: Icons.location_off_outlined,
+                      ^^^^^^^^^^^^^^^^^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1196:9: Error: Final variable 'state' must be assigned before it can be used.
+      if (state == RegistrationLocationStatus.error) {
+          ^^^^^
+  lib/features/shop_registration/presentation/screens/shop_registration_wizard.dart:1199:13: Error: Final variable 'controllerState' must be assigned before it can be used.
+              controllerState.locationError ?? 'Could not get your location.',
+              ^^^^^^^^^^^^^^^
+  .
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/apps/shopkeeper_app/test/auth_flow_test.dart: loading C:/Users/akash/OneDrive/Documents/hyperlocal_customer_app/apps/shopkeeper_app/test/auth_flow_test.dart

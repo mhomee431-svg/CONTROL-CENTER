@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_controller.dart';
-import '../../data/auth_repository.dart';
-import '../../data/mock_auth_repository.dart';
 import '../../data/phone_utils.dart';
 
-/// Business-account registration: name + phone → OTP verification.
+/// Business-account registration: name + phone number + password.
+///
+/// Firebase phone-OTP verification is currently disabled, so registration
+/// creates the account directly with the chosen password. The OTP flow is
+/// restored when Firebase is re-enabled (see TODO(Firebase) markers).
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -19,7 +21,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
@@ -29,7 +30,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -37,29 +37,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final notifier = ref.read(authControllerProvider.notifier);
     final phone = normalizeIndianPhone(_phoneController.text);
-    final password = _passwordController.text;
-    notifier.beginRegistration(phone, _nameController.text.trim(), password);
-    final ok = await notifier.sendOtp(phone);
+    final ok = await ref
+        .read(authControllerProvider.notifier)
+        .registerWithPassword(
+          name: _nameController.text.trim(),
+          phoneNumber: phone,
+          password: _passwordController.text,
+        );
     if (!mounted) return;
     if (ok) {
-      // In mock mode, show the OTP so you can sign in without a real SMS.
-      if (kUseMockAuth) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Your OTP is: ${MockAuthRepository.mockOtp}'),
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(label: 'OK', onPressed: () {}),
-          ),
-        );
-      }
-      context.push('/otp?phone=${Uri.encodeComponent(phone)}');
+      // Router guard routes to /shops (or /dashboard) automatically.
+      return;
+    }
+    final error = ref.read(authControllerProvider);
+    if ((error.errorCode ?? '').contains('PHONE_ALREADY_REGISTERED') ||
+        (error.errorMessage ?? '').contains('already registered')) {
+      // Phone is taken → guide the user to the Login screen.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Phone number already registered. Please login instead.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      context.go('/login');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ref.read(authControllerProvider).errorMessage ??
-              'Could not send code'),
+          content: Text(error.errorMessage ?? 'Registration failed'),
         ),
       );
     }
@@ -80,7 +86,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
               const Text(
-                  'You will verify this number with a one-time code next.'),
+                  'Create your account with your phone number and a password.'),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
@@ -94,6 +100,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
                 decoration: const InputDecoration(
                   labelText: 'Business phone number',
                   hintText: '9999999999',
@@ -102,22 +109,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 validator: (v) {
                   final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
                   if (digits.length < 10) return 'Enter a valid 10-digit number';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                decoration:
-                    const InputDecoration(labelText: 'Email (optional)'),
-                validator: (v) {
-                  if (v != null && v.isNotEmpty) {
-                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
-                      return 'Enter a valid email';
-                    }
-                  }
                   return null;
                 },
               ),
@@ -138,12 +129,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Password is required';
                   if (v.length < 8) return 'At least 8 characters';
-                  if (!RegExp(r'[A-Za-z]').hasMatch(v)) {
-                    return 'Must contain a letter';
-                  }
-                  if (!RegExp(r'[0-9]').hasMatch(v)) {
-                    return 'Must contain a number';
-                  }
                   return null;
                 },
               ),
@@ -177,7 +162,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Send verification code'),
+                    : const Text('Create account'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => context.go('/login'),
+                child: const Text('Already have an account? Sign in'),
               ),
             ],
           ),

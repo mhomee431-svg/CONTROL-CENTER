@@ -38,7 +38,7 @@ def dispatch_sms(phone_number: str, template_name: str, context: dict) -> dict:
     """Dispatch an SMS via the configured SMS provider.
 
     The actual delivery is delegated to the SMS abstraction so the provider
-    can be swapped (Mock / Twilio / MSG91 / AWS SNS) without touching this task.
+    can be swapped (Mock / Twilio / AWS SNS) without touching this task.
     """
     logger.info(
         "dispatch_sms to=%s template=%s",

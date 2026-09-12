@@ -239,8 +239,8 @@ class LocationApiService {
     final data = resp.data['data'] as Map<String, dynamic>?;
     if (data == null) return null;
     return MapLatLng(
-      latitude: (data['latitude'] as num).toDouble(),
-      longitude: (data['longitude'] as num).toDouble(),
+      (data['latitude'] as num).toDouble(),
+      (data['longitude'] as num).toDouble(),
     );
   }
 }

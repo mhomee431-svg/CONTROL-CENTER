@@ -58,7 +58,7 @@ android {
     defaultConfig {
         // Must match the package name registered in Firebase Console
         // (android/app/google-services.json registers "com.Hyperlocal.app").
-        applicationId = "com.Hyperlocal.app"
+        applicationId = "com.hyperlocal.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // google_maps_flutter_android requires an Android SDK level of at least 24.

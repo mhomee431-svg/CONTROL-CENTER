@@ -19,14 +19,26 @@ class UserStatus(str, enum.Enum):
 class User(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
     __table_args__ = (
+        # Single source of truth for the unique firebase_uid index — matches
+        # migration 0021 exactly. Do NOT also set index=True/unique=True on the
+        # column below: the duplicate definition breaks SQLite create_all
+        # ("index ix_users_firebase_uid already exists").
         Index("ix_users_firebase_uid", "firebase_uid", unique=True),
+        # Unique Business ID (dev-phase shopkeeper identity) — matches
+        # migration 0022 exactly. Same pattern as firebase_uid above: the
+        # index is declared HERE only, never on the column.
+        Index("ix_users_business_id", "business_id", unique=True),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     # Firebase UID — stable external identity identifier from Firebase Authentication.
     # This is the PRIMARY link between Firebase and the application user.
     # Phone number can change/recycle; firebase_uid is permanent.
-    firebase_uid: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
+    firebase_uid: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Business ID — unique shopkeeper identity for the interim phone+password
+    # auth phase (e.g. SHOP_919000000011). Nullable: customers/legacy users
+    # do not have one until their first shopkeeper login backfills it.
+    business_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # Phone may be NULL for Google-only signups; OTP-registered users always have one.
     phone_number: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
     google_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)

@@ -19,7 +19,8 @@ android {
 
     defaultConfig {
         // Application ID must match the package name registered in Firebase Console
-        applicationId = "com.Hyperlocal.app"
+        // (case-sensitive: google-services.json declares "com.hyperlocal.app")
+        applicationId = "com.hyperlocal.app"
         // 23 required by google_maps_flutter / androidx.window deps
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion

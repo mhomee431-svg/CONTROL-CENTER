@@ -7,11 +7,13 @@ abstract class TokenStore {
   Future<String?> readAccessToken();
   Future<String?> readRefreshToken();
   Future<String?> readSessionId();
+  Future<String?> readBusinessId();
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   });
   Future<void> saveSessionId(String sessionId);
+  Future<void> saveBusinessId(String businessId);
   Future<void> clearAll();
 }
 
@@ -22,6 +24,7 @@ class SecureTokenStore implements TokenStore {
   static const _accessKey = 'sk_access_token';
   static const _refreshKey = 'sk_refresh_token';
   static const _sessionKey = 'sk_session_id';
+  static const _businessIdKey = 'sk_business_id';
 
   @override
   Future<String?> readAccessToken() => _storage.read(key: _accessKey);
@@ -31,6 +34,9 @@ class SecureTokenStore implements TokenStore {
 
   @override
   Future<String?> readSessionId() => _storage.read(key: _sessionKey);
+
+  @override
+  Future<String?> readBusinessId() => _storage.read(key: _businessIdKey);
 
   @override
   Future<void> saveTokens({
@@ -46,10 +52,15 @@ class SecureTokenStore implements TokenStore {
       _storage.write(key: _sessionKey, value: sessionId);
 
   @override
+  Future<void> saveBusinessId(String businessId) =>
+      _storage.write(key: _businessIdKey, value: businessId);
+
+  @override
   Future<void> clearAll() async {
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
     await _storage.delete(key: _sessionKey);
+    await _storage.delete(key: _businessIdKey);
   }
 }
 
@@ -59,6 +70,7 @@ class InMemoryTokenStore implements TokenStore {
     String? accessToken,
     String? refreshToken,
     String? sessionId,
+    this._businessId,
   })  : _access = accessToken,
         _refresh = refreshToken,
         _session = sessionId;
@@ -66,6 +78,7 @@ class InMemoryTokenStore implements TokenStore {
   String? _access;
   String? _refresh;
   String? _session;
+  String? _businessId;
 
   @override
   Future<String?> readAccessToken() async => _access;
@@ -75,6 +88,9 @@ class InMemoryTokenStore implements TokenStore {
 
   @override
   Future<String?> readSessionId() async => _session;
+
+  @override
+  Future<String?> readBusinessId() async => _businessId;
 
   @override
   Future<void> saveTokens({
@@ -91,10 +107,16 @@ class InMemoryTokenStore implements TokenStore {
   }
 
   @override
+  Future<void> saveBusinessId(String businessId) async {
+    _businessId = businessId;
+  }
+
+  @override
   Future<void> clearAll() async {
     _access = null;
     _refresh = null;
     _session = null;
+    _businessId = null;
   }
 }
 

@@ -16,18 +16,35 @@ class SendOTPResponse(BaseModel):
 
 
 class CustomerFirebaseAuthRequest(BaseModel):
-    """Firebase Phone Auth login / register payload for the Customer App.
+    """Firebase Phone Auth payload for the Customer App.
 
     The Flutter app completes the phone-OTP flow client-side with
-    ``firebase_auth`` and sends the resulting Firebase ID token
-    (``firebase_id_token``). The backend verifies the token to extract and
-    trust the phone number — no SMS gateway is involved.
+    ``firebase_auth`` and sends the resulting Firebase ID token. The token can
+    arrive in the ``Authorization: Bearer`` header (preferred) or — for
+    backward compatibility — in the body as ``firebase_id_token``.
+
+    For the new ``verify-phone`` → ``register`` flow the client may also send
+    the verified ``firebase_uid`` / ``phone_number`` and the desired ``role``.
     """
 
-    firebase_id_token: str = Field(
-        ...,
+    firebase_id_token: str | None = Field(
+        None,
         min_length=20,
-        description="Firebase ID token from the client phone-OTP sign-in",
+        description="Firebase ID token from the client phone-OTP sign-in (body fallback)",
+    )
+    firebase_uid: str | None = Field(
+        None,
+        max_length=128,
+        description="Verified Firebase UID (cross-checked against the token)",
+    )
+    phone_number: str | None = Field(
+        None,
+        max_length=20,
+        description="Verified phone number (cross-checked against the token)",
+    )
+    requested_role: str | None = Field(
+        None,
+        description="Role to assign for new users (customer, shopkeeper)",
     )
     name: str | None = Field(
         None,

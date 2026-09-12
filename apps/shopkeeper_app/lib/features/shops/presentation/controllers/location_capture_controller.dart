@@ -69,6 +69,9 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
           );
         }
       },
+    ).timeout(
+      LocationAccuracyConfig.acquisitionTimeout + const Duration(seconds: 5),
+      onTimeout: () => LocationAcquisition(best: null, readings: const [], timedOut: true),
     );
 
     final best = acquisition.best;
@@ -76,7 +79,7 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
       state = state.copyWith(
         status: LocationCaptureStatus.error,
         errorMessage:
-            'Could not get your location. Try moving to an open area.',
+            'Could not get your location. Try moving to an open area or enter manually.',
       );
       return;
     }

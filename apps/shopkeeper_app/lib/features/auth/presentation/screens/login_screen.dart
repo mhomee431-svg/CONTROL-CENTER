@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controllers/auth_controller.dart';
-import '../../data/auth_repository.dart';
-import '../../data/mock_auth_repository.dart';
 import '../../data/phone_utils.dart';
 
-/// Login screen with password and OTP options.
+/// Login screen — simple phone number + password sign in.
+///
+/// Firebase phone-OTP verification is currently disabled, so this screen only
+/// offers password login. The OTP option is restored when the Firebase flow is
+/// re-enabled (see TODO(Firebase) markers).
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,70 +18,31 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _identifierController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
-  bool _usePasswordLogin = true;
 
   @override
   void dispose() {
-    _identifierController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _submitPasswordLogin() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final phone = normalizeIndianPhone(_phoneController.text);
     final ok = await ref
         .read(authControllerProvider.notifier)
-        .loginWithPassword(
-          _identifierController.text.trim(),
-          _passwordController.text,
-        );
+        .loginWithPassword(phone, _passwordController.text);
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(ref.read(authControllerProvider).errorMessage ??
               'Login failed'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _submitOtpLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final phone = normalizeIndianPhone(_identifierController.text);
-    final ok = await ref
-        .read(authControllerProvider.notifier)
-        .sendOtp(phone);
-    if (!mounted) return;
-    if (ok) {
-      // In mock mode, show the OTP in a very visible banner so the user
-      // can sign in without a real SMS.
-      if (kUseMockAuth) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Your OTP is: ${MockAuthRepository.mockOtp}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            duration: const Duration(seconds: 8),
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            action: SnackBarAction(label: 'OK', onPressed: () {}),
-          ),
-        );
-      }
-      context.push('/otp?phone=${Uri.encodeComponent(phone)}');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ref.read(authControllerProvider).errorMessage ??
-              'Could not send code'),
         ),
       );
     }
@@ -101,90 +64,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 8),
               const Text('Sign in to your business account.'),
               const SizedBox(height: 24),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Password')),
-                  ButtonSegment(value: false, label: Text('OTP')),
-                ],
-                selected: {_usePasswordLogin},
-                onSelectionChanged: (v) {
-                  setState(() => _usePasswordLogin = v.first);
-                },
-              ),
-              const SizedBox(height: 24),
               TextFormField(
-                controller: _identifierController,
-                keyboardType: _usePasswordLogin
-                    ? TextInputType.emailAddress
-                    : TextInputType.phone,
-                autofillHints: _usePasswordLogin
-                    ? const [AutofillHints.email]
-                    : const [AutofillHints.telephoneNumber],
-                decoration: InputDecoration(
-                  labelText: _usePasswordLogin
-                      ? 'Email or phone number'
-                      : 'Phone number',
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
+                decoration: const InputDecoration(
+                  labelText: 'Phone number',
+                  hintText: '9999999999',
+                  prefixText: '+91 ',
                 ),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'This field is required';
                   }
-                  if (!_usePasswordLogin) {
-                    final digits = v.replaceAll(RegExp(r'\D'), '');
-                    if (digits.length < 10) {
-                      return 'Enter a valid phone number';
-                    }
+                  final digits = v.replaceAll(RegExp(r'\D'), '');
+                  if (digits.length < 10) {
+                    return 'Enter a valid phone number';
                   }
                   return null;
                 },
-                onFieldSubmitted: (_) => _usePasswordLogin
-                    ? _submitPasswordLogin()
-                    : _submitOtpLogin(),
+                onFieldSubmitted: (_) => _submit(),
               ),
-              if (_usePasswordLogin) ...[
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Enter your password';
-                    if (v.length < 8) return 'Password must be at least 8 characters';
-                    return null;
-                  },
-                  onFieldSubmitted: (_) => _submitPasswordLogin(),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: const Text('Forgot password?'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword
+                        ? Icons.visibility_off
+                        : Icons.visibility),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
-              ],
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Enter your password';
+                  return null;
+                },
+                onFieldSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => context.push('/forgot-password'),
+                  child: const Text('Forgot password?'),
+                ),
+              ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: isLoading
-                    ? null
-                    : (_usePasswordLogin
-                        ? _submitPasswordLogin
-                        : _submitOtpLogin),
+                onPressed: isLoading ? null : _submit,
                 child: isLoading
                     ? const SizedBox(
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(_usePasswordLogin ? 'Sign in' : 'Send code'),
+                    : const Text('Sign in'),
               ),
               const SizedBox(height: 12),
               TextButton(

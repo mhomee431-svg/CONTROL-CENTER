@@ -1,4 +1,4 @@
-﻿import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repository.dart';
@@ -35,6 +35,7 @@ AuthSession makeSession({List<ShopSummary>? shops}) => AuthSession(
         phoneNumber: '+919000000001',
         name: 'Ramesh',
         role: 'shopkeeper',
+        businessId: 'SHOP_919000000001',
       ),
       shops: shops ?? [ownerShop()],
     );
@@ -71,46 +72,23 @@ Map<String, dynamic> dashboardJson() => {
 // ---- Fakes ---------------------------------------------------------------
 
 class FakeAuthRepository implements AuthRepository {
-  FakeAuthRepository({this.restoreResult, this.submitError, this.sendOtpError});
+  FakeAuthRepository({this.restoreResult, this.submitError});
 
   AuthSession? restoreResult;
   Object? submitError;
-  Object? sendOtpError;
 
-  int otpSends = 0;
   int registerCalls = 0;
   int loginCalls = 0;
   int logoutCalls = 0;
   String? lastRegisteredName;
 
   @override
-  Future<AuthSession> registerWithFirebase({
-    required String phoneNumber,
-    required String firebaseIdToken,
+  Future<AuthSession> registerWithPassword({
     required String name,
-    String? password,
+    required String phoneNumber,
+    required String password,
   }) async {
     registerCalls++;
-    lastRegisteredName = name;
-    if (submitError != null) throw submitError!;
-    return restoreResult ?? makeSession();
-  }
-
-  @override
-  Future<AuthSession> loginWithFirebase({
-    required String firebaseIdToken,
-  }) async {
-    loginCalls++;
-    if (submitError != null) throw submitError!;
-    return restoreResult ?? makeSession();
-  }
-
-  @override
-  Future<AuthSession> loginWithFirebaseAuto({
-    required String firebaseIdToken,
-    String? name,
-  }) async {
-    loginCalls++;
     lastRegisteredName = name;
     if (submitError != null) throw submitError!;
     return restoreResult ?? makeSession();
@@ -127,9 +105,7 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> forgotPassword(String identifier) async {
-    if (sendOtpError != null) throw sendOtpError!;
-  }
+  Future<void> forgotPassword(String identifier) async {}
 
   @override
   Future<void> resetPassword({
@@ -209,6 +185,41 @@ class FakeShopRepo implements ShopRepository {
       'location_status': 'CORRECTED',
     };
   }
+
+  @override
+  Future<List<MerchantCategoryOption>> listMerchantCategories(
+      String token) async =>
+      [
+        MerchantCategoryOption(
+            code: 'PHARMACY_HEALTHCARE', name: 'Pharmacy & Healthcare'),
+      ];
+
+  @override
+  Future<CategoryRequirements> getCategoryRequirements(
+      String token, String categoryCode) async {
+    return const CategoryRequirements(
+      categoryCode: 'PHARMACY_HEALTHCARE',
+      categoryName: 'Pharmacy & Healthcare',
+      documents: [],
+    );
+  }
+
+  @override
+  Future<void> addShopDocument({
+    required int shopId,
+    required String documentType,
+    required String documentUrl,
+    String? documentNumber,
+    required String token,
+  }) async {}
+
+  @override
+  Future<void> updateOperatingHours({
+    required int shopId,
+    required String openTime,
+    required String closeTime,
+    required String token,
+  }) async {}
 }
 
 class FakeDashboardRepo implements DashboardRepository {
@@ -232,4 +243,3 @@ class FakeDashboardRepo implements DashboardRepository {
 }
 
 class ForbiddenError implements Exception {}
-

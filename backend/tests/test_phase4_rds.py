@@ -45,7 +45,7 @@ def _verifier_tables():
     return set(re.findall(r'"([\w_]+)"', block.group(1)))
 
 
-def test_migration_chain_is_linear_and_head_is_0019():
+def test_migration_chain_is_linear_and_head_is_0022():
     revisions = {}
     for f in _migration_files():
         src = _source(f)
@@ -68,7 +68,7 @@ def test_migration_chain_is_linear_and_head_is_0019():
         if nxt is None:
             break
         current = nxt
-    assert current == "0019", f"migration HEAD should be 0019, got {current}"
+    assert current == "0022", f"migration HEAD should be 0022, got {current}"
     assert sorted(revisions) == sorted(seen), "chain is not linear (branch/merge)"
 
 

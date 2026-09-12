@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../auth/domain/auth_models.dart';
 
 export '../../auth/domain/auth_models.dart' show ShopSummary;
@@ -153,4 +155,151 @@ const kShopCategories = <String>[
   'TOYS',
   'BEAUTY',
   'OTHER',
+];
+
+// ── Merchant categories & category requirements (backend-driven) ────────────
+
+/// A merchant category shown in the shop-registration wizard dropdown.
+///
+/// Loaded from `GET /shopkeeper/businesses/categories` — the app never
+/// hardcodes category codes.
+class MerchantCategoryOption {
+  const MerchantCategoryOption({
+    required this.code,
+    required this.name,
+    this.description,
+  });
+
+  final String code;
+  final String name;
+  final String? description;
+
+  factory MerchantCategoryOption.fromJson(Map<String, dynamic> json) =>
+      MerchantCategoryOption(
+        code: json['code'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        description: json['description'] as String?,
+      );
+}
+
+/// Kind of file a document slot accepts (drives picker options + S3 category).
+enum DocumentMediaCategory { document, shopImage }
+
+/// One uploadable verification document defined by the backend requirements
+/// contract (`GET /shopkeeper/businesses/categories/{code}/requirements`).
+class DocumentRequirement {
+  const DocumentRequirement({
+    required this.key,
+    required this.label,
+    this.hint,
+    required this.required,
+    required this.mediaCategory,
+    this.icon,
+  });
+
+  /// Backend requirement code, e.g. `DRUG_LICENSE` (used as the document_type
+  /// when attaching the file to the shop).
+  final String key;
+  final String label;
+  final String? hint;
+  final bool required;
+  final DocumentMediaCategory mediaCategory;
+
+  /// Material icon shown on the document card (fallback for generic slots).
+  final IconData? icon;
+
+  factory DocumentRequirement.fromJson(Map<String, dynamic> json) =>
+      DocumentRequirement(
+        key: json['doc_key'] as String? ?? '',
+        label: json['label'] as String? ?? 'Document',
+        hint: json['hint'] as String?,
+        required: json['required'] as bool? ?? true,
+        mediaCategory: (json['media_category'] as String? ?? 'DOCUMENT') ==
+                'SHOP_IMAGE'
+            ? DocumentMediaCategory.shopImage
+            : DocumentMediaCategory.document,
+      );
+}
+
+/// Documents + verification steps for a merchant category, as returned by the
+/// backend category-requirements API. The wizard Documents step renders this —
+/// never a hard-coded category→document table.
+class CategoryRequirements {
+  const CategoryRequirements({
+    required this.categoryCode,
+    required this.categoryName,
+    required this.documents,
+    this.requiresBankVerification = false,
+    this.phoneOtpRequired = true,
+    this.identityVerificationRequired = true,
+    this.adminReviewRequired = true,
+  });
+
+  final String categoryCode;
+  final String categoryName;
+
+  /// Category-specific uploadable documents (e.g. Drug License, FSSAI…).
+  final List<DocumentRequirement> documents;
+
+  /// Whether the post-registration timeline includes bank verification.
+  final bool requiresBankVerification;
+  final bool phoneOtpRequired;
+  final bool identityVerificationRequired;
+  final bool adminReviewRequired;
+
+  factory CategoryRequirements.fromJson(Map<String, dynamic> json) {
+    final steps = json['steps'] as Map<String, dynamic>? ?? const {};
+    return CategoryRequirements(
+      categoryCode: json['category_code'] as String? ?? '',
+      categoryName: json['category_name'] as String? ?? '',
+      requiresBankVerification:
+          json['requires_bank_verification'] as bool? ?? false,
+      phoneOtpRequired: steps['phone_otp'] as bool? ?? true,
+      identityVerificationRequired:
+          steps['identity_verification'] as bool? ?? true,
+      adminReviewRequired: steps['admin_review'] as bool? ?? true,
+      documents: ((json['documents'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(DocumentRequirement.fromJson)
+          .toList(growable: false),
+    );
+  }
+}
+
+/// Universal verification documents every business must supply. Category-
+/// specific documents (Drug License, FSSAI, …) come from [CategoryRequirements]
+/// and are rendered alongside these.
+const kUniversalDocuments = <DocumentRequirement>[
+  DocumentRequirement(
+    key: 'GST_CERTIFICATE',
+    label: 'GST Certificate',
+    hint: 'Upload your GST registration certificate',
+    required: false,
+    mediaCategory: DocumentMediaCategory.document,
+    icon: Icons.receipt_long_outlined,
+  ),
+  DocumentRequirement(
+    key: 'SHOP_PHOTO',
+    label: 'Shop Photo',
+    hint: 'A clear photo of your shop front',
+    required: false,
+    mediaCategory: DocumentMediaCategory.shopImage,
+    icon: Icons.storefront_outlined,
+  ),
+  DocumentRequirement(
+    key: 'OWNER_ID_PROOF',
+    label: 'Owner ID Proof',
+    hint: 'Aadhaar / PAN / driving license of the owner',
+    required: false,
+    mediaCategory: DocumentMediaCategory.document,
+    icon: Icons.badge_outlined,
+  ),
+  DocumentRequirement(
+    key: 'OTHER_DOCUMENT',
+    label: 'Other Documents',
+    hint: 'Any additional document you want to attach',
+    required: false,
+    mediaCategory: DocumentMediaCategory.document,
+    icon: Icons.upload_file_outlined,
+  ),
 ];

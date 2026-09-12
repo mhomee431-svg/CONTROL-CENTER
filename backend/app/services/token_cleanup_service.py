@@ -3,7 +3,6 @@
 Handles periodic cleanup of:
 - Expired JWT blacklisted tokens
 - Expired auth sessions
-- Expired OTP records
 - Expired password reset tokens
 
 This service is designed to be called by a Celery beat schedule or manually.
@@ -14,7 +13,6 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.session import AuthSession, TokenBlacklist
-from app.models.otp import Otp
 from app.models.password_reset import PasswordReset
 
 logger = logging.getLogger("app.services.token_cleanup")
@@ -29,7 +27,6 @@ def cleanup_expired_tokens(db: Session) -> dict:
     results = {
         "blacklisted_tokens": 0,
         "expired_sessions": 0,
-        "expired_otps": 0,
         "expired_password_resets": 0,
     }
 
@@ -71,23 +68,7 @@ def cleanup_expired_tokens(db: Session) -> dict:
     except Exception as exc:
         logger.error("Error cleaning expired sessions: %s", exc)
 
-    # 3. Clean expired OTPs
-    try:
-        expired_otps = (
-            db.query(Otp)
-            .filter(
-                Otp.expires_at < now,
-                Otp.is_verified == False,  # noqa: E712
-            )
-            .delete(synchronize_session=False)
-        )
-        results["expired_otps"] = expired_otps
-        if expired_otps > 0:
-            logger.info("Cleaned %d expired OTPs", expired_otps)
-    except Exception as exc:
-        logger.error("Error cleaning expired OTPs: %s", exc)
-
-    # 4. Clean expired password resets
+    # 3. Clean expired password resets
     try:
         expired_resets = (
             db.query(PasswordReset)

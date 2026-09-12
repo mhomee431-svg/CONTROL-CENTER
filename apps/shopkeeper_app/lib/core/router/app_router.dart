@@ -1,25 +1,25 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/controllers/selected_shop.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
-import '../../features/auth/presentation/screens/welcome_screen.dart';
-import '../../features/auth/presentation/screens/splash_screen.dart';
-import '../../features/auth/presentation/screens/otp_screen.dart';
-import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
+import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/account/presentation/screens/account_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
 import '../../features/shell/shopkeeper_shell.dart';
 import '../../features/shops/presentation/screens/shops_screen.dart';
 import '../../features/shops/presentation/screens/shop_profile_screen.dart';
-import '../../features/shops/presentation/screens/shop_register_screen.dart';
 import '../../features/shops/presentation/screens/shop_settings_screen.dart';
 import '../../features/shops/presentation/screens/location_capture_screen.dart';
+import '../../features/shop_registration/presentation/screens/shop_registration_wizard.dart';
+import '../../features/barcode/barcode_scanner_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -30,9 +30,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   // IMPORTANT: the GoRouter is created exactly ONCE. We must NOT `ref.watch`
   // auth state here — that would create a new GoRouter (and reset the whole
-  // navigation stack to /splash) on every auth state change (loading, otpSent,
-  // etc.), which is exactly what bounced users back to /welcome in the middle
-  // of the register/login OTP flow.
+  // navigation stack to /splash) on every auth state change (loading,
+  // authenticated, etc.), which is exactly what bounced users back to
+  // /welcome in the middle of the register/login flow.
   //
   // Instead:
   //  - `ref.read(...)` inside the redirect closure always reads the CURRENT
@@ -46,7 +46,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final auth = ref.read(authControllerProvider);
       final selectedShop = ref.read(selectedShopProvider);
       final loc = state.matchedLocation;
-      const authRoutes = ['/welcome', '/login', '/otp', '/register', '/forgot-password', '/reset-password'];
+      const authRoutes = [
+        '/welcome',
+        '/login',
+        '/register',
+        '/forgot-password',
+        '/reset-password',
+      ];
       final isSplash = loc == '/splash';
 
       if (auth.status == AuthStatus.initial || auth.isLoading) {
@@ -56,15 +62,14 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final signedOut = auth.status == AuthStatus.unauthenticated ||
           auth.status == AuthStatus.sessionExpired ||
-          auth.status == AuthStatus.error ||
-          auth.status == AuthStatus.otpSent;
+          auth.status == AuthStatus.error;
       if (signedOut) {
         if (isSplash) return '/welcome';
         if (authRoutes.contains(loc)) return null;
         return '/welcome';
       }
 
-      // â”€â”€ Authenticated â”€â”€
+      // ── Authenticated ──
       String? guard(String target) {
         const publicInApp = ['/shops', '/shop-register'];
         if (publicInApp.any(target.startsWith)) return null;
@@ -90,18 +95,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute('/splash', (_, _) => const SplashScreen()),
       buildRoute('/welcome', (_, _) => const WelcomeScreen()),
       buildRoute('/login', (_, _) => const LoginScreen()),
-      buildRoute('/otp', (context, state) {
-        final phone =
-            state.uri.queryParameters['phone'] ?? '';
-        return OtpScreen(phoneNumber: phone);
-      }),
       buildRoute('/register', (_, _) => const RegisterScreen()),
       buildRoute('/forgot-password', (_, _) => const ForgotPasswordScreen()),
       buildRoute('/reset-password', (context, state) {
         final token = state.uri.queryParameters['token'] ?? '';
         return ResetPasswordScreen(token: token);
       }),
-      buildRoute('/shop-register', (_, _) => const ShopRegisterScreen()),
+      buildRoute('/shop-register', (_, _) => const ShopRegistrationWizard()),
       buildRoute('/shops', (_, _) => const ShopsScreen()),
       buildRoute('/shop-profile', (_, _) => const ShopProfileScreen()),
       buildRoute('/shop-settings', (_, _) => const ShopSettingsScreen()),
@@ -109,6 +109,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         final extra = state.extra as Map<String, dynamic>?;
         return LocationCaptureScreen(shopName: extra?['shopName'] as String?);
       }),
+      buildRoute('/scan-barcode', (_, _) => const BarcodeScannerScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ShopkeeperShell(navigationShell: navigationShell),
@@ -135,12 +136,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   // Re-evaluate the redirect whenever auth or the selected shop changes —
   // WITHOUT recreating the router (which would reset navigation state and
-  // bounce users out of the register/login OTP flow).
+  // bounce users out of the register/login flow).
   ref.listen(authControllerProvider, (_, _) => router.refresh());
   ref.listen(selectedShopProvider, (_, _) => router.refresh());
 
   return router;
 });
-
-/// Kept for potential nested navigators in future phases.
-final shellNavigatorKey = GlobalKey<NavigatorState>();

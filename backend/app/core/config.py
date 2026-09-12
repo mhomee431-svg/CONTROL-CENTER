@@ -137,7 +137,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_REUSE_DETECTION: bool = True
 
     # ── SMS Provider (replaceable) ─────────────────────────────────────────────
-    SMS_PROVIDER: str = "mock"  # mock | twilio | msg91 | aws-sns
+    SMS_PROVIDER: str = "mock"  # mock | twilio | aws-sns
     SMS_PROVIDER_API_KEY: Optional[str] = None
     SMS_PROVIDER_SENDER_ID: Optional[str] = None
     SMS_PROVIDER_SECRET: Optional[str] = None
@@ -370,11 +370,15 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_sync_url(self) -> str:
-        """Synchronous connection URL for Celery beats / WS."""
+        """Synchronous connection URL for Celery beats / Alembic / scripts."""
         url = self.DATABASE_URL
+        # PostgreSQL async → sync driver.
         for prefix in ("postgresql+asyncpg://", "postgres+asyncpg://"):
             if url.startswith(prefix):
                 return url.replace(prefix, "postgresql+psycopg://")
+        # SQLite async (aiosqlite) → sync (pysqlite) for the sync engine.
+        if url.startswith("sqlite+aiosqlite://"):
+            return url.replace("sqlite+aiosqlite://", "sqlite://")
         return url
 
     @property

@@ -3,26 +3,24 @@ import 'auth_repository.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/network/api_client.dart';
 
-/// Mock auth repository for testing without backend.
-/// Simulates the OTP flow without making real API calls.
-/// The OTP is always 123456 for easy testing.
+/// Mock auth repository for offline development / testing (no backend).
 class MockAuthRepository implements AuthRepository {
   MockAuthRepository(this._tokens);
 
   final TokenStore _tokens;
 
-  /// The mock OTP code. Always 123456 so testers can sign in instantly.
-  static const String mockOtp = '123456';
-
   @override
-  Future<AuthSession> registerWithFirebase({
-    required String phoneNumber,
-    required String firebaseIdToken,
+  Future<AuthSession> registerWithPassword({
     required String name,
-    String? password,
+    required String phoneNumber,
+    required String password,
   }) async {
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
+
+    if (password.isEmpty) {
+      throw const ApiException(message: 'Password is required');
+    }
 
     // Create mock session
     final user = ShopkeeperUser(
@@ -31,71 +29,16 @@ class MockAuthRepository implements AuthRepository {
       name: name,
       email: null,
       role: 'owner',
+      businessId: 'SHOP_${phoneNumber.replaceAll(RegExp(r'\D'), '')}',
     );
-
-    final shops = <ShopSummary>[];
-
-    // Save mock tokens
-    await _tokens.saveTokens(
-      accessToken: 'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
-      refreshToken: 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
-    );
-
-    return AuthSession(user: user, shops: shops);
-  }
-
-  @override
-  Future<AuthSession> loginWithFirebase({
-    required String firebaseIdToken,
-  }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Create mock session
-    final user = ShopkeeperUser(
-      id: 1,
-      phoneNumber: '+919999999999',
-      name: 'Test Shopkeeper',
-      email: null,
-      role: 'owner',
-    );
-
-    final shops = <ShopSummary>[];
-
-    // Save mock tokens
-    await _tokens.saveTokens(
-      accessToken: 'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
-      refreshToken: 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
-    );
-
-    return AuthSession(user: user, shops: shops);
-  }
-
-  @override
-  Future<AuthSession> loginWithFirebaseAuto({
-    required String firebaseIdToken,
-    String? name,
-  }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Auto-register / login — mock users always exist
-    final user = ShopkeeperUser(
-      id: 1,
-      phoneNumber: '+919999999999',
-      name: name ?? 'Test Shopkeeper',
-      email: null,
-      role: 'owner',
-    );
-
-    final shops = <ShopSummary>[];
 
     await _tokens.saveTokens(
       accessToken: 'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
       refreshToken: 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
     );
+    await _tokens.saveBusinessId(user.businessId!);
 
-    return AuthSession(user: user, shops: shops);
+    return AuthSession(user: user, shops: const []);
   }
 
   @override
@@ -119,14 +62,12 @@ class MockAuthRepository implements AuthRepository {
       role: 'owner',
     );
 
-    final shops = <ShopSummary>[];
-
     await _tokens.saveTokens(
       accessToken: 'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
       refreshToken: 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
     );
 
-    return AuthSession(user: user, shops: shops);
+    return AuthSession(user: user, shops: const []);
   }
 
   @override

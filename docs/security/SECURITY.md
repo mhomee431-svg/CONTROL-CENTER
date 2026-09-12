@@ -13,7 +13,7 @@ This document describes the security measures implemented in the Hyperlocal Prod
 - **Reuse Detection**: Replayed refresh tokens revoke the session
 
 ### OTP Authentication
-- **Customer**: Fast2SMS (6-digit OTP, 5-minute expiry)
+- **Customer**: Firebase Phone Auth (client-side OTP verification)
 - **Shopkeeper**: Firebase Phone Auth (client-side verification)
 - **Rate Limiting**: 5 OTP requests per minute per phone number
 - **Attempt Limiting**: 5 verification attempts per OTP

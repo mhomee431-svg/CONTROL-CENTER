@@ -7,14 +7,11 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // ── Shopkeeper auth ──
-  static const String sendOtp = '/api/v1/shopkeeper/auth/send-otp';
   static const String register = '/api/v1/shopkeeper/auth/register';
   static const String login = '/api/v1/shopkeeper/auth/login';
-  static const String verifyOtp = '/api/v1/shopkeeper/auth/verify-otp';
   static const String refresh = '/api/v1/shopkeeper/auth/refresh';
   static const String logout = '/api/v1/shopkeeper/auth/logout';
   static const String me = '/api/v1/shopkeeper/auth/me';
-  static const String firebaseLogin = '/api/v1/shopkeeper/auth/firebase-login';
   static const String forgotPassword = '/api/v1/shopkeeper/auth/forgot-password';
   static const String resetPassword = '/api/v1/shopkeeper/auth/reset-password';
 
@@ -28,11 +25,19 @@ class ApiEndpoints {
   static String shopProfile(String id) => '${shop(id)}/profile';
   static String shopLocation(String id) => '${shop(id)}/location';
   static String shopSettings(String id) => '${shop(id)}/settings';
+  static String shopDocuments(String id) => '${shop(id)}/documents';
   static String dashboard(String id) => '${shop(id)}/dashboard';
   static String inventory(String id) => '${shop(id)}/inventory';
   static String products(String id) => '${shop(id)}/products';
   static String product(String shopId, String productId) =>
       '${products(shopId)}/$productId';
+
+  // ── Merchant categories (shop-registration wizard) ──
+  static const String businessCategories =
+      '/api/v1/shopkeeper/businesses/categories';
+  static String businessCategoryRequirements(String code) =>
+      '$businessCategories/$code/requirements';
+  static String shopHours(String id) => '${shop(id)}/hours';
 
   // ── Phase 7 — media / S3 object storage (secure signed-upload flow) ──
   // Credentials never reach the client: the backend authorizes, mints the

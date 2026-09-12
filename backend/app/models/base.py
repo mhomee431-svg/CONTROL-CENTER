@@ -8,11 +8,14 @@ from app.database.session import Base
 
 class TimestampMixin:
     """Mixin providing created_at and updated_at timestamps."""
+    # Python-side default so a real datetime object is always supplied on
+    # insert/update — required by SQLite's DateTime dialect (server_default
+    # 'now()' is a Postgres-only literal there). Works on Postgres too.
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, default=datetime.now, server_default="now()"
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()", onupdate="now()"
+        DateTime(timezone=True), nullable=False, default=datetime.now, server_default="now()", onupdate=datetime.now
     )
 
 

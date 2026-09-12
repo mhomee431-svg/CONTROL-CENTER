@@ -133,7 +133,10 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
         LocationCaptureStatus.requestingPermission ||
         LocationCaptureStatus.fetchingLocation ||
         LocationCaptureStatus.improvingAccuracy =>
-          _AcquiringView(state: state),
+          _AcquiringView(
+            state: state,
+            onManual: () => Navigator.of(context).pop(),
+          ),
         LocationCaptureStatus.locationPermissionDenied => _BlockedView(
             icon: Icons.lock_outline,
             message:
@@ -186,9 +189,10 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
 /// "Fetching your location…" / "Improving location accuracy…" view with the
 /// best-practice checklist. No map here — the map only appears once ready.
 class _AcquiringView extends StatelessWidget {
-  const _AcquiringView({required this.state});
+  const _AcquiringView({required this.state, required this.onManual});
 
   final LocationCaptureState state;
+  final VoidCallback onManual;
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +247,13 @@ class _AcquiringView extends StatelessWidget {
                     _ChecklistItem('Wait for accuracy to improve'),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+              // Don't force waiting on a weak/unavailable GPS fix.
+              OutlinedButton.icon(
+                onPressed: onManual,
+                icon: const Icon(Icons.edit_location_alt_outlined),
+                label: const Text('Enter Location Manually'),
               ),
             ],
           ),

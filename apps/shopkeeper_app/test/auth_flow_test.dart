@@ -3,109 +3,109 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/app.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/router/app_router.dart';
-import 'package:hyperlocal_shopkeeper_app/core/network/api_providers.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
-import 'package:hyperlocal_shopkeeper_app/features/auth/data/phone_auth_service.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/auth_controller.dart';
 
 import 'fakes.dart';
 
 void main() {
-  ProviderContainer makeContainer(
-    FakeAuthRepository repo, {
-    PhoneAuthService? phoneAuth,
-  }) =>
+  ProviderContainer makeContainer(FakeAuthRepository repo) =>
       ProviderContainer(overrides: [
         authRepositoryProvider.overrideWithValue(repo),
-        phoneAuthServiceProvider.overrideWithValue(
-          phoneAuth ?? FakePhoneAuthService(),
-        ),
       ]);
 
-  group('registration', () {
-    test('sendOtp (Firebase) → submitOtp registers and signs in', () async {
+  group('registration (phone + password)', () {
+    test('registerWithPassword creates the account and signs in', () async {
       final repo = FakeAuthRepository();
-      final phoneAuth = FakePhoneAuthService();
-      final container = makeContainer(repo, phoneAuth: phoneAuth)
-        ..read(authControllerProvider);
+      final container = makeContainer(repo)..read(authControllerProvider);
       final notifier = container.read(authControllerProvider.notifier);
 
-      notifier.beginRegistration('+919000000001', 'Ramesh Kirana');
-      final sent = await notifier.sendOtp('+919000000001');
-
-      expect(sent, isTrue);
-      expect(container.read(authControllerProvider).status,
-          AuthStatus.otpSent);
-
-      final ok = await notifier
-          .submitOtp(phoneNumber: '+919000000001', otp: '123456');
+      final ok = await notifier.registerWithPassword(
+        name: 'Ramesh Kirana',
+        phoneNumber: '+919000000001',
+        password: 'Password123',
+      );
 
       expect(ok, isTrue);
       expect(repo.registerCalls, 1);
       expect(repo.lastRegisteredName, 'Ramesh Kirana');
-      expect(repo.loginCalls, 0);
       final state = container.read(authControllerProvider);
       expect(state.status, AuthStatus.authenticated);
+      expect(state.shops, hasLength(1));
     });
 
     test('duplicate phone surfaces backend conflict message', () async {
       final repo = FakeAuthRepository()
         ..submitError = const ApiException(
-            statusCode: 409, message: 'Account already exists.');
+            statusCode: 400,
+            errorCode: 'PHONE_ALREADY_REGISTERED',
+            message: 'Phone number already registered. Please login.');
       final container = makeContainer(repo)..read(authControllerProvider);
       final notifier = container.read(authControllerProvider.notifier);
 
-      notifier.beginRegistration('+919000000001', 'Dup');
-      await notifier.sendOtp('+919000000001');
-      final ok = await notifier
-          .submitOtp(phoneNumber: '+919000000001', otp: '123456');
+      final ok = await notifier.registerWithPassword(
+        name: 'Dup',
+        phoneNumber: '+919000000001',
+        password: 'Password123',
+      );
 
       expect(ok, isFalse);
+      expect(container.read(authControllerProvider).status, AuthStatus.error);
       expect(container.read(authControllerProvider).errorMessage,
-          contains('already exists'));
+          contains('already registered'));
+      expect(container.read(authControllerProvider).errorCode,
+          'PHONE_ALREADY_REGISTERED');
     });
 
-    test('Firebase send failure is surfaced to the user', () async {
-      final repo = FakeAuthRepository();
-      final phoneAuth = FakePhoneAuthService(shouldFail: true);
-      final container = makeContainer(repo, phoneAuth: phoneAuth)
-        ..read(authControllerProvider);
+    test('backend failure surfaces an error message', () async {
+      final repo = FakeAuthRepository()
+        ..submitError = const ApiException(
+            statusCode: 400, message: 'Invalid phone number.');
+      final container = makeContainer(repo)..read(authControllerProvider);
       final notifier = container.read(authControllerProvider.notifier);
 
-      final sent = await notifier.sendOtp('+919000000001');
+      final ok = await notifier.registerWithPassword(
+        name: 'Ramesh',
+        phoneNumber: '000',
+        password: 'Password123',
+      );
 
-      expect(sent, isFalse);
+      expect(ok, isFalse);
       expect(container.read(authControllerProvider).status, AuthStatus.error);
+      expect(container.read(authControllerProvider).errorMessage,
+          contains('Invalid phone number'));
     });
   });
 
-  group('login', () {
-    test('unknown account shows guidance instead of tokens', () async {
-      final repo = FakeAuthRepository()
-        ..submitError = const ApiException(
-            statusCode: 404, message: 'No account found. Please register first.');
-      final container = makeContainer(repo)..read(authControllerProvider);
-      final notifier = container.read(authControllerProvider.notifier);
-
-      final ok = await notifier
-          .submitOtp(phoneNumber: '+919999999999', otp: '123456');
-
-      expect(ok, isFalse);
-      expect(repo.loginCalls, 1);
-      expect(container.read(authControllerProvider).status, AuthStatus.error);
-      expect(container.read(authControllerProvider).errorMessage,
-          contains('register first'));
-    });
-
-    test('valid OTP signs in and exposes authorized shops', () async {
+  group('login (phone + password)', () {
+    test('valid credentials sign in and expose authorized shops', () async {
       final repo = FakeAuthRepository();
       final container = makeContainer(repo)..read(authControllerProvider);
       final ok = await container
           .read(authControllerProvider.notifier)
-          .submitOtp(phoneNumber: '+919000000001', otp: '123456');
+          .loginWithPassword('+919000000001', 'Password123');
 
       expect(ok, isTrue);
+      expect(repo.loginCalls, 1);
+      expect(container.read(authControllerProvider).status,
+          AuthStatus.authenticated);
       expect(container.read(authControllerProvider).shops, hasLength(1));
+    });
+
+    test('invalid credentials surface the backend message', () async {
+      final repo = FakeAuthRepository()
+        ..submitError = const ApiException(
+            statusCode: 401, message: 'Invalid credentials');
+      final container = makeContainer(repo)..read(authControllerProvider);
+      final notifier = container.read(authControllerProvider.notifier);
+
+      final ok =
+          await notifier.loginWithPassword('+919000000001', 'wrong-password');
+
+      expect(ok, isFalse);
+      expect(container.read(authControllerProvider).status, AuthStatus.error);
+      expect(container.read(authControllerProvider).errorMessage,
+          contains('Invalid credentials'));
     });
   });
 

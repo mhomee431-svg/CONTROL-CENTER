@@ -1,0 +1,660 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HyperLocal Shopkeeper App â€” Authentication &amp; Verification</title>
+<style>
+  /* â”€â”€ HyperLocal premium blue design system (customer_app AppColors) â”€- */
+  :root{
+    --primary:#2563EB; --primary-600:#1D4ED8; --primary-100:#DBEAFE; --primary-50:#EFF6FF;
+    --success:#10B981; --success-100:#D1FAE5;
+    --warning:#F59E0B; --warning-100:#FEF3C7;
+    --muted-icon:#94A3B8; --bg:#F8FAFC; --surface:#FFFFFF;
+    --text:#0F172A; --muted:#64748B; --line:#E2E8F0; --ink:#0F172A;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:2560px; height:1440px; overflow:hidden; }
+  body{
+    font-family:Inter,"Segoe UI",ui-sans-serif,system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(circle at 6% 14%, rgba(37,99,235,.10), transparent 34%),
+      radial-gradient(circle at 97% 22%, rgba(37,99,235,.08), transparent 32%),
+      radial-gradient(circle at 50% 96%, rgba(37,99,235,.06), transparent 42%),
+      linear-gradient(180deg,#EDF4FE 0%, #E7EEF9 100%);
+    color:var(--text);
+  }
+  .board{ position:relative; width:2560px; height:1440px; padding:40px 40px 34px;
+          display:flex; flex-direction:column; transform-origin:0 0; }
+
+  /* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .header{
+    display:flex; align-items:center; gap:22px;
+    background:linear-gradient(90deg,#FFFFFF 0%, #F4F8FF 100%);
+    border:2px solid #D9E2F1; border-radius:22px;
+    box-shadow:0 10px 0 rgba(37,99,235,.06), 0 4px 22px rgba(15,23,42,.10);
+    padding:16px 30px 16px 26px; height:110px;
+  }
+  .logo{
+    width:72px; height:72px; border-radius:20px;
+    background:linear-gradient(135deg,#2563EB 0%, #1E40AF 100%);
+    box-shadow:0 6px 0 rgba(37,99,235,.20), inset 0 0 0 1px rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:40px; font-weight:800;
+  }
+  .brand{ line-height:1.05; }
+  .brand b{ display:block; font-size:30px; font-weight:800; color:var(--ink); letter-spacing:-.2px; }
+  .brand span{ display:block; font-size:16px; color:var(--muted); font-weight:600; }
+  .header .divider{ width:3px; align-self:stretch; background:linear-gradient(180deg,#2563EB,#60A5FA); border-radius:2px; }
+  .header h1{ font-size:40px; font-weight:800; color:var(--ink); letter-spacing:-.5px; line-height:1.1; }
+  .header .sub{ font-size:18px; color:var(--muted); font-weight:600; }
+  .header .tag{
+    margin-left:auto; padding:10px 22px; border-radius:999px;
+    background:var(--primary); color:#fff; font-weight:700; font-size:17px;
+    box-shadow:0 4px 0 rgba(37,99,235,.25); white-space:nowrap;
+  }
+  .board-head{ display:flex; align-items:center; }
+  .board-head .lead{ font-size:22px; font-weight:700; color:var(--muted); }
+  .board-head .legend{ font-size:15px; color:var(--muted); margin-left:auto; }
+  .legend i{ display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .l-green i{ background:var(--success);} .l-blue i{ background:var(--primary);} .l-amber i{ background:var(--warning);}  /* ---- Phones and screens ---- */
+  .phone{
+    width:312px; height:640px; border-radius:46px;
+    background:linear-gradient(180deg,#1E293B 0%, #16213A 100%);
+    border:3px solid #0F172A;
+    box-shadow:0 18px 0 rgba(15,23,42,.16), 0 60px 34px rgba(15,23,42,.22);
+    position:relative; flex:none;
+  }
+  .camera{ position:absolute; top:14px; left:50%; width:10px; height:10px; margin-left:-5px;
+           border-radius:50%; background:#0B1220; box-shadow:inset 0 0 0 2px #334155; }
+  .screen{
+    position:absolute; inset:26px 12px 12px 12px; border-radius:30px; overflow:hidden;
+    background:linear-gradient(180deg,#F7FAFF 0%, var(--bg) 100%);
+    display:flex; flex-direction:column;
+  }
+  .statusbar{
+    height:32px; background:rgba(255,255,255,.92);
+    display:flex; align-items:center; justify-content:space-between; padding:0 14px;
+    font-size:12px; color:var(--text); font-weight:600;
+  }
+  .statusbar .sig{ font-size:11px; letter-spacing:-1px; color:var(--muted-icon); }
+  .sbody{ flex:1 1 auto; padding:16px 18px 8px; overflow:hidden; display:flex; flex-direction:column; }
+  .appbar{ display:flex; align-items:center; gap:10px; }
+  .appbar .a-logo{ width:30px; height:30px; border-radius:9px;
+    background:linear-gradient(135deg,#2563EB,#1E40AF); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; }
+  .appbar .a-title{ font-size:15px; font-weight:700; color:var(--text); }
+  .appbar .a-sub{ font-size:10.5px; color:var(--muted); }
+  .appbar .semi{ font-size:13px; color:var(--muted); }
+
+  .btn{ display:block; width:100%; height:44px; border:0; text-align:center; line-height:44px;
+        border-radius:13px; font-size:15px; font-weight:700; }
+  .btn.primary{ background:linear-gradient(180deg,#2563EB,#1D4ED8); color:#fff; box-shadow:0 5px 0 rgba(37,99,235,.22); }
+  .btn.ghost{ background:transparent; color:var(--primary); border:1.6px solid #BFD9FF; font-weight:700; }
+  .field{ display:flex; align-items:center; gap:9px; border:1.6px solid var(--line);
+          border-radius:12px; background:var(--surface); padding:0 12px; height:42px; }
+  .field .ic{ width:17px; height:17px; color:var(--muted-icon); }
+  .field em{ font-size:12.5px; color:var(--muted); font-style:normal; }
+  .field--focused{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+  .field--error{ border-color:#EF4444; box-shadow:0 0 0 3px rgba(239,68,68,.12); }
+  .lbs{ font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:5px; }
+
+  .stepno{ position:absolute; left:0; right:0; bottom:-32px; text-align:center;
+    font-size:13.5px; font-weight:700; color:#2E4376; background:rgba(255,255,255,.88);
+    border-radius:12px; padding:5px 0; box-shadow:0 3px 0 rgba(15,23,42,.10); }
+
+  .arrow{ width:40px; height:640px; flex:none; display:flex; align-items:center;
+          justify-content:center; flex-direction:column; }
+  .arrow .cyl{ width:34px; height:34px; border-radius:50%;
+    background:linear-gradient(135deg,#2563EB,#3B82F6); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:21px; font-weight:900;
+    box-shadow:0 6px 0 rgba(37,99,235,.25), 0 0 0 6px rgba(37,99,235,.10); }
+  .arrow .a-label{ margin-top:8px; font-size:12px; font-weight:700; color:#3D5A9E; }
+  .arrow .rail{ margin-top:6px; width:20px; height:3px; border-radius:2px; background:#C9DDFF; }
+
+  .flow{ display:flex; align-items:flex-start; gap:18px; }
+  .footer{
+    margin-top:24px; display:flex; align-items:center; gap:18px; width:100%;
+    border-top:2px solid #D9E2F1; padding-top:10px; font-size:15.5px; color:var(--muted);
+  }
+  .footer .fbrand{ font-weight:800; color:var(--text); }
+  .footer .swatches{ display:flex; gap:8px; }
+  .swatches span{ width:22px; height:22px; border-radius:7px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+  /* ---- screen: welcome illustration ---- */
+  .hero-panel{ height:128px; border-radius:16px; background:linear-gradient(135deg,#DBEAFE 0%,#BFDBFE 60%,#E0EFFF 100%);
+    margin:0 0 6px 0; display:flex; align-items:center; justify-content:center; position:relative; }
+  .hero-panel .svg-hero{ width:158px; height:120px; }
+  .hero-panel .pin-chip{ position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%;
+    background:#fff; box-shadow:0 4px 0 rgba(37,99,235,.25); display:flex; align-items:center; justify-content:center; }
+
+  /* ---- section titles ---- */
+  .stitle{ font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-.1px; }
+  .ssub{ font-size:12px; color:var(--muted); line-height:1.4; margin-top:3px; }
+  .spacer{ height:10px; }
+  .spacer8{ height:8px; }
+  .spacer14{ height:14px; }
+  .spacer16{ height:16px; }
+
+  /* ---- OTP boxes ---- */
+  .otp{ display:flex; gap:8px; justify-content:center; }
+  .otp input{ width:34px; height:44px; border-radius:10px; text-align:center; border:1.8px solid var(--primary);
+    background:#fff; font-size:18px; font-weight:800; color:var(--ink); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+  .otp input.off{ border-color:var(--line); background:#F1F5FB; }
+  .timerrow{ display:flex; align-items:center; gap:8px; justify-content:center; }
+  .timerrow .lock{ width:15px; height:15px; color:var(--muted-icon); }
+  .timerrow b{ font-size:12.5px; color:var(--ink); font-weight:700; }
+  .timerrow span{ font-size:11px; color:var(--muted); }
+
+  /* ---- checklist verification ---- */
+  .check{ display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:12px;
+    background:var(--surface); padding:9px 12px; }
+  .check .c-ic{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .check .c-t{ font-size:13px; font-weight:700; color:var(--ink); }
+  .check .c-s{ font-size:10.5px; color:var(--muted); }
+  .chip{ font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:999px; }
+  .chip.v{ background:var(--success-100); color:var(--success); }
+  .chip.p{ background:var(--warning-100); color:var(--amber-deep); }
+  .chip.r{ background:#EEF1F8; color:var(--muted); }
+
+  /* ---- pending progress ---- */
+  .progress3{ display:flex; align-items:center; justify-content:center; gap:6px; }
+  .progress3 .node{ width:13px; height:13px; border-radius:50%; }
+  .progress3 .done-bg{ background:var(--success); }
+  .progress3 .act-bg{ background:var(--primary); box-shadow:0 0 0 5px rgba(37,99,235,.16); }
+  .progress3 .next-bg{ background:#D4DCEA; }
+  .progress3 .bar{ width:26px; height:4px; border-radius:2px; }
+  .progress3 .done-bar{ background:var(--success); }
+  .progress3 .act-bar{ background:#BFDBFE; }
+  .plabel{ font-size:10px; color:var(--muted); }
+  .plabel.done{ color:var(--success); font-weight:700; }
+  .plabel.act{ color:var(--primary); font-weight:800; }
+
+  /* ---- clock svg ---- */
+  .clock-wrap{ width:96px; height:96px; border-radius:50%; background:linear-gradient(180deg,#E7F0FF,#D3E4FF);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 10px rgba(37,99,235,.12); }
+
+  /* ---- success ring ---- */
+  .ring{ width:104px; height:104px; border-radius:50%; background:var(--success-100);
+    box-shadow:0 0 0 14px rgba(16,185,129,.14); display:flex; align-items:center; justify-content:center; }
+  .ring .tick{ width:56px; height:56px; border-radius:50%; background:var(--success); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:34px; box-shadow:0 0 0 5px rgba(255,255,255,.6); }
+
+  /* ---- right feature panel ---- */
+  .panel{ width:448px; border-radius:24px; background:linear-gradient(180deg,#FFFFFF 0%, #F2F7FF 100%);
+    border:2px solid #D9E2F1; box-shadow:0 16px 0 rgba(37,99,235,.10), 0 50px 30px rgba(15,23,42,.16);
+    padding:22px 22px 20px; display:flex; flex-direction:column; }
+  .panel .p-head{ display:flex; align-items:center; gap:10px; }
+  .panel .p-head .pi{ width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#2563EB,#1E40AF);
+    color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; }
+  .panel .p-head b{ font-size:19px; font-weight:800; color:var(--ink); }
+  .panel .p-head span{ font-size:11px; color:var(--muted); }
+  .feat{ display:flex; align-items:center; gap:13px; padding:9px 10px; border-radius:12px; background:var(--surface);
+    border:1.4px solid var(--line); margin-top:8px; }
+  .feat .f-i{ width:34px; height:34px; border-radius:9px; background:var(--primary-100);
+    display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--primary); }
+  .feat .f-t{ font-size:13.5px; font-weight:700; color:var(--ink); }
+  .feat .f-s{ font-size:10.5px; color:var(--muted); }
+  .panel .secures{ margin-top:12px; border-radius:14px; padding:11px 14px;
+    background:linear-gradient(90deg,#EEF6FF, #E4F0FF); display:flex; align-items:center; gap:11px; }
+  .panel .secures .s-i{ width:30px; height:30px; border-radius:8px; background:var(--primary); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .panel .secures b{ font-size:13px; color:var(--ink); }
+  .panel .secures span{ font-size:10.5px; color:var(--muted); }
+  .kbd{ font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <style>
+    /* layout overrides: fill 16:9 canvas */
+    .board{ justify-content:flex-start; }
+    .header{ height:158px; padding:20px 30px; }
+    .board-head{ margin-top:22px; }
+    .flow{ margin-top:18px; gap:8px; }
+    .phone{ width:324px; height:700px; }
+    .arrow{ width:24px; height:700px; }
+    .arrow .a-label{ font-size:11px; }
+    .screen{ inset:28px 12px 12px 12px; }
+    .statusbar{ height:34px; }
+    .sbody{ padding:18px 18px 10px; }
+    .field{ height:44px; }
+    .btn{ height:46px; line-height:46px; }
+    .hero-panel{ height:176px; }
+    .panel{ width:348px; height:738px; margin-left:6px; }
+    .stepno{ bottom:-34px; }
+    svg.i{ fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; width:17px; height:17px; }
+    .strip{ margin-top:44px; display:flex; gap:14px; }
+    .strip .card{ flex:1; border-radius:18px; background:linear-gradient(180deg,#FFFFFF,#F4F8FF);
+      border:2px solid #D9E2F1; box-shadow:0 8px 0 rgba(37,99,235,.08); padding:18px 20px; }
+    .strip .card h3{ font-size:16px; font-weight:800; color:var(--ink); margin-bottom:10px; }
+    .strip .sw{ display:flex; gap:12px; }
+    .strip .sw .c{ text-align:center; }
+    .strip .sw .c i{ display:block; width:40px; height:40px; border-radius:12px; margin:0 auto 6px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+    .strip .sw .c b{ font-size:11px; color:var(--ink); display:block; }
+    .strip .sw .c span{ font-size:10px; color:var(--muted); font-family:ui-monospace,Consolas,monospace; }
+    .strip .type div{ margin-bottom:8px; }
+    .strip .comp .btn{ margin-bottom:9px; }
+    .arrow{ position:relative; z-index:30; }
+    .arrow .a-label{ position:absolute; top:calc(50% + 26px); left:50%; transform:translateX(-50%);
+      margin:0; white-space:nowrap; background:#FFFFFF; border:1.4px solid #C9DDFF; border-radius:999px;
+      padding:2px 9px; font-size:10.5px; font-weight:800; color:#2E4376; box-shadow:0 2px 0 rgba(37,99,235,.14); }
+    .batt{ display:inline-block; width:18px; height:10px; border:1.5px solid #94A3B8; border-radius:3px;
+      position:relative; vertical-align:-1px; }
+    .batt:after{ content:""; position:absolute; inset:1.5px; background:#2563EB; border-radius:1px; }
+  </style>
+
+  <!-- â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <div class="header">
+    <div class="logo">H</div>
+    <div class="brand"><b>HyperLocal</b><span>Shopkeeper App</span></div>
+    <div class="divider"></div>
+    <div>
+      <h1>Shopkeeper Authentication &amp; Verification</h1>
+      <div class="sub">Onboarding journey &middot; production mobile UI &middot; premium blue design system</div>
+    </div>
+    <div class="tag">16:9 Presentation Board</div>
+  </div>
+
+  <div class="board-head">
+    <div class="lead">Six screens &middot; from first login to a verified shop</div>
+    <div class="legend">
+      <span class="l-green"><i></i>Verified</span>&nbsp;&nbsp;
+      <span class="l-amber"><i></i>Pending</span>&nbsp;&nbsp;
+      <span style="color:var(--muted)"><i style="background:#CBD5E1"></i>Required</span>&nbsp;&nbsp;
+      <span class="l-blue"><i></i>Primary action</span>
+    </div>
+  </div>
+
+  <!-- â”€â”€ Flow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <div class="flow">
+
+  <!-- SCREEN 1 : WELCOME / LOGIN -->
+  <div class="phone">
+    <div class="camera"></div>
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="sig">&#9679;&#9679;&#9679;&nbsp;&nbsp;<span class="batt"></span></span></div>
+      <div class="sbody">
+        <div class="appbar">
+          <div class="a-logo">H</div>
+          <div><div class="a-title">HyperLocal</div><div class="a-sub">Shopkeeper App</div></div>
+        </div>
+        <div class="hero-panel">
+          <svg viewBox="0 0 160 120" class="svg-hero">
+            <rect x="20" y="36" width="100" height="70" rx="10" fill="#FFFFFF" stroke="#93C5FD" stroke-width="2.5"/>
+            <rect x="32" y="58" width="32" height="48" rx="4" fill="#DBEAFE" stroke="#93C5FD" stroke-width="2"/>
+            <rect x="74" y="58" width="32" height="20" rx="4" fill="#EFF6FF" stroke="#93C5FD" stroke-width="2"/>
+            <path d="M16 36c0-10 8-18 18-18h72c10 0 18 8 18 18v6c0 6-5 10-11 10s-11-4-11-10c0 6-5 10-11 10s-11-4-11-10c0 6-5 10-11 10s-11-4-11-10c0 6-5 10-11 10S16 48 16 42z" fill="#2563EB" opacity="0.92"/>
+            <g transform="translate(88,-8)">
+              <path d="M30 58c0 0-22-18-22-34a22 22 0 1 1 44 0c0 16-22 34-22 34z" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="3"/>
+              <circle cx="30" cy="22" r="8" fill="#FFFFFF"/>
+            </g>
+          </svg>
+          <div class="pin-chip">
+            <svg class="i" viewBox="0 0 24 24" style="color:#2563EB;width:19px;height:19px"><path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          </div>
+        </div>
+        <div class="spacer14"></div>
+        <div class="stitle">Welcome Back</div>
+        <div class="ssub">Manage your shop, products and inventory</div>
+        <div class="spacer14"></div>
+        <div class="lbs">Mobile Number</div>
+        <div class="field field--focused">
+          <svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+          <em>+91 98765 43210</em>
+        </div>
+        <div class="spacer14"></div>
+        <div class="lbs">Password</div>
+        <div class="field">
+          <svg class="i" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <em>&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</em>
+          <svg class="i" viewBox="0 0 24 24" style="margin-left:auto"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.8"/></svg>
+        </div>
+        <div class="spacer16"></div>
+        <a class="btn primary" href="#">Login</a>
+        <div class="spacer8"></div>
+        <div style="text-align:center;font-size:12.5px;color:var(--muted)">New Shopkeeper? <b style="color:var(--primary)">Register Now</b></div>
+      </div>
+    </div>
+    <div class="stepno">1 &middot; Welcome / Login</div>
+  </div>
+
+  <div class="arrow"><span class="cyl">&rsaquo;</span><span class="a-label">Register</span><span class="rail"></span></div>
+
+  <!-- SCREEN 2 : REGISTER SHOPKEEPER -->
+  <div class="phone">
+    <div class="camera"></div>
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="sig">&#9679;&#9679;&#9679;&nbsp;&nbsp;<span class="batt"></span></span></div>
+      <div class="sbody">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:30px;height:30px;border-radius:9px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">&lsaquo;</span>
+          <div class="stitle" style="font-size:17px">Register Shopkeeper</div>
+        </div>
+        <div class="ssub" style="margin:6px 0 0 40px">Create your shopkeeper account</div>
+        <div class="spacer16"></div>
+        <div class="lbs">Full Name</div>
+        <div class="field">
+          <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+          <em>Ramesh Kumar</em>
+        </div>
+        <div class="spacer14"></div>
+        <div class="lbs">Mobile Number</div>
+        <div class="field field--focused">
+          <svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+          <em>+91 98765 43210</em>
+        </div>
+        <div class="spacer14"></div>
+        <div class="lbs">Email</div>
+        <div class="field">
+          <svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 7.5l9 6 9-6"/></svg>
+          <em>ramesh@shopmail.in</em>
+        </div>
+        <div class="spacer14"></div>
+        <div class="lbs">Shop Name</div>
+        <div class="field">
+          <svg class="i" viewBox="0 0 24 24"><path d="M4 9l1-4h14l1 4"/><path d="M4 9v10h16V9"/><path d="M9 19v-5h6v5"/></svg>
+          <em>Sharma Kirana Store</em>
+        </div>
+        <div class="spacer14"></div>
+        <div style="display:flex;align-items:center;gap:9px">
+          <span style="width:19px;height:19px;border-radius:6px;background:var(--primary);display:inline-flex;align-items:center;justify-content:center">
+            <svg class="i" viewBox="0 0 24 24" style="color:#fff;width:13px;height:13px;stroke-width:3"><path d="M4.5 12.5l5 5 10-11"/></svg>
+          </span>
+          <span style="font-size:11.5px;color:var(--muted)">I agree to <b style="color:var(--primary)">Terms &amp; Conditions</b></span>
+        </div>
+        <div class="spacer16"></div>
+        <div style="flex:1"></div><a class="btn primary" href="#">Register</a>
+        <div class="spacer8"></div>
+        <div style="text-align:center;font-size:11px;color:var(--muted)">Already registered? <b style="color:var(--primary)">Login</b></div>
+      </div>
+    </div>
+    <div class="stepno">2 &middot; Register Shopkeeper</div>
+  </div>
+
+  <div class="arrow"><span class="cyl">&rsaquo;</span><span class="a-label">Verify</span><span class="rail"></span></div>
+
+  <!-- SCREEN 3 : OTP VERIFICATION -->
+  <div class="phone">
+    <div class="camera"></div>
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="sig">&#9679;&#9679;&#9679;&nbsp;&nbsp;<span class="batt"></span></span></div>
+      <div class="sbody">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:30px;height:30px;border-radius:9px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">&lsaquo;</span>
+          <div class="stitle" style="font-size:17px">Verify Mobile Number</div>
+        </div>
+        <div class="spacer16"></div>
+        <div style="width:76px;height:76px;border-radius:22px;background:var(--primary-100);display:flex;align-items:center;justify-content:center;margin:0 auto">
+          <svg class="i" viewBox="0 0 24 24" style="color:var(--primary);width:38px;height:38px"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+        </div>
+        <div class="spacer14"></div>
+        <div style="text-align:center;font-size:13px;color:var(--muted);line-height:1.5">Enter the 6-digit OTP sent to<br><b style="color:var(--ink)">+91 98765 43210</b></div>
+        <div class="spacer16"></div>
+        <div class="otp">
+          <input value="4" />
+          <input value="7" />
+          <input value="2" />
+          <input class="off" />
+          <input class="off" />
+          <input class="off" />
+        </div>
+        <div class="spacer16"></div>
+        <div class="timerrow">
+          <svg class="i lock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>
+          <span>Resend OTP in</span><b>00:27</b>
+        </div>
+        <div class="spacer16"></div>
+        <div style="width:100%;border-radius:12px;background:var(--primary-50);border:1.4px solid #BFDBFE;padding:10px 12px;display:flex;align-items:center;gap:9px">
+          <svg class="i" viewBox="0 0 24 24" style="color:var(--primary);width:16px;height:16px"><path d="M12 3l7.5 3v6c0 5-3.5 7.8-7.5 9-4-1.2-7.5-4-7.5-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>
+          <span style="font-size:11px;color:var(--muted)"><b style="color:var(--ink)">Auto-read enabled</b> &mdash; OTP is detected from SMS automatically</span>
+        </div>
+        <div style="flex:1"></div><a class="btn primary" href="#">Verify &amp; Continue</a>
+        <div class="spacer8"></div>
+        <div style="text-align:center;font-size:11px;color:var(--muted)">Wrong number? <b style="color:var(--primary)">Edit mobile</b></div>
+      </div>
+    </div>
+    <div class="stepno">3 &middot; OTP Verification</div>
+  </div>
+
+  <div class="arrow"><span class="cyl">&rsaquo;</span><span class="a-label">Documents</span><span class="rail"></span></div>
+
+  <!-- SCREEN 4 : BUSINESS VERIFICATION -->
+  <div class="phone">
+    <div class="camera"></div>
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="sig">&#9679;&#9679;&#9679;&nbsp;&nbsp;<span class="batt"></span></span></div>
+      <div class="sbody">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:30px;height:30px;border-radius:9px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">&lsaquo;</span>
+          <div class="stitle" style="font-size:17px">Business Verification</div>
+        </div>
+        <div class="ssub" style="margin:6px 0 0 40px">Upload documents to confirm your business</div>
+        <div class="spacer16"></div>
+        <div class="check">
+          <div class="c-ic" style="background:var(--primary-100);color:var(--primary)">
+            <svg class="i" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+          </div>
+          <div style="flex:1"><div class="c-t">Business License / ID</div><div class="c-s">license-2024.pdf</div></div>
+          <span class="chip v">Verified</span>
+        </div>
+        <div class="spacer14"></div>
+        <div class="check">
+          <div class="c-ic" style="background:var(--warning-100);color:var(--amber-deep)">
+            <svg class="i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
+          </div>
+          <div style="flex:1"><div class="c-t">Shop Photo</div><div class="c-s">front-view.jpg</div></div>
+          <span class="chip p">Pending</span>
+        </div>
+        <div class="spacer14"></div>
+        <div class="check">
+          <div class="c-ic" style="background:#EEF1F8;color:var(--muted)">
+            <svg class="i" viewBox="0 0 24 24"><path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          </div>
+          <div style="flex:1"><div class="c-t">Address Proof</div><div class="c-s">electricity bill / rent agreement</div></div>
+          <span class="chip r">Required</span>
+        </div>
+        <div class="spacer16"></div>
+        <div style="border:1.6px dashed #BFD9FF;border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:9px;background:var(--primary-50)">
+          <svg class="i" viewBox="0 0 24 24" style="color:var(--primary);width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
+          <span style="font-size:11px;color:var(--muted)"><b style="color:var(--primary)">Add Address Proof</b> &middot; JPG or PDF &middot; max 10&nbsp;MB</span>
+        </div>
+        <div style="flex:1"></div>
+        <a class="btn primary" href="#">Submit for Verification</a>
+        <div class="spacer8"></div>
+        <div style="text-align:center;font-size:10.5px;color:var(--muted)">You can submit documents together &mdash; review takes 1&ndash;2 days</div>
+      </div>
+    </div>
+    <div class="stepno">4 &middot; Business Verification</div>
+  </div>
+
+  <div class="arrow"><span class="cyl">&rsaquo;</span><span class="a-label">Review</span><span class="rail"></span></div>
+
+  <!-- SCREEN 5 : VERIFICATION PENDING -->
+  <div class="phone">
+    <div class="camera"></div>
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="sig">&#9679;&#9679;&#9679;&nbsp;&nbsp;<span class="batt"></span></span></div>
+      <div class="sbody">
+        <div class="appbar">
+          <div class="a-logo">H</div>
+          <div><div class="a-title">HyperLocal</div><div class="a-sub">Shopkeeper App</div></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="clock-wrap">
+            <svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round">
+              <circle cx="24" cy="24" r="18.5" fill="#FFFFFF"/>
+              <path d="M24 14v10l7 4.5"/>
+            </svg>
+          </div>
+          <div class="spacer16"></div>
+          <div class="stitle" style="text-align:center">Verification in Progress</div>
+          <div class="ssub" style="text-align:center;margin-top:6px">Our team is reviewing your business details.</div>
+          <div class="spacer16"></div>
+          <div class="progress3">
+            <span class="node done-bg"></span><span class="bar done-bar"></span>
+            <span class="node act-bg"></span><span class="bar act-bar"></span>
+            <span class="node next-bg"></span>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:7px">
+            <span class="plabel done">Submitted</span>
+            <span class="plabel act">Under Review</span>
+            <span class="plabel">Approved</span>
+          </div>
+          <div class="spacer16"></div>
+          <div style="width:100%;border-radius:12px;background:var(--primary-50);border:1.4px solid #BFDBFE;padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted)"><b style="color:var(--ink)">Ticket #HL-4821</b><span>est. 24 hrs</span></div>
+            <div style="height:6px;border-radius:4px;background:#DBEAFE;margin-top:7px"><span style="display:block;width:58%;height:6px;border-radius:4px;background:linear-gradient(90deg,#2563EB,#3B82F6)"></span></div>
+          </div>
+        </div>
+        <a class="btn primary" href="#">Continue to App</a>
+        <div class="spacer8"></div>
+        <div style="text-align:center;font-size:11px;color:var(--muted)">We will notify you once approved</div>
+      </div>
+    </div>
+    <div class="stepno">5 &middot; Verification Pending</div>
+  </div>
+
+  <div class="arrow"><span class="cyl">&rsaquo;</span><span class="a-label">Approved</span><span class="rail"></span></div>
+
+  <!-- SCREEN 6 : ACCOUNT VERIFIED -->
+  <div class="phone">
+    <div class="camera"></div>
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="sig">&#9679;&#9679;&#9679;&nbsp;&nbsp;<span class="batt"></span></span></div>
+      <div class="sbody">
+        <div class="appbar">
+          <div class="a-logo">H</div>
+          <div><div class="a-title">HyperLocal</div><div class="a-sub">Shopkeeper App</div></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="ring"><div class="tick">
+            <svg class="i" viewBox="0 0 24 24" style="color:#fff;width:30px;height:30px;stroke-width:3"><path d="M4.5 12.5l5 5 10-11"/></svg>
+          </div></div>
+          <div class="spacer16"></div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.4px;color:var(--success);text-transform:uppercase">Verified Shop</div>
+          <div class="stitle" style="text-align:center;margin-top:4px">You&rsquo;re Verified!</div>
+          <div class="ssub" style="text-align:center;margin-top:6px">Your shop is ready to set up.</div>
+          <div class="spacer16"></div>
+          <div style="width:100%;border:1.4px solid var(--line);border-radius:12px;background:var(--surface);padding:10px 12px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <svg class="i" viewBox="0 0 24 24" style="color:var(--success);width:16px;height:16px"><path d="M12 3l7.5 3v6c0 5-3.5 7.8-7.5 9-4-1.2-7.5-4-7.5-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>
+              <span style="font-size:11px;color:var(--muted)"><b style="color:var(--ink)">Sharma Kirana Store</b> &middot; verified badge active</span>
+            </div>
+          </div>
+        </div>
+        <a class="btn primary" href="#">Setup My Shop</a>
+        <div class="spacer8"></div>
+        <div style="text-align:center;font-size:11px;color:var(--muted)">Add products &amp; inventory next &mdash; takes ~10 min</div>
+      </div>
+    </div>
+    <div class="stepno">6 &middot; Account Verified</div>
+  </div>
+
+  <!-- â”€â”€ RIGHT : FEATURE CALLOUT PANEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <div class="panel">
+    <div class="p-head">
+      <div class="pi">
+        <svg class="i" viewBox="0 0 24 24" style="color:#fff;width:20px;height:20px"><path d="M12 3l7.5 3v6c0 5-3.5 7.8-7.5 9-4-1.2-7.5-4-7.5-9V6z"/></svg>
+      </div>
+      <div><b>Why HyperLocal</b><br><span>Shopkeeper trust &amp; onboarding</span></div>
+    </div>
+
+    <div class="feat">
+      <div class="f-i"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <div><div class="f-t">Secure Login</div><div class="f-s">Password-protected shopkeeper access</div></div>
+    </div>
+    <div class="feat">
+      <div class="f-i"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 7.5l9 6 9-6"/></svg></div>
+      <div><div class="f-t">OTP Verification</div><div class="f-s">6-digit code confirms the real owner</div></div>
+    </div>
+    <div class="feat">
+      <div class="f-i"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div>
+      <div><div class="f-t">Business Verification</div><div class="f-s">License, shop photo &amp; address proof</div></div>
+    </div>
+    <div class="feat">
+      <div class="f-i"><svg class="i" viewBox="0 0 24 24"><circle cx="8" cy="14" r="4.5"/><path d="M11.5 10.5L20 4"/><path d="M17 6l2.5 2.5"/></svg></div>
+      <div><div class="f-t">Protected Shopkeeper Access</div><div class="f-s">Role-based permissions per shop</div></div>
+    </div>
+    <div class="feat">
+      <div class="f-i"><svg class="i" viewBox="0 0 24 24"><path d="M6 3v18"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg></div>
+      <div><div class="f-t">Clear Onboarding</div><div class="f-s">Step-by-step setup to first sale</div></div>
+    </div>
+
+    <div class="secures">
+      <div class="s-i">
+        <svg class="i" viewBox="0 0 24 24" style="color:#fff;width:16px;height:16px"><path d="M12 3l7.5 3v6c0 5-3.5 7.8-7.5 9-4-1.2-7.5-4-7.5-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>
+      </div>
+      <div><b>Secure by design</b><br><span>Encrypted sessions &middot; audited onboarding</span></div>
+    </div>
+
+    <div style="margin-top:auto;display:flex;align-items:center;gap:12px;border-top:2px dashed #D9E2F1;padding-top:14px">
+      <div style="flex:1">
+        <div style="font-size:24px;font-weight:800;color:var(--primary)">24k+</div>
+        <div style="font-size:11px;color:var(--muted)">verified local shops</div>
+      </div>
+      <div style="width:2px;height:44px;background:#E2E8F0"></div>
+      <div style="flex:1">
+        <div style="font-size:24px;font-weight:800;color:var(--primary)">&lt;24 hrs</div>
+        <div style="font-size:11px;color:var(--muted)">typical review time</div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /flow -->
+
+  <!-- â”€â”€ Design-system strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <div class="strip">
+    <div class="card">
+      <h3>Design System &mdash; Color</h3>
+      <div class="sw">
+        <div class="c"><i style="background:#2563EB"></i><b>Primary</b><span>#2563EB</span></div>
+        <div class="c"><i style="background:#1D4ED8"></i><b>Deep</b><span>#1D4ED8</span></div>
+        <div class="c"><i style="background:#DBEAFE"></i><b>Tint</b><span>#DBEAFE</span></div>
+        <div class="c"><i style="background:#0F172A"></i><b>Ink</b><span>#0F172A</span></div>
+        <div class="c"><i style="background:#10B981"></i><b>Success</b><span>#10B981</span></div>
+        <div class="c"><i style="background:#F59E0B"></i><b>Pending</b><span>#F59E0B</span></div>
+        <div class="c"><i style="background:#F8FAFC"></i><b>Surface</b><span>#F8FAFC</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Typography &mdash; Inter</h3>
+      <div class="type">
+        <div style="font-size:26px;font-weight:800;color:var(--ink)">Shopkeeper Authentication</div>
+        <div style="font-size:15px;color:var(--muted)">Body &mdash; 15 / 1.45 &middot; Manage your shop, products and inventory</div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:.6px;color:var(--primary)">CAPTION &middot; 12 &middot; SEMIBOLD &middot; TRACKED</div>
+      </div>
+    </div>
+    <div class="card comp">
+      <h3>Components</h3>
+      <a class="btn primary" style="width:260px" href="#">Primary Button</a>
+      <a class="btn ghost" style="width:260px" href="#">Secondary Action</a>
+      <div class="field" style="width:260px;height:38px"><em>Input field &middot; rounded 12</em></div>
+    </div>
+  </div>
+
+  <!-- â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <div class="footer">
+    <span class="fbrand">HyperLocal</span>
+    <span>&middot; Product Discovery Platform &mdash; Shopkeeper App</span>
+    <span class="swatches">
+      <span style="background:#2563EB"></span><span style="background:#1D4ED8"></span>
+      <span style="background:#DBEAFE"></span><span style="background:#10B981"></span>
+      <span style="background:#F59E0B"></span><span style="background:#F8FAFC"></span>
+    </span>
+    <span style="margin-left:auto">Premium Blue Design System &middot; Inter typeface &middot; no people, production mobile UI</span>
+  </div>
+
+</div><!-- /board -->
+
+<script>
+  var s = parseFloat(new URLSearchParams(location.search).get('scale') || '1');
+  if (s && s !== 1) {
+    document.documentElement.style.width  = (2560 * s) + 'px';
+    document.documentElement.style.height = (1440 * s) + 'px';
+    document.body.style.width  = (2560 * s) + 'px';
+    document.body.style.height = (1440 * s) + 'px';
+    document.querySelector('.board').style.transform = 'scale(' + s + ')';
+  }
+</script>
+</body>
+</html>

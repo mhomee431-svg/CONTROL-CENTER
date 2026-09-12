@@ -34,7 +34,7 @@ EXPECTED_TABLES = {
     # Customer engagement
     "customer_favorites",
     "customer_recent_products",
-    # OTP auth (Fast2SMS single-use records)
+    # Legacy OTP records (table retained via migration 0012; verification now uses Firebase)
     "otps",
     # User interactions / leads (immutable create-only customer actions)
     "user_interactions",

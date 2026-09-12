@@ -35,8 +35,9 @@ class PlaceAutocompleteService {
     String query, {
     String? sessionToken,
   }) async {
-    if (query.trim().length < 3 || !MapProvidersConfig.googleMapsEnabled)
+    if (query.trim().length < 3 || !MapProvidersConfig.googleMapsEnabled) {
       return [];
+    }
     try {
       final params = <String, dynamic>{
         'input': query,
@@ -45,7 +46,7 @@ class PlaceAutocompleteService {
         'types': 'address',
       };
       // Session token (re)used across the autocomplete+details sequence.
-      if (sessionToken != null && sessionToken!.isNotEmpty) {
+      if (sessionToken != null && sessionToken.isNotEmpty) {
         params['sessiontoken'] = sessionToken;
       }
       final resp = await _dio.get(
@@ -82,7 +83,7 @@ class PlaceAutocompleteService {
         'fields': 'formatted_address,geometry,address_components',
       };
       // Concluding the session: same token as the preceding autocomplete call.
-      if (sessionToken != null && sessionToken!.isNotEmpty) {
+      if (sessionToken != null && sessionToken.isNotEmpty) {
         params['sessiontoken'] = sessionToken;
       }
       final resp = await _dio.get(
@@ -102,10 +103,12 @@ class PlaceAutocompleteService {
             city == null) {
           city = comp['long_name'] as String?;
         }
-        if (types.contains('administrative_area_level_1') && state == null)
+        if (types.contains('administrative_area_level_1') && state == null) {
           state = comp['long_name'] as String?;
-        if (types.contains('postal_code') && pincode == null)
+        }
+        if (types.contains('postal_code') && pincode == null) {
           pincode = comp['long_name'] as String?;
+        }
       }
       return GeoAddress(
         formattedAddress: result['formatted_address']?.toString() ?? '',

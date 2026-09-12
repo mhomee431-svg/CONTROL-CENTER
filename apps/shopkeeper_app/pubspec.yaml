@@ -37,12 +37,12 @@ dependencies:
   logger: ^2.7.0
   google_fonts: ^8.2.1
   intl: ^0.19.0
-  # Firebase Phone Auth (replaces Fast2SMS for OTP delivery)
-  firebase_core: ^4.0.0
-  firebase_auth: ^6.0.0
   # Live location & map
   geolocator: ^14.0.0
   google_maps_flutter: ^2.13.0
+  # Verification-document picking (documents step of shop registration)
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
   # Shared platform models (API envelope, pagination) — one source of truth
   hyperlocal_shared_models:
     path: ../../packages/shared_models

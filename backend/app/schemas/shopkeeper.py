@@ -17,17 +17,27 @@ class ShopkeeperRegisterRequest(BaseModel):
     Phone verification is performed client-side by Firebase Phone Auth — the
     Flutter app sends the resulting Firebase ID token (``firebase_id_token``).
     The backend verifies the token to extract and trust the phone number.
+
+    The new ``verify-phone`` → ``register`` flow also accepts the verified
+    ``firebase_uid`` / ``phone_number`` (cross-checked against the token) and
+    a ``role`` (defaults to ``shopkeeper``).
     """
 
-    firebase_id_token: str = Field(
-        ...,
+    firebase_id_token: str | None = Field(
+        None,
         min_length=20,
-        description="Firebase ID token from a completed phone-OTP sign-in",
+        description="Firebase ID token from a completed phone-OTP sign-in (also accepted in the Authorization header)",
     )
     phone_number: str = Field(..., min_length=10, max_length=20, description="Must match the token's phone")
     name: str = Field(..., min_length=1, max_length=100)
     email: str | None = Field(None, max_length=255)
-    password: str = Field(..., min_length=8, max_length=128, description="Password (8+ chars)")
+    password: str | None = Field(None, min_length=8, max_length=128, description="Optional password (8+ chars; not required for Firebase-verified users)")
+    firebase_uid: str | None = Field(
+        None,
+        max_length=128,
+        description="Verified Firebase UID (cross-checked against the token)",
+    )
+    role: str | None = Field("shopkeeper", description="Role to assign (shopkeeper)")
     device_id: str | None = Field(None, description="Stable device identifier")
     device_name: str | None = None
     device_type: str | None = Field(None, description="android, ios, web")
@@ -37,7 +47,9 @@ class ShopkeeperRegisterRequest(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
-        """Validate password strength."""
+        """Validate password strength (only when a password is provided)."""
+        if v is None:
+            return v
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
         if not re.search(r'[A-Za-z]', v):

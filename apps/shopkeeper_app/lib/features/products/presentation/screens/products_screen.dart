@@ -35,7 +35,18 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final state = ref.watch(productsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Products & inventory')),
+      appBar: AppBar(
+        title: const Text('Products & inventory'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Scan barcode',
+            onPressed: state.status == ProductsStatus.ready
+                ? () => context.push('/scan-barcode')
+                : null,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add-product',
         onPressed: state.status == ProductsStatus.ready

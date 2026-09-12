@@ -140,9 +140,6 @@ from app.models.inventory_import import (
     InventoryImportRow,
 )
 
-# Fast2SMS OTP auth (single-use, 5-minute expiry)
-from app.models.otp import Otp
-
 # User interactions / leads (immutable create-only customer actions)
 from app.models.interaction import UserInteraction, InteractionActionType
 

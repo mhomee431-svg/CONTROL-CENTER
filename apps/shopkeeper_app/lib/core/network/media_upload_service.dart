@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api_client.dart';
 import 'api_endpoints.dart';
+import 'api_providers.dart';
 
 /// Phase 7 — client side of the secure S3 upload flow.
 ///
@@ -195,3 +197,12 @@ class MediaObject {
         contentType: json['content_type'] as String?,
       );
 }
+
+/// Injectable service wired to the shared network layer. The S3 `dio` here is
+/// a bare instance (no auth headers) exactly as [MediaUploadService] requires.
+final mediaUploadServiceProvider = Provider<MediaUploadService>((ref) {
+  return MediaUploadService(
+    apiClient: ref.watch(apiClientProvider),
+    dio: Dio(),
+  );
+});

@@ -79,6 +79,97 @@ def _validate_transition(
     return target in valid_targets
 
 
+def list_active_categories(db: Session) -> list[MerchantCategory]:
+    """All active merchant categories, ordered by the configured sort order.
+
+    The shopkeeper registration wizard renders its category dropdown from this
+    list — the Flutter app never hardcodes category codes.
+    """
+    return (
+        db.query(MerchantCategory)
+        .filter(MerchantCategory.is_active == True)  # noqa: E712
+        .order_by(MerchantCategory.sort_order, MerchantCategory.id)
+        .all()
+    )
+
+
+# Requirement codes that map to an uploadable verification document shown on
+# the shop-registration "Documents" step. Everything else (PHONE_OTP,
+# GSTIN_VERIFY/UDYAM_VERIFY, BANK_PENNY_DROP, ADMIN_REVIEW) is handled either
+# during account registration or in the post-registration verification flow.
+_DOCUMENT_VERIFICATION_METHODS = {
+    "DRUG_LICENSE_VERIFY": (
+        "DRUG_LICENSE",
+        "Upload your drug license",
+        "DOCUMENT",
+    ),
+    "FSSAI_LICENSE_VERIFY": (
+        "FSSAI_LICENSE",
+        "Upload your FSSAI license / certificate",
+        "DOCUMENT",
+    ),
+    "DRIVING_LICENSE_VERIFY": (
+        "DRIVING_LICENSE",
+        "Upload your driving license",
+        "DOCUMENT",
+    ),
+    "VEHICLE_RC_VERIFY": (
+        "VEHICLE_RC",
+        "Upload your vehicle registration certificate (RC)",
+        "DOCUMENT",
+    ),
+}
+
+
+def registration_requirements(
+    db: Session, category_code: str
+) -> dict | None:
+    """UI contract for the shop-registration wizard's Documents step.
+
+    Returns the list of required/optional documents plus the overall
+    verification steps for a category. This is the single backend source of
+    truth for "which documents does this business type need" — the Flutter app
+    only renders what this returns and never contains category→document rules.
+
+    Returns ``None`` when the category code is unknown/inactive.
+    """
+    category = (
+        db.query(MerchantCategory)
+        .filter(
+            MerchantCategory.code == category_code,
+            MerchantCategory.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not category:
+        return None
+
+    requirements = get_category_requirements(db, category_code)
+    steps = resolve_required_steps(db, category_code)
+
+    documents = []
+    for req in requirements:
+        mapping = _DOCUMENT_VERIFICATION_METHODS.get(req.verification_method)
+        if not mapping:
+            continue
+        _doc_key, _hint, _media = mapping
+        documents.append(
+            {
+                "doc_key": _doc_key,
+                "label": req.requirement_name,
+                "hint": req.description or _hint,
+                "media_category": _media,
+                "required": bool(req.is_required),
+            }
+        )
+
+    return {
+        "category_code": category.code,
+        "category_name": category.name,
+        "steps": steps,
+        "requires_bank_verification": bool(steps["bank_verification"]),
+        "documents": documents,
+    }
 def get_category_requirements(
     db: Session, category_code: str
 ) -> list[MerchantVerificationRequirement]:

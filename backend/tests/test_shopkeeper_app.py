@@ -13,6 +13,7 @@ Covers:
 """
 
 import asyncio
+import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -267,12 +268,20 @@ class TestShopkeeperRegistration:
 
     def test_register_route_full_flow(self, monkeypatch):
         from app.api.routes import shopkeeper_auth
+        from app.services import shopkeeper_service
 
-        # Mock Firebase token verification → returns the phone number.
+        # Mock Firebase token verification → returns (firebase_uid, phone).
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token",
-            lambda token: "+919000000011",
+            lambda token: ("fb-uid-0000000001", "+919000000011"),
+        )
+        # Mock business-ID generation (deterministic) so the test is stable
+        # regardless of the mock DB's limited filter() semantics.
+        monkeypatch.setattr(
+            shopkeeper_service,
+            "generate_business_id",
+            lambda db, phone: "SHOP_919000000011",
         )
 
         request = MagicMock()
@@ -291,6 +300,13 @@ class TestShopkeeperRegistration:
         body = bytes(response.body).decode()
         assert '"success":true' in body.replace(" ", "")
         assert "access_token" in body
+        assert "refresh_token" in body
+        assert "Kirana Corner" not in body  # new account, no shops yet
+        data = json.loads(body.replace(" ", ""))["data"]
+        assert data["shops"] == []
+        # Unique Business ID is issued on registration.
+        assert data["business_id"] == "SHOP_919000000011"
+        assert data["user"]["business_id"] == "SHOP_919000000011"
 
     def test_register_rejects_existing_account(self, monkeypatch):
         from fastapi.responses import JSONResponse
@@ -301,7 +317,7 @@ class TestShopkeeperRegistration:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token",
-            lambda token: "+919000000012",
+            lambda token: ("fb-uid-0000000002", "+919000000012"),
         )
 
         request = MagicMock()
@@ -309,6 +325,7 @@ class TestShopkeeperRegistration:
         request.headers.get.return_value = None
 
         existing = make_user(user_id=5, phone="+919000000012")
+        existing.firebase_uid = "fb-uid-0000000002"
         db = ShopkeeperMockDB()
         db.queue_first(User, [existing])
 
@@ -320,8 +337,105 @@ class TestShopkeeperRegistration:
         )
         response = run_async(shopkeeper_auth.register(payload, request, db))
         assert isinstance(response, JSONResponse)
-        assert response.status_code == 409
+        assert response.status_code == 400
+        assert b"already registered" in response.body
 
+
+
+
+# ── Verify-phone (new Firebase phone-auth flow) ─────────────────────────
+
+
+class TestShopkeeperVerifyPhone:
+    def _request(self, authorization=None):
+        req = MagicMock()
+        req.client.host = "127.0.0.1"
+        req.headers.get.side_effect = lambda key, default=None: (
+            authorization if key == "authorization" else default
+        )
+        return req
+
+    def test_verify_phone_invalid_token(self, monkeypatch):
+        from fastapi.responses import JSONResponse
+
+        from app.api.routes import shopkeeper_auth
+        from app.services.firebase_verification import FirebaseVerificationError
+
+        def _raise(token):
+            raise FirebaseVerificationError("Invalid token")
+
+        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token", _raise)
+
+        response = run_async(
+            shopkeeper_auth.verify_phone(self._request(), ShopkeeperMockDB())
+        )
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 401
+
+    def test_verify_phone_missing_token(self):
+        from fastapi.responses import JSONResponse
+
+        from app.api.routes import shopkeeper_auth
+
+        response = run_async(
+            shopkeeper_auth.verify_phone(self._request(authorization=None), ShopkeeperMockDB())
+        )
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 401
+
+    def test_verify_phone_new_user(self, monkeypatch):
+        from app.api.routes import shopkeeper_auth
+
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "verify_firebase_id_token",
+            lambda token: ("fb-uid-new", "+919000000020"),
+        )
+
+        response = run_async(
+            shopkeeper_auth.verify_phone(
+                self._request(authorization="Bearer fb-token-new"),
+                ShopkeeperMockDB(),
+            )
+        )
+        body = bytes(response.body).decode()
+        assert '"success":true' in body.replace(" ", "")
+        data = json.loads(body.replace(" ", ""))["data"]
+        assert data["is_new_user"] is True
+        assert data["firebase_uid"] == "fb-uid-new"
+        assert data["phone_number"] == "+919000000020"
+
+    def test_verify_phone_existing_user_returns_login(self, monkeypatch):
+        from app.api.routes import shopkeeper_auth
+        from app.models.user import User
+
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "verify_firebase_id_token",
+            lambda token: ("fb-uid-existing", "+919000000021"),
+        )
+        monkeypatch.setattr(
+            shopkeeper_auth,
+            "is_account_allowed",
+            lambda user: True,
+        )
+        existing = make_user(user_id=9, phone="+919000000021", role_name="shopkeeper")
+        existing.firebase_uid = "fb-uid-existing"
+        db = ShopkeeperMockDB()
+        db.queue_first(User, [existing])
+
+        response = run_async(
+            shopkeeper_auth.verify_phone(
+                self._request(authorization="Bearer fb-token-existing"),
+                db,
+            )
+        )
+        body = bytes(response.body).decode()
+        data = json.loads(body.replace(" ", ""))["data"]
+        assert data["is_new_user"] is False
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["user"]["phone_number"] == "+919000000021"
 
 
 # ── Login ────────────────────────────────────────────────────────────────

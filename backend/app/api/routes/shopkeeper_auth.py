@@ -1,4 +1,4 @@
-"""Phase 22+ — Shopkeeper App authentication routes (/shopkeeper/auth/*).
+﻿"""Phase 22+ — Shopkeeper App authentication routes (/shopkeeper/auth/*).
 
 Separate from the customer /auth/* routes so the two apps never share
 business flows:
@@ -37,6 +37,11 @@ from app.schemas.shopkeeper import (
     ShopkeeperSendOTPRequest,
 )
 from app.services import shopkeeper_service
+from app.services.auth_service import (
+    is_account_allowed,
+    issue_tokens,
+    logout_session,
+)
 from app.services.firebase_auth_service import authenticate_with_firebase
 from app.services.firebase_verification import (
     FirebaseVerificationError,
@@ -85,7 +90,9 @@ def _build_login_response(user: User, token_data: dict, shops: list) -> dict:
             "email": user.email,
             "status": user.status.value,
             "role": user.role.name if user.role else None,
+            "business_id": user.business_id,
         },
+        "business_id": user.business_id,
         "shops": shops,
     }
 
@@ -105,6 +112,90 @@ async def send_otp(payload: ShopkeeperSendOTPRequest, request: Request):
     )
 
 
+def _extract_bearer_token(request: Request) -> str | None:
+    """Extract the raw token from an ``Authorization: Bearer <token>`` header."""
+    header = request.headers.get("authorization") or ""
+    if header.lower().startswith("bearer "):
+        token = header[7:].strip()
+        return token or None
+    return None
+
+
+@router.post("/verify-phone")
+@auth_rate_limit()
+async def verify_phone(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Verify a Firebase ID token and return the login payload or a new-user
+    handoff (shopkeeper scope).
+
+    The Flutter app completes the phone-OTP flow client-side with
+    ``firebase_auth`` and forwards the resulting Firebase ID token in the
+    ``Authorization: Bearer <token>`` header. We verify it to extract the
+    stable ``firebase_uid`` and the phone number, then:
+
+      - If a shopkeeper user with that ``firebase_uid`` (or phone) exists and
+        is active → issue JWT session tokens (login).
+      - Otherwise → return ``is_new_user`` so the client can collect the
+        profile (name) and call ``/register``.
+    """
+    token = _extract_bearer_token(request)
+    if not token:
+        record_auth_result("shopkeeper_verify_phone", False, "missing_token")
+        return error_response(
+            "Authorization header with a Firebase ID token is required",
+            "TOKEN_REQUIRED",
+            401,
+        )
+
+    try:
+        firebase_uid, phone = verify_firebase_id_token(token)
+    except FirebaseVerificationError as exc:
+        record_auth_result("shopkeeper_verify_phone", False, "token_invalid")
+        return error_response(exc.message, exc.error_code, exc.status_code)
+
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    if user is None and phone:
+        user = db.query(User).filter(User.phone_number == phone).first()
+
+    if user is None:
+        record_auth_result("shopkeeper_verify_phone", True, "new_user")
+        return success_response(
+            data={
+                "is_new_user": True,
+                "firebase_uid": firebase_uid,
+                "phone_number": phone,
+            },
+            message="New user — complete your profile to register",
+        )
+
+    if not is_account_allowed(user):
+        record_auth_result("shopkeeper_verify_phone", False, "account_inactive")
+        return error_response(
+            "Account is not active", "ACCOUNT_NOT_ACTIVE", 403
+        )
+
+    meta = _client_meta(request)
+    token_data = issue_tokens(
+        user,
+        db,
+        ip_address=meta["ip_address"],
+        user_agent=meta["user_agent"],
+    )
+    db.commit()
+    shops = shopkeeper_service.list_authorized_shops(db, user)
+    record_auth_result("shopkeeper_verify_phone", True, "login_success")
+    return success_response(
+        data={
+            **token_data,
+            "shops": shops,
+            "is_new_user": False,
+        },
+        message="Login successful",
+    )
+
+
 @router.post("/register")
 @auth_rate_limit()
 async def register(
@@ -112,80 +203,92 @@ async def register(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Register a NEW shopkeeper account (phone + Firebase ID token + name + password).
+    """Register a NEW shopkeeper account.
 
-    Phone verification happens client-side via Firebase Phone Auth. The Flutter
-    app sends the Firebase ID token here; we verify it to extract the firebase_uid
-    and phone number, then create the account.
+    NOTE: Firebase phone-OTP verification is currently DISABLED (commented
+    out below) for the interim simple-login phase. Registration now takes
+    phone_number + password directly. Re-enable the Firebase block when the
+    OTP flow is switched back on.
     """
     client_ip = request.client.host if request.client else None
 
-    try:
-        result = authenticate_with_firebase(
-            db=db,
-            firebase_id_token=payload.firebase_id_token,
-            ip_address=client_ip,
-            requested_role="shopkeeper",
-            name=payload.name,
-        )
-    except (UnauthorizedError, ForbiddenError) as exc:
-        record_auth_result("shopkeeper_register", False, "authentication_failed")
+    phone = (payload.phone_number or "").strip()
+    name = (payload.name or "").strip()
+
+    if not phone:
+        record_auth_result("shopkeeper_register", False, "phone_required")
         return error_response(
-            message=exc.message,
-            error_code=exc.error_code,
-            status_code=exc.status_code,
+            "Phone number is required", "PHONE_REQUIRED", 400
         )
-    except Exception as exc:
-        record_auth_result("shopkeeper_register", False, "registration_failed")
-        logger.exception("Shopkeeper registration failed")
+    if not name:
+        record_auth_result("shopkeeper_register", False, "name_required")
         return error_response(
-            message="Registration failed",
-            error_code="REGISTRATION_FAILED",
-            status_code=500,
+            "Name is required for registration", "NAME_REQUIRED", 400
+        )
+    if not payload.password:
+        record_auth_result("shopkeeper_register", False, "password_required")
+        return error_response(
+            "Password is required for registration", "PASSWORD_REQUIRED", 400
         )
 
-    user = result.user
+    # ─────────────────────────────────────────────────────────────────────
+    # TODO(Firebase): re-enable phone-OTP verification when ready. The block
+    # below verifies the Firebase ID token server-side and cross-checks the
+    # claimed firebase_uid / phone_number against the verified token so
+    # clients cannot spoof an identity.
+    # ─────────────────────────────────────────────────────────────────────
+    # token = _extract_bearer_token(request) or payload.firebase_id_token
+    # if not token:
+    #     record_auth_result("shopkeeper_register", False, "missing_token")
+    #     return error_response(
+    #         "Firebase ID token required (Authorization header or firebase_id_token)",
+    #         "TOKEN_REQUIRED", 401,
+    #     )
+    # try:
+    #     firebase_uid, phone = verify_firebase_id_token(token)
+    # except FirebaseVerificationError as exc:
+    #     record_auth_result("shopkeeper_register", False, "token_invalid")
+    #     return error_response(exc.message, exc.error_code, exc.status_code)
+    # if payload.firebase_uid and payload.firebase_uid != firebase_uid:
+    #     record_auth_result("shopkeeper_register", False, "uid_mismatch")
+    #     return error_response(
+    #         "firebase_uid does not match the verified token",
+    #         "IDENTITY_MISMATCH", 403,
+    #     )
+    # if payload.phone_number and payload.phone_number != phone:
+    #     record_auth_result("shopkeeper_register", False, "phone_mismatch")
+    #     return error_response(
+    #         "phone_number does not match the verified token",
+    #         "IDENTITY_MISMATCH", 403,
+    #     )
+    # phone = phone or payload.phone_number or ""
+    firebase_uid: str | None = None
 
-    # Update additional fields if provided
-    if payload.email and not user.email:
-        # Check email uniqueness
-        existing_email = db.query(User).filter(User.email == payload.email).first()
-        if existing_email and existing_email.id != user.id:
-            return error_response(
-                message="Email already in use",
-                error_code="EMAIL_EXISTS",
-                status_code=409,
-            )
-        user.email = payload.email
+    # Reject existing accounts — they should sign in instead.
+    existing = db.query(User).filter(User.phone_number == phone).first()
+    if existing is not None:
+        record_auth_result("shopkeeper_register", False, "account_exists")
+        return error_response(
+            message="Phone number already registered. Please login.",
+            error_code="PHONE_ALREADY_REGISTERED",
+            status_code=400,
+        )
 
-    # Set password if provided
-    if payload.password:
-        user.password_hash = hash_password(payload.password)
-
-    db.commit()
-
-    # Load shops for response
-    shops = shopkeeper_service.list_authorized_shops(db, user)
-
-    record_auth_result("shopkeeper_register", True, "success")
-
-    return success_response(
-        data={
-            "user": {
-                "id": user.id,
-                "firebase_uid": user.firebase_uid,
-                "phone_number": user.phone_number,
-                "name": user.name,
-                "email": user.email,
-                "status": user.status.value,
-                "role": user.role.name if user.role else None,
-            },
-            "shops": shops,
-            "is_new_user": result.is_new_user,
-        },
-        message="Registration successful",
-        status_code=201,
+    user = shopkeeper_service.create_shopkeeper_account(
+        db,
+        phone_number=phone,
+        name=name,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
     )
+    # Unique Business ID mapped to the phone number (e.g. SHOP_919000000011).
+    user.business_id = shopkeeper_service.generate_business_id(db, phone)
+    if firebase_uid:
+        user.firebase_uid = firebase_uid
+    db.flush()
+
+    meta = _client_meta(request)
+    token_data = issue_tokens(
         user,
         db,
         device_id=payload.device_id,
@@ -198,11 +301,29 @@ async def register(
     )
     db.commit()
 
-    record_auth_result("shopkeeper_otp", True, "register_success")
+    # Load shops for response
     shops = shopkeeper_service.list_authorized_shops(db, user)
+
+    record_auth_result("shopkeeper_register", True, "register_success")
     return success_response(
-        data=_build_login_response(user, token_data, shops),
-        message="Shopkeeper registration successful",
+        data={
+            **token_data,
+            "user": {
+                "id": user.id,
+                "firebase_uid": user.firebase_uid,
+                "phone_number": user.phone_number,
+                "name": user.name,
+                "email": user.email,
+                "status": user.status.value,
+                "role": user.role.name if user.role else None,
+                "business_id": user.business_id,
+            },
+            "business_id": user.business_id,
+            "shops": shops,
+            "is_new_user": True,
+        },
+        message="Registration successful",
+        status_code=201,
     )
 
 
@@ -261,6 +382,14 @@ async def login(
             status_code=401,
         )
     
+    # Backfill the Unique Business ID for legacy accounts that predate the
+    # phone+password phase (business_id was NULL until now).
+    if not user.business_id:
+        user.business_id = shopkeeper_service.generate_business_id(
+            db, user.phone_number
+        )
+        db.flush()
+
     # Issue tokens
     meta = _client_meta(request)
     token_data = issue_tokens(

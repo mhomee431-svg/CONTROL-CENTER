@@ -26,6 +26,7 @@ from app.services.auth_service import (
     refresh_session,
     revoke_session_by_id,
 )
+from app.services import shopkeeper_service
 from app.services.firebase_verification import (
     FirebaseVerificationError,
     verify_firebase_id_token,
@@ -63,6 +64,35 @@ def _get_client_meta(request: Request) -> dict:
     }
 
 
+def _extract_bearer_token(request: Request) -> str | None:
+    """Extract the raw token from an ``Authorization: Bearer <token>`` header."""
+    header = request.headers.get("authorization") or ""
+    if header.lower().startswith("bearer "):
+        token = header[7:].strip()
+        return token or None
+    return None
+
+
+def _create_account_by_role(
+    db: Session,
+    *,
+    firebase_uid: str,
+    phone: str,
+    name: str,
+    role: str,
+) -> User:
+    """Create a new user (+ profile) for ``role`` with ``firebase_uid`` set."""
+    if role == "shopkeeper":
+        user = shopkeeper_service.create_shopkeeper_account(
+            db, phone_number=phone, name=name
+        )
+        user.firebase_uid = firebase_uid
+        db.flush()
+        return user
+
+    return _create_customer_account(db, phone, name, firebase_uid=firebase_uid)
+
+
 @router.post("/send-otp")
 @auth_rate_limit()
 async def send_otp(
@@ -83,11 +113,14 @@ async def send_otp(
     )
 
 
-def _create_customer_account(db: Session, phone: str, name: str | None) -> User:
+def _create_customer_account(
+    db: Session, phone: str, name: str | None, firebase_uid: str | None = None
+) -> User:
     """Create a new customer user (+ profile) with the default 'customer' role."""
     default_role = _default_role(db)
     user = User(
         phone_number=phone,
+        firebase_uid=firebase_uid,
         name=(name.strip() if name and name.strip() else None),
         role_id=default_role.id if default_role else None,
         status=UserStatus.ACTIVE,
@@ -240,6 +273,73 @@ async def verify_otp_endpoint(
     )
 
 
+@router.post("/verify-phone")
+@auth_rate_limit()
+async def verify_phone(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Verify a Firebase ID token and return the login payload or a new-user
+    handoff.
+
+    The Flutter app completes the phone-OTP flow client-side with
+    ``firebase_auth`` and forwards the resulting Firebase ID token in the
+    ``Authorization: Bearer <token>`` header. We verify it to extract the
+    stable ``firebase_uid`` and the phone number, then:
+
+      - If a user with that ``firebase_uid`` (or phone) exists and is active →
+        issue JWT session tokens (login).
+      - Otherwise → return ``is_new_user`` so the client can collect the
+        profile (name + role) and call ``/register``.
+    """
+    token = _extract_bearer_token(request)
+    if not token:
+        record_auth_result("verify_phone", False, "missing_token")
+        return error_response(
+            "Authorization header with a Firebase ID token is required",
+            "TOKEN_REQUIRED",
+            401,
+        )
+
+    try:
+        firebase_uid, phone = verify_firebase_id_token(token)
+    except FirebaseVerificationError as exc:
+        record_auth_result("verify_phone", False, "token_invalid")
+        return error_response(exc.message, exc.error_code, exc.status_code)
+
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    if user is None and phone:
+        user = db.query(User).filter(User.phone_number == phone).first()
+
+    if user is None:
+        record_auth_result("verify_phone", True, "new_user")
+        return success_response(
+            data={
+                "is_new_user": True,
+                "firebase_uid": firebase_uid,
+                "phone_number": phone,
+            },
+            message="New user — complete your profile to register",
+        )
+
+    if not is_account_allowed(user):
+        record_auth_result("verify_phone", False, "account_inactive")
+        return error_response(
+            "Account is not active", "ACCOUNT_NOT_ACTIVE", 403
+        )
+
+    meta = _get_client_meta(request)
+    token_data = issue_tokens(
+        user,
+        db,
+        ip_address=meta["ip_address"],
+        user_agent=meta["user_agent"],
+    )
+    db.commit()
+    record_auth_result("verify_phone", True, "login_success")
+    return success_response(data=token_data, message="Login successful")
+
+
 @router.post("/register")
 @auth_rate_limit()
 async def register_endpoint(
@@ -247,18 +347,72 @@ async def register_endpoint(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Register a new customer account with a display name.
+    """Register a new account (customer or shopkeeper) after phone verification.
 
-    Verifies the Firebase ID token, creates the user (with the chosen name)
-    and the customer profile, then issues access + refresh tokens. Existing
-    accounts are rejected — they must sign in via /verify-otp instead.
+    The Flutter app calls ``/verify-phone`` first; when it reports a new user,
+    the client collects the profile (name + role) and calls this endpoint.
+
+    Security: the Firebase ID token is verified server-side (Bearer header or
+    ``firebase_id_token`` in the body) and the claimed ``firebase_uid`` /
+    ``phone_number`` must match the verified token — clients cannot spoof an
+    identity. The chosen ``role`` (``customer`` or ``shopkeeper``) decides which
+    kind of account is created.
     """
-    phone, err = _verify_customer_firebase_token(payload, "customer_register")
-    if err is not None:
-        return err
+    # Resolve the ID token: Bearer header preferred, body fallback.
+    token = _extract_bearer_token(request) or payload.firebase_id_token
+    if not token:
+        record_auth_result("customer_register", False, "missing_token")
+        return error_response(
+            "Firebase ID token required (Authorization header or firebase_id_token)",
+            "TOKEN_REQUIRED",
+            401,
+        )
 
-    user = db.query(User).filter(User.phone_number == phone).first()
-    if user is not None:
+    try:
+        firebase_uid, phone = verify_firebase_id_token(token)
+    except FirebaseVerificationError as exc:
+        record_auth_result("customer_register", False, "token_invalid")
+        return error_response(exc.message, exc.error_code, exc.status_code)
+
+    # Cross-check any identity claims from the body against the verified token.
+    if payload.firebase_uid and payload.firebase_uid != firebase_uid:
+        record_auth_result("customer_register", False, "uid_mismatch")
+        return error_response(
+            "firebase_uid does not match the verified token",
+            "IDENTITY_MISMATCH",
+            403,
+        )
+    if payload.phone_number and payload.phone_number != phone:
+        record_auth_result("customer_register", False, "phone_mismatch")
+        return error_response(
+            "phone_number does not match the verified token",
+            "IDENTITY_MISMATCH",
+            403,
+        )
+
+    role = (payload.requested_role or "customer").strip().lower()
+    if role not in ("customer", "shopkeeper"):
+        record_auth_result("customer_register", False, "invalid_role")
+        return error_response(
+            "role must be 'customer' or 'shopkeeper'",
+            "INVALID_ROLE",
+            400,
+        )
+
+    name = (payload.name or "").strip()
+    if not name:
+        record_auth_result("customer_register", False, "name_required")
+        return error_response(
+            "Name is required for registration",
+            "NAME_REQUIRED",
+            400,
+        )
+
+    # Reject existing accounts — they should sign in instead.
+    existing = db.query(User).filter(
+        (User.firebase_uid == firebase_uid) | (User.phone_number == phone)
+    ).first()
+    if existing is not None:
         record_auth_result("customer_register", False, "account_exists")
         return error_response(
             message="Account already exists. Please sign in instead.",
@@ -266,16 +420,26 @@ async def register_endpoint(
             status_code=409,
         )
 
-    if not payload.name or not payload.name.strip():
-        return error_response(
-            message="Name is required for registration",
-            error_code="NAME_REQUIRED",
-            status_code=400,
-        )
+    user = _create_account_by_role(
+        db,
+        firebase_uid=firebase_uid,
+        phone=phone,
+        name=name,
+        role=role,
+    )
 
-    user = _create_customer_account(db, phone, payload.name)
-
-    token_data = _issue_customer_tokens(db, user, payload, request)
+    meta = _get_client_meta(request)
+    token_data = issue_tokens(
+        user,
+        db,
+        device_id=payload.device_id,
+        device_name=payload.device_name,
+        device_type=payload.device_type,
+        platform=payload.platform,
+        app_version=payload.app_version,
+        ip_address=meta["ip_address"],
+        user_agent=meta["user_agent"],
+    )
     db.commit()
 
     record_auth_result("customer_register", True, "register_success")

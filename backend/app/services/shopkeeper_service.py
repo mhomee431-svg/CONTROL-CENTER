@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, time, timezone
+import re
+import uuid
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -63,6 +65,27 @@ from app.services import shop_service
 logger = get_logger("app.services.shopkeeper")
 
 
+# ── Merchant categories → legacy shop categories ───────────────────────────
+# The shop-registration wizard lists the 11 approved merchant categories
+# (MerchantCategoryCode). The shops.category column stores the legacy
+# ShopCategory enum for catalog compatibility; this map is the only place
+# that translates between the two. The authoritative merchant code itself is
+# persisted on the merchant-onboarding record.
+MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY = {
+    "PHARMACY_HEALTHCARE": "PHARMACY",
+    "BEAUTY_PERSONAL_CARE": "BEAUTY",
+    "FURNITURE_HOME_CARE": "OTHER",
+    "HOUSEHOLD_GOODS": "OTHER",
+    "SPORTS_FITNESS_OUTDOOR": "OTHER",
+    "BOOKS_MEDIA_STATIONERY": "STATIONERY",
+    "AUTOMOTIVE_PARTS_TOOLS": "OTHER",
+    "HARDWARE": "HARDWARE",
+    "RESTAURANTS": "RESTAURANT",
+    "TRANSPORT": "OTHER",
+    "PERSONAL_TRANSPORT_TRAVEL": "OTHER",
+}
+
+logger = get_logger("app.services.shopkeeper")
 # ── Access resolution ────────────────────────────────────────────────────
 
 
@@ -198,6 +221,27 @@ def list_authorized_shops(db: Session, user: User) -> list[dict[str, Any]]:
 # ── Account registration ─────────────────────────────────────────────────
 
 
+def generate_business_id(db: Session, phone_number: str | None) -> str:
+    """Generate a unique Business ID mapped to the shopkeeper's phone number.
+
+    Primary format: ``SHOP_<last 10 digits of phone>`` (e.g. SHOP_919000000011).
+    If that candidate is already taken (legacy collision), fall back to a random
+    ``SHOP_<hex>`` suffix until unique.
+    """
+    digits = re.sub(r"\D", "", phone_number or "")
+    candidate = (
+        f"SHOP_{digits[-10:]}"
+        if len(digits) >= 10
+        else f"SHOP_{digits or uuid.uuid4().hex[:10].upper()}"
+    )
+    # Bounded search so a pathological DB never loops forever.
+    for _attempt in range(100):
+        if db.query(User).filter(User.business_id == candidate).first() is None:
+            return candidate
+        candidate = f"SHOP_{uuid.uuid4().hex[:10].upper()}"
+    raise RuntimeError("Could not generate a unique business_id")
+
+
 def create_shopkeeper_account(
     db: Session,
     phone_number: str,
@@ -236,12 +280,22 @@ def register_shop_for_shopkeeper(db: Session, user: User, data: dict) -> Shop:
     payload = dict(data)
     address = payload.pop("address", None) or {}
     category = payload.get("category")
+    merchant_category_code: str | None = None
     if isinstance(category, str):
         normalized = category.strip().upper()
-        valid = {c.name for c in ShopCategory}
-        if normalized and normalized not in valid:
-            raise ValidationError(f"Invalid shop category: {category}")
-        payload["category"] = normalized or None
+        # Approved merchant categories (see MerchantCategoryCode) map onto the
+        # legacy shop.category enum for catalog compatibility; the authoritative
+        # merchant code is persisted on the onboarding record that drives the
+        # post-registration verification flow (documents, bank, approval).
+        legacy = MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY.get(normalized)
+        if legacy is not None:
+            merchant_category_code = normalized
+            payload["category"] = legacy.value
+        else:
+            valid = {c.name for c in ShopCategory}
+            if normalized and normalized not in valid:
+                raise ValidationError(f"Invalid shop category: {category}")
+            payload["category"] = normalized or None
 
     hours = [
         {
@@ -259,6 +313,19 @@ def register_shop_for_shopkeeper(db: Session, user: User, data: dict) -> Shop:
         owner_user_id=user.id,
     )
     sync_owner_role(db, user)
+
+    # Category-driven verification starts here: when the shop was registered
+    # under an approved merchant category, bind it to an onboarding record so
+    # the documents/bank/approval timeline (shown on the wizard's success
+    # screen) is driven by the real category. Idempotent & side-effect free —
+    # a later explicit onboarding start returns the same record.
+    if merchant_category_code is not None:
+        from app.services import merchant_onboarding_service
+
+        merchant_onboarding_service.get_or_create_onboarding(
+            db, user, shop.id, merchant_category_code
+        )
+
     return shop
 
 
