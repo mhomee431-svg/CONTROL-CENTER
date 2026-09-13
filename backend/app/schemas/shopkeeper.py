@@ -1,4 +1,4 @@
-"""Phase 22/23 — Pydantic schemas for the Shopkeeper App API."""
+﻿"""Phase 22/23 — Pydantic schemas for the Shopkeeper App API."""
 
 from datetime import datetime
 
@@ -11,6 +11,21 @@ class ShopkeeperSendOTPRequest(BaseModel):
     phone_number: str = Field(..., min_length=10, max_length=20)
 
 
+class ShopkeeperProfileCreateRequest(BaseModel):
+    """First-time profile creation payload (no location required).
+
+    Sent by the Flutter profile-creation screen after the shopkeeper's first
+    Google sign-in. Creates the sole business shop and updates the user's
+    profile fields.
+    """
+
+    shop_name: str = Field(..., min_length=1, max_length=255)
+    name: str | None = Field(None, max_length=100, description="Override display name")
+    email: str | None = Field(None, max_length=255, description="Override email")
+    phone: str | None = Field(None, max_length=20, description="Contact number")
+    category: str | None = Field(None, max_length=50, description="Merchant category code")
+    business_type: str | None = Field(None, max_length=50, description="Retail | Wholesale | Retail + Wholesale | Service | Other")
+    description: str | None = Field(None, max_length=2000)
 class ShopkeeperRegisterRequest(BaseModel):
     """First-time shopkeeper registration.
 
@@ -93,19 +108,23 @@ class ShopkeeperOTPLoginRequest(BaseModel):
 class ShopkeeperFirebaseLoginRequest(BaseModel):
     """Combined Firebase login-or-register request.
 
-    The Flutter app sends the Firebase ID token after a successful phone-OTP
-    sign-in. The backend verifies the token, extracts the phone number, and
-    either logs in an existing shopkeeper or auto-registers a new one (if no
-    account exists for that phone). This "login or register on first use" flow
-    is the standard pattern for phone-auth apps.
+    Supports BOTH Phone-OTP and Google Sign-In:
+    - Phone OTP: sends firebase_id_token, backend extracts phone number
+    - Google Sign-In: sends firebase_id_token + email + name, backend extracts firebase_uid
+
+    The backend verifies the token and either logs in an existing shopkeeper
+    or auto-registers a new one. This "login or register on first use" flow
+    means users don't need a separate registration step.
     """
 
     firebase_id_token: str = Field(
         ...,
         min_length=20,
-        description="Firebase ID token from a completed phone-OTP sign-in",
+        description="Firebase ID token from a completed Google Sign-In or phone-OTP sign-in",
     )
-    name: str | None = Field(None, max_length=100, description="Required only when auto-registering a new account")
+    name: str | None = Field(None, max_length=100, description="Required when auto-registering (Google Sign-In)")
+    email: str | None = Field(None, max_length=255, description="Email from Google Sign-In")
+    photo_url: str | None = Field(None, max_length=500, description="Google profile picture URL (avatar)")
     device_id: str | None = Field(None, description="Stable device identifier")
     device_name: str | None = None
     device_type: str | None = Field(None, description="android, ios, web")
@@ -209,18 +228,26 @@ class ShopLocationMeta(BaseModel):
 
 
 class ShopkeeperShopCreate(BaseModel):
+    """Payload to create a shop during first-time profile setup.
+
+    Location and address are OPTIONAL for the initial profile-creation flow —
+    they are filled in later via the location-capture screen. This keeps the
+    first-stage form fast and unblockable.
+    """
+
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     tagline: str | None = Field(None, max_length=255)
     category: str | None = Field(None, max_length=50)
+    business_type: str | None = Field(None, max_length=50, description="Retail | Wholesale | Retail + Wholesale | Service | Other")
     phone: str | None = Field(None, max_length=20)
     whatsapp_number: str | None = Field(None, max_length=20)
     email: str | None = Field(None, max_length=255)
     image_url: str | None = Field(None, max_length=500)
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
     gstin: str | None = Field(None, max_length=50)
-    address: ShopAddressInput
+    address: ShopAddressInput | None = None
     # Optional capture provenance — populated by the shopkeeper location flow.
     location: ShopLocationMeta | None = None
 

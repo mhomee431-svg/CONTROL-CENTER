@@ -112,6 +112,9 @@ class Shop(Base, TimestampMixin, SoftDeleteMixin):
     category: Mapped[ShopCategory | None] = mapped_column(
         Enum(ShopCategory, name="shop_category"), index=True
     )
+    # Business type (Retail | Wholesale | Retail + Wholesale | Service | Other).
+    # Set during first-time profile creation; free-form string, nullable.
+    business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     subcategories: Mapped[str | None] = mapped_column(String(500))  # JSON array of subcategories
     location: Mapped[object] = mapped_column(
         Geography(geometry_type="POINT", srid=4326, spatial_index=True), nullable=False

@@ -71,6 +71,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  /// Google OAuth sign-in (web login flow).
+  ///
+  /// The consent screen opens in a new browser tab; the backend polls the
+  /// one-shot handoff endpoint and completes the session when Google returns
+  /// the token payload (max 3 minutes). A hint snackbar tells the user to
+  /// complete sign-in in the opened Google window.
+  Future<void> _signInWithGoogle() async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Complete sign-in in the opened Google window…'),
+    ));
+    final ok = await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ref.read(authControllerProvider).errorMessage ??
+            'Google sign-in failed. Please try again.'),
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authControllerProvider.select((s) => s.isLoading));
@@ -163,6 +183,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : const Text('Create account'),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('or', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: isLoading ? null : _signInWithGoogle,
+                icon: const Icon(Icons.account_circle, size: 20),
+                label: const Text('Continue with Google'),
               ),
               const SizedBox(height: 12),
               TextButton(

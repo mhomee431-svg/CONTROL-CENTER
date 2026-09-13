@@ -7,6 +7,7 @@ class ShopkeeperUser {
     this.email,
     this.role,
     this.businessId,
+    this.avatarUrl,
   });
 
   final int id;
@@ -15,6 +16,7 @@ class ShopkeeperUser {
   final String? email;
   final String? role;
   final String? businessId;
+  final String? avatarUrl;
 
   factory ShopkeeperUser.fromJson(Map<String, dynamic> json) =>
       ShopkeeperUser(
@@ -24,6 +26,7 @@ class ShopkeeperUser {
         email: json['email'] as String?,
         role: json['role'] as String?,
         businessId: json['business_id'] as String?,
+        avatarUrl: json['avatar_url'] as String?,
       );
 
   String get displayName => (name != null && name!.trim().isNotEmpty)

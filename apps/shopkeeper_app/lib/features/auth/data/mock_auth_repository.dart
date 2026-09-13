@@ -1,7 +1,7 @@
 import '../domain/auth_models.dart';
 import 'auth_repository.dart';
-import '../../../../core/network/token_store.dart';
-import '../../../../core/network/api_client.dart';
+import '../../../core/network/token_store.dart';
+import '../../../core/network/api_client.dart';
 
 /// Mock auth repository for offline development / testing (no backend).
 class MockAuthRepository implements AuthRepository {
@@ -111,5 +111,69 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     await _tokens.clearAll();
+  }
+
+  @override
+  Future<AuthSession> firebaseLogin({
+    required String firebaseIdToken,
+    String? name,
+    String? email,
+    String? photoUrl,
+  }) async {
+    // Simulate network delay.
+    await Future.delayed(const Duration(seconds: 1));
+    if (firebaseIdToken.isEmpty) {
+      throw const ApiException(message: 'Invalid Firebase token');
+    }
+    final user = ShopkeeperUser(
+      id: 1,
+      phoneNumber: '',
+      name: name ?? 'Test Shopkeeper',
+      email: email,
+      avatarUrl: photoUrl,
+      role: 'owner',
+    );
+    await _tokens.saveTokens(
+      accessToken: 'mock_access_token_${DateTime.now().millisecondsSinceEpoch}',
+      refreshToken: 'mock_refresh_token_${DateTime.now().millisecondsSinceEpoch}',
+    );
+    return AuthSession(user: user, shops: const []);
+  }
+
+  @override
+  Future<AuthSession> updateProfile({
+    required String name,
+    String? phoneNumber,
+  }) async {
+    // Simulate network delay, then return the (mock) refreshed session.
+    await Future.delayed(const Duration(seconds: 1));
+    final session = await restoreSession();
+    return session ??
+        AuthSession(
+          user: ShopkeeperUser(
+            id: 1,
+            name: name,
+            phoneNumber: phoneNumber ?? '',
+            role: 'owner',
+          ),
+          shops: const [],
+        );
+  }
+
+  // ── Debug helpers for verbose login flow logging ──────────────────────
+
+  @override
+  Future<String?> debugReadToken() async {
+    return _tokens.readAccessToken();
+  }
+
+  @override
+  Future<String?> debugReadUserId() async {
+    return _tokens.readUserId();
+  }
+
+  @override
+  Future<bool> debugIsLoggedIn() async {
+    return _tokens.isLoggedIn();
   }
 }

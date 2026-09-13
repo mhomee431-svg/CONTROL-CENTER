@@ -68,12 +68,12 @@ class AccountScreen extends ConsumerWidget {
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
-                  leading: const Icon(Icons.swap_horiz),
-                  title: const Text('Switch / manage shops'),
+                  leading: const Icon(Icons.store_outlined),
+                  title: const Text('My business'),
                   subtitle: shop != null
-                      ? Text('Currently: ${shop.name}',
-                          style: const TextStyle(fontSize: 12))
-                      : null,
+                      ? Text(shop.name, style: const TextStyle(fontSize: 12))
+                      : const Text('Not established yet',
+                          style: TextStyle(fontSize: 12)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/shops'),
                 ),

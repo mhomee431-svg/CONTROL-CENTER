@@ -6,7 +6,7 @@ import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/dashboard_repository.dart';
 import '../../domain/dashboard_models.dart';
 
-enum DashboardStatus { loading, ready, accessDenied, error }
+enum DashboardStatus { loading, ready, accessDenied, noShop, error }
 
 class DashboardState {
   const DashboardState({required this.status, this.data, this.message});
@@ -17,6 +17,11 @@ class DashboardState {
 
   factory DashboardState.loading() =>
       const DashboardState(status: DashboardStatus.loading);
+
+  /// Shown immediately after login when the shopkeeper hasn't created their
+  /// first shop yet — a welcoming home instead of a hard error.
+  factory DashboardState.noShop() =>
+      const DashboardState(status: DashboardStatus.noShop);
 }
 
 final dashboardControllerProvider =
@@ -32,8 +37,7 @@ class DashboardController extends Notifier<DashboardState> {
   Future<void> load() async {
     final shop = ref.read(selectedShopProvider);
     if (shop == null) {
-      state = const DashboardState(
-          status: DashboardStatus.error, message: 'No shop selected');
+      state = DashboardState.noShop();
       return;
     }
     state = DashboardState.loading();

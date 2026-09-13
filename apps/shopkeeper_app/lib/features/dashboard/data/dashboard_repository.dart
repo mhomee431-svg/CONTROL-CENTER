@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_providers.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_providers.dart';
 import '../domain/dashboard_models.dart';
 
 /// Dashboard contract for one authorized shop.

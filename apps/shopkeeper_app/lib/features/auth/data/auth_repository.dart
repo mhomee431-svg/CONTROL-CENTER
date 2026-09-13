@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
-import '../../../../core/network/api_providers.dart';
-import '../../../../core/network/token_store.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_providers.dart';
+import '../../../core/network/token_store.dart';
 import '../domain/auth_models.dart';
 import 'mock_auth_repository.dart';
 
@@ -26,6 +27,26 @@ abstract class AuthRepository {
   Future<void> logout();
   Future<void> forgotPassword(String identifier);
   Future<void> resetPassword({required String token, required String newPassword});
+
+  /// Firebase Google Sign-In: verify a Firebase ID token with the backend
+  /// (Firebase Admin SDK) and return the session. Auto-registers ONE
+  /// shopkeeper profile on first sign-in.
+  Future<AuthSession> firebaseLogin({
+    required String firebaseIdToken,
+    String? name,
+    String? email,
+    String? photoUrl,
+  });
+
+  /// Updates the current user's profile (name; phone accepted for contract
+  /// compatibility — the backend profile endpoint manages name/email) and
+  /// returns the refreshed session.
+  Future<AuthSession> updateProfile({required String name, String? phoneNumber});
+
+  // ── Debug helpers for verbose login flow logging ──────────────────────
+  Future<String?> debugReadToken();
+  Future<String?> debugReadUserId();
+  Future<bool> debugIsLoggedIn();
 }
 
 class ApiAuthRepository implements AuthRepository {
@@ -90,14 +111,44 @@ class ApiAuthRepository implements AuthRepository {
     final sessionId = data['session_id'] as String?;
     final businessId = (data['business_id'] ??
             (data['user'] as Map?)?['business_id']) as String?;
+    final userId = (data['user_id'] ??
+            (data['user'] as Map?)?['id'] ??
+            (data['id']))?.toString();
+
+    debugPrint('  ├─ _persist(): Saving session to local storage...');
+
     if (access != null && refresh != null) {
+      debugPrint('  │  ├─ Saving access_token + refresh_token + jwt_token...');
       await _tokens.saveTokens(accessToken: access, refreshToken: refresh);
+      debugPrint('  │  │  ✓ Tokens saved (${access.length} chars)');
+    } else {
+      debugPrint('  │  ├─ ⚠ access or refresh token is null, skipping saveTokens');
     }
-    if (sessionId != null) await _tokens.saveSessionId(sessionId);
+
+    if (sessionId != null) {
+      debugPrint('  │  ├─ Saving session_id...');
+      await _tokens.saveSessionId(sessionId);
+      debugPrint('  │  │  ✓ Session ID saved');
+    }
+
     if (businessId != null && businessId.isNotEmpty) {
+      debugPrint('  │  ├─ Saving business_id...');
       await _tokens.saveBusinessId(businessId);
+      debugPrint('  │  │  ✓ Business ID saved: $businessId');
     }
-    return AuthSession(
+
+    // Save user-specified session keys
+    if (userId != null && userId.isNotEmpty && userId != 'null') {
+      debugPrint('  │  ├─ Saving user_id...');
+      await _tokens.saveUserId(userId);
+      debugPrint('  │  │  ✓ User ID saved: $userId');
+    }
+
+    debugPrint('  │  ├─ Setting is_logged_in = true...');
+    await _tokens.setLoggedIn(true);
+    debugPrint('  │  └─ ✓ Login state saved');
+
+    final session = AuthSession(
       user: ShopkeeperUser.fromJson(
           ((data['user'] as Map?)?.cast<String, dynamic>()) ?? const {}),
       shops: ((data['shops'] as List?) ?? const [])
@@ -105,6 +156,9 @@ class ApiAuthRepository implements AuthRepository {
           .map((e) => ShopSummary.fromJson(e.cast<String, dynamic>()))
           .toList(growable: false),
     );
+
+    debugPrint('  └─ _persist() complete: user=${session.user.id}, shops=${session.shops.length}');
+    return session;
   }
 
   @override
@@ -141,6 +195,75 @@ class ApiAuthRepository implements AuthRepository {
     } finally {
       await _tokens.clearAll();
     }
+  }
+
+  @override
+  Future<AuthSession> firebaseLogin({
+    required String firebaseIdToken,
+    String? name,
+    String? email,
+    String? photoUrl,
+  }) async {
+    final requestBody = {
+      'firebase_id_token': firebaseIdToken,
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (photoUrl != null && photoUrl.isNotEmpty) 'photo_url': photoUrl,
+    };
+    debugPrint('  ├─ API URL: ${ApiEndpoints.firebaseLogin}');
+    debugPrint('  ├─ Request body keys: ${requestBody.keys.toList()}');
+    debugPrint('  ├─ Token length: ${firebaseIdToken.length} chars');
+    debugPrint('  ├─ Name: ${name ?? "null"}');
+    debugPrint('  ├─ Email: ${email ?? "null"}');
+    debugPrint('  └─ Photo URL: ${photoUrl != null ? "present" : "null"}');
+
+    final data = await _api.post(
+      ApiEndpoints.firebaseLogin,
+      body: requestBody,
+    ) as Map<String, dynamic>;
+
+    debugPrint('  ├─ Response received');
+    debugPrint('  ├─ Response keys: ${data.keys.toList()}');
+    debugPrint('  ├─ access_token: ${data['access_token'] != null ? "present (${(data['access_token'] as String).length} chars)" : "null"}');
+    debugPrint('  ├─ refresh_token: ${data['refresh_token'] != null ? "present" : "null"}');
+    debugPrint('  ├─ session_id: ${data['session_id'] ?? "null"}');
+    debugPrint('  └─ user_id: ${data['user_id'] ?? (data['user'] as Map?)?['id'] ?? "null"}');
+
+    return _persist(data);
+  }
+
+  // ── Debug helpers ───────────────────────────────────────────────────
+
+  @override
+  Future<String?> debugReadToken() async {
+    return _tokens.readAccessToken();
+  }
+
+  @override
+  Future<String?> debugReadUserId() async {
+    return _tokens.readUserId();
+  }
+
+  @override
+  Future<bool> debugIsLoggedIn() async {
+    return _tokens.isLoggedIn();
+  }
+
+  @override
+  Future<AuthSession> updateProfile({
+    required String name,
+    String? phoneNumber,
+  }) async {
+    final access = await _tokens.readAccessToken();
+    await _api.put(ApiEndpoints.profile, body: {'name': name}, token: access);
+    final session = await restoreSession();
+    if (session == null) {
+      throw const ApiException(
+        message: 'Profile updated but the session could not be restored',
+        errorCode: 'SESSION_RESTORE_FAILED',
+      );
+    }
+    return session;
   }
 }
 

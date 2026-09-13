@@ -11,10 +11,14 @@ business flows:
     not by role.
 """
 
+import time
+from asyncio import to_thread
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_role
 from app.core.exceptions import AppError, ForbiddenError, UnauthorizedError
 from app.core.logging import get_logger
 from app.core.observability.metrics import record_auth_result
@@ -24,6 +28,15 @@ from app.core.security import hash_password, verify_password
 from app.core.shopkeeper_permissions import ensure_shopkeeper_role
 from app.database.session import get_db
 from app.models.role import Role
+from app.models.shop import (
+    LocationIntegrityStatus,
+    LocationSource,
+    LocationStatus,
+    LocationType,
+    Shop,
+    ShopStatus,
+)
+from app.models.shop import ShopOwner
 from app.models.user import User, UserStatus
 from app.schemas.shopkeeper import (
     ShopkeeperFirebaseLoginRequest,
@@ -31,12 +44,24 @@ from app.schemas.shopkeeper import (
     ShopkeeperLoginRequest,
     ShopkeeperLogoutRequest,
     ShopkeeperOTPLoginRequest,
+    ShopkeeperProfileCreateRequest,
     ShopkeeperRefreshRequest,
     ShopkeeperRegisterRequest,
     ShopkeeperResetPasswordRequest,
     ShopkeeperSendOTPRequest,
 )
+from app.core.shopkeeper_permissions import sync_owner_role
+from app.models.shop import (
+    LocationIntegrityStatus,
+    LocationSource,
+    LocationStatus,
+    LocationType,
+    Shop,
+    ShopStatus,
+)
+from app.models.shop import ShopOwner
 from app.services import shopkeeper_service
+from app.services.shopkeeper_service import MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY
 from app.services.auth_service import (
     is_account_allowed,
     issue_tokens,
@@ -45,7 +70,7 @@ from app.services.auth_service import (
 from app.services.firebase_auth_service import authenticate_with_firebase
 from app.services.firebase_verification import (
     FirebaseVerificationError,
-    verify_firebase_id_token,
+    verify_firebase_id_token_claims,
 )
 
 logger = get_logger("app.api.shopkeeper_auth")
@@ -88,6 +113,7 @@ def _build_login_response(user: User, token_data: dict, shops: list) -> dict:
             "name": user.name,
             "phone_number": user.phone_number,
             "email": user.email,
+            "avatar_url": user.avatar_url,
             "status": user.status.value,
             "role": user.role.name if user.role else None,
             "business_id": user.business_id,
@@ -483,53 +509,105 @@ async def firebase_login(
 ):
     """Combined Firebase login-or-register endpoint.
 
-    The Flutter app completes the phone-OTP flow client-side with
-    ``firebase_auth`` and sends the resulting Firebase ID token here.
+    Works for BOTH providers the platform supports (per the CURRENT
+    authentication decision — Google only, phone is a future extension):
 
-    Flow:
-      1. Verify the Firebase ID token (confirms the phone belongs to the user).
-      2. Extract the phone number from the verified token.
-      3. Look up the shopkeeper by phone in PostgreSQL.
-      4. If found and active → issue JWT session tokens (login).
-      5. If not found → auto-register a new shopkeeper account, then login.
-         (``name`` is required when auto-registering.)
+    Google Sign-In (provider ``google.com``):
+      1. The Flutter app completes Google Sign-In with Firebase client-side
+         (native Credential Manager on Android, Firebase popup on web).
+      2. The resulting Firebase ID token is sent here and verified via the
+         Firebase Admin SDK.
+      3. The shopkeeper is looked up by ``firebase_uid``, then by email.
+      4. If found and active → JWT session tokens (login).
+      5. If not found → auto-register ONE shopkeeper profile and login.
 
-    This "login on first use" pattern is the standard for phone-auth apps —
-    users don't need a separate registration step.
+    Phone OTP (provider ``phone`` — FUTURE extension point): the token's
+    ``phone_number`` claim is matched instead of email. No OTP UI/API/SMS
+    exists in this implementation; ``/send-otp`` + ``/verify-phone`` remain
+    only as the future extension surface.
     """
-    # 1. Verify Firebase ID token → extract phone number
+    # 1. Verify the Firebase ID token → full verified claims
+    # BLOCKING NETWORK CALL: Firebase Admin's verify_id_token() fetches
+    # Google's public certificates over HTTPS (~200-500ms).  We run it in a
+    # thread pool so the asyncio event loop stays responsive for concurrent
+    # requests.  The function also checks an in-memory cache first — cache
+    # hits skip the network call entirely and return in <1ms.
+    t_verify_start = time.perf_counter()
     try:
-        phone = verify_firebase_id_token(payload.firebase_id_token)
+        claims = await to_thread(
+            verify_firebase_id_token_claims, payload.firebase_id_token
+        )
     except FirebaseVerificationError as exc:
+        elapsed_ms = (time.perf_counter() - t_verify_start) * 1000
+        logger.warning(
+            "Firebase verification failed after %.1fms: %s",
+            elapsed_ms,
+            exc.message,
+        )
         record_auth_result("shopkeeper_firebase_login", False, "firebase_verification_failed")
         return error_response(
             message=exc.message,
             error_code=exc.error_code,
             status_code=exc.status_code,
         )
+    elapsed_verify = (time.perf_counter() - t_verify_start) * 1000
+    logger.info(
+        "Firebase token verified for uid %s (provider=%s) in %.1fms",
+        claims.get("uid"),
+        claims.get("provider", ""),
+        elapsed_verify,
+    )
 
-    # 2. Look up existing shopkeeper by phone
-    user = db.query(User).filter(User.phone_number == phone).first()
+    firebase_uid = claims["uid"]
+    phone = claims["phone"]
+    email = claims.get("email") or payload.email or None
+    token_name = claims.get("name") or None
+    # Google ID tokens carry the avatar as `picture`; the client may also send
+    # it explicitly as `photo_url`. Prefer the token claim (trusted).
+    photo_url = claims.get("picture") or payload.photo_url or None
 
-    # 3. Auto-register if not found
+    # 2. Look up the existing shopkeeper account (uid → phone → email)
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    if user is None and phone:
+        user = db.query(User).filter(User.phone_number == phone).first()
+    if user is None and email:
+        user = db.query(User).filter(User.email == email).first()
+
+    # 3. Auto-register one shopkeeper profile if not found
+    is_new_account = False
     if user is None:
-        if not payload.name or not payload.name.strip():
+        name = (
+            (payload.name or "").strip()
+            or (token_name or "").strip()
+            or ""
+        )
+        if not name:
             return error_response(
                 message="Name is required for new account registration",
                 error_code="NAME_REQUIRED",
                 status_code=400,
             )
-        # Create new shopkeeper account (no password — phone-auth only)
         user = shopkeeper_service.create_shopkeeper_account(
             db,
-            phone_number=phone,
-            name=payload.name.strip(),
+            phone_number=(phone or None),
+            name=name,
+            email=email,
+            avatar_url=photo_url,
         )
+        user.firebase_uid = firebase_uid
+        user.business_id = shopkeeper_service.generate_business_id(db, phone or None)
+        db.flush()
         is_new_account = True
         record_auth_result("shopkeeper_firebase_login", True, "auto_registered")
     else:
-        is_new_account = False
-        # Check account status
+        # Link the Firebase identity onto an existing (phone/email) account.
+        if not user.firebase_uid:
+            user.firebase_uid = firebase_uid
+        if email and not user.email:
+            user.email = email
+        if photo_url and not user.avatar_url:
+            user.avatar_url = photo_url
+        db.flush()
         if not user.is_active or user.status in (UserStatus.SUSPENDED, UserStatus.BANNED):
             record_auth_result("shopkeeper_firebase_login", False, "account_inactive")
             return error_response(
@@ -539,7 +617,12 @@ async def firebase_login(
             )
         record_auth_result("shopkeeper_firebase_login", True, "login_success")
 
+    # Update login metadata (last login timestamp + IP)
+    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_ip = request.client.host if request.client else None
+
     # 4. Issue JWT access + refresh tokens
+    t_tokens_start = time.perf_counter()
     meta = _client_meta(request)
     token_data = issue_tokens(
         user,
@@ -553,14 +636,172 @@ async def firebase_login(
         user_agent=meta["user_agent"],
     )
     db.commit()
+    elapsed_tokens = (time.perf_counter() - t_tokens_start) * 1000
 
     shops = shopkeeper_service.list_authorized_shops(db, user)
+    elapsed_total = (time.perf_counter() - t_verify_start) * 1000
+    logger.info(
+        "firebase_login complete for uid %s in %.1fms "
+        "(verify=%.1fms, tokens=%.1fms, new_account=%s)",
+        firebase_uid,
+        elapsed_total,
+        elapsed_verify,
+        elapsed_tokens,
+        is_new_account,
+    )
     return success_response(
         data={
             **_build_login_response(user, token_data, shops),
             "is_new_account": is_new_account,
         },
         message="Login successful" if not is_new_account else "Account created and logged in",
+    )
+
+
+@router.post("/profile-create")
+@auth_rate_limit()
+async def profile_create(
+    payload: ShopkeeperProfileCreateRequest,
+    request: Request,
+    current_user: User = Depends(require_role("shopkeeper")),
+    db: Session = Depends(get_db),
+):
+    """Create the shopkeeper's first (and only) shop during on-profile setup.
+
+    Unlike the full ``/shopkeeper/shops`` endpoint, this endpoint does NOT
+    require location or address — those are captured later via the dedicated
+    location-capture flow. This keeps the first-stage profile form fast and
+    unblockable.
+
+    Security: only users with the SHOPKEEPER role (server-determined) may
+    call this endpoint. The authenticated user is derived from the verified
+    Firebase token — never from client input. IDOR-safe: the user can only
+    create their own profile.
+    """
+    user = current_user
+
+    # ── 1. Update user profile (name / email / phone) ─────────────────────
+    if payload.name is not None and payload.name.strip():
+        user.name = payload.name.strip()
+    if payload.email is not None and payload.email.strip():
+        user.email = payload.email.strip()
+    if payload.phone is not None:
+        user.phone_number = payload.phone.strip() or None
+    db.flush()
+
+    # ── 2. Create the shop WITHOUT location (nullable at this stage) ──────
+    name = payload.shop_name.strip()
+    if not name:
+        return error_response(
+            message="Shop name is required",
+            error_code="SHOP_NAME_REQUIRED",
+            status_code=400,
+        )
+
+    # Unique slug
+    from slugify import slugify as _slug
+
+    base_slug = _slug(name)[:280]
+    slug = base_slug
+    counter = 1
+    while db.query(Shop).filter(Shop.slug == slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    # Resolve category (legacy enum mapping)
+    legacy_cat = None
+    if payload.category:
+        from app.models.shop import ShopCategory
+
+        normalized = payload.category.strip().upper()
+        legacy = MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY.get(normalized)
+        if legacy is not None:
+            legacy_cat = legacy
+        else:
+            valid = {c.name for c in ShopCategory}
+            if normalized and normalized not in valid:
+                return error_response(
+                    message=f"Invalid shop category: {payload.category}",
+                    error_code="INVALID_CATEGORY",
+                    status_code=400,
+                )
+            legacy_cat = ShopCategory[normalized] if normalized in ShopCategory.__members__ else None
+
+    shop = Shop(
+        name=name,
+        slug=slug,
+        description=payload.description,
+        tagline=None,
+        category=legacy_cat,
+        business_type=payload.business_type,
+        phone=user.phone_number,
+        email=user.email,
+        status=ShopStatus.REGISTERED,
+        latitude=None,
+        longitude=None,
+        location=None,
+        location_status=LocationStatus.PENDING.value,
+        location_source=LocationSource.UNKNOWN.value,
+        location_type=LocationType.UNKNOWN.value,
+        location_integrity_status=LocationIntegrityStatus.UNKNOWN.value,
+        location_verified=False,
+        is_open_24x7=False,
+        is_accepting_orders=True,
+        created_by=user.id,
+    )
+    db.add(shop)
+    db.flush()
+
+    # ── 3. Assign primary owner ────────────────────────────────────────────
+    db.add(
+        ShopOwner(
+            shop_id=shop.id,
+            user_id=user.id,
+            is_primary=True,
+            is_active=True,
+        )
+    )
+    db.flush()
+    sync_owner_role(db, user)
+
+    # ── 4. Start merchant onboarding for the category ─────────────────────
+    if payload.category:
+        from app.services import merchant_onboarding_service
+
+        merchant_onboarding_service.get_or_create_onboarding(
+            db, user, shop.id, payload.category.strip().upper()
+        )
+
+    db.commit()
+
+    # ── 5. Return updated profile state ────────────────────────────────────
+    shops = shopkeeper_service.list_authorized_shops(db, user)
+    return success_response(
+        data={
+            "shop": {
+                "id": shop.id,
+                "name": shop.name,
+                "slug": shop.slug,
+                "status": shop.status.value,
+                "is_verified": shop.is_verified,
+                "category": shop.category.value if shop.category else None,
+                "business_type": shop.business_type,
+                "membership": "owner",
+                "permissions": ["read:dashboard", "update:shop", "update:product"],
+            },
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "phone_number": user.phone_number,
+                "email": user.email,
+                "avatar_url": user.avatar_url,
+                "status": user.status.value,
+                "role": user.role.name if user.role else "shopkeeper",
+            },
+            "shops": shops,
+            "profile_complete": True,
+        },
+        message="Profile created successfully",
     )
 
 
@@ -647,6 +888,53 @@ async def logout(
     return success_response(data=result, message="Logged out successfully")
 
 
+
+@router.get("/profile")
+async def get_shopkeeper_profile(
+    current_user: User = Depends(require_role("shopkeeper")),
+    db: Session = Depends(get_db),
+):
+    """Return the authenticated Shopkeeper's full profile (user + shop).
+
+    Security:
+      - Only the SHOPKEEPER role (server-determined) may call this endpoint.
+      - IDOR-safe: the user is derived from the verified Firebase token —
+        never from a client-supplied user_id. A shopkeeper can only read
+        their own profile.
+
+    Google account data: only display name, email, and photo URL are stored
+    and returned. No unnecessary Google account data is persisted.
+    """
+    role = current_user.role
+    shops = shopkeeper_service.list_authorized_shops(db, current_user)
+    primary_shop = shops[0] if shops else None
+
+    return success_response(
+        data={
+            "user": {
+                "id": current_user.id,
+                "name": current_user.name,
+                "email": current_user.email,
+                "phone_number": current_user.phone_number,
+                "avatar_url": current_user.avatar_url,
+                "status": current_user.status.value,
+                "role": role.name if role else "shopkeeper",
+                "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            },
+            "shop": {
+                "id": primary_shop.get("id") if primary_shop else None,
+                "name": primary_shop.get("name") if primary_shop else None,
+                "status": primary_shop.get("status") if primary_shop else None,
+                "is_verified": primary_shop.get("is_verified") if primary_shop else None,
+                "category": primary_shop.get("category") if primary_shop else None,
+                "business_type": primary_shop.get("business_type") if primary_shop else None,
+            },
+            "profile_complete": len(shops) > 0,
+        },
+        message="OK",
+    )
+
+
 @router.get("/me")
 async def me(
     current_user: User = Depends(get_current_user),
@@ -661,6 +949,7 @@ async def me(
             "name": current_user.name,
             "phone_number": current_user.phone_number,
             "email": current_user.email,
+            "avatar_url": current_user.avatar_url,
             "status": getattr(current_user.status, "value", str(current_user.status)),
             "role": role.name if role else None,
             "is_shopkeeper": bool(shops) or (role is not None and role.name == "shopkeeper"),

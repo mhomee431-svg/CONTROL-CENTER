@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<title>HyperLocal - Shopkeeper App UI/UX | Register Your Shop</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--brand:#0B5D3B;--brand-lt:#E8F5EE;--brand-dk:#064028;--accent:#F2A413;--tp:#111827;--ts:#6B7280;--brd:#E5E7EB;--sf:#F6F7F9;--ok:#16A34A;--ok-s:#EAF7EF;--pn:#B26A00;--pn-s:#FFF8ED;--pf:#1a1a1a}
+html{font-size:16px}
+body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f0f4f8,#e2e8f0,#f0f4f8);width:1920px;height:1080px;overflow:hidden;color:var(--tp);-webkit-font-smoothing:antialiased}
+.b{width:1920px;height:1080px;padding:24px 36px 20px;display:flex;flex-direction:column;position:relative;background:radial-gradient(ellipse at 15% 85%,rgba(11,93,59,.04),transparent 50%),radial-gradient(ellipse at 85% 15%,rgba(242,164,19,.03),transparent 50%),linear-gradient(180deg,#FAFBFC,#F1F3F7)}
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0}
+.hdr-l{display:flex;align-items:center;gap:14px}
+.logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--brand),#0d7a4d);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(11,93,59,.25)}
+.logo svg{width:24px;height:24px}
+.tit h1{font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1.15}
+.tit p{font-size:12.5px;color:var(--ts);font-weight:500;margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.badge{display:flex;align-items:center;gap:7px;background:var(--brand-lt);border:1px solid rgba(11,93,59,.12);border-radius:100px;padding:6px 14px;font-size:11.5px;font-weight:600;color:var(--brand)}
+.badge .d{width:6px;height:6px;border-radius:50%;background:var(--brand);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sc{background:var(--brand);color:#fff;border-radius:100px;padding:5px 14px;font-size:11.5px;font-weight:700;letter-spacing:.3px}
+.fl{font-size:11px;color:var(--ts);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+/* SCREENS */
+.scr{flex:1;display:flex;align-items:center;justify-content:center;gap:0;position:relative;min-height:0}
+/* PHONE */
+.ph{flex-shrink:0;width:228px;height:460px;background:var(--pf);border-radius:34px;padding:9px;box-shadow:0 2px 4px rgba(0,0,0,.08),0 12px 36px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.06),inset 0 0 0 1.5px rgba(255,255,255,.05);position:relative}
+.ph::before{content:'';position:absolute;top:12px;left:50%;transform:translateX(-50%);width:65px;height:20px;background:var(--pf);border-radius:100px;z-index:10}
+.ph::after{content:'';position:absolute;top:18px;left:50%;transform:translateX(-50%);width:7px;height:7px;background:#2a2a2a;border-radius:50%;z-index:11}
+.ps{width:100%;height:100%;border-radius:26px;overflow:hidden;background:#fff;position:relative}
+.pl{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:700;color:var(--ts);white-space:nowrap;letter-spacing:.4px;text-transform:uppercase}
+.ps-step{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand);color:#fff;font-size:9px;font-weight:700;margin-right:4px;vertical-align:middle}
+/* CONNECTOR */
+.cn{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:460px;position:relative}
+.cl{width:100%;height:2px;background:linear-gradient(90deg,var(--brd),var(--brand),var(--brd));position:relative;opacity:.55}
+.cl::after{content:'';position:absolute;right:-2px;top:50%;transform:translateY(-50%);border-style:solid;border-width:4px 0 4px 6px;border-color:transparent transparent transparent var(--brand);opacity:.65}
+/* SCREEN 1 */
+.s1{height:100%;display:flex;flex-direction:column;background:linear-gradient(180deg,#fff,#F8FBF9)}
+.s1-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px 16px 10px;background:linear-gradient(160deg,#E8F5EE,#F0FAF4 40%,#fff);position:relative;overflow:hidden}
+.s1-hero::before{content:'';position:absolute;top:-35px;right:-25px;width:130px;height:130px;border-radius:50%;background:rgba(11,93,59,.06)}
+.s1-hero::after{content:'';position:absolute;bottom:15px;left:-15px;width:70px;height:70px;border-radius:50%;background:rgba(242,164,19,.06)}
+.sfi{width:95px;height:85px;margin-bottom:14px;position:relative;z-index:1}
+.s1-hero h2{font-size:15px;font-weight:800;text-align:center;margin-bottom:3px;z-index:1}
+.s1-hero .sub{font-size:9.5px;color:var(--ts);text-align:center;margin-bottom:10px;line-height:1.4;z-index:1}
+.bens{display:flex;gap:5px;z-index:1;flex-wrap:wrap;justify-content:center}
+.bc{display:flex;align-items:center;gap:3px;background:#fff;border:1px solid var(--brd);border-radius:100px;padding:3px 7px;font-size:7.5px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.bc .ck{width:10px;height:10px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bc .ck svg{width:6px;height:6px}
+.s1-ft{padding:10px 14px 14px}
+/* BUTTONS */
+.btn-p{width:100%;height:34px;border-radius:17px;background:var(--brand);color:#fff;border:none;font-size:10.5px;font-weight:700;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(11,93,59,.3);letter-spacing:.2px}
+.btn-n{width:100%;height:28px;border-radius:14px;background:var(--brand);color:#fff;border:none;font-size:9.5px;font-weight:700;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;margin-top:4px;box-shadow:0 2px 8px rgba(11,93,59,.2)}
+.btn-cfm{width:100%;height:26px;border-radius:13px;background:var(--brand);color:#fff;border:none;font-size:9.5px;font-weight:700;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;margin-top:5px;box-shadow:0 2px 8px rgba(11,93,59,.2)}
+.btn-sub{width:100%;height:28px;border-radius:14px;background:linear-gradient(135deg,var(--brand),#0d7a4d);color:#fff;border:none;font-size:9.5px;font-weight:700;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;margin-top:6px;box-shadow:0 3px 12px rgba(11,93,59,.3)}
+.btn-dash{width:100%;height:30px;border-radius:15px;background:var(--brand);color:#fff;border:none;font-size:9.5px;font-weight:700;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(11,93,59,.3)}
+/* SCREEN HEADER */
+.sh{background:linear-gradient(135deg,var(--brand),#0d7a4d);padding:10px 12px 8px;color:#fff}
+.sh .st{font-size:12px;font-weight:700;margin-bottom:7px}
+.pg{display:flex;align-items:center;gap:3px}
+.pd{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;flex-shrink:0}
+.pd-a{background:#fff;color:var(--brand)}
+.pd-d{background:rgba(255,255,255,.3);color:#fff}
+.pd-u{background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)}
+.pln{flex:1;height:2px;background:rgba(255,255,255,.2);border-radius:1px}
+.pln-a{background:#fff}
+.pgls{display:flex;justify-content:space-between;margin-top:3px}
+.pgls span{font-size:6.5px;color:rgba(255,255,255,.8);font-weight:500;text-align:center;width:44px}
+.pgls span.al{color:#fff;font-weight:700}
+/* FORM */
+.fs{flex:1;overflow-y:auto;padding:8px 10px}.fs::-webkit-scrollbar{width:0}
+.fg{margin-bottom:7px}
+.flb{font-size:8px;font-weight:600;color:var(--ts);margin-bottom:2px;display:block;letter-spacing:.2px}
+.fi{width:100%;height:26px;border:1px solid var(--brd);border-radius:7px;padding:0 7px;font-size:9.5px;font-family:'Inter',sans-serif;color:var(--tp);background:var(--sf);display:flex;align-items:center}
+.fi-f{background:#fff;font-weight:500}
+.fsel{width:100%;height:26px;border:1px solid var(--brd);border-radius:7px;padding:0 7px;font-size:9.5px;font-family:'Inter',sans-serif;background:#fff;display:flex;align-items:center;justify-content:space-between;font-weight:500}
+.cd{margin-top:5px;border:1px solid var(--brd);border-radius:7px;overflow:hidden;background:#fff}
+.ci{padding:4px 7px;font-size:8.5px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:4px;font-weight:500}
+.ci:last-child{border-bottom:none}
+.ci-s{background:var(--brand-lt);color:var(--brand);font-weight:600}
+.ci-ic{font-size:9px}
+/* SCREEN 3 MAP */
+.s3{height:100%;display:flex;flex-direction:column;background:#fff}
+.ma{height:138px;background:#E8F0E8;position:relative;overflow:hidden;border-bottom:1px solid var(--brd)}
+.mg{position:absolute;inset:0;background-image:linear-gradient(rgba(0,0,0,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.04) 1px,transparent 1px);background-size:18px 18px}
+.mrh{position:absolute;top:50%;left:0;right:0;height:11px;background:#f5f0e8;transform:translateY(-50%)}
+.mrv{position:absolute;left:35%;top:0;bottom:0;width:9px;background:#f5f0e8}
+.mkm{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);z-index:3}
+.mp{width:20px;height:20px;background:var(--brand);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(11,93,59,.4);position:relative}
+.mp::after{content:'';width:7px;height:7px;background:#fff;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.ms{width:12px;height:3px;background:rgba(0,0,0,.15);border-radius:50%;margin:1px auto 0;filter:blur(1px)}
+.gps{position:absolute;bottom:5px;left:5px;background:#fff;border-radius:3px;padding:2px 4px;font-size:6.5px;font-weight:600;color:var(--ok);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.glc{position:absolute;top:5px;right:5px;background:#fff;border:1px solid var(--brd);border-radius:5px;padding:2px 6px;font-size:6.5px;font-weight:600;color:var(--brand);font-family:'Inter',sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:2px}
+.lf{flex:1;padding:8px 10px;overflow-y:auto}.lf::-webkit-scrollbar{width:0}
+/* SCREEN 4 DOCS */
+.s4{height:100%;display:flex;flex-direction:column;background:#fff}
+.dcs{flex:1;padding:8px 10px;overflow-y:auto}.dcs::-webkit-scrollbar{width:0}
+.dc{border:1px solid var(--brd);border-radius:9px;padding:7px 9px;margin-bottom:6px;background:#fff}
+.dch{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.dct{font-size:9.5px;font-weight:700;display:flex;align-items:center;gap:3px}
+.dci{width:16px;height:16px;border-radius:4px;background:var(--brand-lt);display:flex;align-items:center;justify-content:center;font-size:8px}
+.ds{font-size:7px;font-weight:700;padding:1px 5px;border-radius:100px}
+.ds-p{background:var(--pn-s);color:var(--pn)}
+.ds-u{background:#EFF6FF;color:#2563EB}
+.ds-v{background:var(--ok-s);color:var(--ok)}
+.dub{width:100%;height:22px;border:1.5px dashed var(--brd);border-radius:6px;background:var(--sf);font-size:8.5px;font-weight:600;color:var(--ts);display:flex;align-items:center;justify-content:center;gap:3px;font-family:'Inter',sans-serif}
+.dub-hf{border-style:solid;border-color:var(--brand);background:var(--brand-lt);color:var(--brand)}
+.das{display:flex;gap:3px}
+.dab{height:20px;padding:0 7px;border-radius:100px;border:1px solid var(--brd);background:#fff;font-size:7.5px;font-weight:600;color:var(--brand);font-family:'Inter',sans-serif;display:flex;align-items:center;gap:2px}
+/* SCREEN 5 CAT DOC */
+.s5{height:100%;display:flex;flex-direction:column;background:#fff}
+.cdc{flex:1;padding:8px 10px;overflow-y:auto}.cdc::-webkit-scrollbar{width:0}
+.ce{border:1.5px solid var(--brd);border-radius:10px;padding:9px;margin-bottom:7px;background:linear-gradient(135deg,#FEFCF5,#FFF9F0)}
+.ceh{display:flex;align-items:center;gap:5px;margin-bottom:7px}
+.cei{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#FEF3C7,#FDE68A);display:flex;align-items:center;justify-content:center;font-size:12px}
+.cet{font-size:10.5px;font-weight:700}
+.ces{font-size:7.5px;color:var(--ts)}
+.lf2{margin-bottom:7px}
+.lu{border:1.5px dashed #D4A853;border-radius:7px;padding:9px;text-align:center;background:#fff;margin-bottom:7px}
+.lu-i{font-size:16px;margin-bottom:2px}
+.lu-t{font-size:8.5px;font-weight:600}
+.lu-h{font-size:7px;color:var(--ts);margin-top:1px}
+.sp{display:flex;align-items:center;gap:3px;background:var(--pn-s);border-radius:6px;padding:4px 7px;font-size:8px;font-weight:600;color:var(--pn)}
+.als{display:flex;gap:4px;flex-wrap:wrap}
+.ac{background:var(--sf);border:1px solid var(--brd);border-radius:5px;padding:4px 6px;font-size:7px;font-weight:600;display:flex;align-items:center;gap:2px}
+.ac .ai{color:var(--ts)}
+/* SCREEN 6 REVIEW */
+.s6{height:100%;display:flex;flex-direction:column;background:#fff}
+.rs{flex:1;padding:8px 10px;overflow-y:auto}.rs::-webkit-scrollbar{width:0}
+.rc{border:1px solid var(--brd);border-radius:9px;padding:7px 9px;margin-bottom:5px;background:#fff}
+.rct{font-size:8.5px;font-weight:700;color:var(--ts);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.rcv{font-size:10px;font-weight:600;display:flex;align-items:center;gap:3px}
+.rcv .ic{width:14px;height:14px;border-radius:3px;background:var(--brand-lt);display:flex;align-items:center;justify-content:center;font-size:7px;flex-shrink:0}
+.ccb{display:flex;align-items:flex-start;gap:5px;padding:7px 9px;background:var(--brand-lt);border-radius:7px;margin-top:5px}
+.cb{width:13px;height:13px;border-radius:3px;border:2px solid var(--brand);background:var(--brand);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.cb svg{width:8px;height:8px}
+.cbl{font-size:8.5px;font-weight:600;line-height:1.3}
+/* SCREEN 7 SUCCESS */
+.s7{height:100%;display:flex;flex-direction:column;align-items:center;background:linear-gradient(180deg,#F0FAF4,#fff 40%);padding:18px 12px}
+.ck{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ok),#22C55E);display:flex;align-items:center;justify-content:center;margin-bottom:10px;box-shadow:0 6px 20px rgba(22,163,74,.35)}
+.ck svg{width:26px;height:26px}
+.stt{font-size:14px;font-weight:800;text-align:center;margin-bottom:3px}
+.stx{font-size:9px;color:var(--ts);text-align:center;line-height:1.45;margin-bottom:12px}
+.tl{width:100%;background:#fff;border-radius:9px;border:1px solid var(--brd);padding:9px 10px;margin-bottom:10px}
+.tlt{font-size:8.5px;font-weight:700;color:var(--ts);text-transform:uppercase;letter-spacing:.3px;margin-bottom:7px}
+.tli{display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;position:relative}
+.tli:last-child{margin-bottom:0}
+.tli::before{content:'';position:absolute;left:5px;top:13px;bottom:-5px;width:1.5px;background:var(--brd)}
+.tli:last-child::before{display:none}
+.tli-d::before{background:var(--ok)}
+.td{width:12px;height:12px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;z-index:1}
+.td-d{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+.td-c{background:#fff;border:2px solid var(--brand);box-shadow:0 0 0 3px rgba(11,93,59,.1)}
+.td-u{background:#fff;border:1.5px solid var(--brd)}
+.td-d svg{width:7px;height:7px}
+.tll{font-size:8.5px;font-weight:600;padding-top:1px}
+.tll-d{color:var(--ok)}
+.tll-u{color:var(--ts);font-weight:500}
+/* FOOTER */
+.ftr{display:flex;align-items:center;justify-content:center;gap:20px;padding-top:8px;flex-shrink:0;border-top:1px solid var(--brd);margin-top:10px}
+.fi2{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ts);font-weight:500}
+.fd{width:5px;height:5px;border-radius:50%;background:var(--brand)}
+</style>
+</head>
+<body>
+<div class="b">
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <div class="tit"><h1>Register Your Shop — Complete Onboarding</h1><p>HyperLocal Product Discovery Platform &middot; Shopkeeper App</p></div>
+  </div>
+  <div class="hdr-r">
+    <span class="fl">Shop Setup Flow</span>
+    <div class="sc">7 Screens</div>
+    <div class="badge"><span class="d"></span> High-Fidelity UI/UX</div>
+  </div>
+</div>
+<!-- SCREENS -->
+<div class="scr">
+
+<!-- PHONE 1 -->
+<div class="ph">
+  <div class="ps">
+    <div class="s1">
+      <div class="s1-hero">
+        <svg class="sfi" viewBox="0 0 100 90"><rect x="15" y="30" width="70" height="52" rx="3" fill="#E8F5EE" stroke="#0B5D3B" stroke-width="1.8"/><path d="M10 30 Q25 12 50 30 Q75 12 90 30" fill="none" stroke="#0B5D3B" stroke-width="2" stroke-linecap="round"/><path d="M15 30 Q25 18 35 30 Q45 18 55 30 Q65 18 75 30 Q85 18 85 30" fill="rgba(11,93,59,.08)"/><rect x="40" y="52" width="20" height="30" rx="2" fill="#0B5D3B"/><circle cx="56" cy="67" r="1.5" fill="#F2A413"/><rect x="22" y="42" width="12" height="10" rx="1.5" fill="#fff" stroke="#0B5D3B" stroke-width="1"/><rect x="66" y="42" width="12" height="10" rx="1.5" fill="#fff" stroke="#0B5D3B" stroke-width="1"/><line x1="28" y1="42" x2="28" y2="52" stroke="#0B5D3B" stroke-width=".6"/><line x1="22" y1="47" x2="34" y2="47" stroke="#0B5D3B" stroke-width=".6"/><line x1="72" y1="42" x2="72" y2="52" stroke="#0B5D3B" stroke-width=".6"/><line x1="66" y1="47" x2="78" y2="47" stroke="#0B5D3B" stroke-width=".6"/><rect x="30" y="34" width="40" height="8" rx="2" fill="#F2A413"/><text x="50" y="40" text-anchor="middle" font-size="5" font-weight="700" fill="#064028" font-family="Inter">MY SHOP</text><rect x="36" y="82" width="28" height="4" rx="1" fill="#0B5D3B" opacity=".3"/></svg>
+        <h2>Register Your Shop</h2>
+        <p class="sub">Bring your business closer to local customers.</p>
+        <div class="bens">
+          <div class="bc"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>More Visibility</div>
+          <div class="bc"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Easy Product Mgmt</div>
+          <div class="bc"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Secure &amp; Trusted</div>
+        </div>
+      </div>
+      <div class="s1-ft"><button class="btn-p">Get Started &rarr;</button></div>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">1</span>Register Your Shop</div>
+</div>
+<div class="cn"><div class="cl"></div></div>
+
+<!-- PHONE 2 -->
+<div class="ph">
+  <div class="ps">
+    <div style="height:100%;display:flex;flex-direction:column;background:#fff">
+      <div class="sh">
+        <div class="st">&#128203; Business Information</div>
+        <div class="pg"><div class="pd pd-a">1</div><div class="pln"></div><div class="pd pd-u">2</div><div class="pln"></div><div class="pd pd-u">3</div><div class="pln"></div><div class="pd pd-u">4</div></div>
+        <div class="pgls"><span class="al">Business</span><span>Location</span><span>Docs</span><span>Submit</span></div>
+      </div>
+      <div class="fs">
+        <div class="fg"><label class="flb">Shop / Business Name</label><div class="fi fi-f">Sharma General Store</div></div>
+        <div class="fg"><label class="flb">Business Category</label><div class="fsel"><span>Pharmacy &amp; Healthcare</span><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <div class="cd"><div class="ci ci-s"><span class="ci-ic">&#128137;</span> Pharmacy &amp; Healthcare</div><div class="ci"><span class="ci-ic">&#128133;</span> Beauty &amp; Personal Care</div><div class="ci"><span class="ci-ic">&#129681;</span> Furniture &amp; Home Care</div><div class="ci"><span class="ci-ic">&#127968;</span> Household Goods</div><div class="ci"><span class="ci-ic">&#9917;</span> Sports, Fitness &amp; Outdoor</div><div class="ci"><span class="ci-ic">&#128218;</span> Books, Media &amp; Stationery</div><div class="ci"><span class="ci-ic">&#128663;</span> Automotive Parts &amp; Tools</div><div class="ci"><span class="ci-ic">&#128295;</span> Hardware</div><div class="ci"><span class="ci-ic">&#127869;</span> Restaurants</div><div class="ci"><span class="ci-ic">&#128652;</span> Transport</div><div class="ci"><span class="ci-ic">&#127949;</span> Personal Transport / Travel</div></div>
+        </div>
+        <div class="fg"><label class="flb">Business Type</label><div class="fi fi-f">Retail</div></div>
+        <div class="fg"><label class="flb">GSTIN <span style="font-weight:400;color:var(--ts)">(Optional)</span></label><div class="fi">29ABCDE1234F1Z5</div></div>
+        <div class="fg"><label class="flb">Udyam / MSME <span style="font-weight:400;color:var(--ts)">(Optional)</span></label><div class="fi">UDYAM-KA-0012345</div></div>
+        <button class="btn-n">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">2</span>Business Information</div>
+</div>
+<div class="cn"><div class="cl"></div></div>
+
+<!-- PHONE 3 -->
+<div class="ph">
+  <div class="ps">
+    <div class="s3">
+      <div class="sh"><div class="st">&#128205; Shop Location</div>
+        <div class="pg"><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-a">2</div><div class="pln"></div><div class="pd pd-u">3</div><div class="pln"></div><div class="pd pd-u">4</div></div>
+        <div class="pgls"><span>Business</span><span class="al">Location</span><span>Docs</span><span>Submit</span></div>
+      </div>
+      <div class="ma"><div class="mg"></div><div class="mrh"></div><div class="mrv"></div><div class="mkm"><div class="mp"></div><div class="ms"></div></div><button class="glc"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>Get Location</button><div class="gps">&#128225; GPS Accuracy: &plusmn;12 m</div></div>
+      <div class="lf">
+        <div class="fg"><label class="flb">Address</label><div class="fi fi-f">42, MG Road, Near City Mall</div></div>
+        <div style="display:flex;gap:5px"><div style="flex:1" class="fg"><label class="flb">City</label><div class="fi fi-f">Bengaluru</div></div><div style="flex:1" class="fg"><label class="flb">State</label><div class="fi fi-f">Karnataka</div></div></div>
+        <div style="display:flex;gap:5px"><div style="flex:1" class="fg"><label class="flb">Pincode</label><div class="fi fi-f">560001</div></div><div style="flex:1" class="fg"><label class="flb">Landmark</label><div class="fi fi-f">Near Railway Station</div></div></div>
+        <button class="btn-cfm">&#10003; Confirm Location</button>
+      </div>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">3</span>Shop Location</div>
+</div>
+<div class="cn"><div class="cl"></div></div>
+
+<!-- PHONE 4 -->
+<div class="ph">
+  <div class="ps">
+    <div class="s4">
+      <div class="sh"><div class="st">&#128196; Documents &amp; Verification</div>
+        <div class="pg"><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-a">3</div><div class="pln"></div><div class="pd pd-u">4</div></div>
+        <div class="pgls"><span>Business</span><span>Location</span><span class="al">Docs</span><span>Submit</span></div>
+      </div>
+      <div class="dcs">
+        <div class="dc"><div class="dch"><div class="dct"><span class="dci">&#128203;</span> GST / Business Document</div><span class="ds ds-u">Uploaded</span></div><div class="das"><button class="dab">&#128206; Upload</button><button class="dab">&#128260; Replace</button></div></div>
+        <div class="dc"><div class="dch"><div class="dct"><span class="dci">&#129482;</span> Owner ID (Aadhaar/PAN)</div><span class="ds ds-v">&#10003; Verified</span></div><div class="dub dub-hf">&#10003; Aadhaar_Card.pdf</div></div>
+        <div class="dc"><div class="dch"><div class="dct"><span class="dci">&#128248;</span> Shop Photo</div><span class="ds ds-p">Pending</span></div><button class="dub">&#128247; Upload Shop Photo</button></div>
+        <div class="dc"><div class="dch"><div class="dct"><span class="dci">&#127991;</span> Category-specific Document</div><span class="ds ds-p">Pending</span></div><button class="dub">&#128206; Upload Document</button></div>
+        <button class="btn-n">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">4</span>Documents &amp; Verification</div>
+</div>
+<div class="cn"><div class="cl"></div></div>
+
+<!-- PHONE 5 -->
+<div class="ph">
+  <div class="ps">
+    <div class="s5">
+      <div class="sh"><div class="st">&#127991; Category-Specific Document</div>
+        <div class="pg"><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-a">3</div><div class="pln"></div><div class="pd pd-u">4</div></div>
+        <div class="pgls"><span>Business</span><span>Location</span><span class="al">Docs</span><span>Submit</span></div>
+      </div>
+      <div class="cdc">
+        <div class="ce"><div class="ceh"><div class="cei">&#128137;</div><div><div class="cet">Pharmacy Verification</div><div class="ces">Drug License Required</div></div></div>
+        <div class="lf2"><label class="flb">Drug License Number</label><div class="fi fi-f">DL/2024/KA/78542</div></div>
+        <div class="lu"><div class="lu-i">&#128196;</div><div class="lu-t">Drug License Document</div><div class="lu-h">PDF, JPG or PNG &middot; Max 5MB</div></div>
+        <div class="sp"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Pending Review</div>
+        </div>
+        <div style="font-size:7.5px;font-weight:700;color:var(--ts);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">Also Required For</div>
+        <div class="als"><div class="ac">&#127869; Restaurant <span class="ai">&rarr;</span> FSSAI</div><div class="ac">&#128652; Transport <span class="ai">&rarr;</span> Applicable License</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">5</span>Category Document</div>
+</div>
+<div class="cn"><div class="cl"></div></div>
+
+<!-- PHONE 6 -->
+<div class="ph">
+  <div class="ps">
+    <div class="s6">
+      <div class="sh"><div class="st">&#9989; Review Your Shop</div>
+        <div class="pg"><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-d">&#10003;</div><div class="pln pln-a"></div><div class="pd pd-a">4</div></div>
+        <div class="pgls"><span>Business</span><span>Location</span><span>Docs</span><span class="al">Submit</span></div>
+      </div>
+      <div class="rs">
+        <div class="rc"><div class="rct">Business Name</div><div class="rcv"><span class="ic">&#127978;</span> Sharma General Store</div></div>
+        <div class="rc"><div class="rct">Category</div><div class="rcv"><span class="ic">&#128137;</span> Pharmacy &amp; Healthcare</div></div>
+        <div class="rc"><div class="rct">Address</div><div class="rcv"><span class="ic">&#128205;</span> 42, MG Road, Bengaluru 560001</div></div>
+        <div class="rc"><div class="rct">Location</div><div class="rcv"><span class="ic">&#128506;</span> 12.9716&deg;N, 77.5946&deg;E</div></div>
+        <div class="rc"><div class="rct">Documents</div><div class="rcv"><span class="ic">&#128196;</span> 3/4 Uploaded &middot; 1 Pending</div></div>
+        <div class="rc"><div class="rct">Contact</div><div class="rcv"><span class="ic">&#128241;</span> +91 98765 43210</div></div>
+        <div class="ccb"><div class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><span class="cbl">I confirm the information is correct and accurate.</span></div>
+        <button class="btn-sub">&#128640; Submit Registration</button>
+      </div>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">6</span>Review Details</div>
+</div>
+<div class="cn"><div class="cl"></div></div>
+
+<!-- PHONE 7 -->
+<div class="ph">
+  <div class="ps">
+    <div class="s7">
+      <div class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="stt">Registration Submitted!</div>
+      <div class="stx">Our team will review your details and documents. You'll be notified once approved.</div>
+      <div class="tl"><div class="tlt">Application Timeline</div>
+        <div class="tli tli-d"><div class="td td-d"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><span class="tll tll-d">OTP Verified</span></div>
+        <div class="tli tli-d"><div class="td td-d"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><span class="tll tll-d">Documents Submitted</span></div>
+        <div class="tli"><div class="td td-c"></div><span class="tll">Under Review</span></div>
+        <div class="tli"><div class="td td-u"></div><span class="tll tll-u">Approval</span></div>
+      </div>
+      <button class="btn-dash">Go to Dashboard &rarr;</button>
+    </div>
+  </div>
+  <div class="pl"><span class="ps-step">7</span>Success</div>
+</div>
+
+</div><!-- /scr -->
+<!-- FOOTER -->
+<div class="ftr">
+  <div class="fi2"><span class="fd"></span> Material Design 3</div>
+  <div class="fi2"><span class="fd"></span> Mobile-First</div>
+  <div class="fi2"><span class="fd"></span> Indian Merchant App</div>
+  <div class="fi2"><span class="fd"></span> 16:9 Presentation</div>
+  <div class="fi2"><span class="fd"></span> HyperLocal Platform</div>
+</div>
+</div>
+</body>
+</html>

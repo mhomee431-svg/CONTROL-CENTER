@@ -77,10 +77,27 @@ class FakeAuthRepository implements AuthRepository {
   AuthSession? restoreResult;
   Object? submitError;
 
-  int registerCalls = 0;
-  int loginCalls = 0;
+  int firebaseLoginCalls = 0;
   int logoutCalls = 0;
   String? lastRegisteredName;
+
+  String? lastPhotoUrl;
+
+  @override
+  Future<AuthSession> firebaseLogin({
+    required String firebaseIdToken,
+    String? name,
+    String? email,
+    String? photoUrl,
+  }) async {
+    firebaseLoginCalls++;
+    lastRegisteredName = name;
+    lastPhotoUrl = photoUrl;
+    if (submitError != null) throw submitError!;
+    // A successful sign-in persists a session — model that so a later
+    // restoreSession() finds it (same as the real ApiAuthRepository flow).
+    return restoreResult ??= makeSession();
+  }
 
   @override
   Future<AuthSession> registerWithPassword({
@@ -88,7 +105,6 @@ class FakeAuthRepository implements AuthRepository {
     required String phoneNumber,
     required String password,
   }) async {
-    registerCalls++;
     lastRegisteredName = name;
     if (submitError != null) throw submitError!;
     return restoreResult ?? makeSession();
@@ -99,27 +115,46 @@ class FakeAuthRepository implements AuthRepository {
     required String identifier,
     required String password,
   }) async {
-    loginCalls++;
     if (submitError != null) throw submitError!;
     return restoreResult ?? makeSession();
+  }
+
+  @override
+  Future<AuthSession?> restoreSession() async {
+    if (submitError != null) throw submitError!;
+    return restoreResult;
   }
 
   @override
   Future<void> forgotPassword(String identifier) async {}
 
   @override
-  Future<void> resetPassword({
-    required String token,
-    required String newPassword,
+  Future<void> resetPassword(
+      {required String token, required String newPassword}) async {}
+
+  @override
+  Future<AuthSession> updateProfile({
+    required String name,
+    String? phoneNumber,
   }) async {
+    lastRegisteredName = name;
     if (submitError != null) throw submitError!;
+    return restoreResult ?? makeSession();
   }
 
   @override
-  Future<AuthSession?> restoreSession() async => restoreResult;
+  Future<void> logout() async => logoutCalls++;
+
+  // ── Debug helpers for verbose login flow logging ──────────────────────
 
   @override
-  Future<void> logout() async => logoutCalls++;
+  Future<String?> debugReadToken() async => null;
+
+  @override
+  Future<String?> debugReadUserId() async => null;
+
+  @override
+  Future<bool> debugIsLoggedIn() async => false;
 }
 
 /// Pre-selects a shop so protected routes render in widget tests.

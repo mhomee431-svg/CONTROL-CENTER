@@ -4,11 +4,13 @@
     <!-- Location: detect shop GPS coordinates & pick on map -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Required to read Google accounts from device for Credential Manager -->
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <application
         android:label="hyperlocal_shopkeeper_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

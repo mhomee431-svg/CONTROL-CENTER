@@ -8,8 +8,8 @@ import '../../domain/shop_models.dart';
 import '../controllers/shops_controller.dart';
 import '../widgets/verification_badge.dart';
 
-/// Shop selection â€” lists every shop the user is authorized to manage.
-/// Tapping a shop scopes the whole app to that business.
+/// Shop details — in the single-shop model the account has at most ONE
+/// business. This screen shows that shop (or an invite to set one up).
 class ShopsScreen extends ConsumerStatefulWidget {
   const ShopsScreen({super.key});
 
@@ -34,13 +34,7 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
     final state = ref.watch(shopsControllerProvider);
     final selected = ref.watch(selectedShopProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('My shops')),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'register-shop',
-        onPressed: () => context.push('/shop-register'),
-        icon: const Icon(Icons.add_business),
-        label: const Text('New shop'),
-      ),
+      appBar: AppBar(title: const Text('My business')),
       body: SafeArea(
         child: state.status == ShopsStatus.loading && state.shops.isEmpty
             ? const Center(child: CircularProgressIndicator())

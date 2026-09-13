@@ -256,16 +256,22 @@ class _HeroIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
+    // Passly Biz logo + wordmark (single asset) with the illustrated hero
+    // as a fallback if the asset is missing.
+    return Image.asset(
+      'assets/images/passly_biz_named.png',
       height: 150,
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(RegistrationSpacing.cardRadius),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(Icons.storefront, size: 64, color: scheme.primary),
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => Container(
+        height: 150,
+        decoration: BoxDecoration(
+          color: scheme.primary.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(RegistrationSpacing.cardRadius),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(Icons.storefront, size: 64, color: scheme.primary),
           Positioned(
             top: 18,
             right: 40,
@@ -284,7 +290,8 @@ class _HeroIllustration extends StatelessWidget {
                   Icon(Icons.location_on, size: 22, color: scheme.primary),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

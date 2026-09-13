@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_providers.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_providers.dart';
 import '../domain/product_models.dart';
 
 /// Product & inventory management contract for one authorized shop.

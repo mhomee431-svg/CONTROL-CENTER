@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.hyperlocal.hyperlocal_shopkeeper_app"
-    // 36 required by google_maps_flutter_android / flutter_plugin_android_lifecycle
+    // 36 required by flutter_plugin_android_lifecycle (flutter_secure_storage dep)
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -45,8 +45,13 @@ flutter {
     source = "../.."
 }
 
-// Firebase dependencies
+// Firebase + Credential Manager dependencies
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
     implementation("com.google.firebase:firebase-auth")
+
+    // Credential Manager & Google ID libraries (modern Google Sign-In)
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 }

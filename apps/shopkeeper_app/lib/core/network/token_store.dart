@@ -8,12 +8,16 @@ abstract class TokenStore {
   Future<String?> readRefreshToken();
   Future<String?> readSessionId();
   Future<String?> readBusinessId();
+  Future<String?> readUserId();
+  Future<bool> isLoggedIn();
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   });
   Future<void> saveSessionId(String sessionId);
   Future<void> saveBusinessId(String businessId);
+  Future<void> saveUserId(String userId);
+  Future<void> setLoggedIn(bool value);
   Future<void> clearAll();
 }
 
@@ -25,6 +29,10 @@ class SecureTokenStore implements TokenStore {
   static const _refreshKey = 'sk_refresh_token';
   static const _sessionKey = 'sk_session_id';
   static const _businessIdKey = 'sk_business_id';
+  // User-specified keys for login session tracking
+  static const _jwtTokenKey = 'jwt_token';
+  static const _userIdKey = 'user_id';
+  static const _isLoggedInKey = 'is_logged_in';
 
   @override
   Future<String?> readAccessToken() => _storage.read(key: _accessKey);
@@ -39,12 +47,23 @@ class SecureTokenStore implements TokenStore {
   Future<String?> readBusinessId() => _storage.read(key: _businessIdKey);
 
   @override
+  Future<String?> readUserId() => _storage.read(key: _userIdKey);
+
+  @override
+  Future<bool> isLoggedIn() async {
+    final value = await _storage.read(key: _isLoggedInKey);
+    return value == 'true';
+  }
+
+  @override
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
     await _storage.write(key: _accessKey, value: accessToken);
     await _storage.write(key: _refreshKey, value: refreshToken);
+    // Mirror the access token to the user-specified key
+    await _storage.write(key: _jwtTokenKey, value: accessToken);
   }
 
   @override
@@ -56,11 +75,22 @@ class SecureTokenStore implements TokenStore {
       _storage.write(key: _businessIdKey, value: businessId);
 
   @override
+  Future<void> saveUserId(String userId) =>
+      _storage.write(key: _userIdKey, value: userId);
+
+  @override
+  Future<void> setLoggedIn(bool value) =>
+      _storage.write(key: _isLoggedInKey, value: value.toString());
+
+  @override
   Future<void> clearAll() async {
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
     await _storage.delete(key: _sessionKey);
     await _storage.delete(key: _businessIdKey);
+    await _storage.delete(key: _jwtTokenKey);
+    await _storage.delete(key: _userIdKey);
+    await _storage.delete(key: _isLoggedInKey);
   }
 }
 
@@ -71,6 +101,8 @@ class InMemoryTokenStore implements TokenStore {
     String? refreshToken,
     String? sessionId,
     this._businessId,
+    this._userId,
+    this._isLoggedIn = false,
   })  : _access = accessToken,
         _refresh = refreshToken,
         _session = sessionId;
@@ -79,6 +111,8 @@ class InMemoryTokenStore implements TokenStore {
   String? _refresh;
   String? _session;
   String? _businessId;
+  String? _userId;
+  bool _isLoggedIn;
 
   @override
   Future<String?> readAccessToken() async => _access;
@@ -91,6 +125,12 @@ class InMemoryTokenStore implements TokenStore {
 
   @override
   Future<String?> readBusinessId() async => _businessId;
+
+  @override
+  Future<String?> readUserId() async => _userId;
+
+  @override
+  Future<bool> isLoggedIn() async => _isLoggedIn;
 
   @override
   Future<void> saveTokens({
@@ -112,11 +152,23 @@ class InMemoryTokenStore implements TokenStore {
   }
 
   @override
+  Future<void> saveUserId(String userId) async {
+    _userId = userId;
+  }
+
+  @override
+  Future<void> setLoggedIn(bool value) async {
+    _isLoggedIn = value;
+  }
+
+  @override
   Future<void> clearAll() async {
     _access = null;
     _refresh = null;
     _session = null;
     _businessId = null;
+    _userId = null;
+    _isLoggedIn = false;
   }
 }
 

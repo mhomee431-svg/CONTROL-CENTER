@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_providers.dart';
+import '../../../../core/auth/firebase_auth_service.dart';
 import '../../domain/auth_models.dart';
 import '../../data/auth_repository.dart';
 import 'selected_shop.dart';
@@ -34,6 +37,11 @@ class AuthState {
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isLoading => status == AuthStatus.loading;
+
+  /// Single-shop model: a profile is "complete" once the shopkeeper has
+  /// registered their first (and only) shop. Incomplete → create-profile
+  /// screen; complete → dashboard.
+  bool get profileComplete => shops.isNotEmpty;
 
   factory AuthState.initial() =>
       const AuthState(status: AuthStatus.initial);
@@ -70,12 +78,49 @@ class AuthController extends Notifier<AuthState> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
-  /// Restores a persisted session on app startup.
+  /// Single-shop model: auto-selects the shop returned by the backend so the
+  /// whole app is scoped to ONE business. If the account has no shop yet,
+  /// clears the selection (dashboard shows the onboarding CTA).
+  ///
+  /// Extensibility note: only the FIRST shop is treated as primary today; the
+  /// list stays in the model so multi-shop can be enabled later without a
+  /// rewrite.
+  void _syncPrimaryShop(List<ShopSummary> shops) {
+    if (shops.isNotEmpty) {
+      final current = ref.read(selectedShopProvider);
+      if (current == null || !shops.any((s) => s.id == current.id)) {
+        ref.read(selectedShopProvider.notifier).select(shops.first);
+      }
+    } else {
+      ref.read(selectedShopProvider.notifier).select(null);
+    }
+  }
+
+  /// Called after the user completes first-time profile creation. Adds the
+/// new shop to the auth state so `profileComplete` becomes true and the
+/// router lands on the Dashboard.
+Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
+  final current = state;
+  final updatedShops = [shop];
+  ref.read(selectedShopProvider.notifier).select(shop);
+  state = AuthState.authenticated(
+    user: current.user ?? const ShopkeeperUser(
+      id: 0,
+      phoneNumber: '',
+      name: '',
+      role: 'shopkeeper',
+    ),
+    shops: updatedShops,
+  );
+}
+
+/// Restores a persisted session on app startup.
   Future<bool> checkSession() async {
     state = AuthState.loading();
     try {
       final session = await _repo.restoreSession();
       if (session != null) {
+        _syncPrimaryShop(session.shops);
         state = AuthState.authenticated(
             user: session.user, shops: session.shops);
         return true;
@@ -84,6 +129,97 @@ class AuthController extends Notifier<AuthState> {
       return false;
     } catch (_) {
       state = AuthState.error('Could not verify your session.');
+      return false;
+    }
+  }
+
+  /// Google Sign-In (Firebase Authentication).
+  ///
+  /// Flow: Google Sign-In → Firebase → Firebase ID token → backend
+  /// ``/firebase-login`` (verified via Firebase Admin SDK) → session.
+  ///
+  /// The Firebase back-end is platform-specific: native Credential Manager on
+  /// Android, Firebase JS popup on web — both yield the same ID token.
+  Future<bool> signInWithGoogle() async {
+    debugPrint('╔══════════════════════════════════════════════════════════');
+    debugPrint('║  GOOGLE SIGN-IN FLOW STARTED');
+    debugPrint('╚══════════════════════════════════════════════════════════');
+    state = AuthState.loading();
+    try {
+      // ── STEP 1: Firebase Google Sign-In ────────────────────────────
+      debugPrint('STEP 1: Calling FirebaseAuthService.signInWithGoogle()...');
+      final result = await ref.read(firebaseAuthServiceProvider).signInWithGoogle();
+      final firebaseUser = result.user;
+      debugPrint('STEP 1 ✓: Firebase user obtained');
+      debugPrint('  ├─ UID: ${firebaseUser.uid}');
+      debugPrint('  ├─ Display Name: ${firebaseUser.displayName}');
+      debugPrint('  ├─ Email: ${firebaseUser.email}');
+      debugPrint('  ├─ Photo URL: ${firebaseUser.photoURL}');
+      debugPrint('  ├─ ID Token (first 30 chars): ${result.idToken.length > 30 ? result.idToken.substring(0, 30) : result.idToken}...');
+      debugPrint('  └─ ID Token length: ${result.idToken.length} chars');
+
+      // ── STEP 2: Backend API Call ───────────────────────────────────
+      debugPrint('STEP 2: Sending ID token to backend /firebase-login...');
+      final session = await _repo.firebaseLogin(
+        firebaseIdToken: result.idToken,
+        name: firebaseUser.displayName,
+        email: firebaseUser.email,
+        photoUrl: firebaseUser.photoURL,
+      );
+      debugPrint('STEP 2 ✓: Backend responded with session');
+      debugPrint('  ├─ User ID: ${session.user.id}');
+      debugPrint('  ├─ User Name: ${session.user.name}');
+      debugPrint('  ├─ Business ID: ${session.user.businessId}');
+      debugPrint('  └─ Shops count: ${session.shops.length}');
+
+      // ── STEP 3: Update Auth State ──────────────────────────────────
+      debugPrint('STEP 3: Updating auth state to AUTHENTICATED...');
+      _syncPrimaryShop(session.shops);
+      state = AuthState.authenticated(
+          user: session.user, shops: session.shops);
+      debugPrint('STEP 3 ✓: Auth state is now AUTHENTICATED');
+
+      // ── STEP 4: Verify Token Saved ─────────────────────────────────
+      debugPrint('STEP 4: Verifying local storage...');
+      final savedToken = await _repo.debugReadToken();
+      final savedUserId = await _repo.debugReadUserId();
+      final isLoggedIn = await _repo.debugIsLoggedIn();
+      debugPrint('STEP 4 ✓: Local storage status:');
+      debugPrint('  ├─ jwt_token saved: ${savedToken != null && savedToken.isNotEmpty}');
+      debugPrint('  ├─ user_id saved: ${savedUserId ?? "null"}');
+      debugPrint('  └─ is_logged_in: $isLoggedIn');
+
+      debugPrint('╔══════════════════════════════════════════════════════════');
+      debugPrint('║  GOOGLE SIGN-IN FLOW COMPLETED SUCCESSFULLY ✓');
+      debugPrint('╚══════════════════════════════════════════════════════════');
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('✗ FirebaseAuthException caught:');
+      debugPrint('  ├─ Code: ${e.code}');
+      debugPrint('  ├─ Message: ${e.message}');
+      debugPrint('  └─ Credential: ${e.credential}');
+      // Closing the picker/popup is a normal cancel, not an error.
+      if (e.code == 'google-sign-in-cancelled' ||
+          e.code == 'auth/popup-closed-by-user') {
+        debugPrint('→ User cancelled sign-in (not an error)');
+        state = AuthState.unauthenticated();
+      } else {
+        state = AuthState.error(
+            e.message ?? 'Google sign-in failed.', errorCode: e.code);
+      }
+      return false;
+    } on ApiException catch (e) {
+      debugPrint('✗ ApiException caught (backend error):');
+      debugPrint('  ├─ Status Code: ${e.statusCode}');
+      debugPrint('  ├─ Error Code: ${e.errorCode}');
+      debugPrint('  └─ Message: ${e.message}');
+      state = AuthState.error(e.message, errorCode: e.errorCode);
+      return false;
+    } catch (e, stackTrace) {
+      debugPrint('✗ Unexpected error caught:');
+      debugPrint('  ├─ Error: $e');
+      debugPrint('  └─ Stack trace: $stackTrace');
+      state = AuthState.error('Google sign-in failed. Please try again.');
       return false;
     }
   }
@@ -101,6 +237,7 @@ class AuthController extends Notifier<AuthState> {
         phoneNumber: phoneNumber,
         password: password,
       );
+      _syncPrimaryShop(session.shops);
       state = AuthState.authenticated(
           user: session.user, shops: session.shops);
       return true;
@@ -121,6 +258,7 @@ class AuthController extends Notifier<AuthState> {
         identifier: identifier,
         password: password,
       );
+      _syncPrimaryShop(session.shops);
       state = AuthState.authenticated(
           user: session.user, shops: session.shops);
       return true;
@@ -129,6 +267,28 @@ class AuthController extends Notifier<AuthState> {
       return false;
     } catch (_) {
       state = AuthState.error('Login failed. Please try again.');
+      return false;
+    }
+  }
+
+  /// Completes the shopkeeper profile after social sign-in (name + phone).
+  ///
+  /// Calls the backend profile endpoint (name/email — phone is accepted for
+  /// contract compatibility) and refreshes the session.
+  Future<bool> createProfile({required String name, String? phoneNumber}) async {
+    state = AuthState.loading();
+    try {
+      final session =
+          await _repo.updateProfile(name: name, phoneNumber: phoneNumber);
+      _syncPrimaryShop(session.shops);
+      state = AuthState.authenticated(
+          user: session.user, shops: session.shops);
+      return true;
+    } on ApiException catch (e) {
+      state = AuthState.error(e.message, errorCode: e.errorCode);
+      return false;
+    } catch (_) {
+      state = AuthState.error('Could not save your profile. Please retry.');
       return false;
     }
   }

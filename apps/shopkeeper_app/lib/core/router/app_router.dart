@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/controllers/selected_shop.dart';
+import '../../features/auth/presentation/screens/create_profile_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
@@ -70,20 +71,32 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // ── Authenticated ──
+      // Single-shop model: a profile is "complete" only once the shopkeeper
+      // has registered their first shop. Incomplete → force profile creation
+      // before anything else. Complete → normal dashboard guard.
+      if (!auth.profileComplete) {
+        if (loc == '/profile-create') return null;
+        return '/profile-create';
+      }
+
       String? guard(String target) {
-        const publicInApp = ['/shops', '/shop-register'];
-        if (publicInApp.any(target.startsWith)) return null;
+        // Home (dashboard) and Account/Profile are always reachable right
+        // after login — even before the first shop exists. Shop setup
+        // (name, location, documents) lives under the Profile section and is
+        // surfaced from the dashboard's welcome CTA, never forced at login.
+        const alwaysOpen = ['/dashboard', '/account', '/shops', '/shop-register', '/profile-create'];
+        if (alwaysOpen.any(target.startsWith)) return null;
+        // The remaining business screens need a selected shop.
         const needsShop = [
-          '/dashboard',
           '/products',
-          '/account',
           '/shop-profile',
           '/shop-settings',
+          '/shop-location',
         ];
         if (!needsShop.any(target.startsWith)) return null;
         if (selectedShop != null) return null;
-        if (auth.shops.isEmpty && selectedShop == null) return '/shop-register';
-        return '/shops';
+        // No shop yet → send them Home where the "Set up your shop" CTA is.
+        return auth.shops.isEmpty ? '/dashboard' : '/shops';
       }
 
       if (authRoutes.contains(loc) || isSplash) {
@@ -101,6 +114,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         final token = state.uri.queryParameters['token'] ?? '';
         return ResetPasswordScreen(token: token);
       }),
+      buildRoute('/profile-create', (_, _) => const CreateProfileScreen()),
       buildRoute('/shop-register', (_, _) => const ShopRegistrationWizard()),
       buildRoute('/shops', (_, _) => const ShopsScreen()),
       buildRoute('/shop-profile', (_, _) => const ShopProfileScreen()),

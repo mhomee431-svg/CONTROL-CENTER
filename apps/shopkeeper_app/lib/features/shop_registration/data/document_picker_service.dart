@@ -1,9 +1,5 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../core/network/media_upload_service.dart';
 import '../../shops/domain/shop_models.dart';
@@ -74,54 +70,24 @@ abstract class DocumentPickerService {
   });
 }
 
-/// Real platform picker: camera/gallery via `image_picker`, files via
-/// `file_picker`. Extension and MIME are normalised before returning.
+/// Stub platform picker for MVP — file_picker/image_picker disabled.
+/// Returns null; re-enable by uncommenting the packages in pubspec.yaml
+/// and restoring the real implementation.
 class PlatformDocumentPicker implements DocumentPickerService {
-  final ImagePicker _imagePicker = ImagePicker();
-
-  PickedFile? _fromPath(String? path) {
-    if (path == null || path.isEmpty) return null;
-    final file = File(path);
-    if (!file.existsSync()) return null;
-    final name = path.split(Platform.pathSeparator).last;
-    final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
-    return PickedFile(
-      path: path,
-      name: name,
-      sizeBytes: file.lengthSync(),
-      mimeType: DocumentPreflight.mimeForExtension(ext),
-    );
-  }
+  const PlatformDocumentPicker();
 
   @override
   Future<PickedFile?> pick({
     required PickSource source,
     required DocumentMediaCategory mediaCategory,
   }) async {
-    if (mediaCategory == DocumentMediaCategory.shopImage) {
-      final x = await _imagePicker.pickImage(
-        source: source == PickSource.camera
-            ? ImageSource.camera
-            : ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1920,
-      );
-      return _fromPath(x?.path);
-    }
-    if (source == PickSource.files) {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions:
-            MediaUploadService.allowedExtensions['DOCUMENT'] ?? const ['pdf'],
-        withData: false,
-      );
-      return _fromPath(result?.files.single.path);
-    }
-    // PDFs cannot come from the camera/gallery pickers.
+    // MVP: document picking disabled (requires compileSdk 36 plugin fixes)
+    debugPrint('DocumentPicker: picking disabled for MVP '
+        '(source=$source, category=$mediaCategory)');
     return null;
   }
 }
 
 /// Injectable so widget tests can substitute a deterministic picker.
 final documentPickerProvider =
-    Provider<DocumentPickerService>((ref) => PlatformDocumentPicker());
+    Provider<DocumentPickerService>((ref) => const PlatformDocumentPicker());

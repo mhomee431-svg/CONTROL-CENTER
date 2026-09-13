@@ -15,8 +15,9 @@ void Function()? globalUnauthorizedHandler;
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: EnvConfig.apiBaseUrl,
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
+    // Extended timeout for ADB reverse tunnel stability on physical devices
+    connectTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 60),
     responseType: ResponseType.json,
   ));
 

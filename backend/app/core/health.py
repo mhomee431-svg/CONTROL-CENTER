@@ -147,3 +147,24 @@ async def readiness_check():
         "deployment": deployment_metadata(),
     }
     return JSONResponse(status_code=200 if all_ok else 503, content=body)
+
+
+@router.get("/firebase-cache", tags=["Health"])
+async def firebase_cache_stats():
+    """Firebase token verification cache statistics (monitoring)."""
+    try:
+        from app.services.firebase_verification import get_firebase_cache_stats
+
+        stats = get_firebase_cache_stats()
+        total = stats["hits"] + stats["misses"]
+        hit_rate = (stats["hits"] / total * 100) if total > 0 else 0.0
+        return {
+            "status": "ok",
+            "cache": {**stats, "hit_rate_pct": round(hit_rate, 1), "total_lookups": total},
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to read Firebase cache stats: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "message": "Firebase cache stats unavailable"},
+        )

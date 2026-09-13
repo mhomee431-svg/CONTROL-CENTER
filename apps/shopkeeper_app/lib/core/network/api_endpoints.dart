@@ -9,9 +9,12 @@ class ApiEndpoints {
   // ── Shopkeeper auth ──
   static const String register = '/api/v1/shopkeeper/auth/register';
   static const String login = '/api/v1/shopkeeper/auth/login';
+  static const String firebaseLogin = '/api/v1/shopkeeper/auth/firebase-login';
   static const String refresh = '/api/v1/shopkeeper/auth/refresh';
   static const String logout = '/api/v1/shopkeeper/auth/logout';
   static const String me = '/api/v1/shopkeeper/auth/me';
+  static const String profile = '/api/v1/profile';
+  static const String profileCreate = '/api/v1/shopkeeper/auth/profile-create';
   static const String forgotPassword = '/api/v1/shopkeeper/auth/forgot-password';
   static const String resetPassword = '/api/v1/shopkeeper/auth/reset-password';
 

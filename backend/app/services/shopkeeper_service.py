@@ -244,29 +244,37 @@ def generate_business_id(db: Session, phone_number: str | None) -> str:
 
 def create_shopkeeper_account(
     db: Session,
-    phone_number: str,
+    phone_number: str | None,
     name: str,
     email: str | None = None,
     password_hash: str | None = None,
+    firebase_uid: str | None = None,
+    avatar_url: str | None = None,
 ) -> User:
     """Create a new user carrying the shopkeeper role.
 
     Shopkeepers deliberately get NO Customer profile — they are business
     accounts on the platform.
+
+    Supports both phone-OTP and Google Sign-In:
+    - Phone OTP: phone_number + name
+    - Google Sign-In: firebase_uid + email + name + avatar (phone may be empty)
     """
     role = ensure_shopkeeper_role(db)
     user = User(
         phone_number=phone_number,
         name=name.strip(),
         email=email,
+        avatar_url=avatar_url,
         password_hash=password_hash,
+        firebase_uid=firebase_uid,
         role_id=role.id,
         status=UserStatus.ACTIVE,
         is_active=True,
     )
     db.add(user)
     db.flush()
-    logger.info("Shopkeeper account created: user=%s", user.id)
+    logger.info("Shopkeeper account created: user=%s firebase_uid=%s", user.id, firebase_uid)
     return user
 
 

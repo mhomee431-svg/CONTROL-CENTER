@@ -53,10 +53,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         actions: [
-          IconButton(
-              tooltip: 'Switch shop',
-              onPressed: () => context.push('/shops'),
-              icon: const Icon(Icons.swap_horiz)),
+          // Single-shop model: no business switching. Jump straight to this
+          // shop's profile/settings when one exists.
+          if (shop != null)
+            IconButton(
+                tooltip: 'Shop settings',
+                onPressed: () => context.push('/shop-settings'),
+                icon: const Icon(Icons.tune)),
         ],
       ),
       body: SafeArea(
@@ -67,6 +70,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               message:
                   state.message ?? 'You do not have access to this shop.',
             ),
+          DashboardStatus.noShop => const _NoShopView(),
           DashboardStatus.error => _ErrorView(
               message: state.message ?? 'Something went wrong.',
               onRetry: () =>
@@ -375,6 +379,64 @@ class _UpdateTile extends StatelessWidget {
       if (showDivider)
         Divider(height: 1, color: Theme.of(context).dividerColor),
     ]);
+  }
+}
+
+/// Friendly landing view shown right after the first login, when the
+/// shopkeeper has not created a shop yet. Personal/business setup
+/// (name, location, documents) is done here or later from the Profile
+/// (Account) section — never forced as a blocking wizard at login.
+class _NoShopView extends StatelessWidget {
+  const _NoShopView();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 420),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: scheme.primaryContainer,
+                  child: const Icon(Icons.storefront,
+                      size: 40, color: Color(0xFF0B5D3B)),
+                ),
+                const SizedBox(height: 16),
+                Text('Welcome to Passly Biz!',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 8),
+                Text(
+                  'Your account is ready. Add your first store to start '
+                  'managing products, inventory and offers — or complete '
+                  'your profile details from the Account tab anytime.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.outline),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () => context.push('/shop-register'),
+                  icon: const Icon(Icons.add_box_outlined),
+                  label: const Text('Set up your first shop'),
+                ),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () => context.push('/account'),
+                  icon: const Icon(Icons.person_outline),
+                  label: const Text('Complete your profile'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -24,11 +24,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
-        child: Text(
-          'Hyperlocal',
-          style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/passly_biz_named.png',
+              width: 180,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Text(
+                'Hyperlocal',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
       ),
     );
