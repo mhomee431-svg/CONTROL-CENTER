@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
 from geoalchemy2 import WKTElement
-from sqlalchemy import or_, select
+from sqlalchemy import exists as sa_exists, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.logging import get_logger
@@ -129,18 +129,40 @@ def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
         Registered → Documents Submitted → Pending Verification → Verified → Active
     """
     # ── Validations ──
-    validate_geolocation(data.get("latitude"), data.get("longitude"))
+    # Location and address are OPTIONAL for the first-stage profile-creation
+    # flow (POST /shopkeeper/shops via register_shop_for_shopkeeper). Only
+    # validate + persist them when the caller actually supplied coordinates
+    # and/or a primary address. The full shop-registration flow (shops.py)
+    # still provides both, so its behaviour is unchanged.
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+    if latitude is not None and longitude is not None:
+        validate_geolocation(latitude, longitude)
+
     address_data = data.get("address") or {}
-    validate_address(address_data)
+    if address_data:
+        # ANY supplied address data is validated strictly (a partial/malformed
+        # address is a client error); a fully absent address is allowed for the
+        # first-stage profile-creation flow and filled in later.
+        validate_address(address_data)
+
+    logger.info(
+        "register_shop: name=%s category=%s has_location=%s has_address=%s",
+        data.get("name"),
+        data.get("category"),
+        latitude is not None and longitude is not None,
+        bool(address_data.get("address_line1")),
+    )
 
     if data.get("hours"):
         validate_hours(data["hours"])
 
-    # Unique slug
+    # Unique slug — use exists() to avoid loading the Shop geometry column
+    # (PostGIS AsBinary()), which fails on non-PostGIS engines (SQLite dev).
     base_slug = data.get("slug") or slugify(data["name"])
     slug = base_slug
     counter = 1
-    while db.query(Shop).filter(Shop.slug == slug).first():
+    while db.query(sa_exists().where(Shop.slug == slug)).scalar():
         slug = f"{base_slug}-{counter}"
         counter += 1
 
@@ -165,9 +187,13 @@ def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
         status=ShopStatus.REGISTERED,
         category=data.get("category"),
         subcategories=json.dumps(data.get("subcategories")) if data.get("subcategories") else None,
-        latitude=data["latitude"],
-        longitude=data["longitude"],
-        location=_get_wkt_point(data["latitude"], data["longitude"]),
+        latitude=latitude,
+        longitude=longitude,
+        # PostGIS geometry is only meaningful when coordinates exist. The
+        # profile-creation flow omits them, so the geometry column stays NULL
+        # until the later location-capture step fills it.
+        location=_get_wkt_point(latitude, longitude)
+            if latitude is not None and longitude is not None else None,
         accuracy_meters=loc_meta.get("accuracy_meters"),
         location_captured_at=loc_meta.get("location_captured_at"),
         location_source=loc_meta.get("location_source") or LocationSource.GPS.value,
@@ -202,21 +228,25 @@ def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
     )
 
     # ── Create primary address ──
-    db.add(
-        ShopAddress(
-            shop_id=shop.id,
-            address_line1=address_data["address_line1"],
-            address_line2=address_data.get("address_line2"),
-            landmark=address_data.get("landmark"),
-            city=address_data["city"],
-            state=address_data["state"],
-            pincode=address_data["pincode"],
-            country=address_data.get("country", "India"),
-            latitude=address_data.get("latitude", data.get("latitude")),
-            longitude=address_data.get("longitude", data.get("longitude")),
-            is_primary=True,
-        )
-    )
+    # Address is optional for the first-stage profile-creation flow. When
+    # absent, skip address creation entirely — the shop is still fully
+    # functional and the address is captured later via the location flow.
+    if address_data.get("address_line1"):
+      db.add(
+          ShopAddress(
+              shop_id=shop.id,
+              address_line1=address_data["address_line1"],
+              address_line2=address_data.get("address_line2"),
+              landmark=address_data.get("landmark"),
+              city=address_data["city"],
+              state=address_data["state"],
+              pincode=address_data["pincode"],
+              country=address_data.get("country", "India"),
+              latitude=address_data.get("latitude", latitude),
+              longitude=address_data.get("longitude", longitude),
+              is_primary=True,
+          )
+      )
 
     # ── Create opening hours ──
     for h in data.get("hours", []):

@@ -6,10 +6,16 @@ class ApiException implements Exception {
   final String? errorCode;
   final String message;
 
+  /// Raw `data` payload from the error envelope (if any). The barcode-lookup
+  /// endpoint embeds the catalog matches inside a 300 / 404 error envelope,
+  /// so callers can reconstruct the [BarcodeResolution] from this field.
+  final dynamic data;
+
   const ApiException({
     this.statusCode,
     this.errorCode,
     required this.message,
+    this.data,
   });
 
   /// True when the backend refused shop access (association/permission).
@@ -20,21 +26,24 @@ class ApiException implements Exception {
 
   factory ApiException.fromDioError(DioException e) {
     final response = e.response;
-    final data = response?.data;
+    final body = response?.data;
     String message = e.message ?? 'Network error';
     String? errorCode;
-    if (data is Map) {
-      final bodyMessage = data['message'];
+    dynamic errorData;
+    if (body is Map) {
+      final bodyMessage = body['message'];
       if (bodyMessage is String && bodyMessage.isNotEmpty) {
         message = bodyMessage;
       }
-      final code = data['error_code'];
+      final code = body['error_code'];
       if (code is String) errorCode = code;
+      errorData = body['data'];
     }
     return ApiException(
       statusCode: response?.statusCode,
       errorCode: errorCode,
       message: message,
+      data: errorData,
     );
   }
 
@@ -100,11 +109,12 @@ class ApiClient {
   dynamic _unwrap(Response<dynamic> response) {
     final body = response.data;
     if (body is Map<String, dynamic>) {
-      if (body['success'] == true) return body['data'];
+            if (body['success'] == true) return body['data'];
       throw ApiException(
         statusCode: response.statusCode,
         errorCode: body['error_code'] as String?,
         message: (body['message'] as String?) ?? 'Request failed',
+        data: body['data'],
       );
     }
     return body;

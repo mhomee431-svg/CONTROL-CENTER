@@ -14,8 +14,10 @@ business flows:
 import time
 from asyncio import to_thread
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_role
@@ -76,6 +78,10 @@ from app.services.firebase_verification import (
 logger = get_logger("app.api.shopkeeper_auth")
 
 router = APIRouter(prefix="/shopkeeper/auth", tags=["shopkeeper-auth"])
+
+# HTTPBearer used by /google-profile to read the Authorization header
+# (auto_error=False → we return a friendly 401 when the header is missing).
+security = HTTPBearer(auto_error=False)
 
 
 def _normalize_phone(raw: str) -> str:
@@ -558,13 +564,19 @@ async def firebase_login(
         elapsed_verify,
     )
 
+    # ── Minimal Google data boundary (Phase 19) ──────────────────────────
+    # Pull ONLY the whitelisted Google fields from the verified token. If any
+    # forbidden credential/scope claim slips through we reject the request so
+    # sensitive Google data is never used or persisted.
+    from app.services.google_profile_service import extract_minimal_profile
+
+    minimal = extract_minimal_profile(claims.get("claims") or {})
+
     firebase_uid = claims["uid"]
     phone = claims["phone"]
-    email = claims.get("email") or payload.email or None
-    token_name = claims.get("name") or None
-    # Google ID tokens carry the avatar as `picture`; the client may also send
-    # it explicitly as `photo_url`. Prefer the token claim (trusted).
-    photo_url = claims.get("picture") or payload.photo_url or None
+    email = minimal.email or claims.get("email") or payload.email or None
+    token_name = minimal.name or claims.get("name") or None
+    photo_url = minimal.picture or claims.get("picture") or payload.photo_url or None
 
     # 2. Look up the existing shopkeeper account (uid → phone → email)
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
@@ -932,6 +944,68 @@ async def get_shopkeeper_profile(
             "profile_complete": len(shops) > 0,
         },
         message="OK",
+    )
+
+
+@router.get("/google-profile")
+async def google_profile(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    """Return ONLY the minimal Google profile derived from the verified Firebase token.
+
+    Security (Phase 19):
+      * The Firebase ID token is VERIFIED server-side first
+        (``verify_firebase_id_token_claims``) — never trusts the client.
+      * Only whitelisted Google fields (name, email, picture, email_verified)
+        are exposed; the firebase_uid is derived from ``sub`` and returned
+        for identity linking only.
+      * Learn more: :mod:`app.services.google_profile_service`
+
+    Requires: ``Authorization: Bearer <Firebase ID Token>``
+    """
+    from app.services.google_profile_service import (
+        extract_minimal_profile,
+        MINIMAL_OAUTH_SCOPES,
+    )
+
+    if credentials is None:
+        return error_response(
+            message="Authentication required",
+            error_code="AUTH_REQUIRED",
+            status_code=401,
+        )
+
+    token = credentials.credentials
+    try:
+        verified = await to_thread(verify_firebase_id_token_claims, token)
+    except FirebaseVerificationError as exc:
+        return error_response(
+            message=exc.message,
+            error_code=exc.error_code,
+            status_code=exc.status_code,
+        )
+
+    # ``verified[\"claims\"]`` is the full decoded token claims set. The service
+    # picks out ONLY the whitelisted Google fields and rejects any forbidden
+    # credential claims that slip through.
+    try:
+        minimal = extract_minimal_profile(verified.get("claims") or {})
+    except ValueError as exc:
+        return error_response(
+            message=str(exc),
+            error_code="GOOGLE_PROFILE_FORBIDDEN_CLAIM",
+            status_code=400,
+        )
+
+    payload = minimal.to_dict()
+    return success_response(
+        data={
+            **payload,
+            "firebase_uid": verified.get("uid"),
+            "provider": verified.get("provider", ""),
+            "required_scopes": list(MINIMAL_OAUTH_SCOPES),
+        },
+        message="Minimal Google profile",
     )
 
 

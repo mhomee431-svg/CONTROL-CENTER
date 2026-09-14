@@ -11,13 +11,28 @@ class FirebaseAuthResult {
 }
 
 class FirebaseAuthService {
-  FirebaseAuthService({FirebaseAuth? auth})
-    : _auth = auth ?? FirebaseAuth.instance;
+  FirebaseAuthService({FirebaseAuth? auth}) : _authOverride = auth;
 
-  final FirebaseAuth _auth;
+  /// Optional test/runtime override. When null, [FirebaseAuth.instance] is
+  /// resolved lazily at USE time — constructing the service (and reading
+  /// [currentUser]) never crashes in tests without an initialised Firebase
+  /// core; the device is simply treated as signed-out.
+  final FirebaseAuth? _authOverride;
+
+  FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
+
   static const _channel = MethodChannel('com.hyperlocal.app/google_auth');
 
-  User? get currentUser => _auth.currentUser;
+  /// Firebase user on this device, or null when signed out / when the
+  /// Firebase core is unavailable (unit tests, desktop without Firebase).
+  User? get currentUser {
+    try {
+      return _auth.currentUser;
+    } catch (_) {
+      // Firebase core not initialised → treat the device as signed out.
+      return null;
+    }
+  }
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -138,8 +153,14 @@ class FirebaseAuthService {
       await _channel.invokeMethod('signOut');
     } on PlatformException {
       // Ignore native sign-out errors
+    } catch (_) {
+      // Native channel unavailable (tests/desktop) — ignore.
     }
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (_) {
+      // Firebase core not initialised (tests/desktop) — nothing to clear.
+    }
   }
 
   /// Get current user info from native side.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_providers.dart';
 import '../../../../core/network/token_store.dart';
@@ -140,12 +141,37 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
       if (!mounted) return;
       context.go('/dashboard');
-    } catch (e) {
-      debugPrint('[PROFILE] create failed: $e');
+    } on ApiException catch (e) {
+      // Surface the backend's EXACT validation/error message so the user (and
+      // logs) see the real reason — not a generic "try again". Distinguish the
+      // common failure modes for a precise, actionable message.
+      debugPrint('[PROFILE] ApiException: status=${e.statusCode} '
+          'code=${e.errorCode} msg=${e.message}');
       if (mounted) {
+        final message = switch (e.statusCode) {
+          422 => e.message, // backend validation — show verbatim
+          400 => e.message, // bad request — show verbatim
+          401 => 'Session expired. Please sign in again.',
+          403 => 'You are not allowed to create a shop.',
+          409 => e.message, // conflict (e.g. duplicate) — show verbatim
+          500 => 'Server error. Please try again later.',
+          _ => e.message, // any other API error — show backend message
+        };
         setState(() {
           _submitting = false;
-          _error = 'Could not create profile. Please try again.';
+          _error = message;
+        });
+      }
+    } catch (e) {
+      // Non-API failures: network timeout, DNS, parsing, etc.
+      debugPrint('[PROFILE] create failed (non-API): $e');
+      if (mounted) {
+        final message = e.toString().contains('timeout')
+            ? 'Connection timed out. Check your internet and try again.'
+            : 'Could not create profile. Please try again.';
+        setState(() {
+          _submitting = false;
+          _error = message;
         });
       }
     }
@@ -257,6 +283,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
                           initialValue: _category,
+                          // isExpanded prevents the long labels (e.g.
+                          // "Personal Transport / Personal Travel") from
+                          // overflowing the field's right edge.
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Business Category',
                             border: OutlineInputBorder(),
@@ -274,6 +304,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
                           initialValue: _businessType,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Business Type',
                             border: OutlineInputBorder(),

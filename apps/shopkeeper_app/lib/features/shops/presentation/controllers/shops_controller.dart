@@ -109,4 +109,8 @@ class ShopsController extends Notifier<ShopsState> {
       state = ShopsState(status: ShopsStatus.ready, shops: state.shops);
     }
   }
+
+  /// Clears ALL cached shop data (called on logout) so the previous
+  /// account's business list never survives into the next session.
+  void reset() => state = ShopsState.initial();
 }

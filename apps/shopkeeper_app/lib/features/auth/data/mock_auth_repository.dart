@@ -160,6 +160,18 @@ class MockAuthRepository implements AuthRepository {
         );
   }
 
+  @override
+  Future<Map<String, dynamic>> fetchGoogleProfile() async {
+    return {
+      'name': 'Test Shopkeeper',
+      'email': 'test@hyperlocal.app',
+      'picture': null,
+      'email_verified': true,
+      'provider': 'google.com',
+      'required_scopes': ['openid', 'email', 'profile'],
+    };
+  }
+
   // ── Debug helpers for verbose login flow logging ──────────────────────
 
   @override

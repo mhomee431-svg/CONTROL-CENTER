@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/config/dev_backend_discovery.dart';
 import 'core/config/env_config.dart';
 import 'firebase_options.dart';
 
@@ -14,9 +15,17 @@ void main() async {
   // the web/desktop constants in firebase_options.dart).
   await Firebase.initializeApp(options: AppFirebaseOptions.currentPlatform);
 
+  // ── Development: auto-discover the reachable backend ────────────────────
+  // Plain `flutter run` (no dart-define) embeds the emulator-only 10.0.2.2
+  // default, which a physical device can never reach. Probing the known dev
+  // candidates (PC LAN IP → adb-reverse → emulator) makes ANY run work.
+  // Skipped entirely in production or when an explicit URL is configured.
+  if (DevBackendDiscovery.shouldRun) {
+    debugPrint('[STARTUP] Discovering dev backend (LAN IP / adb / emulator)...');
+    await DevBackendDiscovery.discover();
+  }
+
   // ── Startup diagnostics: log the EXACT API URL the app will use ────────
-  // This catches the classic "flutter run without dart-define" mistake that
-  // embeds the emulator-only 10.0.2.2 URL into a physical-device build.
   debugPrint('════════════════════════════════════════════════');
   debugPrint('[STARTUP] API Base URL : ${EnvConfig.apiBaseUrl}');
   debugPrint('[STARTUP] Environment  : ${EnvConfig.environment}');

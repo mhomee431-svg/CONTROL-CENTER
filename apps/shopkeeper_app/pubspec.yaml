@@ -43,6 +43,10 @@ dependencies:
   # Live location & map
   geolocator: ^14.0.0
   google_maps_flutter: ^2.13.0
+    # Barcode scanning for inventory intake
+  mobile_scanner: ^7.4.1
+  # Excel (.xlsx) inventory import file picking
+  file_picker: ^8.1.2
   # Verification-document picking (disabled for MVP — requires compileSdk 36 plugin fixes)
   # image_picker: ^1.1.2
   # file_picker: ^8.1.2

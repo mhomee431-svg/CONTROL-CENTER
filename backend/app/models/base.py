@@ -21,8 +21,11 @@ class TimestampMixin:
 
 class SoftDeleteMixin:
     """Mixin providing soft-delete fields."""
+    # `default=False` (Python-side) ensures SQLite dev stores a real 0/1 even
+    # though `server_default="false"` is applied as the literal string 'false'
+    # there (queries like `is_deleted == False` otherwise exclude every row).
     is_deleted: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
+        Boolean, nullable=False, default=False, server_default="false"
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

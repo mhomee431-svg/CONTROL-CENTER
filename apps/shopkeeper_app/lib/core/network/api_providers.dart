@@ -15,9 +15,13 @@ void Function()? globalUnauthorizedHandler;
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: EnvConfig.apiBaseUrl,
-    // Extended timeout for ADB reverse tunnel stability on physical devices
-    connectTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
+    // 30s connect + receive timeouts — the official app contract. This
+    // guarantees the UI never hangs forever on a dead network / unreachable
+    // backend (the #1 source of "infinite loading" bugs previously seen with
+    // emulator-only base URLs). FastAPI + WiFi-direct normally answers in
+    // <1s, so 30s is generous for slow links while still bounding the wait.
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
     responseType: ResponseType.json,
   ));
 

@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/auth_controller.dart';
 
-/// Startup screen — restores any persisted session before routing.
+/// Startup screen — initializes Firebase, checks auth state, loads local
+/// storage, and app configuration. Shows logo + spinner (no fake progress %).
+///
+/// On initialization failure, shows a retry button instead of hanging.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -27,7 +30,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Passly Biz logo + wordmark (single asset).
+            // HyperLocal logo + wordmark.
             Image.asset(
               'assets/images/passly_biz_named.png',
               width: 160,

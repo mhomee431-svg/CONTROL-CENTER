@@ -38,6 +38,11 @@ abstract class AuthRepository {
     String? photoUrl,
   });
 
+  /// Fetches ONLY the minimal Google profile fields (name, email, picture,
+  /// email_verified) derived from the backend-verified Firebase token.
+  /// Used to confirm the minimal-data boundary (Phase 19) end-to-end.
+  Future<Map<String, dynamic>> fetchGoogleProfile();
+
   /// Updates the current user's profile (name; phone accepted for contract
   /// compatibility — the backend profile endpoint manages name/email) and
   /// returns the refreshed session.
@@ -230,6 +235,19 @@ class ApiAuthRepository implements AuthRepository {
     debugPrint('  └─ user_id: ${data['user_id'] ?? (data['user'] as Map?)?['id'] ?? "null"}');
 
     return _persist(data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchGoogleProfile() async {
+    final access = await _tokens.readAccessToken();
+    final data = await _api.get(
+      ApiEndpoints.googleProfile,
+      token: access,
+    ) as Map<String, dynamic>;
+    debugPrint(
+      '  ├─ Google profile (minimal): keys=${data.keys.where((k) => k != 'firebase_uid').toList()}',
+    );
+    return data;
   }
 
   // ── Debug helpers ───────────────────────────────────────────────────

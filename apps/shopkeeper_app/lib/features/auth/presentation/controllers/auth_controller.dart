@@ -6,9 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_providers.dart';
+import '../../../../core/network/token_store.dart';
 import '../../../../core/auth/firebase_auth_service.dart';
 import '../../domain/auth_models.dart';
 import '../../data/auth_repository.dart';
+import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
+import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../shops/presentation/controllers/shops_controller.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
+import '../../../barcode/presentation/controllers/barcode_controller.dart';
+import '../../../inventory_import/presentation/controllers/import_controller.dart';
 import 'selected_shop.dart';
 
 enum AuthStatus {
@@ -18,6 +25,10 @@ enum AuthStatus {
   unauthenticated,
   sessionExpired,
   error,
+
+  /// Backend reports the account INACTIVE / SUSPENDED / BANNED — routed to
+  /// the account-status screen instead of the normal app (Phase 23).
+  accountRestricted,
 }
 
 class AuthState {
@@ -43,29 +54,35 @@ class AuthState {
   /// screen; complete → dashboard.
   bool get profileComplete => shops.isNotEmpty;
 
-  factory AuthState.initial() =>
-      const AuthState(status: AuthStatus.initial);
-  factory AuthState.loading() =>
-      const AuthState(status: AuthStatus.loading);
+  factory AuthState.initial() => const AuthState(status: AuthStatus.initial);
+  factory AuthState.loading() => const AuthState(status: AuthStatus.loading);
   factory AuthState.authenticated({
     required ShopkeeperUser user,
     required List<ShopSummary> shops,
-  }) =>
-      AuthState(
-        status: AuthStatus.authenticated,
-        user: user,
-        shops: shops,
-      );
+  }) => AuthState(status: AuthStatus.authenticated, user: user, shops: shops);
   factory AuthState.unauthenticated() =>
       const AuthState(status: AuthStatus.unauthenticated);
   factory AuthState.sessionExpired() =>
       const AuthState(status: AuthStatus.sessionExpired);
-  factory AuthState.error(String message, {String? errorCode}) =>
-      AuthState(status: AuthStatus.error, errorMessage: message, errorCode: errorCode);
+
+  /// Account inactive/suspended — the message comes from the backend
+  /// (or the startup status check) and is shown on the account-status screen.
+  factory AuthState.accountRestricted(String message, {String? errorCode}) =>
+      AuthState(
+        status: AuthStatus.accountRestricted,
+        errorMessage: message,
+        errorCode: errorCode,
+      );
+  factory AuthState.error(String message, {String? errorCode}) => AuthState(
+    status: AuthStatus.error,
+    errorMessage: message,
+    errorCode: errorCode,
+  );
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);
 
 class AuthController extends Notifier<AuthState> {
   @override
@@ -97,40 +114,131 @@ class AuthController extends Notifier<AuthState> {
   }
 
   /// Called after the user completes first-time profile creation. Adds the
-/// new shop to the auth state so `profileComplete` becomes true and the
-/// router lands on the Dashboard.
-Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
-  final current = state;
-  final updatedShops = [shop];
-  ref.read(selectedShopProvider.notifier).select(shop);
-  state = AuthState.authenticated(
-    user: current.user ?? const ShopkeeperUser(
-      id: 0,
-      phoneNumber: '',
-      name: '',
-      role: 'shopkeeper',
-    ),
-    shops: updatedShops,
-  );
-}
+  /// new shop to the auth state so `profileComplete` becomes true and the
+  /// router lands on the Dashboard.
+  Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
+    final current = state;
+    final updatedShops = [shop];
+    ref.read(selectedShopProvider.notifier).select(shop);
+    state = AuthState.authenticated(
+      user:
+          current.user ??
+          const ShopkeeperUser(
+            id: 0,
+            phoneNumber: '',
+            name: '',
+            role: 'shopkeeper',
+          ),
+      shops: updatedShops,
+    );
+  }
 
-/// Restores a persisted session on app startup.
+  /// Restores a persisted session on app startup (Phase 23):
+  ///
+  ///   1. Stored backend session still valid (`/me`) → authenticated.
+  ///   2. Otherwise check the DEVICE Firebase auth state:
+  ///        • No Firebase user → wipe stale app tokens → unauthenticated
+  ///          (the router sends the user to login).
+  ///        • Firebase user present → fresh Firebase ID token → backend
+  ///          current-profile verification (`/firebase-login`, Admin-SDK
+  ///          verified) → authenticated.
+  ///   3. Backend reports the account INACTIVE/SUSPENDED/BANNED →
+  ///      account-restricted state (routed to the account-status screen).
   Future<bool> checkSession() async {
     state = AuthState.loading();
     try {
+      // ── 1. Fast path: the stored backend JWT is still valid. ──
       final session = await _repo.restoreSession();
       if (session != null) {
+        final restriction = _accountRestriction(session.user.status);
+        if (restriction != null) {
+          state = AuthState.accountRestricted(
+            restriction.message,
+            errorCode: restriction.code,
+          );
+          return false;
+        }
         _syncPrimaryShop(session.shops);
         state = AuthState.authenticated(
-            user: session.user, shops: session.shops);
+          user: session.user,
+          shops: session.shops,
+        );
         return true;
       }
+
+      // ── 2. Check the device Firebase auth state. ──
+      final firebaseUser = ref.read(firebaseAuthServiceProvider).currentUser;
+      if (firebaseUser == null) {
+        // Unauthenticated at the Firebase level → clear any stale app-side
+        // tokens so NO authenticated state stays cached, then land on login.
+        await ref.read(tokenStoreProvider).clearAll();
+        state = AuthState.unauthenticated();
+        return false;
+      }
+
+      // ── 3. Firebase user present → fresh ID token → backend profile. ──
+      final String? idToken = await firebaseUser.getIdToken(true);
+      if (idToken == null || idToken.isEmpty) {
+        // Firebase present but no usable token → wipe stale app tokens and
+        // land on login (matches the signed-out device path).
+        await ref.read(tokenStoreProvider).clearAll();
+        state = AuthState.unauthenticated();
+        return false;
+      }
+      final fresh = await _repo.firebaseLogin(
+        firebaseIdToken: idToken,
+        name: firebaseUser.displayName,
+        email: firebaseUser.email,
+        photoUrl: firebaseUser.photoURL,
+      );
+      final freshRestriction = _accountRestriction(fresh.user.status);
+      if (freshRestriction != null) {
+        state = AuthState.accountRestricted(
+          freshRestriction.message,
+          errorCode: freshRestriction.code,
+        );
+        return false;
+      }
+      _syncPrimaryShop(fresh.shops);
+      state = AuthState.authenticated(user: fresh.user, shops: fresh.shops);
+      return true;
+    } on ApiException catch (e) {
+      // Backend refused the account (Phase 23) → account-status screen.
+      if (e.errorCode == 'ACCOUNT_NOT_ACTIVE') {
+        state = AuthState.accountRestricted(
+          e.message.isNotEmpty ? e.message : 'Account is not active.',
+          errorCode: e.errorCode,
+        );
+        return false;
+      }
+      // Expired/invalid stored token (already wiped by the repository) or a
+      // transient backend failure → normal signed-out landing.
       state = AuthState.unauthenticated();
       return false;
     } catch (_) {
-      state = AuthState.error('Could not verify your session.');
+      state = AuthState.unauthenticated();
       return false;
     }
+  }
+
+  /// Maps a backend account lifecycle status to the account-status screen
+  /// copy. Returns null for active/unknown statuses (normal app).
+  ({String code, String message})? _accountRestriction(String? status) {
+    return switch (status?.toUpperCase()) {
+      'SUSPENDED' => (
+        code: 'ACCOUNT_NOT_ACTIVE',
+        message: 'Your account has been suspended. Please contact support.',
+      ),
+      'BANNED' => (
+        code: 'ACCOUNT_NOT_ACTIVE',
+        message: 'Your account has been banned. Please contact support.',
+      ),
+      'INACTIVE' => (
+        code: 'ACCOUNT_NOT_ACTIVE',
+        message: 'Your account is inactive. Please contact support to reactivate it.',
+      ),
+      _ => null,
+    };
   }
 
   /// Google Sign-In (Firebase Authentication).
@@ -148,14 +256,18 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
     try {
       // ── STEP 1: Firebase Google Sign-In ────────────────────────────
       debugPrint('STEP 1: Calling FirebaseAuthService.signInWithGoogle()...');
-      final result = await ref.read(firebaseAuthServiceProvider).signInWithGoogle();
+      final result = await ref
+          .read(firebaseAuthServiceProvider)
+          .signInWithGoogle();
       final firebaseUser = result.user;
       debugPrint('STEP 1 ✓: Firebase user obtained');
       debugPrint('  ├─ UID: ${firebaseUser.uid}');
       debugPrint('  ├─ Display Name: ${firebaseUser.displayName}');
       debugPrint('  ├─ Email: ${firebaseUser.email}');
       debugPrint('  ├─ Photo URL: ${firebaseUser.photoURL}');
-      debugPrint('  ├─ ID Token (first 30 chars): ${result.idToken.length > 30 ? result.idToken.substring(0, 30) : result.idToken}...');
+      debugPrint(
+        '  ├─ ID Token (first 30 chars): ${result.idToken.length > 30 ? result.idToken.substring(0, 30) : result.idToken}...',
+      );
       debugPrint('  └─ ID Token length: ${result.idToken.length} chars');
 
       // ── STEP 2: Backend API Call ───────────────────────────────────
@@ -175,8 +287,7 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
       // ── STEP 3: Update Auth State ──────────────────────────────────
       debugPrint('STEP 3: Updating auth state to AUTHENTICATED...');
       _syncPrimaryShop(session.shops);
-      state = AuthState.authenticated(
-          user: session.user, shops: session.shops);
+      state = AuthState.authenticated(user: session.user, shops: session.shops);
       debugPrint('STEP 3 ✓: Auth state is now AUTHENTICATED');
 
       // ── STEP 4: Verify Token Saved ─────────────────────────────────
@@ -185,7 +296,9 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
       final savedUserId = await _repo.debugReadUserId();
       final isLoggedIn = await _repo.debugIsLoggedIn();
       debugPrint('STEP 4 ✓: Local storage status:');
-      debugPrint('  ├─ jwt_token saved: ${savedToken != null && savedToken.isNotEmpty}');
+      debugPrint(
+        '  ├─ jwt_token saved: ${savedToken != null && savedToken.isNotEmpty}',
+      );
       debugPrint('  ├─ user_id saved: ${savedUserId ?? "null"}');
       debugPrint('  └─ is_logged_in: $isLoggedIn');
 
@@ -205,7 +318,9 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
         state = AuthState.unauthenticated();
       } else {
         state = AuthState.error(
-            e.message ?? 'Google sign-in failed.', errorCode: e.code);
+          e.message ?? 'Google sign-in failed.',
+          errorCode: e.code,
+        );
       }
       return false;
     } on ApiException catch (e) {
@@ -238,8 +353,7 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
         password: password,
       );
       _syncPrimaryShop(session.shops);
-      state = AuthState.authenticated(
-          user: session.user, shops: session.shops);
+      state = AuthState.authenticated(user: session.user, shops: session.shops);
       return true;
     } on ApiException catch (e) {
       state = AuthState.error(e.message, errorCode: e.errorCode);
@@ -259,8 +373,7 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
         password: password,
       );
       _syncPrimaryShop(session.shops);
-      state = AuthState.authenticated(
-          user: session.user, shops: session.shops);
+      state = AuthState.authenticated(user: session.user, shops: session.shops);
       return true;
     } on ApiException catch (e) {
       state = AuthState.error(e.message);
@@ -275,14 +388,18 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
   ///
   /// Calls the backend profile endpoint (name/email — phone is accepted for
   /// contract compatibility) and refreshes the session.
-  Future<bool> createProfile({required String name, String? phoneNumber}) async {
+  Future<bool> createProfile({
+    required String name,
+    String? phoneNumber,
+  }) async {
     state = AuthState.loading();
     try {
-      final session =
-          await _repo.updateProfile(name: name, phoneNumber: phoneNumber);
+      final session = await _repo.updateProfile(
+        name: name,
+        phoneNumber: phoneNumber,
+      );
       _syncPrimaryShop(session.shops);
-      state = AuthState.authenticated(
-          user: session.user, shops: session.shops);
+      state = AuthState.authenticated(user: session.user, shops: session.shops);
       return true;
     } on ApiException catch (e) {
       state = AuthState.error(e.message, errorCode: e.errorCode);
@@ -293,13 +410,44 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
     }
   }
 
+  /// Full sign-out flow (Phase 22):
+  ///
+  ///   Firebase signOut()  →  backend session revoke + secure-store wipe
+  ///   →  clear every cached authenticated state (selected shop, shops list,
+  ///   dashboard data, inventory)  →  unauthenticated (router lands on login).
+  ///
+  /// Network/Firebase steps are best-effort: a dead connection or an
+  /// un-initialised Firebase core must never leave the user stuck in an
+  /// authenticated UI. The local state reset ALWAYS completes, so no
+  /// authenticated application state is cached after logout.
   Future<void> logout() async {
+    // 1) Sign out of Firebase — clears the Google/Firebase session and any
+    //    cached credentials on the device.
+    try {
+      await ref.read(firebaseAuthServiceProvider).signOut();
+    } catch (_) {
+      // Best-effort: tests (no Firebase app) and desktop/web must still be
+      // able to sign out. The next native sign-in also clears stale sessions.
+    }
+
+    // 2) Revoke the backend session and wipe every stored token.
     try {
       await _repo.logout();
     } catch (_) {
-      // Local sign-out must always complete.
+      // Server revocation failures must not block local sign-out.
     }
+
+    // 3) Drop ALL cached authenticated application state — nothing from the
+    //    previous account may survive into the next session.
     ref.read(selectedShopProvider.notifier).select(null);
+    ref.read(shopsControllerProvider.notifier).reset();
+    ref.read(dashboardControllerProvider.notifier).reset();
+    ref.read(productsControllerProvider.notifier).reset();
+    ref.read(notificationsControllerProvider.notifier).reset();
+    ref.read(barcodeControllerProvider.notifier).reset();
+    ref.read(importControllerProvider.notifier).reset();
+
+    // 4) Unauthenticated → the router redirect sends the user to login.
     state = AuthState.unauthenticated();
   }
 
@@ -319,7 +467,10 @@ Future<void> refreshAfterProfileCreate(ShopSummary shop) async {
   }
 
   /// Reset password with token.
-  Future<void> resetPassword({required String token, required String newPassword}) async {
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
     state = AuthState.loading();
     try {
       await _repo.resetPassword(token: token, newPassword: newPassword);

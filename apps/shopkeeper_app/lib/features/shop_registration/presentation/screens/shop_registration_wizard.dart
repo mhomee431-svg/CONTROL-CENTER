@@ -8,7 +8,7 @@ import '../../data/document_picker_service.dart';
 import '../../domain/shop_registration_state.dart';
 import '../widgets/registration_widgets.dart';
 
-/// The complete "Register Your Shop" wizard â€” a single screen that hosts all
+/// The complete "Register Your Shop" wizard — a single screen that hosts all
 /// five steps with animated transitions. Back navigation and entered data are
 /// preserved because the whole wizard shares one [ShopRegistrationController].
 class ShopRegistrationWizard extends ConsumerStatefulWidget {
@@ -129,7 +129,7 @@ class _ShopRegistrationWizardState
   }
 
   /// Push external state changes (geocoding auto-fill) into text fields only
-  /// when they differ â€” preserves cursor position and focus.
+  /// when they differ — preserves cursor position and focus.
   void _syncControllersFromState(ShopRegistrationState state) {
     _sync(_address, state.addressLine);
     _sync(_city, state.city);
@@ -175,7 +175,7 @@ class _ShopRegistrationWizardState
   }
 }
 
-// â”€â”€ Screen 1 â€” Welcome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Screen 1 — Welcome ──────────────────────────────────────────────────────
 
 class _WelcomeStep extends StatelessWidget {
   const _WelcomeStep({super.key, required this.onGetStarted});
@@ -358,7 +358,7 @@ class _BenefitCard extends StatelessWidget {
   }
 }
 
-// â”€â”€ Screen 2 â€” Business Information â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Screen 2 — Business Information ──────────────────────────────────────────
 
 class _BusinessInfoStep extends StatelessWidget {
   const _BusinessInfoStep({
@@ -641,7 +641,7 @@ class _BusinessTypeField extends StatelessWidget {
   }
 }
 
-// â”€â”€ Screen 3 â€” Shop Location â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Screen 3 — Shop Location ─────────────────────────────────────────────────
 
 class _LocationStep extends StatelessWidget {
   const _LocationStep({
@@ -787,7 +787,7 @@ class _LocationStep extends StatelessWidget {
                     child: FormFieldCard(
                       controller: landmark,
                       label: 'Landmark (optional)',
-                      placeholder: 'Nearâ€¦',
+                      placeholder: 'Near…',
                       icon: Icons.near_me_outlined,
                     ),
                   ),
@@ -832,7 +832,7 @@ class _LocationActions extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2)),
             SizedBox(width: 10),
-            Text('Getting locationâ€¦'),
+            Text('Getting location…'),
           ],
         ),
       );
@@ -865,7 +865,7 @@ class _LocationActions extends StatelessWidget {
           : 'Confirm Location and Continue',
       icon: Icons.my_location,
       loading: controllerState.reverseGeocoding,
-      loadingLabel: 'Detecting addressâ€¦',
+      loadingLabel: 'Detecting address…',
       onPressed: () async {
         if (controllerState.pin == null) {
           await notifier.acquireLocation();

@@ -81,6 +81,12 @@ class MockQuery:
     def scalars(self):
         return self
 
+    def scalar(self):
+        """Support `db.query(sa_exists().where(...)).scalar()` — the slug
+        uniqueness check in ``shop_service.register_shop``. With no configured
+        result the slug is treated as free."""
+        return self._result
+
     def count(self):
         return len(self._filtered or [])
 

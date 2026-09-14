@@ -55,6 +55,35 @@ async def lifespan(app: FastAPI):
 
     await enable_postgis()
 
+    # Phase 22 — dev-only safe-start: seed merchant categories when empty.
+    # The Shopkeeper create-profile flow rejects unknown merchant categories
+    # (422) until the reference tables are populated; running the documented
+    # one-off seed on every empty dev database keeps first-run onboarding
+    # working without manual steps. Idempotent and never fails startup.
+    if settings.ENVIRONMENT.lower() == "development":
+        try:
+            from sqlalchemy import text as _sa_text
+
+            from app.database.session import SessionLocal as _SessionLocal
+            import app.services.merchant_category_seed as _seed_mod
+
+            with _SessionLocal() as _seed_db:
+                _count = (
+                    _seed_db.execute(
+                        _sa_text("SELECT COUNT(*) FROM merchant_categories")
+                    ).scalar()
+                    or 0
+                )
+                if _count == 0:
+                    _seed_mod.seed_merchant_categories(_seed_db)
+                    _seed_db.commit()
+                    _seeded = len(_seed_mod.CATEGORIES)
+                    logger.info(
+                        "Seeded %d merchant categories (development)", _seeded
+                    )
+        except Exception as exc:  # noqa: BLE001  (dev convenience — never block startup)
+            logger.warning("Merchant category seed skipped: %s", exc)
+
     # Phase 24 — observability bootstrap (never fails the app when telemetry breaks)
     try:
         from app.core.observability.alerting import LogNotifier, WebhookNotifier, manager

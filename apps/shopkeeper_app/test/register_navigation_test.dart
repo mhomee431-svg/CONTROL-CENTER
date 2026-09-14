@@ -41,8 +41,9 @@ void main() {
 
     await pumpApp(tester, container);
 
-    // Splash -> Welcome (no session).
-    expect(find.text('Create a business account'), findsOneWidget);
+    // Splash -> Welcome (no session). The redesigned Google-only welcome
+    // screen shows the "Welcome Back" headline with the Google CTA.
+    expect(find.text('Welcome Back'), findsOneWidget);
     expect(fake.firebaseLoginCalls, 0);
 
     // Simulate successful Firebase Google Sign-In via repository.

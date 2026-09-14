@@ -1,25 +1,25 @@
-﻿"""Phase 7 â€” Media object-storage service (S3-backed, signed-upload flow).
+﻿"""Phase 7 — Media object-storage service (S3-backed, signed-upload flow).
 
 Architecture (credentials NEVER leave the backend, and never reach Flutter):
 
-    Flutter â”€â”€(1) POST /media/upload-url (JWT)â”€â”€â–¶ Backend
-    Backend â”€â”€(2) authorize + validate + mint key
-    Backend â”€â”€(3) signed upload policy (content-type + size conditions)â”€â”€â–¶ client
-    Flutter â”€â”€(4) multipart POST of the file directly to S3
-    Flutter â”€â”€(5) POST /media/confirm â”€â”€â–¶ Backend HEADs the object and,
+    Flutter ──(1) POST /media/upload-url (JWT)──▶ Backend
+    Backend ──(2) authorize + validate + mint key
+    Backend ──(3) signed upload policy (content-type + size conditions)──▶ client
+    Flutter ──(4) multipart POST of the file directly to S3
+    Flutter ──(5) POST /media/confirm ──▶ Backend HEADs the object and,
                   on success, returns a short-lived read URL
 
 Guarantees:
-    * upload      â€” signed POST policies bound to exactly one server-minted key
-    * validation  â€” extension/content-type allow-lists per category
-    * size caps   â€” enforced by S3 policy conditions AND re-checked at confirm
-    * content-typeâ€” enforced by S3 policy AND re-checked at confirm (HEAD)
-    * key strategyâ€” {prefix}/{scope}/{YYYY}/{MM}/{uuid8}_{safe-name}.{ext}
-    * image rules â€” jpeg/png/webp only, 5 MB cap; documents: pdf, 15 MB cap
-    * deletion    â€” owner/manager/admin only, scoped to the key's owner
-    * URL         â€” private ACL: short-lived presigned GET after authorization
-    * failures    â€” backend outages surface as typed 503 STORAGE_UNAVAILABLE
-    * PostgreSQL  â€” never stores binary media; only object keys/metadata
+    * upload      — signed POST policies bound to exactly one server-minted key
+    * validation  — extension/content-type allow-lists per category
+    * size caps   — enforced by S3 policy conditions AND re-checked at confirm
+    * content-type— enforced by S3 policy AND re-checked at confirm (HEAD)
+    * key strategy— {prefix}/{scope}/{YYYY}/{MM}/{uuid8}_{safe-name}.{ext}
+    * image rules — jpeg/png/webp only, 5 MB cap; documents: pdf, 15 MB cap
+    * deletion    — owner/manager/admin only, scoped to the key's owner
+    * URL         — private ACL: short-lived presigned GET after authorization
+    * failures    — backend outages surface as typed 503 STORAGE_UNAVAILABLE
+    * PostgreSQL  — never stores binary media; only object keys/metadata
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ from app.services import shopkeeper_service
 logger = get_logger("app.services.media")
 
 
-# â”€â”€ Category registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Category registry ────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
@@ -100,7 +100,7 @@ class ParsedKey:
 def parse_object_key(key: str) -> ParsedKey:
     """Validate an untrusted object key against the server-minted shape.
 
-    Rejects traversal (``..``), foreign prefixes, and malformed segments â€”
+    Rejects traversal (``..``), foreign prefixes, and malformed segments —
     callers can trust ``scope_value`` enough to run authorization on it.
     """
     if not key or ".." in key or not _KEY_RE.match(key):
@@ -114,13 +114,13 @@ def _extensions(category: MediaCategory) -> tuple[str, ...]:
     return tuple(ext for ct in category.content_types for ext in MEDIA_TYPES.get(ct, ()))
 
 
-# â”€â”€ Authorization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Authorization ────────────────────────────────────────────────────────────
 
 
 def _authorize_scope(db: Session, user: User, category: MediaCategory, scope_value: int) -> None:
     """Enforce access control for a shop- or user-scoped object."""
     if category.scope == "shop":
-        # resolve_shop_access: active owner/manager or admin â€” 403/404 otherwise.
+        # resolve_shop_access: active owner/manager or admin — 403/404 otherwise.
         shopkeeper_service.resolve_shop_access(db, user, scope_value)
         return
     # user-scoped (documents): owner or admin only.
@@ -178,10 +178,10 @@ def _declared_extension(filename: str, category: MediaCategory) -> str:
 
 
 def _provider() -> Any:
-    """Storage provider singleton â€” construction failures become typed 503s."""
+    """Storage provider singleton — construction failures become typed 503s."""
     try:
         return get_storage()
-    except Exception as exc:  # noqa: BLE001 â€” config/provider construction
+    except Exception as exc:  # noqa: BLE001 — config/provider construction
         raise StorageUnavailableError(f"Storage provider unavailable: {exc}") from exc
 
 
@@ -198,12 +198,12 @@ def _provider_for_media() -> Any:
         or not hasattr(type(provider), "create_signed_upload")
     ):
         raise StorageUnavailableError(
-            "This storage provider does not support signed uploads â€” configure STORAGE_PROVIDER=s3"
+            "This storage provider does not support signed uploads — configure STORAGE_PROVIDER=s3"
         )
     return provider
 
 
-# â”€â”€ Upload flows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Upload flows ─────────────────────────────────────────────────────────────
 
 
 async def create_upload_intent(
@@ -219,12 +219,12 @@ async def create_upload_intent(
     """Authorize + validate an upload request, then mint a signed upload grant.
 
     The grant is a presigned POST policy whose conditions pin the exact key,
-    the exact content type, and the category size cap â€” S3 itself rejects
+    the exact content type, and the category size cap — S3 itself rejects
     anything else, even with a valid signature.
     """
     category = _category_or_error(category_name)
 
-    # Authorization FIRST â€” nothing else leaks before access is proven.
+    # Authorization FIRST — nothing else leaks before access is proven.
     scope_value = _resolve_scope(db, user, category, shop_id)
 
     safe_name = str(filename or "").strip()
@@ -274,7 +274,7 @@ async def direct_upload(
 ) -> dict[str, Any]:
     """Backend-streamed upload (local-disk provider / development only).
 
-    Full in-process validation: extension, magic-byte truth, size cap â€” then
+    Full in-process validation: extension, magic-byte truth, size cap — then
     stored under the same key strategy as the signed flow. Production clients
     must use the signed-URL flow instead.
     """
@@ -295,7 +295,7 @@ async def direct_upload(
     provider = _provider_for_media()
     if getattr(provider, "upload_dir", None) is None:
         raise ValidationError(
-            "Direct upload is only available in local development â€” use the signed upload URL",
+            "Direct upload is only available in local development — use the signed upload URL",
             data={"reason_code": "SIGNED_UPLOAD_REQUIRED"},
         )
 
@@ -321,11 +321,11 @@ def _is_s3(provider: Any) -> bool:
     return getattr(provider, "client", None) is not None and getattr(provider, "upload_dir", None) is None
 
 
-# â”€â”€ Confirm / read / delete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Confirm / read / delete ──────────────────────────────────────────────────
 
 
 async def confirm_upload(db: Session, user: User, key: str) -> dict[str, Any]:
-    """Verify a signed upload actually landed â€” then return a read URL.
+    """Verify a signed upload actually landed — then return a read URL.
 
     Re-checks content-type and size AT the object store so the policy
     conditions are the first line of defense and the backend the second.
@@ -337,7 +337,7 @@ async def confirm_upload(db: Session, user: User, key: str) -> dict[str, Any]:
     head = await provider.get_object_head(key)
     if head is None:
         raise NotFoundError(
-            "Upload not found â€” the object was never uploaded, already deleted, or the signed URL expired"
+            "Upload not found — the object was never uploaded, already deleted, or the signed URL expired"
         )
     stored_type = str(head.get("content_type") or "").split(";")[0].strip()
     if stored_type and stored_type not in parsed.category.content_types:
@@ -361,7 +361,7 @@ async def confirm_upload(db: Session, user: User, key: str) -> dict[str, Any]:
 
 
 async def get_media_url(db: Session, user: User, key: str) -> dict[str, Any]:
-    """Authorized read access â€” short-lived presigned GET for private objects."""
+    """Authorized read access — short-lived presigned GET for private objects."""
     parsed = parse_object_key(key)
     _authorize_read(db, user, parsed.category, parsed.scope_value)
     url = await _provider_for_media().get_file_url(key)
@@ -422,7 +422,7 @@ async def attach_media(
 
 
 async def delete_media(db: Session, user: User, key: str) -> dict[str, Any]:
-    """Owner/manager/admin deletion â€” authorization before any mutation."""
+    """Owner/manager/admin deletion — authorization before any mutation."""
     parsed = parse_object_key(key)
     _authorize_scope(db, user, parsed.category, parsed.scope_value)
 

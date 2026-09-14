@@ -16,7 +16,7 @@ import re
 import uuid
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
 from app.core.exceptions import (
     AppError,
@@ -115,8 +115,11 @@ def resolve_shop_access(db: Session, user: User, shop_id: int) -> ShopAccess:
       - active managers of the shop (manager catalog ∩ granted subset)
     Everyone else — including plain customers — gets ``ForbiddenError``.
     """
+    # Defer the PostGIS geometry column — SQLite dev has no AsBinary(), so
+    # loading it crashes. The location is irrelevant to access resolution.
     shop = (
         db.query(Shop)
+        .options(defer(Shop.location))
         .filter(Shop.id == shop_id, Shop.is_deleted == False)  # noqa: E712
         .first()
     )
@@ -183,7 +186,10 @@ def list_authorized_shops(db: Session, user: User) -> list[dict[str, Any]]:
         .all()
     )
     for row in owner_rows:
-        shop = db.query(Shop).filter(Shop.id == row.shop_id).first()
+        # Defer PostGIS geometry (AsBinary unavailable on SQLite dev).
+        shop = db.query(Shop).options(defer(Shop.location)).filter(
+            Shop.id == row.shop_id
+        ).first()
         if shop is None or getattr(shop, "is_deleted", False):
             continue
         entries[row.shop_id] = _shop_summary(
@@ -205,7 +211,10 @@ def list_authorized_shops(db: Session, user: User) -> list[dict[str, Any]]:
     for row in manager_rows:
         if row.shop_id in entries:
             continue
-        shop = db.query(Shop).filter(Shop.id == row.shop_id).first()
+        # Defer PostGIS geometry (AsBinary unavailable on SQLite dev).
+        shop = db.query(Shop).options(defer(Shop.location)).filter(
+            Shop.id == row.shop_id
+        ).first()
         if shop is None or getattr(shop, "is_deleted", False):
             continue
         perms = effective_shop_permissions(
@@ -298,7 +307,11 @@ def register_shop_for_shopkeeper(db: Session, user: User, data: dict) -> Shop:
         legacy = MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY.get(normalized)
         if legacy is not None:
             merchant_category_code = normalized
-            payload["category"] = legacy.value
+            # The map values are plain strings ("PHARMACY", "HARDWARE", …).
+            # ShopCategory is a `str`-mixin enum, so the raw string IS a valid
+            # category everywhere downstream (SQLAlchemy coerces it). Calling
+            # `.value` on the string crashed with AttributeError → 500.
+            payload["category"] = legacy
         else:
             valid = {c.name for c in ShopCategory}
             if normalized and normalized not in valid:
@@ -784,6 +797,19 @@ def _attach_master_image(db: Session, master: ProductMaster, image_ref: str) -> 
     db.flush()
 
 
+def _variant_label(sp: ShopProduct) -> str | None:
+    """Best-effort variant name for a shop product (falls back to SKU)."""
+    variant = getattr(sp, "variant", None)
+    if variant is not None:
+        name = getattr(variant, "name", None)
+        if name:
+            return name
+        sku = getattr(variant, "sku", None)
+        if sku:
+            return sku
+    return sp.sku
+
+
 def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
     qty = int(inv.quantity) if inv is not None else 0
     threshold = (
@@ -794,13 +820,24 @@ def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
         if inv is not None and getattr(inv, "stock_status", None) is not None
         else _derive_stock_status(qty, threshold)
     )
+    master = getattr(sp, "product_master", None)
+    brand = getattr(master, "brand", None) if master is not None else None
+    category = getattr(master, "category", None) if master is not None else None
+    freshness = (
+        getattr(inv, "freshness_status", None)
+        if inv is not None
+        else getattr(sp, "freshness_status", None)
+    )
     return {
         "id": sp.id,
         "shop_id": sp.shop_id,
         "name": _display_name(sp),
         "sku": sp.sku,
+        "variant": _variant_label(sp),
+        "brand": getattr(brand, "name", None) if brand is not None else None,
+        "category": getattr(category, "name", None) if category is not None else None,
         "status": getattr(sp.status, "value", str(sp.status)),
-        "image_url": _primary_image_url(getattr(sp, "product_master", None)),
+        "image_url": _primary_image_url(master),
         "price": float(sp.price or 0),
         "mrp": float(sp.mrp) if sp.mrp is not None else None,
         "is_active": sp.is_active,
@@ -809,6 +846,7 @@ def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
         "quantity": qty,
         "low_stock_threshold": threshold,
         "stock_status": status,
+        "freshness_status": freshness.value if freshness is not None and hasattr(freshness, "value") else (str(freshness) if freshness is not None else None),
         "last_inventory_update": _iso(sp.last_inventory_update),
         "last_price_update": _iso(sp.last_price_update),
         "created_at": _iso(getattr(sp, "created_at", None)),

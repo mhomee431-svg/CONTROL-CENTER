@@ -1,4 +1,4 @@
-"""Phase 26 â€” Admin Platform business logic.
+"""Phase 26 — Admin Platform business logic.
 
 Every critical operation funnels through :func:`record_audit_log` and
 :func:`record_admin_action`, so the platform governance trail is complete.
@@ -51,7 +51,7 @@ from app.models.analytics import ProductClick, ProductView, ShopView
 logger = logging.getLogger("app.services.admin_service")
 
 
-# â”€â”€ Serialization helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Serialization helpers ────────────────────────────────────────────────
 def _json_safe(value: Any) -> Any:
     """Convert a value into a JSON-serializable representation."""
     if value is None or isinstance(value, (bool, int, float, str)):
@@ -80,7 +80,7 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# â”€â”€ Governance: audit trail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Governance: audit trail ──────────────────────────────────────────────
 def record_audit_log(
     db: Session,
     *,
@@ -146,7 +146,7 @@ def record_admin_action(
     return record
 
 
-# â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Dashboard ────────────────────────────────────────────────────────────
 def dashboard_metrics(db: Session) -> dict:
     """Aggregate platform-wide metrics for the admin dashboard."""
     now = _utcnow()
@@ -260,7 +260,7 @@ def dashboard_metrics(db: Session) -> dict:
     }
 
 
-# â”€â”€ Customers / Shopkeepers / Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Customers / Shopkeepers / Users ──────────────────────────────────────
 def list_users(
     db: Session,
     *,
@@ -357,7 +357,7 @@ def update_user_status(
     )
     return serialize_model(target)
 
-# â”€â”€ Shop management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Shop management ──────────────────────────────────────────────────────
 def list_shops_admin(
     db: Session,
     *,
@@ -393,7 +393,7 @@ def get_shop_admin(db: Session, shop_id: int) -> dict:
     return serialize_model(shop)
 
 
-#: Allowed lifecycle transitions per decision â€” business rules table.
+#: Allowed lifecycle transitions per decision — business rules table.
 _SHOP_TRANSITIONS = {
     "VERIFY": {
         ShopStatus.REGISTERED, ShopStatus.DOCUMENTS_SUBMITTED,
@@ -522,7 +522,7 @@ def bulk_shop_action(
     """Apply a lifecycle decision to many shops; per-shop results returned.
 
     Shops whose current status forbids the transition are reported as
-    ``skipped`` â€” the batch never aborts, and no partial state is committed
+    ``skipped`` — the batch never aborts, and no partial state is committed
     for skipped shops.
     """
     if action not in _SHOP_TRANSITIONS:
@@ -542,7 +542,7 @@ def bulk_shop_action(
     return results
 
 
-# â”€â”€ Product management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Product management ───────────────────────────────────────────────────
 _PRODUCT_TRANSITIONS = {
     "APPROVE": {ProductStatus.PENDING_REVIEW, ProductStatus.REJECTED},
     "REJECT": {ProductStatus.PENDING_REVIEW},
@@ -819,7 +819,7 @@ def review_shop_product(
     )
     return serialize_model(sp)
 
-# â”€â”€ Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Categories ───────────────────────────────────────────────────────────
 def list_categories_admin(db: Session, *, include_inactive: bool = False) -> list[dict]:
     query = db.query(Category).filter(Category.is_deleted == False)  # noqa: E712
     if not include_inactive:
@@ -901,7 +901,7 @@ def delete_category(db: Session, *, admin_user: User, category_id: int) -> dict:
 
 
 
-# â”€â”€ Brands â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Brands ───────────────────────────────────────────────────────────────
 def list_brands_admin(db: Session, *, include_inactive: bool = False) -> list[dict]:
     query = db.query(Brand).filter(Brand.is_deleted == False)  # noqa: E712
     if not include_inactive:
@@ -981,7 +981,7 @@ def delete_brand(db: Session, *, admin_user: User, brand_id: int) -> dict:
     return {"id": brand_id, "deleted": True}
 
 
-# â”€â”€ Product identifiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Product identifiers ──────────────────────────────────────────────────
 def list_product_identifiers(
     db: Session, *, product_master_id: int | None = None, limit: int = 100, offset: int = 0
 ) -> tuple[list[dict], int]:
@@ -993,7 +993,7 @@ def list_product_identifiers(
     rows = query.order_by(ProductIdentifier.id).offset(offset).limit(limit).all()
     return [serialize_model(r) for r in rows], total
 
-# â”€â”€ Inventory monitoring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Inventory monitoring ─────────────────────────────────────────────────
 def stale_inventory(
     db: Session,
     *,
@@ -1051,7 +1051,7 @@ def stale_inventory(
 
 
 def missing_prices(db: Session, *, limit: int = 50, offset: int = 0) -> tuple[list[dict], int]:
-    """Active listings with a NULL or zero price â€” never customer-visible."""
+    """Active listings with a NULL or zero price — never customer-visible."""
     rows = (
         db.query(ShopProduct, ProductMaster, Shop)
         .join(ProductMaster, ProductMaster.id == ShopProduct.product_master_id)
@@ -1183,7 +1183,7 @@ def inventory_monitoring_summary(db: Session, *, threshold_hours: int = 48) -> d
     }
 
 
-# â”€â”€ Offers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Offers ───────────────────────────────────────────────────────────────
 def list_offers_admin(
     db: Session,
     *,
@@ -1253,7 +1253,7 @@ def update_offer_status(
     )
     return serialize_model(offer)
 
-# â”€â”€ Subscriptions & Payments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Subscriptions & Payments ─────────────────────────────────────────────
 def list_subscriptions_admin(
     db: Session,
     *,
@@ -1343,7 +1343,7 @@ def list_payments_admin(
     rows = query.order_by(Payment.id.desc()).offset(offset).limit(limit).all()
     return [serialize_model(p) for p in rows], total
 
-# â”€â”€ Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Reports ──────────────────────────────────────────────────────────────
 def _report_payload(db: Session, report_type: str, date_from, date_to) -> dict:
     """Compute the data payload for each report type."""
     now = _utcnow()
@@ -1513,7 +1513,7 @@ def list_reports(db: Session, *, report_type: str | None = None, limit: int = 50
     rows = query.order_by(Report.id.desc()).offset(offset).limit(limit).all()
     return [serialize_model(r) for r in rows], total
 
-# â”€â”€ Analytics module â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Analytics module ─────────────────────────────────────────────────────
 def analytics_summary(db: Session, *, days: int = 30) -> dict:
     """Platform analytics: search trends, views, clicks, popular queries."""
     since = _utcnow() - timedelta(days=days)
@@ -1548,7 +1548,7 @@ def analytics_summary(db: Session, *, days: int = 30) -> dict:
         "top_queries": [{"query": q, "count": int(c)} for q, c in top_queries],
     }
 
-# â”€â”€ Complaints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Complaints ───────────────────────────────────────────────────────────
 def list_complaints(
     db: Session,
     *,
@@ -1643,7 +1643,7 @@ def update_complaint(
     )
     return serialize_model(complaint)
 
-# â”€â”€ Notifications (admin broadcast) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Notifications (admin broadcast) ──────────────────────────────────────
 def send_admin_notification(
     db: Session,
     *,
@@ -1665,7 +1665,7 @@ def send_admin_notification(
     elif target_role is not None:
         role = db.query(Role).filter(Role.name == target_role).first()
         users = db.query(User).filter(User.role_id == role.id).all() if role else []
-    else:  # ADMIN_BROADCAST â€” every active non-deleted user
+    else:  # ADMIN_BROADCAST — every active non-deleted user
         users = (
             db.query(User)
             .filter(User.is_active == True, User.is_deleted == False)  # noqa: E712
@@ -1690,7 +1690,7 @@ def send_admin_notification(
     return {"title": title, "recipient_count": len(created), "recipient_ids": created}
 
 
-# â”€â”€ System settings & feature flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── System settings & feature flags ─────────────────────────────────────
 def list_system_settings(db: Session) -> list[dict]:
     """All settings; secret values are masked."""
     rows = db.query(SystemSetting).order_by(SystemSetting.key).all()
@@ -1774,7 +1774,7 @@ def delete_system_setting(db: Session, *, admin_user: User, key: str) -> dict:
 
 
 
-# â”€â”€ Feature flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Feature flags ────────────────────────────────────────────────────────
 def list_feature_flags(db: Session) -> list[dict]:
     rows = db.query(FeatureFlag).order_by(FeatureFlag.name).all()
     return [serialize_model(f) for f in rows]
@@ -1863,7 +1863,7 @@ def delete_feature_flag(db: Session, *, admin_user: User, name: str) -> dict:
 
 
 
-# â”€â”€ Audit logs / Admin actions listing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Audit logs / Admin actions listing ───────────────────────────────────
 def list_audit_logs(
     db: Session,
     *,
@@ -1919,7 +1919,7 @@ def list_admin_actions(
 
 
 
-# â”€â”€ Admin notes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Admin notes ──────────────────────────────────────────────────────────
 def create_admin_note(
     db: Session,
     *,

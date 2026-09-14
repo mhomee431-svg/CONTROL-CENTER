@@ -49,14 +49,27 @@ class EnvConfig {
     };
   }
 
-  /// Backend base URL — scheme + host only. An explicit override always wins;
-  /// otherwise the environment's default is used.
+  /// Backend base URL — scheme + host only. Resolution order:
+  ///   1. Development runtime auto-discovery result (DevBackendDiscovery)
+  ///   2. Explicit `--dart-define=SHOPKEEPER_API_BASE_URL=…` override
+  ///   3. The environment's default
   static String get apiBaseUrl {
-    final url = _explicitApiBaseUrl.isNotEmpty
-        ? _explicitApiBaseUrl
-        : defaultBaseUrlFor(environment);
+    final runtime = runtimeApiBaseUrlOverride;
+    final url = runtime?.isNotEmpty == true
+        ? runtime!
+        : _explicitApiBaseUrl.isNotEmpty
+            ? _explicitApiBaseUrl
+            : defaultBaseUrlFor(environment);
     return normalizeBaseUrl(url);
   }
+
+  /// The build-time explicit override (`--dart-define`), exposed for the
+  /// development auto-discovery logic to know when it must NOT run.
+  static String get explicitApiBaseUrl => _explicitApiBaseUrl;
+
+  /// Set at startup by [DevBackendDiscovery.discover] in development builds.
+  /// Ignored in production (discovery never runs there).
+  static String? runtimeApiBaseUrlOverride;
 
   /// Whether this is a production build.
   static bool get isProduction => environment == AppEnv.production;

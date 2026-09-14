@@ -268,19 +268,52 @@ def _patch_shopkeeper_firebase_verify() -> None:
     Permanent module-level patch: test_phase28 reuses phase21's
     ``_build_world`` (which in turn relies on this patch) in the same pytest
     process, so the verifier must stay patched for the whole session.
+
+    Covers BOTH verifiers the routes use today:
+      - ``verify_firebase_id_token``        → returns the phone (customer auth
+        routes + the Bearer dependency's Firebase probe)
+      - ``verify_firebase_id_token_claims`` → returns the full claim dict
+        (shopkeeper ``/auth/firebase-login``, Phase 19 minimal-data boundary)
     """
     import app.api.routes.auth as _customer_auth
     import app.api.routes.shopkeeper_auth as _sk_auth
+    import app.core.dependencies as _deps
     from app.services.firebase_verification import FirebaseVerificationError
 
-    def _verify(token: str) -> str:
+    def _phone_for(token: str) -> str:
         for phone, tok in _FIREBASE_TOKENS.items():
             if token == tok:
                 return phone
         raise FirebaseVerificationError("Invalid token")
 
+    def _verify(token: str) -> str:
+        return _phone_for(token)
+
+    def _verify_claims(token: str) -> dict:
+        phone = _phone_for(token)
+        return {
+            "uid": "phase20-firebase-" + phone.replace("+", ""),
+            "phone": phone,
+            "email": "",
+            "name": "",
+            "picture": "",
+            "provider": "phone",
+            "claims": {},
+        }
+
+    def _verify_tuple(token: str) -> tuple[str, str]:
+        """``app.core.dependencies`` unpacks (firebase_uid, phone)."""
+        phone = _phone_for(token)
+        return ("phase20-firebase-" + phone.replace("+", ""), phone)
+
     _sk_auth.verify_firebase_id_token = _verify
+    _sk_auth.verify_firebase_id_token_claims = _verify_claims
     _customer_auth.verify_firebase_id_token = _verify
+    # Bearer-token requests resolve through ``get_current_user``, which probes
+    # the real Firebase Admin first; without credentials that probe raises
+    # RuntimeError (not FirebaseVerificationError) and 500s every request.
+    # Patch it so app-issued JWTs fall through to the legacy JWT validator.
+    _deps.verify_firebase_id_token = _verify_tuple
 
 CATEGORIES = [
     ("Grocery & Staples", "grocery-staples"),

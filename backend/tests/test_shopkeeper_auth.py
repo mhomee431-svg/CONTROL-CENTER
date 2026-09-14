@@ -396,18 +396,34 @@ class TestFirebaseLogin:
 
     @pytest.fixture(autouse=True)
     def _mock_firebase(self, monkeypatch):
-        """Mock Firebase token verification for all tests in this class."""
+        """Mock Firebase token verification for all tests in this class.
+
+        The ``/auth/firebase-login`` route calls ``verify_firebase_id_token_claims``
+        (NOT ``verify_firebase_id_token``) and expects a claim dict — patch the
+        real symbol with a fake that maps test tokens back to phone numbers.
+        """
         from app.api.routes import shopkeeper_auth
 
-        def _verify(token):
-            # Map test tokens to phone numbers
-            mapping = {
-                "valid-token-000000000000000000000000000000": "+919000000001",
-                "existing-token-000000000000000000000000000": "+919999999999",
-            }
-            return mapping.get(token, "+919000000099")
+        _PHONE_MAP = {
+            "valid-token-000000000000000000000000000000": "+919000000001",
+            "existing-token-000000000000000000000000000": "+919999999999",
+        }
 
-        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token", _verify)
+        def _verify_claims(token):
+            phone = _PHONE_MAP.get(token, "+919000000099")
+            return {
+                "uid": "test-firebase-uid-" + phone.replace("+", ""),
+                "phone": phone,
+                "email": "",
+                "name": "",
+                "picture": "",
+                "provider": "phone",
+                "claims": {},
+            }
+
+        monkeypatch.setattr(
+            shopkeeper_auth, "verify_firebase_id_token_claims", _verify_claims
+        )
 
     def test_firebase_login_auto_registers_new_user(self, client, db, shopkeeper_role):
         """New phone → auto-register and return tokens + is_new_account=true."""
@@ -473,7 +489,9 @@ class TestFirebaseLogin:
         def _raise(token):
             raise FirebaseVerificationError("Invalid token")
 
-        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token", _raise)
+        monkeypatch.setattr(
+            shopkeeper_auth, "verify_firebase_id_token_claims", _raise
+        )
 
         response = client.post(
             "/api/v1/shopkeeper/auth/firebase-login",
@@ -488,11 +506,20 @@ class TestFirebaseLogin:
         """Suspended account → 403."""
         from app.api.routes import shopkeeper_auth
 
-        # Map token to the suspended user's phone number
+        # Map token to the suspended user's phone number (as a claim dict —
+        # the route reads claims["phone"]).
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
-            lambda t: "+918888888888",
+            "verify_firebase_id_token_claims",
+            lambda t: {
+                "uid": "test-firebase-uid-918888888888",
+                "phone": "+918888888888",
+                "email": "",
+                "name": "",
+                "picture": "",
+                "provider": "phone",
+                "claims": {},
+            },
         )
 
         response = client.post(

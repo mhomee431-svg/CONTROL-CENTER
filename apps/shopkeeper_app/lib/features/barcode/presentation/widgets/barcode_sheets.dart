@@ -1,0 +1,360 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/network/api_client.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../data/barcode_repository.dart';
+import '../../domain/barcode_models.dart';
+import '../controllers/barcode_controller.dart';
+
+/// Bottom sheet shown after a successful barcode resolution.
+///
+/// Single shopkeeper-facing contract: confirm the catalog product, pick a
+/// variant (optional), enter price / MRP / quantity → save to inventory.
+/// Validation is client-side (mirrors the backend BarcodeSaveRequest rules)
+/// and double-submit safe.
+class BarcodeConfirmSheet extends ConsumerStatefulWidget {
+  const BarcodeConfirmSheet({
+    super.key,
+    required this.resolution,
+    required this.selectedMatch,
+    required this.onSaved,
+  });
+
+  /// Full resolution result (used for MULTIPLE_MATCHES disambiguation).
+  final BarcodeResolution resolution;
+
+  /// The match the user is confirming (first match for FOUND, chosen one
+  /// for MULTIPLE_MATCHES).
+  final CatalogProductMatch selectedMatch;
+
+  /// Called after a successful save — the screen pops and refreshes
+  /// the inventory list.
+  final VoidCallback onSaved;
+
+  @override
+  ConsumerState<BarcodeConfirmSheet> createState() =>
+      _BarcodeConfirmSheetState();
+}
+
+class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _price = TextEditingController();
+  final _mrp = TextEditingController();
+  final _quantity = TextEditingController(text: '0');
+  ProductVariant? _variant;
+  bool _publish = true;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _price.dispose();
+    _mrp.dispose();
+    _quantity.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return; // double-submit guard
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+
+    final price = double.tryParse(_price.text.trim()) ?? 0;
+    final mrp = double.tryParse(_mrp.text.trim());
+    if (mrp != null && mrp < price) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('MRP cannot be lower than the selling price'),
+      ));
+      return;
+    }
+
+    try {
+      final created = await ref
+          .read(barcodeControllerProvider.notifier)
+          .saveFromScan(BarcodeSavePayload(
+            barcode: widget.resolution.barcode,
+            productMasterId: widget.selectedMatch.productMasterId,
+            variantId: _variant?.id,
+            price: price,
+            mrp: mrp,
+            quantity: int.tryParse(_quantity.text.trim()) ?? 0,
+            publish: _publish,
+          ));
+      if (!mounted) return;
+      if (created != null) {
+        widget.onSaved();
+        return;
+      }
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the product')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the product')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final match = widget.selectedMatch;
+    final isAvailableInCatalog = match.isAvailableInCatalog;
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Expanded(
+                child: Text(
+                  match.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ]),
+            Text(
+              'Barcode ${widget.resolution.barcode}'
+              '${widget.resolution.barcodeType != null ? ' · ${widget.resolution.barcodeType}' : ''}',
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+            ),
+            const SizedBox(height: 4),
+            Row(children: [
+              Icon(
+                isAvailableInCatalog
+                    ? Icons.check_circle_outline
+                    : Icons.block_outlined,
+                size: 16,
+                color: isAvailableInCatalog
+                    ? AppTheme.verifiedGreen
+                    : theme.colorScheme.error,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isAvailableInCatalog
+                    ? 'Available in catalog'
+                    : 'Currently unavailable in catalog',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isAvailableInCatalog
+                      ? AppTheme.verifiedGreen
+                      : theme.colorScheme.error,
+                ),
+              ),
+            ]),
+            if (!isAvailableInCatalog) ...[
+              const SizedBox(height: 12),
+              Text(
+                'This product is not currently published in the shared catalog. '
+                'You cannot list it right now.',
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+              ),
+            ],
+            if (match.variants.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<ProductVariant>(
+                initialValue: _variant,
+                decoration:
+                    const InputDecoration(labelText: 'Variant (optional)'),
+                items: [
+                  for (final v in match.variants)
+                    DropdownMenuItem(value: v, child: Text(v.name)),
+                ],
+                onChanged: (v) => setState(() => _variant = v),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _price,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'Selling price *', prefixText: '₹ '),
+                  validator: (v) {
+                    final value = double.tryParse((v ?? '').trim());
+                    if (value == null) return 'Required';
+                    if (value < 0) return 'Cannot be negative';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _mrp,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                      labelText: 'MRP (optional)', prefixText: '₹ '),
+                  validator: (v) {
+                    final value = double.tryParse((v ?? '').trim());
+                    if (value != null && value < 0) return 'Cannot be negative';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _quantity,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'Quantity'),
+                  validator: (v) {
+                    final value = int.tryParse((v ?? '').trim());
+                    if (value == null || value < 0) return '≥ 0';
+                    return null;
+                  },
+                ),
+              ),
+            ]),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Publish immediately'),
+              subtitle: const Text('Unpublished products stay as drafts'),
+              value: _publish,
+              onChanged: (v) => setState(() => _publish = v),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: (!isAvailableInCatalog || _saving) ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.add),
+              label: const Text('Add to inventory'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Manual barcode entry — used when the camera fails, the code is damaged,
+/// or the resolution result is NOT_FOUND (retyped to correct an OCR error).
+class BarcodeManualEntrySheet extends ConsumerStatefulWidget {
+  const BarcodeManualEntrySheet({super.key});
+
+  @override
+  ConsumerState<BarcodeManualEntrySheet> createState() =>
+      _BarcodeManualEntrySheetState();
+}
+
+class _BarcodeManualEntrySheetState
+    extends ConsumerState<BarcodeManualEntrySheet> {
+  final _controller = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _resolving = false;
+
+  // Same barcode families the camera accepts (mirrors backend validation).
+  static final _barcodePattern = RegExp(r'^\d{8}(\d{4}(\d{2})?)?$');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_resolving) return;
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _resolving = true);
+    Navigator.pop(context); // dismiss the sheet; the screen shows progress
+    await ref
+        .read(barcodeControllerProvider.notifier)
+        .resolve(_controller.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Enter barcode',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'EAN-8, UPC-A, EAN-13 or GTIN-14 — digits only.',
+              style: TextStyle(
+                  fontSize: 12, color: Theme.of(context).colorScheme.outline),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 14,
+              decoration: const InputDecoration(
+                labelText: 'Barcode',
+                hintText: 'e.g. 8901234567890',
+                counterText: '',
+              ),
+              validator: (v) {
+                final value = (v ?? '').trim();
+                if (value.isEmpty) return 'Barcode is required';
+                if (!_barcodePattern.hasMatch(value)) {
+                  return 'Enter 8, 12, 13 or 14 digits';
+                }
+                return null;
+              },
+              onFieldSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _resolving ? null : _submit,
+              icon: _resolving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.search),
+              label: const Text('Look up'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

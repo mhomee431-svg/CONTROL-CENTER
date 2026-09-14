@@ -68,6 +68,10 @@ class ProductsController extends Notifier<ProductsState> {
     }
   }
 
+  /// Clears ALL cached inventory data (called on logout) so the previous
+  /// account's products never survive into the next session.
+  void reset() => state = ProductsState.loading();
+
   Future<bool> setAvailability(int productId, bool available) async {
     final updated = await _patch(productId, {'is_available': available});
     return updated != null;

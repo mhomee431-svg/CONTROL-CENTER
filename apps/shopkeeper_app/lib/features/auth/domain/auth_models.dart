@@ -8,6 +8,7 @@ class ShopkeeperUser {
     this.role,
     this.businessId,
     this.avatarUrl,
+    this.status,
   });
 
   final int id;
@@ -18,6 +19,11 @@ class ShopkeeperUser {
   final String? businessId;
   final String? avatarUrl;
 
+  /// Backend lifecycle status (ACTIVE / INACTIVE / SUSPENDED / BANNED).
+  /// Surfaced at startup so restricted accounts land on the account-status
+  /// screen instead of the normal app (Phase 23).
+  final String? status;
+
   factory ShopkeeperUser.fromJson(Map<String, dynamic> json) =>
       ShopkeeperUser(
         id: (json['id'] as num?)?.toInt() ?? 0,
@@ -27,6 +33,7 @@ class ShopkeeperUser {
         role: json['role'] as String?,
         businessId: json['business_id'] as String?,
         avatarUrl: json['avatar_url'] as String?,
+        status: json['status'] as String?,
       );
 
   String get displayName => (name != null && name!.trim().isNotEmpty)

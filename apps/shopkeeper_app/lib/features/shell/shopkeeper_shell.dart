@@ -12,6 +12,7 @@ class ShopkeeperShell extends StatelessWidget {
   static const _items = [
     (icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard, label: 'Dashboard'),
     (icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Products'),
+    (icon: Icons.notifications_outlined, activeIcon: Icons.notifications, label: 'Alerts'),
     (icon: Icons.person_outline, activeIcon: Icons.person, label: 'Account'),
   ];
 

@@ -60,4 +60,8 @@ class DashboardController extends Notifier<DashboardState> {
           message: 'Could not load the dashboard.');
     }
   }
+
+  /// Clears ALL cached dashboard data (called on logout) so the previous
+  /// account's operational numbers never survive into the next session.
+  void reset() => state = DashboardState.loading();
 }

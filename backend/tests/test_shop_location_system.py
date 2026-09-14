@@ -65,6 +65,15 @@ class MockQuery:
         matches = [o for o in self._db.added if isinstance(o, self._model)]
         return matches[0] if matches else None
 
+    def scalar(self):
+        """Support `db.query(sa_exists().where(...)).scalar()` — the slug
+        uniqueness check in ``shop_service.register_shop``. Returns the queued
+        value when configured, otherwise None (slug treated as free)."""
+        queue = self._db.first_queues.get(self._model)
+        if queue:
+            return queue.pop(0)
+        return None
+
     def all(self):
         return list(self._db.all_results.get(self._model, []))
 

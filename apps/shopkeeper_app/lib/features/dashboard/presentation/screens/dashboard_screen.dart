@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/dashboard_models.dart';
 import '../controllers/dashboard_controller.dart';
@@ -39,6 +40,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final state = ref.watch(dashboardControllerProvider);
     final shop = ref.watch(selectedShopProvider);
+    final user = ref.watch(authControllerProvider).user;
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -79,7 +81,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           DashboardStatus.ready => RefreshIndicator(
               onRefresh: () =>
                   ref.read(dashboardControllerProvider.notifier).load(),
-              child: _DashboardBody(data: state.data!),
+              child: _DashboardBody(
+                data: state.data!,
+                user: user,
+                shop: shop,
+              ),
             ),
         },
       ),
@@ -88,9 +94,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.data});
+  const _DashboardBody({required this.data, this.user, this.shop});
 
   final DashboardData data;
+
+  /// Authenticated shopkeeper (for the personalised greeting).
+  final dynamic user;
+
+  /// Currently selected shop (name/category/pending verification).
+  final dynamic shop;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +117,8 @@ class _DashboardBody extends StatelessWidget {
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Shopkeeper Home header — greeting + shop summary + quick actions.
+          _HomeHeader(user: user, shop: shop),
           if (!data.isVerified)
             _VerificationBanner(verification: data.verification),
           GridView.count(
@@ -134,6 +148,9 @@ class _DashboardBody extends StatelessWidget {
                 label: 'Offers',
                 value: '${data.offers.active} active',
                 subText: '${data.offers.draft} draft · ${data.offers.total} total',
+                // Offers live on the product listings — deep-link there
+                // where the create-offer sheet is reachable.
+                onTap: () => context.push('/products'),
               ),
             ],
           ),
@@ -196,6 +213,194 @@ class _DashboardBody extends StatelessWidget {
     });
   }
 }
+/// Shopkeeper Home header — shown above the operational dashboard: a
+/// personalised time-aware greeting, the shop summary (name, category,
+/// profile status) and quick actions. Every value comes from the
+/// authenticated session / selected shop — the backend dashboard cards
+/// below remain the source of truth for product & inventory numbers
+/// (never faked here).
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({this.user, this.shop});
+
+  final dynamic user;
+  final dynamic shop;
+
+  /// Shopkeeper's first name for the greeting (falls back to a generic
+  /// "Shopkeeper" when the Google profile has no name yet).
+  String get _firstName {
+    final name = (user?.displayName as String?)?.trim() ?? '';
+    return name.isEmpty ? 'Shopkeeper' : name.split(' ').first;
+  }
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  /// Human-readable label for an approved merchant-category code.
+  /// Unknown codes fall back to the raw code — never a guessed label.
+  static String _categoryLabel(String? code) {
+    return switch (code) {
+      'PHARMACY_HEALTHCARE' => 'Pharmacy & Healthcare',
+      'BEAUTY_PERSONAL_CARE' => 'Beauty & Personal Care',
+      'FURNITURE_HOME_CARE' => 'Furniture & Home Care',
+      'HOUSEHOLD_GOODS' => 'Household Goods',
+      'SPORTS_FITNESS_OUTDOOR' => 'Sports, Fitness & Outdoor',
+      'BOOKS_MEDIA_STATIONERY' => 'Books, Media & Stationery',
+      'AUTOMOTIVE_PARTS_TOOLS' => 'Automotive Parts & Tools',
+      'HARDWARE' => 'Hardware',
+      'RESTAURANTS' => 'Restaurants',
+      'TRANSPORT' => 'Transport',
+      'PERSONAL_TRANSPORT_TRAVEL' => 'Personal Transport / Personal Travel',
+      _ => code ?? 'Not set',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$_greeting, $_firstName',
+            style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700, color: scheme.primary)),
+        const SizedBox(height: 4),
+        Text('Welcome back to your business dashboard.',
+            style: TextStyle(fontSize: 13, color: scheme.outline)),
+        const SizedBox(height: 16),
+        // ── Shop summary (authenticated session data — never faked) ──
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _infoRow(context, Icons.storefront, 'Shop', shop?.name),
+                _infoRow(context, Icons.category_outlined, 'Category',
+                    _categoryLabel(shop?.category as String?)),
+                _infoRow(context, Icons.badge_outlined, 'Profile Status',
+                    'Profile Created'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text('Quick Actions',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        // Quick actions are navigation targets; the linked screens own the
+        // real backend data — nothing is fabricated on this home.
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            _QuickAction(
+                icon: Icons.add_box_outlined,
+                label: 'Add Product',
+                color: scheme.primary,
+                onTap: () => context.push('/products')),
+            _QuickAction(
+                icon: Icons.inventory_2_outlined,
+                label: 'Inventory',
+                color: AppTheme.verifiedGreen,
+                onTap: () => context.push('/products')),
+            _QuickAction(
+                icon: Icons.currency_rupee,
+                label: 'Pricing',
+                color: AppTheme.pendingAmber,
+                onTap: () => context.push('/products')),
+            _QuickAction(
+                icon: Icons.storefront_outlined,
+                label: 'Shop Profile',
+                color: scheme.secondary,
+                onTap: () => context.push('/shop-profile')),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _infoRow(
+      BuildContext context, IconData icon, String label, String? value) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: scheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('$label: ${value ?? 'Not set'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Touch-friendly quick-action tile (icon tile with label + ripple).
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: label,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 140,
+          height: 88,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 24, color: color),
+                const SizedBox(height: 6),
+                Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _VerificationBanner extends StatelessWidget {
   const _VerificationBanner({required this.verification});
@@ -235,6 +440,7 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.subText,
+    this.onTap,
   });
 
   final IconData icon;
@@ -242,10 +448,14 @@ class _StatCard extends StatelessWidget {
   final String value;
   final String subText;
 
+  /// Optional tap target (e.g. Offers → Products management). When null the
+  /// card stays purely informational.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
+    final card = Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -283,6 +493,8 @@ class _StatCard extends StatelessWidget {
         ),
       ),
     );
+    if (onTap == null) return card;
+    return InkWell(onTap: onTap, child: card);
   }
 }
 

@@ -6,9 +6,13 @@ from pydantic import BaseModel, Field
 
 
 class ReverseGeocodeRequest(BaseModel):
-    """Convert lat/lng to structured address."""
-    latitude: float = Field(..., ge=-90, le=90, description="Latitude (WGS84)")
-    longitude: float = Field(..., ge=-180, le=180, description="Longitude (WGS84)")
+    """Convert lat/lng to structured address.
+
+    Coordinate range is validated manually in the handler (returns 400
+    INVALID_COORDINATES), so no Pydantic ge/le constraints here.
+    """
+    latitude: float = Field(..., description="Latitude (WGS84)")
+    longitude: float = Field(..., description="Longitude (WGS84)")
 
 
 class AddressComponent(BaseModel):
@@ -32,9 +36,13 @@ class ReverseGeocodeResponse(BaseModel):
 
 
 class NearbyShopsRequest(BaseModel):
-    """Find shops within a radius."""
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    """Find shops within a radius.
+
+    Coordinate range is validated manually in the handler (returns 400
+    INVALID_COORDINATES), so no Pydantic ge/le constraints here.
+    """
+    latitude: float = Field(..., description="Latitude (WGS84)")
+    longitude: float = Field(..., description="Longitude (WGS84)")
     radius_meters: float = Field(5000.0, gt=0, le=25000, description="Search radius in meters")
     limit: int = Field(50, ge=1, le=100)
 
@@ -62,11 +70,15 @@ class NearbyShopsResponse(BaseModel):
 
 
 class RouteEtaRequest(BaseModel):
-    """Route and ETA between origin and destination."""
-    origin_latitude: float = Field(..., ge=-90, le=90)
-    origin_longitude: float = Field(..., ge=-180, le=180)
-    dest_latitude: float = Field(..., ge=-90, le=90)
-    dest_longitude: float = Field(..., ge=-180, le=180)
+    """Route and ETA between origin and destination.
+
+    Coordinate range is validated manually in the handler (returns 400
+    INVALID_COORDINATES), so no Pydantic ge/le constraints here.
+    """
+    origin_latitude: float = Field(..., description="Origin latitude (WGS84)")
+    origin_longitude: float = Field(..., description="Origin longitude (WGS84)")
+    dest_latitude: float = Field(..., description="Destination latitude (WGS84)")
+    dest_longitude: float = Field(..., description="Destination longitude (WGS84)")
     mode: str = Field("driving", pattern="^(driving|walking|bicycling|transit)$")
 
 

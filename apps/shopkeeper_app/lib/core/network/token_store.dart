@@ -172,5 +172,5 @@ class InMemoryTokenStore implements TokenStore {
   }
 }
 
-/// Default binding â€” override in tests with ProviderScope overrides.
+/// Default binding — override in tests with ProviderScope overrides.
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());

@@ -16,7 +16,7 @@ class AccountScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Log out?'),
         content:
-            const Text('You will need to verify your phone number again.'),
+            const Text('You will need to sign in with your Google account again.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
