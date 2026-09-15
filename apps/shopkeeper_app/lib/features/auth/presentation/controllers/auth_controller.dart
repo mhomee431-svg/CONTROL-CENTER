@@ -27,6 +27,11 @@ enum AuthStatus {
   sessionExpired,
   error,
 
+  /// Startup session check could not complete (offline / backend 5xx).
+  /// The router HOLDS the splash with a Retry — never Home, never Welcome —
+  /// because the account state is still UNKNOWN, not signed-out.
+  sessionError,
+
   /// Backend reports the account INACTIVE / SUSPENDED / BANNED — routed to
   /// the account-status screen instead of the normal app (Phase 23).
   accountRestricted,
@@ -91,6 +96,14 @@ class AuthState {
     status: AuthStatus.error,
     errorMessage: message,
     errorCode: errorCode,
+  );
+
+  /// Startup check could not determine the session state (offline / backend
+  /// 5xx). Deliberately NOT signed-out: the splash holds with a Retry so a
+  /// stored valid session is never lost and no Welcome-flicker happens.
+  factory AuthState.sessionError(String message) => AuthState(
+    status: AuthStatus.sessionError,
+    errorMessage: message,
   );
 }
 
@@ -260,14 +273,35 @@ class AuthController extends Notifier<AuthState> {
         );
         return false;
       }
-      // Expired/invalid stored token (already wiped by the repository) or a
-      // transient backend failure → normal signed-out landing.
+      // A 5xx (or a response-less network error) is TRANSIENT — the user may
+      // have a perfectly valid stored session. Hold the splash with a Retry
+      // instead of flicking to Welcome (which reads as "signed out").
+      if ((e.statusCode ?? 500) >= 500) {
+        state = AuthState.sessionError(
+          e.message.isNotEmpty ? e.message : 'Could not reach Hyperlocal servers.',
+        );
+        return false;
+      }
+      // Expired/invalid stored token (already wiped by the repository) →
+      // normal signed-out landing.
       state = AuthState.unauthenticated();
       return false;
     } catch (_) {
-      state = AuthState.unauthenticated();
+      // Offline / transient non-HTTP failure — NOT signed-out. Hold the
+      // splash with a retry so the stored session (if any) is never lost
+      // and no Welcome-flicker happens.
+      state = AuthState.sessionError(
+        'Could not complete startup. Check your connection and retry.',
+      );
       return false;
     }
+  }
+
+  /// Splash escape hatch ("Sign in instead"): abandons a failed startup
+  /// check WITHOUT wiping tokens — the stored session (if any) stays intact
+  /// for the next successful startup check.
+  void skipStartupRetry() {
+    state = AuthState.unauthenticated();
   }
 
   /// Maps a backend account lifecycle status to the account-status screen

@@ -73,7 +73,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ];
       final isSplash = loc == Routes.splash;
 
-      if (auth.status == AuthStatus.initial || auth.isLoading) {
+      // ── Startup / splash hold ─────────────────────────────────────────
+      // Flutter + Firebase are initialized (main), but the SESSION state is
+      // not yet known (or a startup check failed and is being retried).
+      // Home must NEVER render before the account state is known — hold the
+      // splash instead of flickering to Welcome and back.
+      if (auth.status == AuthStatus.initial ||
+          auth.isLoading ||
+          auth.status == AuthStatus.sessionError) {
         if (authRoutes.contains(loc)) return null;
         return isSplash ? null : Routes.splash;
       }

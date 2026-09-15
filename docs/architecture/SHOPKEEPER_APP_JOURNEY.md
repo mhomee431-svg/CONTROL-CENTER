@@ -1,4 +1,4 @@
-# SHOPKEEPER APP — THE COMPLETE JOURNEY (verified against code)
+﻿# SHOPKEEPER APP — THE COMPLETE JOURNEY (verified against code)
 
 > Scope: `apps/shopkeeper_app` (Flutter, Riverpod + go_router, clean architecture).
 > Companion to `docs/architecture/SHOPKEEPER_APP_FLOW_AUDIT.md` (structure audit)
@@ -58,15 +58,18 @@ Every branch above is enforced in ONE place — the `redirect` closure of
 
 | Guard | Condition | Destination |
 |---|---|---|
-| 1 | `status == initial \|\| isLoading` | `/splash` (auth routes exempt) |
+| 1 | `initial \|\| isLoading \|\| sessionError` | `/splash` (auth routes exempt; `sessionError` shows Retry) |
 | 2 | `unauthenticated \| sessionExpired \| error` | `/welcome` |
 | 3 | `accountRestricted` | `/account-status` (only reachable screen) |
+| 3b | SHOPKEEPER gate: `isShopkeeper == false` | `/account-status` ("Shopkeeper access required") |
 | 4 | `!profileComplete` (no shop yet) | `/profile-create` |
 | 5 | shop exists, target in `needsShop` | `/shops` (or `/dashboard` when no shop) |
 
 The router is created exactly ONCE; auth changes call `router.refresh()` (never
 `ref.watch`), which is what stops the login/register bounce. Verified by
 `test/register_navigation_test.dart`.
+
+**Startup hold (route-flicker prevention).** Flutter + Firebase initialize in `main`; the router then holds `/splash` while the session is UNKNOWN (`initial` / `loading`) — Home never renders before the account state is known. The startup chain (`AuthController.checkSession`): stored backend session (`/auth/me`) → device Firebase auth state → fresh ID token → backend exchange (`/firebase-login`) → routed by the guard chain above. A TRANSIENT failure (offline / backend 5xx) is **NOT** signed-out: it enters `sessionError`, the splash holds with a **Retry** button (plus a "Sign in instead" escape hatch that does not wipe tokens), so there is no Welcome-flicker and a stored session is never lost. A definitive 401 still lands on Welcome. Verified by `test/startup_guard_test.dart`.
 
 ---
 
