@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -62,7 +63,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (shop != null)
             IconButton(
                 tooltip: 'Shop settings',
-                onPressed: () => context.push('/shop-settings'),
+                onPressed: () => context.push(Routes.shopSettings),
                 icon: const Icon(Icons.tune)),
         ],
       ),
@@ -164,7 +165,7 @@ class _DashboardBody extends StatelessWidget {
                 subText: '${data.offers.draft} draft · ${data.offers.total} total',
                 // Offers live on the product listings — deep-link there
                 // where the create-offer sheet is reachable.
-                onTap: () => context.push('/products'),
+                onTap: () => context.push(Routes.products),
               ),
             ],
           ),
@@ -328,33 +329,33 @@ class _HomeHeader extends StatelessWidget {
                 icon: Icons.inventory_2_outlined,
                 label: 'Inventory',
                 color: AppTheme.verifiedGreen,
-                onTap: () => context.push('/products')),
+                onTap: () => context.push(Routes.products)),
             _QuickAction(
                 icon: Icons.local_offer_outlined,
                 label: 'Pricing & Offers',
                 color: AppTheme.pendingAmber,
                 // Pricing & Offers owns discounts / promo pricing (the
                 // create-offer sheet is also reachable from Products).
-                onTap: () => context.push('/offers')),
+                onTap: () => context.push(Routes.offers)),
             _QuickAction(
                 icon: Icons.insights_outlined,
                 label: 'Reports & Insights',
                 color: scheme.tertiary,
                 // Reports / Insights is backed by the shop analytics
                 // endpoints — real customer activity, never local guesses.
-                onTap: () => context.push('/insights')),
+                onTap: () => context.push(Routes.insights)),
             _QuickAction(
                 icon: Icons.storefront_outlined,
                 label: 'Shop Profile',
                 color: scheme.secondary,
-                onTap: () => context.push('/shop-profile')),
+                onTap: () => context.push(Routes.shopProfile)),
             _QuickAction(
                 icon: Icons.apps,
                 label: 'All Features',
                 color: scheme.primary,
                 // The complete feature map (dashboard, imports/POS, support,
                 // settings, …) in one hub.
-                onTap: () => context.push('/features')),
+                onTap: () => context.push(Routes.features)),
           ],
         ),
         const SizedBox(height: 24),
@@ -470,7 +471,7 @@ class _PriorityCard extends StatelessWidget {
               '${data.products.lowStock} low '
               '${data.products.outOfStock > 0 ? '· ${data.products.outOfStock} out of stock' : ''}'
               '$flaggedLabel',
-          route: '/products',
+          route: Routes.products,
         ),
       if (alert != null && alert.hasFailedImport)
         _PriorityRow(
@@ -480,7 +481,7 @@ class _PriorityCard extends StatelessWidget {
           subtitle:
               '${alert.failedImportName} — ${alert.failedImportRows} row(s) '
               'could not be applied',
-          route: '/inventory-import',
+          route: Routes.inventoryImport,
         ),
       if (alert != null && alert.staleCount > 0)
         _PriorityRow(
@@ -489,7 +490,7 @@ class _PriorityCard extends StatelessWidget {
           title: 'Inventory stale',
           subtitle:
               '${alert.staleCount} product(s) not updated in a while',
-          route: '/products',
+          route: Routes.products,
         ),
       if (alert != null && alert.unreadNotifications > 0)
         _PriorityRow(
@@ -497,7 +498,7 @@ class _PriorityCard extends StatelessWidget {
           color: scheme.primary,
           title: 'Important notification',
           subtitle: '${alert.unreadNotifications} unread notification(s)',
-          route: '/notifications',
+          route: Routes.notifications,
         ),
       if (!data.isVerified)
         _PriorityRow(
@@ -505,7 +506,7 @@ class _PriorityCard extends StatelessWidget {
           color: scheme.primary,
           title: 'Profile setup issue',
           subtitle: 'Complete shop verification to publish to customers',
-          route: '/shop-settings',
+          route: Routes.shopSettings,
         ),
     ];
     if (rows.isEmpty) return const SizedBox.shrink();
@@ -799,13 +800,13 @@ class _NoShopView extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 FilledButton.icon(
-                  onPressed: () => context.push('/shop-register'),
+                  onPressed: () => context.push(Routes.shopRegister),
                   icon: const Icon(Icons.add_box_outlined),
                   label: const Text('Set up your first shop'),
                 ),
                 const SizedBox(height: 12),
                 TextButton.icon(
-                  onPressed: () => context.push('/account'),
+                  onPressed: () => context.push(Routes.account),
                   icon: const Icon(Icons.person_outline),
                   label: const Text('Complete your profile'),
                 ),
@@ -843,7 +844,7 @@ class _AccessDeniedView extends StatelessWidget {
                     color: Theme.of(context).colorScheme.outline)),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () => context.push('/shops'),
+              onPressed: () => context.push(Routes.shops),
               icon: const Icon(Icons.swap_horiz),
               label: const Text('Switch shop'),
             ),

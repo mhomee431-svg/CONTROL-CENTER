@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../controllers/shop_registration_controller.dart';
 import '../../data/document_picker_service.dart';
 import '../../domain/shop_registration_state.dart';
@@ -237,7 +238,7 @@ class _WelcomeStep extends StatelessWidget {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => context.go('/login'),
+            onPressed: () => context.go(Routes.login),
             child: const Text(
               'Already have an account? Login',
               style: TextStyle(fontSize: 14),
@@ -1210,12 +1211,15 @@ class _SuccessStep extends StatelessWidget {
         PrimaryButton(
           label: 'Go to Dashboard',
           icon: Icons.dashboard_outlined,
-          onPressed: () => context.go('/dashboard'),
+          onPressed: () => context.go(Routes.dashboard),
         ),
         const SizedBox(height: 12),
         Center(
           child: TextButton(
-            onPressed: () => context.go('/'),
+            // `'/'` is not a registered route (go_router has no home at the
+            // root), so this button used to do nothing at all. Send the
+            // shopkeeper to the real Home route instead.
+            onPressed: () => context.go(Routes.dashboard),
             child: const Text('Back to Home'),
           ),
         ),
@@ -1263,3 +1267,4 @@ class _TimelineItem extends StatelessWidget {
     );
   }
 }
+

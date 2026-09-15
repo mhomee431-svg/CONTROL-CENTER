@@ -89,3 +89,153 @@ class InsightsController extends Notifier<InsightsState> {
   /// customer metrics never survive into the next session.
   void reset() => state = InsightsState.loading();
 }
+
+/// Load states for one KPI drill-down.
+enum DrillDownStatus { loading, ready, error }
+
+class DrillDownState {
+  const DrillDownState({
+    required this.status,
+    required this.metric,
+    this.rangeDays = kInsightsDefaultRange,
+    this.series = const <InsightsPoint>[],
+    this.hourly = const <HourlyPoint>[],
+    this.topProducts = const <TopProduct>[],
+    this.message,
+  });
+
+  final DrillDownStatus status;
+  final DrillDownMetric metric;
+
+  /// Trailing window (days) the current data was computed for.
+  final int rangeDays;
+
+  /// Daily series (views OR clicks — whichever [metric] selects).
+  final List<InsightsPoint> series;
+
+  /// Hour-of-day distribution — views drill-down only.
+  final List<HourlyPoint> hourly;
+
+  /// Ranked products — clicks drill-down only (up to 50 rows).
+  final List<TopProduct> topProducts;
+
+  /// Error copy when [status] is [DrillDownStatus.error].
+  final String? message;
+
+  factory DrillDownState.loading(DrillDownMetric metric,
+          {int rangeDays = kInsightsDefaultRange}) =>
+      DrillDownState(
+        status: DrillDownStatus.loading,
+        metric: metric,
+        rangeDays: rangeDays,
+      );
+
+  /// Busiest hour with real traffic, or null when there is nothing yet.
+  HourlyPoint? get peakHour {
+    HourlyPoint? peak;
+    for (final point in hourly) {
+      if (point.views <= 0) continue;
+      if (peak == null || point.views > peak.views) peak = point;
+    }
+    return peak;
+  }
+
+  /// Total across the daily series (drives the headline number).
+  int get total =>
+      series.fold(0, (sum, point) => sum + point.value);
+}
+
+/// Per-metric drill-down state, held in ONE map owned by ONE controller.
+///
+/// (The project's Riverpod version has no family notifiers — and a single
+/// map keeps the SSOT story simple: every drill-down's state lives here, the
+/// screens only render slices.)
+final insightsDrillDownsProvider =
+    NotifierProvider<InsightsDrillDownsController, Map<DrillDownMetric,
+        DrillDownState>>(InsightsDrillDownsController.new);
+
+class InsightsDrillDownsController
+    extends Notifier<Map<DrillDownMetric, DrillDownState>> {
+  @override
+  Map<DrillDownMetric, DrillDownState> build() => {
+        for (final metric in DrillDownMetric.values)
+          metric: DrillDownState.loading(metric),
+      };
+
+  InsightsRepository get _repo => ref.read(insightsRepositoryProvider);
+
+  /// Fetches [metric]'s granular data over [days] for the selected shop.
+  ///
+  /// Views also pull the hour-of-day distribution; clicks also pull the
+  /// extended top-products list (up to 50 rows — more than the combined
+  /// report shows).
+  Future<void> load(DrillDownMetric metric, {int? days}) async {
+    final previous = state[metric]!;
+    final rangeDays = days ?? previous.rangeDays;
+    final shop = ref.read(selectedShopProvider);
+    if (shop == null) {
+      _replace(metric, DrillDownState(
+        status: DrillDownStatus.error,
+        metric: metric,
+        rangeDays: rangeDays,
+        message: 'No shop selected',
+      ));
+      return;
+    }
+    _replace(metric, DrillDownState.loading(metric, rangeDays: rangeDays));
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (metric == DrillDownMetric.views) {
+        final series = await _repo.fetchViewsSeries(shop.id, token,
+            days: rangeDays);
+        // Hourly supports up to 90 trailing days on the backend.
+        final hourly = await _repo.fetchHourly(shop.id, token,
+            days: rangeDays > 90 ? 90 : rangeDays);
+        _replace(metric, DrillDownState(
+          status: DrillDownStatus.ready,
+          metric: metric,
+          rangeDays: rangeDays,
+          series: series,
+          hourly: hourly,
+        ));
+      } else {
+        final series = await _repo.fetchClicksSeries(shop.id, token,
+            days: rangeDays);
+        final topProducts = await _repo.fetchTopProducts(shop.id, token,
+            days: rangeDays, limit: kInsightsMaxTopProducts);
+        _replace(metric, DrillDownState(
+          status: DrillDownStatus.ready,
+          metric: metric,
+          rangeDays: rangeDays,
+          series: series,
+          topProducts: topProducts,
+        ));
+      }
+    } on ApiException catch (e) {
+      _replace(metric, DrillDownState(
+        status: DrillDownStatus.error,
+        metric: metric,
+        rangeDays: rangeDays,
+        message: e.isForbidden
+            ? 'You do not have access to this shop’s reports.'
+            : e.message,
+      ));
+    } catch (_) {
+      _replace(metric, DrillDownState(
+        status: DrillDownStatus.error,
+        metric: metric,
+        rangeDays: rangeDays,
+        message: 'Could not load the detail view. Please retry.',
+      ));
+    }
+  }
+
+  /// Switches [metric]'s window and reloads.
+  Future<void> setRange(DrillDownMetric metric, int days) =>
+      load(metric, days: days);
+
+  void _replace(DrillDownMetric metric, DrillDownState next) {
+    state = {...state, metric: next};
+  }
+}

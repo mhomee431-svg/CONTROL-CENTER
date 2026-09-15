@@ -5,6 +5,7 @@ import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
+import '../widgets/holidays_section.dart';
 
 /// Operational shop settings — order acceptance, delivery & pickup.
 class ShopSettingsScreen extends ConsumerStatefulWidget {
@@ -223,6 +224,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                           ),
                         ),
                       ]),
+                      const SizedBox(height: 24),
+                      HolidaysSection(canEdit: _canEdit),
                       const SizedBox(height: 24),
                       FilledButton.icon(
                         onPressed:

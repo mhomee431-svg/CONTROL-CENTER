@@ -17,10 +17,12 @@
 /// today. Adding Phone OTP later therefore means:
 ///
 ///   1. provide a real [PhoneOtpService] (see `FirebasePhoneOtpService`),
-///   2. enable [AuthMethod.phoneOtp] via `enabledAuthMethodsProvider`,
-///   3. nothing else — the screen (`PhoneOtpScreen`), the controller method
-///      (`AuthController.verifyPhoneOtp` / `loginWithPhoneOtp`) and the
-///      repository contract already exist and are already covered by tests.
+///   2. enable [AuthMethod.phoneOtp] via `kEnabledAuthMethods`,
+///   3. add a Phone-OTP entry point on the Welcome screen that watches
+///      `isAuthMethodEnabledProvider(AuthMethod.phoneOtp)`.
+///   The controller methods (`AuthController.loginWithPhoneOtp` /
+///   `verifyPhoneOtp`) and the repository contract already exist and are
+///   covered by tests — only the UI screen does not exist yet.
 ///
 /// Deliberately NOT in the MVP: SMS OTP, a custom OTP service, password
 /// authentication and a custom JWT login system.

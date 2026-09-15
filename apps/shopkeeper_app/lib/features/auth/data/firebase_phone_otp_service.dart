@@ -10,8 +10,17 @@ import 'auth_repository.dart' show kUseMockAuth;
 /// Real [PhoneOtpService] on top of **Firebase Phone Auth**.
 ///
 /// This is the "future apply" implementation: it is fully wired and compiled
-/// into the app today, but the OTP screen only becomes reachable when the
-/// build enables [AuthMethod.phoneOtp] (`enabledAuthMethodsProvider`).
+/// into the app today, but the OTP UI is **not yet reachable** from the login
+/// flow. The build keeps Phone OTP switched off (`kEnabledAuthMethods` contains
+/// only `AuthMethod.googleFirebase`), so the login screen never offers it.
+///
+/// The remaining pieces already exist and are tested: the repository contract
+/// (`PhoneOtpService` interface, `auth_repository.dart` `requestPhoneOtp` /
+/// `verifyPhoneOtp`), the controller methods (`AuthController.loginWithPhoneOtp`
+/// / `verifyPhoneOtp`) and the session models. Turning it on later is therefore
+/// a UI change (add a Phone-OTP entry on the Welcome screen that watches
+/// `isAuthMethodEnabledProvider(AuthMethod.phoneOtp)`) plus a one-line flip of
+/// `kEnabledAuthMethods` — no new models or contracts.
 ///
 /// Platform notes (Firebase Phone Auth behaviour, not app logic):
 ///   * Android / web: `signInWithPhoneNumber` returns a confirmation once the

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/router/route_names.dart';
 /// One destination of the Shopkeeper feature map.
 class ShopkeeperFeature {
   const ShopkeeperFeature({
@@ -35,77 +36,77 @@ const List<ShopkeeperFeature> kShopkeeperFeatures = <ShopkeeperFeature>[
     title: 'Dashboard',
     subtitle: 'Today\'s business overview',
     icon: Icons.dashboard_outlined,
-    route: '/dashboard',
+    route: Routes.dashboard,
   ),
   ShopkeeperFeature(
     id: 'products',
     title: 'Products',
     subtitle: 'Catalog, pricing & publishing',
     icon: Icons.inventory_2_outlined,
-    route: '/products',
+    route: Routes.products,
   ),
   ShopkeeperFeature(
     id: 'inventory',
     title: 'Inventory',
     subtitle: 'Stock levels & adjustments',
     icon: Icons.warehouse_outlined,
-    route: '/products',
+    route: Routes.products,
   ),
   ShopkeeperFeature(
     id: 'offers',
     title: 'Pricing & Offers',
     subtitle: 'Discounts & promotional pricing',
     icon: Icons.local_offer_outlined,
-    route: '/offers',
+    route: Routes.offers,
   ),
   ShopkeeperFeature(
     id: 'imports',
     title: 'Imports / POS',
     subtitle: 'Bulk Excel inventory import',
     icon: Icons.upload_file_outlined,
-    route: '/inventory-import',
+    route: Routes.inventoryImport,
   ),
   ShopkeeperFeature(
     id: 'pos',
     title: 'POS integration',
     subtitle: 'Connect & sync a point of sale',
     icon: Icons.point_of_sale_outlined,
-    route: '/pos',
+    route: Routes.pos,
   ),
   ShopkeeperFeature(
     id: 'insights',
     title: 'Reports / Insights',
     subtitle: 'Customer activity & trends',
     icon: Icons.insights_outlined,
-    route: '/insights',
+    route: Routes.insights,
   ),
   ShopkeeperFeature(
     id: 'shop-profile',
     title: 'Shop Profile',
     subtitle: 'Public shop details & verification',
     icon: Icons.storefront_outlined,
-    route: '/shop-profile',
+    route: Routes.shopProfile,
   ),
   ShopkeeperFeature(
     id: 'notifications',
     title: 'Notifications',
     subtitle: 'Alerts, approvals & updates',
     icon: Icons.notifications_outlined,
-    route: '/notifications',
+    route: Routes.notifications,
   ),
   ShopkeeperFeature(
     id: 'settings',
     title: 'Settings',
     subtitle: 'Shop & account preferences',
     icon: Icons.tune,
-    route: '/shop-settings',
+    route: Routes.shopSettings,
   ),
   ShopkeeperFeature(
     id: 'support',
     title: 'Support',
     subtitle: 'Help center & contact',
     icon: Icons.help_outline,
-    route: '/support',
+    route: Routes.support,
   ),
 ];
 

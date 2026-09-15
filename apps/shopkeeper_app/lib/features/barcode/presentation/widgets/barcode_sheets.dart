@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/barcode_repository.dart';
@@ -106,7 +107,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
               Navigator.of(context)
                 ..pop() // close the confirm sheet
                 ..pop(); // close the scanner screen
-              context.push('/products');
+              context.push(Routes.products);
             },
           ),
         ));

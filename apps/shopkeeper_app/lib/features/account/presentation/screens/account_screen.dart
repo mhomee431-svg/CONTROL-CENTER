@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../shops/presentation/widgets/verification_badge.dart';
@@ -57,14 +58,14 @@ class AccountScreen extends ConsumerWidget {
                   leading: const Icon(Icons.store_outlined),
                   title: const Text('Shop profile'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/shop-profile'),
+                  onTap: () => context.push(Routes.shopProfile),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.tune),
                   title: const Text('Shop settings'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/shop-settings'),
+                  onTap: () => context.push(Routes.shopSettings),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
@@ -75,28 +76,28 @@ class AccountScreen extends ConsumerWidget {
                       : const Text('Not established yet',
                           style: TextStyle(fontSize: 12)),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/shops'),
+                  onTap: () => context.push(Routes.shops),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.insights_outlined),
                   title: const Text('Reports & insights'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/insights'),
+                  onTap: () => context.push(Routes.insights),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.apps),
                   title: const Text('All features'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/features'),
+                  onTap: () => context.push(Routes.features),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.help_outline),
                   title: const Text('Help & support'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/support'),
+                  onTap: () => context.push(Routes.support),
                 ),
               ]),
             ),

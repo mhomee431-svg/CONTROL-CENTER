@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/insights_models.dart';
 import '../controllers/insights_controller.dart';
+import 'insights_drill_down_screen.dart';
 
 /// Reports / Insights — the shopkeeper's customer-activity read for the
 /// selected shop.
@@ -237,9 +238,22 @@ class _KpiRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = <Widget>[
-      _KpiCard(label: 'Views today', trend: overview.views),
-      _KpiCard(label: 'Clicks today', trend: overview.clicks),
-      _KpiCard(label: 'Interactions today', trend: overview.interactions),
+      _KpiCard(
+        key: const Key('kpi-views-card'),
+        label: 'Views today',
+        trend: overview.views,
+        drillDown: DrillDownMetric.views,
+      ),
+      _KpiCard(
+        key: const Key('kpi-clicks-card'),
+        label: 'Clicks today',
+        trend: overview.clicks,
+        drillDown: DrillDownMetric.clicks,
+      ),
+      _KpiCard(
+        label: 'Interactions today',
+        trend: overview.interactions,
+      ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -268,11 +282,20 @@ class _KpiRow extends StatelessWidget {
 }
 
 /// One KPI card: today's value with the backend-computed delta vs yesterday.
+/// Cards with a [drillDown] metric open the granular detail screen on tap.
 class _KpiCard extends StatelessWidget {
-  const _KpiCard({required this.label, required this.trend});
+  const _KpiCard({
+    super.key,
+    required this.label,
+    required this.trend,
+    this.drillDown,
+  });
 
   final String label;
   final TrendMetric trend;
+
+  /// When set, the card is tappable and opens the metric's drill-down.
+  final DrillDownMetric? drillDown;
 
   @override
   Widget build(BuildContext context) {
@@ -287,7 +310,7 @@ class _KpiCard extends StatelessWidget {
         : trend.isDeclining
         ? Icons.trending_down
         : Icons.trending_flat;
-    return Card(
+    final card = Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -329,6 +352,13 @@ class _KpiCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    if (drillDown == null) return card;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => openDrillDown(context, drillDown!),
+      child: card,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../controllers/auth_controller.dart';
 import '../../data/phone_utils.dart';
 
@@ -61,7 +62,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           duration: Duration(seconds: 4),
         ),
       );
-      context.go('/login');
+      context.go(Routes.login);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -203,7 +204,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () => context.go('/login'),
+                onPressed: () => context.go(Routes.login),
                 child: const Text('Already have an account? Sign in'),
               ),
             ],

@@ -9,6 +9,7 @@ class ShopkeeperUser {
     this.businessId,
     this.avatarUrl,
     this.status,
+    this.isShopkeeper,
   });
 
   final int id;
@@ -24,6 +25,20 @@ class ShopkeeperUser {
   /// screen instead of the normal app (Phase 23).
   final String? status;
 
+  /// ─ SHOPKEEPER ACCESS (tri-state — do not collapse to bool) ─────────────
+  ///
+  /// `true`  → backend confirmed SHOPKEEPER access (shop owner/manager).
+  /// `false` → backend confirmed this is a NON-shopkeeper account.
+  /// `null`  → UNKNOWN — the endpoint that produced this user never reported
+  ///           the flag.
+  ///
+  /// This MUST stay nullable. `POST /shopkeeper/auth/firebase-login` does not
+  /// include `is_shopkeeper` in its response (its `_build_login_response`
+  /// carries only `role`), while `GET /auth/me` does. Treating "absent" as
+  /// `false` would lock every valid shopkeeper out of the app the moment they
+  /// sign in, so `null` is resolved as PERMISSIVE everywhere.
+  final bool? isShopkeeper;
+
   factory ShopkeeperUser.fromJson(Map<String, dynamic> json) =>
       ShopkeeperUser(
         id: (json['id'] as num?)?.toInt() ?? 0,
@@ -34,6 +49,9 @@ class ShopkeeperUser {
         businessId: json['business_id'] as String?,
         avatarUrl: json['avatar_url'] as String?,
         status: json['status'] as String?,
+        // Tri-state: absent stays `null` (unknown → permissive), never false.
+        // Only an explicit backend `false` denies shopkeeper access.
+        isShopkeeper: json['is_shopkeeper'] as bool?,
       );
 
   String get displayName => (name != null && name!.trim().isNotEmpty)

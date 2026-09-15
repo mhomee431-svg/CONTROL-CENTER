@@ -16,12 +16,23 @@ class AccountStatusScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final auth = ref.watch(authControllerProvider);
-    final message = (auth.errorMessage?.isNotEmpty ?? false)
-        ? auth.errorMessage!
-        : 'Your account is not active. Please contact support.';
+    // SHOPKEEPER gate: a confirmed non-shopkeeper account gets dedicated
+    // copy instead of the "not active" suspension message.
+    final notShopkeeper = auth.isShopkeeper == false;
+    final message = notShopkeeper
+        ? 'This account is not registered as a shopkeeper. Sign in with the '
+            'account you used to set up your shop, or contact support to '
+            'upgrade this account.'
+        : (auth.errorMessage?.isNotEmpty ?? false)
+            ? auth.errorMessage!
+            : 'Your account is not active. Please contact support.';
     final lower = message.toLowerCase();
     final suspended = lower.contains('suspend') || lower.contains('bann');
-    final title = suspended ? 'Account Suspended' : 'Account Not Active';
+    final title = notShopkeeper
+        ? 'Shopkeeper access required'
+        : suspended
+            ? 'Account Suspended'
+            : 'Account Not Active';
 
     return Scaffold(
       body: SafeArea(

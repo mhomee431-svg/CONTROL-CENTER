@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_providers.dart';
@@ -140,7 +141,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
           .refreshAfterProfileCreate(shop.summary);
 
       if (!mounted) return;
-      context.go('/dashboard');
+      context.go(Routes.dashboard);
     } on ApiException catch (e) {
       // Surface the backend's EXACT validation/error message so the user (and
       // logs) see the real reason — not a generic "try again". Distinguish the

@@ -19,6 +19,8 @@ import 'package:hyperlocal_shopkeeper_app/features/pos/data/pos_repository.dart'
 import 'package:hyperlocal_shopkeeper_app/features/pos/domain/pos_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/shops/data/holiday_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/shops/domain/holiday_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/data/shop_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/domain/shop_models.dart';
 
@@ -84,6 +86,37 @@ AuthSession makeRestrictedSession({String status = 'SUSPENDED'}) => AuthSession(
   ),
   shops: [ownerShop(id: 99)],
 );
+
+/// A CONFIRMED non-shopkeeper account (e.g. a customer sign-in on the
+/// shopkeeper app) — the router's SHOPKEEPER gate must dead-end this at the
+/// account-status screen. Carries a shop on purpose: if the gate ever stops
+/// working, the test would otherwise fail for the wrong reason (profile).
+AuthSession makeNonShopkeeperSession() => AuthSession(
+  user: const ShopkeeperUser(
+    id: 4,
+    phoneNumber: '+919000000004',
+    name: 'Customer Account',
+    status: 'ACTIVE',
+    role: 'customer',
+    isShopkeeper: false,
+  ),
+  shops: [ownerShop(id: 77, name: 'Someone Elses Shop')],
+);
+
+/// Shopkeeper whose user payload EXPLICITLY confirms shopkeeper access
+/// (`is_shopkeeper: true` — as `GET /auth/me` returns).
+AuthSession makeConfirmedShopkeeperSession() => AuthSession(
+  user: const ShopkeeperUser(
+    id: 5,
+    phoneNumber: '+919000000005',
+    name: 'Confirmed Shopkeeper',
+    status: 'ACTIVE',
+    role: 'shopkeeper',
+    isShopkeeper: true,
+  ),
+  shops: [ownerShop()],
+);
+
 
 Map<String, dynamic> dashboardJson() => {
   'shop': {
@@ -920,17 +953,38 @@ Map<String, dynamic> insightsJson({bool empty = false}) => {
 };
 
 class FakeInsightsRepo implements InsightsRepository {
-  FakeInsightsRepo({this.json, this.error});
+  FakeInsightsRepo({
+    this.json,
+    this.error,
+    this.viewsSeries = const <InsightsPoint>[],
+    this.clicksSeries = const <InsightsPoint>[],
+    this.topProducts = const <TopProduct>[],
+    this.hourly = const <HourlyPoint>[],
+  });
 
   /// Raw payload returned on success (defaults to [insightsJson]).
   final Map<String, dynamic>? json;
 
-  /// When set, thrown instead of returning [json].
-  final Object? error;
+  /// When set, thrown instead of returning [json] (all endpoints). Mutable
+  /// so widget tests can clear a failure mid-test (Retry flows).
+  Object? error;
+
+  /// Granular drill-down payloads. Mutable for the same reason.
+  List<InsightsPoint> viewsSeries;
+  List<InsightsPoint> clicksSeries;
+  List<TopProduct> topProducts;
+  List<HourlyPoint> hourly;
 
   int calls = 0;
+  int viewsCalls = 0;
+  int clicksCalls = 0;
+  int topProductsCalls = 0;
+  int hourlyCalls = 0;
   int? lastShopId;
   int? lastDays;
+  int? lastTopProductsDays;
+  int? lastTopProductsLimit;
+  int? lastHourlyDays;
 
   @override
   Future<InsightsBundle> fetchInsights(
@@ -943,6 +997,60 @@ class FakeInsightsRepo implements InsightsRepository {
     lastDays = days;
     if (error != null) throw error!;
     return InsightsBundle.fromJson(json ?? insightsJson());
+  }
+
+  @override
+  Future<List<InsightsPoint>> fetchViewsSeries(
+    int shopId,
+    String token, {
+    int days = kInsightsDefaultRange,
+  }) async {
+    viewsCalls++;
+    lastShopId = shopId;
+    lastDays = days;
+    if (error != null) throw error!;
+    return viewsSeries;
+  }
+
+  @override
+  Future<List<InsightsPoint>> fetchClicksSeries(
+    int shopId,
+    String token, {
+    int days = kInsightsDefaultRange,
+  }) async {
+    clicksCalls++;
+    lastShopId = shopId;
+    lastDays = days;
+    if (error != null) throw error!;
+    return clicksSeries;
+  }
+
+  @override
+  Future<List<TopProduct>> fetchTopProducts(
+    int shopId,
+    String token, {
+    int days = kInsightsDefaultRange,
+    int limit = kInsightsMaxTopProducts,
+  }) async {
+    topProductsCalls++;
+    lastShopId = shopId;
+    lastTopProductsDays = days;
+    lastTopProductsLimit = limit;
+    if (error != null) throw error!;
+    return topProducts;
+  }
+
+  @override
+  Future<List<HourlyPoint>> fetchHourly(
+    int shopId,
+    String token, {
+    int days = kInsightsDefaultRange,
+  }) async {
+    hourlyCalls++;
+    lastShopId = shopId;
+    lastHourlyDays = days;
+    if (error != null) throw error!;
+    return hourly;
   }
 }
 
@@ -1143,3 +1251,72 @@ class FakePosRepo implements PosRepository {
     return jobs;
   }
 }
+
+// ---- Holidays -------------------------------------------------------------
+
+ShopHoliday holidayFixture({
+  int id = 1,
+  DateTime? date,
+  String? reason = 'Diwali',
+  bool recurring = false,
+}) =>
+    ShopHoliday(
+      id: id,
+      date: date ?? DateTime(2027, 3, 4),
+      reason: reason,
+      isRecurringYearly: recurring,
+    );
+
+/// In-memory [HolidayRepository] recording every call for assertions.
+class FakeHolidayRepository implements HolidayRepository {
+  FakeHolidayRepository({
+    List<ShopHoliday>? holidays,
+    this.listError,
+    this.addError,
+    this.removeError,
+  }) : holidays = List<ShopHoliday>.from(holidays ?? const <ShopHoliday>[]);
+
+  final List<ShopHoliday> holidays;
+
+  /// Mutable so widget tests can flip a failure off mid-test (Retry flows).
+  Object? listError;
+  Object? addError;
+  Object? removeError;
+
+  int listCalls = 0;
+  int addCalls = 0;
+  int removeCalls = 0;
+  final List<HolidayDraft> addedDrafts = [];
+  final List<int> removedIds = [];
+  int _nextId = 1000;
+
+  @override
+  Future<List<ShopHoliday>> list(int shopId, String token) async {
+    listCalls++;
+    if (listError != null) throw listError!;
+    final sorted = [...holidays]..sort((a, b) => a.date.compareTo(b.date));
+    return List.unmodifiable(sorted);
+  }
+
+  @override
+  Future<void> add(int shopId, HolidayDraft draft, String token) async {
+    addCalls++;
+    if (addError != null) throw addError!;
+    addedDrafts.add(draft);
+    holidays.add(ShopHoliday(
+      id: _nextId++,
+      date: draft.date,
+      reason: draft.reason,
+      isRecurringYearly: draft.recurringYearly,
+    ));
+  }
+
+  @override
+  Future<void> remove(int shopId, int holidayId, String token) async {
+    removeCalls++;
+    if (removeError != null) throw removeError!;
+    removedIds.add(holidayId);
+    holidays.removeWhere((h) => h.id == holidayId);
+  }
+}
+

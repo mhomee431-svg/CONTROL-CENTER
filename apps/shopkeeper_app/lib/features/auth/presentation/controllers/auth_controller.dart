@@ -55,6 +55,19 @@ class AuthState {
   /// screen; complete → dashboard.
   bool get profileComplete => shops.isNotEmpty;
 
+  /// SHOPKEEPER access gate — tri-state:
+  ///
+  ///  * `true`  → the backend confirmed this account is a shopkeeper.
+  ///  * `false` → the backend confirmed a NON-shopkeeper account (e.g. a
+  ///    customer signing in on the shopkeeper app) → the router gates them
+  ///    out of every shopkeeper screen.
+  ///  * `null`  → unknown: the login response omits the flag (only
+  ///    `GET /auth/me` returns it). Permissive by design — the session
+  ///    refresh that follows login is authoritative and the gate
+  ///    re-evaluates on the next redirect, so no valid shopkeeper is ever
+  ///    locked out by a missing flag.
+  bool? get isShopkeeper => user?.isShopkeeper;
+
   factory AuthState.initial() => const AuthState(status: AuthStatus.initial);
   factory AuthState.loading() => const AuthState(status: AuthStatus.loading);
   factory AuthState.authenticated({

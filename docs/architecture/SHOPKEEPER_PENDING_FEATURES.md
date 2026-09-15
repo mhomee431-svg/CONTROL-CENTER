@@ -88,7 +88,7 @@ So POS is a demo UI. Wiring it needs: `pos/domain/pos_models.dart`,
 `pos/data/pos_repository.dart`, `pos/presentation/controllers/pos_controller.dart`,
 plus ~8 POS constants in `ApiEndpoints`.
 
-###  A2 — Shop holidays (app has no concept of it)
+### ✅ DONE — Shop holidays (`A2`) — was "app has no concept of it"
 Backend `app/api/routes/shopkeeper_extra.py` (mounted at `main.py:243`) provides:
 
 ```
@@ -108,65 +108,53 @@ edit opening times but cannot mark a closed day.
 Measured by matching `ApiEndpoints.<name>` across all 109 `.dart` files
 (script: `scripts/audit_pending.ps1`).
 
-### B1 — 9 analytics drill-downs (backend has all 10; app calls 1)
-`backend/app/api/routes/shopkeeper_analytics.py` declares **10** endpoints
-(lines 24–176). The app calls only `analyticsFull`; the other **9 constants are
-declared in `api_endpoints.dart` and never called anywhere**:
+### ✅ DONE — Insights drill-downs (`B1`) — was "tapping a KPI does nothing"
+Status: **was intentional but incomplete.** The blocks in `api_endpoints.dart`
+explicitly said *"The granular endpoints stay available for future drill-down
+views"*.
 
-| Constant | Endpoint |
+**Now wired (this session):** tapping the *Views* / *Clicks* KPI cards on the
+Insights screen opens `/insights/drill-down/:metric` — a detail screen backed
+by 4 granular endpoints that unlock data the combined report cannot express:
+
+| Endpoint | Drill-down unlocks |
 |---|---|
-| `analyticsOverview` | `/shops/{id}/analytics/overview` |
-| `analyticsViews` | `/shops/{id}/analytics/views` |
-| `analyticsClicks` | `/shops/{id}/analytics/clicks` |
-| `analyticsTopProducts` | `/shops/{id}/analytics/top-products` |
-| `analyticsTopSearches` | `/shops/{id}/analytics/top-searches` |
-| `analyticsInteractions` | `/shops/{id}/analytics/interactions` |
-| `analyticsDevices` | `/shops/{id}/analytics/devices` |
-| `analyticsHourly` | `/shops/{id}/analytics/hourly` |
-| `analyticsFreshness` | `/shops/{id}/analytics/freshness` |
+| `analyticsViews` | daily series in the metric's own window |
+| `analyticsClicks` | daily series in the metric's own window |
+| `analyticsTopProducts` | **up to 50 ranked rows** (combined report ships 10) |
+| `analyticsHourly` | hour-of-day spread over **up to 90 days** (combined report caps 30) |
 
-Status: **intentional but incomplete.** The blocks in `api_endpoints.dart`
-(lines 45–47) explicitly say *"The granular endpoints stay available for future
-drill-down views"*. This is a **planned feature**: tapping a KPI on the Insights
-screen should open a drill-down. Today tapping does nothing.
+The remaining 5 granular endpoints (`overview`, `top-searches`, `interactions`,
+`devices`, `freshness`) stay intentionally uncalled: they return **subsets of
+`analytics/full` with no extra parameters**, so a call would add load without
+new data. They remain available for server-load isolation if a future screen
+needs one metric alone.
 
-### B2 — 3 constants dead because their call sites hardcode the URL
-| Constant | Declared URL | Reality |
-|---|---|---|
-| `ApiEndpoints.dashboard` | `…/shops/{id}/dashboard` | `dashboard_repository.dart:19` **hardcodes** the identical string |
-| `ApiEndpoints.inventory` | `…/shops/{id}/inventory` | `product_repository.dart:38` hardcodes it |
-| `ApiEndpoints.product` | `…/products/{pid}` | `product_repository.dart:67` hardcodes it |
+### ✅ DONE — `ApiEndpoints` hygiene (`B2`, `B2'`)
+Status: **completed (this session).** All 6 hardcoded URLs in
+`dashboard_repository.dart:19`, `product_repository.dart:38/58/67/78/89` now
+route through `ApiEndpoints` constants. The 2 previously-constant-less URLs
+(`products/{pid}/stock-adjustments`, `products/{pid}/history`) were added as
+`stockAdjustments` / `productHistory`.
 
-These are not missing features — they are **Duplication**: the same URL exists
-twice, so changing `ApiEndpoints` would silently not affect the call site.
-
-### B3 — 1 genuinely dead constant
-`ApiEndpoints.profileCreate` → `/api/v1/shopkeeper/auth/profile-create`
-(backend **does** implement it at `shopkeeper_auth.py:673`). The app instead uses
-`ApiEndpoints.profile` (`PUT /api/v1/profile`) + `ApiEndpoints.shops`
-(`create_profile_screen.dart:118,129`). Both paths are valid — but
-`profile-create` is left implemented on the backend and never used.
+`profileCreate` remains a genuinely dead constant (`B3`): the backend implements
+`POST /shopkeeper/auth/profile-create` at `shopkeeper_auth.py:673`, but the app
+deliberately uses `PUT /profile` + `POST /shops` via `create_profile_screen.dart`
+→ that dual-path is intentional (profile edit reuse), not a defect. The constant
+is retained for the backend route's discoverability; it is not called client-side.
 
 ---
 
-## B2'. ENDPOINTS USED BUT *NOT* DECLARED (hardcoded, bypassing `ApiEndpoints`)
+### ✅ DONE — Endpoints used but *not* declared (`B2'`)
+Status: **completed (this session).** `product_repository.dart:78/89` URLs
+(`products/{pid}/stock-adjustments`, `products/{pid}/history`) now have constants
+(``stockAdjustments` / `productHistory``); `product_repository.dart:38/58/67`
+and `dashboard_repository.dart:19` now call the existing `ApiEndpoints` members.
+No hardcoded `/api/v1/...` literals remain in features.
 
-A second, opposite defect. `product_repository.dart` hardcodes 5 URLs, **two of
-which have no `ApiEndpoints` constant at all**:
-
-| File:line | Hardcoded URL | Constant exists? |
-|---|---|---|
-| `product_repository.dart:38` | `…/shops/{id}/inventory` | yes (`inventory`) — unused |
-| `product_repository.dart:58` | `…/shops/{id}/products` POST | yes (`products`) — unused here |
-| `product_repository.dart:67` | `…/shops/{id}/products/{pid}` | yes (`product`) — unused |
-| `product_repository.dart:78` | `…/products/{pid}/stock-adjustments` | ❌ **NO CONSTANT** |
-| `product_repository.dart:89` | `…/products/{pid}/history` | ❌ **NO CONSTANT** |
-| `dashboard_repository.dart:19` | `…/shops/{id}/dashboard` | yes (`dashboard`) — unused |
-
-**⚠️ This contradicts a claim in the earlier structure audit.** That document
-said *"`ApiEndpoints` is the single source of truth for URLs — no URL literals
-leak into features."* **That was wrong for 6 call sites.** See §F for the
-correction that must be applied to that document.
+**⚠️ Correction to the earlier Structure Audit:** that document claimed
+"`ApiEndpoints` is the single source of truth for URLs — no URL literals leak into
+features." That was true *except* for these 6 call sites, which are now fixed.
 
 ---
 ## C. APP CODE WRITTEN BUT NEVER REACHABLE (10 files / 928 lines)
@@ -286,20 +274,37 @@ and `flutter test` = 128 passed.
 ### P1 — Backend ready, app needs a layer
 3. ~~**POS integration** (`A1`)~~ — **✅ DONE (this session)**: full POS layer
    (domain / data / controller / real screen) + 15 tests.
-4. **Shop holidays** (`A2`) — 3 endpoints, one screen section. *(next)*
+4. ~~**Shop holidays** (`A2`)~~ — **✅ DONE (this session)**: `ShopHoliday` +
+   `HolidayDraft` models, `HolidayRepository` (GET/POST/DELETE — POST as query
+   params per backend contract), `HolidaysController` (THE SSOT for holiday
+   state — add/remove always re-sync with the backend), `HolidaysSection`
+   widget inside Shop Settings (date picker → reason/recurring sheet, delete,
+   upcoming/past slices, read-only aware) + 11 tests.
 
-### P2 — Planned features to finish or drop
-5. **Location autofill + map picker** (`C`) — wire `map_picker_screen` +
-   `place_autocomplete_service` + `pincode_*` + `gstin_decoder` into the shop
-   registration location step. **Decide: wire it or delete it** — 644 lines.
-6. **Insights drill-downs** (`B1`) — add tap handlers on KPI cards using the 9
-   unused analytics constants. Backend already returns the data.
-7. **Delete the 2 dead screens** (`C`) — `profile_create_screen.dart`,
-   `excel_import_screen.dart`.
+### P2 — Planned features completed or dropped
+5. ~~**Location autofill + map picker** (`C`)~~ — **✅ DONE**: 7 orphan files
+   (644 lines: `map_picker_screen`, `place_autocomplete_service`,
+   `pincode_api_service`, `pincode_lookup`, `gstin_decoder`,
+   `directions_service`, `lookup_repository`) **deleted** — 0 references and 0
+   tests in the codebase. The reachable location core (`location_service`,
+   `geocoding_service`, `location_capture_*`) remains, and
+   `LocationCaptureScreen` already has a manual-entry fallback.
+6. ~~**Insights drill-downs** (`B1`)~~ — **✅ DONE (this session)**: KPI-card
+   taps → `/insights/drill-down/:metric`; `analyticsViews` / `analyticsClicks`
+   / `analyticsTopProducts` (limit 50) / `analyticsHourly` (90-day window)
+   wired + 10 tests. Remaining 5 granular endpoints stay uncalled by design
+   (subsets of `analytics/full`, no new data) — see B1 above.
+7. ~~**Delete the 2 dead screens** (`C`)~~ — **✅ DONE**:
+   `profile_create_screen.dart` (106 lines, dead duplicate of
+   `CreateProfileScreen`) and `excel_import_screen.dart` (136 lines, superseded
+   by `inventory_import/`) both deleted.
 
 ### P3 — Correctness of documentation/claims
-8. **Fix the OTP claim** (`E1`) — wire the login screen to
-   `isAuthMethodEnabledProvider`, or fix the 3 doc comments that promise it works.
+8. ~~**Fix the OTP claim** (`E1`)~~ — **✅ DONE**: doc comments in
+   `firebase_phone_otp_service.dart` and `phone_otp.dart` corrected — they
+   previously claimed `PhoneOtpScreen` + login-screen toggle already existed;
+   corrected to state the controller methods + repository contract are live and
+   tested, while the screen and the Welcome-screen toggle remain to be built.
 
 ---
 
@@ -332,3 +337,42 @@ cd apps/shopkeeper_app
 flutter analyze     # expect: No issues found!
 flutter test        # expect: 128 passed
 ```
+
+---
+
+## 9. FINAL STATUS — PENDING LIST 100% COMPLETE
+
+All items from this document are now closed. Final verification:
+`flutter analyze` = No issues · `flutter test` = **187 passed** · backend
+pytest = **70 passed**.
+
+| Item | Resolution |
+|---|---|
+| D1 Offers list | ✅ Built — real endpoint + list controller + tabs |
+| P0-2 ApiEndpoints hygiene | ✅ All URLs via constants |
+| A1 POS | ✅ Built — repository, controller, real connect/sync/jobs |
+| A2 Shop holidays | ✅ Built — HolidaysController (SSOT) + settings section |
+| B1 Insights drill-downs | ✅ Built — Views / Clicks / Top products / Hourly |
+| C location orphans | ✅ Resolved — wired stack cleaned, dead screens deleted |
+| E1 OTP claim | ✅ Doc comments corrected (tri-state `auth_methods`) |
+| **Navigation architecture** | ✅ `route_names.dart` + all call sites migrated + **SHOPKEEPER access gate** |
+
+**Navigation architecture — final state:**
+
+* `lib/core/router/route_names.dart` is the single source of route constants;
+  every navigation call site uses `Routes.*` — no route-string literals outside
+  the router's own `path:` declarations.
+* Guard chain order in `app_router.dart`: `initial/loading` → `signedOut` →
+  `accountRestricted` → **SHOPKEEPER access gate** → `!profileComplete` →
+  needsShop policy.
+* **SHOPKEEPER access gate** (tri-state, permissive on unknown): a confirmed
+  non-shopkeeper account (`is_shopkeeper: false` — returned by `GET /auth/me`)
+  is dead-ended at the account-status screen with dedicated copy ("Shopkeeper
+  access required"). `null` (absent — the `firebase-login` response omits the
+  flag) stays permissive so no valid shopkeeper is ever locked out right after
+  login; the authoritative `/auth/me` session refresh settles it afterwards.
+* Dead `context.go('/')` button in the registration success screen fixed
+  (→ `Routes.dashboard`).
+* Guarded by `test/shopkeeper_gate_test.dart` (6 tests): tri-state parsing +
+  non-shopkeeper → gate · missing flag → dashboard · confirmed → dashboard.
+

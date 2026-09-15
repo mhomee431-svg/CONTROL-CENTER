@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/notification_models.dart';
 import '../controllers/notifications_controller.dart';
@@ -95,21 +96,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (link != null && link.startsWith('hyperlocal://shopkeeper/')) {
       final target = link.substring('hyperlocal://shopkeeper/'.length);
       if (target.startsWith('inventory')) {
-        context.go('/products');
+        context.go(Routes.products);
         return;
       }
       if (target.startsWith('dashboard')) {
-        context.go('/dashboard');
+        context.go(Routes.dashboard);
         return;
       }
     }
     switch (notification.type) {
       case 'INVENTORY_LOW' || 'STOCK_UPDATE' || 'PRICE_UPDATE':
-        context.go('/products');
+        context.go(Routes.products);
       case 'SHOP_VERIFICATION':
-        context.go('/shop-profile');
+        context.go(Routes.shopProfile);
       case 'SUBSCRIPTION':
-        context.go('/account');
+        context.go(Routes.account);
     }
   }
 }

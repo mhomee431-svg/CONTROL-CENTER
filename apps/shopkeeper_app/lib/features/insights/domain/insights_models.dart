@@ -40,6 +40,33 @@ const List<int> kInsightsRanges = <int>[7, 30, 90];
 /// Default reporting window (in days) for a fresh screen load.
 const int kInsightsDefaultRange = 30;
 
+/// Top-products rows a drill-down may request (the full report ships the
+/// backend default of 10; the backend caps `limit` at 50).
+const int kInsightsMaxTopProducts = 50;
+
+/// KPI cards on the Reports screen that support a drill-down detail view.
+///
+/// Each metric owns its own granular endpoints and a wider parameter space
+/// than the single combined report call allows.
+enum DrillDownMetric { views, clicks }
+
+extension DrillDownMetricX on DrillDownMetric {
+  /// Route segment for `go_router` (`/insights/drill-down/:metric`).
+  String get routeSegment => this == DrillDownMetric.views ? 'views' : 'clicks';
+
+  /// Parses the route segment; falls back to [DrillDownMetric.views] for any
+  /// unknown value so a bad deep link never crashes.
+  static DrillDownMetric fromRoute(String? segment) =>
+      segment == 'clicks' ? DrillDownMetric.clicks : DrillDownMetric.views;
+
+  /// Detail-screen title.
+  String get title =>
+      this == DrillDownMetric.views ? 'Shop views' : 'Product clicks';
+
+  /// What the daily series rows count.
+  String get unitLabel => this == DrillDownMetric.views ? 'views' : 'clicks';
+}
+
 /// A today-vs-yesterday KPI plus its weekly context.
 class TrendMetric {
   const TrendMetric({

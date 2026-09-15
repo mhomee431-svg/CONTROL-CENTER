@@ -26,9 +26,12 @@ import '../../features/barcode/barcode_scanner_screen.dart';
 import '../../features/inventory_import/presentation/screens/inventory_import_screen.dart';
 import '../../features/offers/presentation/screens/offers_screen.dart';
 import '../../features/pos/presentation/screens/pos_screen.dart';
+import '../../features/insights/domain/insights_models.dart';
+import '../../features/insights/presentation/screens/insights_drill_down_screen.dart';
 import '../../features/insights/presentation/screens/insights_screen.dart';
 import '../../features/shell/all_features_screen.dart';
 import '../../features/support/presentation/screens/support_screen.dart';
+import 'route_names.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -56,23 +59,23 @@ final routerProvider = Provider<GoRouter>((ref) {
   //    current location WITHOUT destroying navigation state.
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/splash',
+    initialLocation: Routes.splash,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final selectedShop = ref.read(selectedShopProvider);
       final loc = state.matchedLocation;
       const authRoutes = [
-        '/welcome',
-        '/login',
-        '/register',
-        '/forgot-password',
-        '/reset-password',
+        Routes.welcome,
+        Routes.login,
+        Routes.register,
+        Routes.forgotPassword,
+        Routes.resetPassword,
       ];
-      final isSplash = loc == '/splash';
+      final isSplash = loc == Routes.splash;
 
       if (auth.status == AuthStatus.initial || auth.isLoading) {
         if (authRoutes.contains(loc)) return null;
-        return isSplash ? null : '/splash';
+        return isSplash ? null : Routes.splash;
       }
 
       final signedOut =
@@ -80,92 +83,114 @@ final routerProvider = Provider<GoRouter>((ref) {
           auth.status == AuthStatus.sessionExpired ||
           auth.status == AuthStatus.error;
       if (signedOut) {
-        if (isSplash) return '/welcome';
+        if (isSplash) return Routes.welcome;
         if (authRoutes.contains(loc)) return null;
-        return '/welcome';
+        return Routes.welcome;
       }
 
       // ── Phase 23: account restricted (inactive/suspended/banned) ──
       // The ONLY reachable destination is the account-status screen.
       if (auth.status == AuthStatus.accountRestricted) {
-        return loc == '/account-status' ? null : '/account-status';
+        return loc == Routes.accountStatus ? null : Routes.accountStatus;
+      }
+
+      // ── SHOPKEEPER access gate ────────────────────────────────────────
+      // A confirmed NON-shopkeeper account must not reach any shopkeeper
+      // screen. Tri-state ([AuthState.isShopkeeper]): `null` = unknown —
+      // the login response omits the flag, so we stay permissive and let
+      // the authoritative `/auth/me` session refresh settle it; `false` =
+      // confirmed non-shopkeeper → the ONLY reachable destination is the
+      // account-status dead-end (same UX as a suspended account).
+      if (auth.status == AuthStatus.authenticated &&
+          auth.isShopkeeper == false &&
+          loc != Routes.accountStatus) {
+        return Routes.accountStatus;
       }
 
       // ── Authenticated ──
       // Phase 23: profile does NOT exist → Create Profile. Every other
       // authenticated destination waits until the first shop exists.
       if (!auth.profileComplete) {
-        return loc == '/profile-create' ? null : '/profile-create';
+        return loc == Routes.profileCreate ? null : Routes.profileCreate;
       }
       // Profile exists → Shopkeeper Home; the create screen is finished.
-      if (loc == '/profile-create') return '/dashboard';
+      if (loc == Routes.profileCreate) return Routes.dashboard;
       String? guard(String target) {
         // Home (dashboard) and Account/Profile are always reachable right
         // after login — even before the first shop exists. Shop setup
         // (name, location, documents) lives under the Profile section and is
         // surfaced from the dashboard's welcome CTA, never forced at login.
         const alwaysOpen = [
-          '/dashboard',
-          '/account',
-          '/shops',
-          '/shop-register',
-          '/profile-create',
-          '/notifications',
-          '/scan-barcode',
-          '/support',
+          Routes.dashboard,
+          Routes.account,
+          Routes.shops,
+          Routes.shopRegister,
+          Routes.profileCreate,
+          Routes.notifications,
+          Routes.scanBarcode,
+          Routes.support,
           // "All features" hub — navigation only, so it never needs a shop.
-          '/features',
+          Routes.features,
         ];
         if (alwaysOpen.any(target.startsWith)) return null;
         // The remaining business screens need a selected shop.
         const needsShop = [
-          '/products',
-          '/shop-profile',
-          '/shop-settings',
-          '/shop-location',
-          '/inventory-import',
-          '/offers',
-          '/pos',
-          '/insights',
+          Routes.products,
+          Routes.shopProfile,
+          Routes.shopSettings,
+          Routes.shopLocation,
+          Routes.inventoryImport,
+          Routes.offers,
+          Routes.pos,
+          Routes.insights,
         ];
         if (!needsShop.any(target.startsWith)) return null;
         if (selectedShop != null) return null;
         // No shop yet → send them Home where the "Set up your shop" CTA is.
-        return auth.shops.isEmpty ? '/dashboard' : '/shops';
+        return auth.shops.isEmpty ? Routes.dashboard : Routes.shops;
       }
 
       if (authRoutes.contains(loc) || isSplash) {
-        return guard('/dashboard') ?? '/dashboard';
+        return guard(Routes.dashboard) ?? Routes.dashboard;
       }
       return guard(loc);
     },
     routes: [
-      buildRoute('/splash', (_, _) => const SplashScreen()),
-      buildRoute('/welcome', (_, _) => const WelcomeScreen()),
-      buildRoute('/login', (_, _) => const LoginScreen()),
-      buildRoute('/register', (_, _) => const RegisterScreen()),
-      buildRoute('/forgot-password', (_, _) => const ForgotPasswordScreen()),
-      buildRoute('/reset-password', (context, state) {
+      buildRoute(Routes.splash, (_, _) => const SplashScreen()),
+      buildRoute(Routes.welcome, (_, _) => const WelcomeScreen()),
+      buildRoute(Routes.login, (_, _) => const LoginScreen()),
+      buildRoute(Routes.register, (_, _) => const RegisterScreen()),
+      buildRoute(Routes.forgotPassword, (_, _) => const ForgotPasswordScreen()),
+      buildRoute(Routes.resetPassword, (context, state) {
         final token = state.uri.queryParameters['token'] ?? '';
         return ResetPasswordScreen(token: token);
       }),
-      buildRoute('/profile-create', (_, _) => const CreateProfileScreen()),
-      buildRoute('/account-status', (_, _) => const AccountStatusScreen()),
-      buildRoute('/shop-register', (_, _) => const ShopRegistrationWizard()),
-      buildRoute('/shops', (_, _) => const ShopsScreen()),
-      buildRoute('/shop-profile', (_, _) => const ShopProfileScreen()),
-      buildRoute('/shop-settings', (_, _) => const ShopSettingsScreen()),
-      buildRoute('/shop-location', (context, state) {
+      buildRoute(Routes.profileCreate, (_, _) => const CreateProfileScreen()),
+      buildRoute(Routes.accountStatus, (_, _) => const AccountStatusScreen()),
+      buildRoute(Routes.shopRegister, (_, _) => const ShopRegistrationWizard()),
+      buildRoute(Routes.shops, (_, _) => const ShopsScreen()),
+      buildRoute(Routes.shopProfile, (_, _) => const ShopProfileScreen()),
+      buildRoute(Routes.shopSettings, (_, _) => const ShopSettingsScreen()),
+      buildRoute(Routes.shopLocation, (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
         return LocationCaptureScreen(shopName: extra?['shopName'] as String?);
       }),
-      buildRoute('/scan-barcode', (_, _) => const BarcodeScannerScreen()),
-      buildRoute('/inventory-import', (_, _) => const InventoryImportScreen()),
-      buildRoute('/offers', (_, _) => const OffersScreen()),
-      buildRoute('/pos', (_, _) => const PosScreen()),
-      buildRoute('/insights', (_, _) => const InsightsScreen()),
-      buildRoute('/features', (_, _) => const AllFeaturesScreen()),
-      buildRoute('/support', (_, _) => const SupportScreen()),
+      buildRoute(Routes.scanBarcode, (_, _) => const BarcodeScannerScreen()),
+      buildRoute(Routes.inventoryImport, (_, _) => const InventoryImportScreen()),
+      buildRoute(Routes.offers, (_, _) => const OffersScreen()),
+      buildRoute(Routes.pos, (_, _) => const PosScreen()),
+      buildRoute(Routes.insights, (_, _) => const InsightsScreen()),
+      GoRoute(
+        path: Routes.insightsDrillDown(':metric'),
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => InsightsDrillDownScreen(
+          metric: DrillDownMetricX.fromRoute(
+            state.pathParameters['metric'],
+          ),
+        ),
+      ),
+      buildRoute(Routes.features, (_, _) => const AllFeaturesScreen()),
+      buildRoute(Routes.support, (_, _) => const SupportScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ShopkeeperShell(navigationShell: navigationShell),
@@ -173,7 +198,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/dashboard',
+                path: Routes.dashboard,
                 builder: (_, _) => const DashboardScreen(),
               ),
             ],
@@ -181,7 +206,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/products',
+                path: Routes.products,
                 builder: (_, _) => const ProductsScreen(),
               ),
             ],
@@ -189,7 +214,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/notifications',
+                path: Routes.notifications,
                 builder: (_, _) => const NotificationsScreen(),
               ),
             ],
@@ -197,7 +222,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/account',
+                path: Routes.account,
                 builder: (_, _) => const AccountScreen(),
               ),
             ],

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/media_upload_service.dart';
 import '../../../../core/network/token_store.dart';
@@ -603,7 +604,7 @@ class ProductAddMethodSheet extends StatelessWidget {
               subtitle: const Text('Match against the shared catalog'),
               onTap: () {
                 Navigator.pop(context);
-                context.push('/scan-barcode');
+                context.push(Routes.scanBarcode);
               },
             ),
             ListTile(
@@ -612,7 +613,7 @@ class ProductAddMethodSheet extends StatelessWidget {
               subtitle: const Text('Upload a spreadsheet of products'),
               onTap: () {
                 Navigator.pop(context);
-                context.push('/inventory-import');
+                context.push(Routes.inventoryImport);
               },
             ),
             ListTile(

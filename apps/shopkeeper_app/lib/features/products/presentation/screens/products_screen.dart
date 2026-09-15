@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
@@ -59,12 +60,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           IconButton(
             icon: const Icon(Icons.upload_file_outlined),
             tooltip: 'Import from Excel',
-            onPressed: ready ? () => context.push('/inventory-import') : null,
+            onPressed: ready ? () => context.push(Routes.inventoryImport) : null,
           ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: 'Scan barcode',
-            onPressed: ready ? () => context.push('/scan-barcode') : null,
+            onPressed: ready ? () => context.push(Routes.scanBarcode) : null,
           ),
         ],
       ),
@@ -122,7 +123,7 @@ class _AccessDenied extends StatelessWidget {
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () => context.go('/shops'),
+              onPressed: () => context.go(Routes.shops),
               icon: const Icon(Icons.swap_horiz),
               label: const Text('Switch shop'),
             ),
@@ -936,3 +937,4 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
+

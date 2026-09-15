@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../controllers/auth_controller.dart';
 
 /// Reset password screen — set new password using reset token.
@@ -44,7 +45,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           const SnackBar(content: Text('Password reset successfully!')),
         );
         // Navigate to login
-        context.go('/login');
+        context.go(Routes.login);
       }
     } catch (e) {
       if (mounted) {
@@ -133,7 +134,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () => context.go('/login'),
+                onPressed: () => context.go(Routes.login),
                 child: const Text('Back to sign in'),
               ),
             ],

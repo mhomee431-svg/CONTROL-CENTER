@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../auth/domain/auth_models.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/shop_models.dart';
@@ -26,7 +27,7 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
 
   void _select(ShopSummary shop) {
     ref.read(selectedShopProvider.notifier).select(shop);
-    context.go('/dashboard');
+    context.go(Routes.dashboard);
   }
 
   @override
