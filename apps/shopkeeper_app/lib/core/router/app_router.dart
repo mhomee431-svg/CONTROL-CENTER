@@ -26,6 +26,8 @@ import '../../features/barcode/barcode_scanner_screen.dart';
 import '../../features/inventory_import/presentation/screens/inventory_import_screen.dart';
 import '../../features/offers/presentation/screens/offers_screen.dart';
 import '../../features/pos/presentation/screens/pos_screen.dart';
+import '../../features/insights/presentation/screens/insights_screen.dart';
+import '../../features/shell/all_features_screen.dart';
 import '../../features/support/presentation/screens/support_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -111,6 +113,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           '/notifications',
           '/scan-barcode',
           '/support',
+          // "All features" hub — navigation only, so it never needs a shop.
+          '/features',
         ];
         if (alwaysOpen.any(target.startsWith)) return null;
         // The remaining business screens need a selected shop.
@@ -122,6 +126,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           '/inventory-import',
           '/offers',
           '/pos',
+          '/insights',
         ];
         if (!needsShop.any(target.startsWith)) return null;
         if (selectedShop != null) return null;
@@ -158,6 +163,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute('/inventory-import', (_, _) => const InventoryImportScreen()),
       buildRoute('/offers', (_, _) => const OffersScreen()),
       buildRoute('/pos', (_, _) => const PosScreen()),
+      buildRoute('/insights', (_, _) => const InsightsScreen()),
+      buildRoute('/features', (_, _) => const AllFeaturesScreen()),
       buildRoute('/support', (_, _) => const SupportScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

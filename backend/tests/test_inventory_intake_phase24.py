@@ -25,6 +25,7 @@ os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("HYPERLOCAL_ENV", "test")
 
 import pytest  # noqa: E402
+from sqlalchemy.orm import attributes  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 
@@ -149,7 +150,8 @@ VALID_BARCODE = "8901234567890"  # EAN-13 with correct GS1 check digit
 
 
 def make_master(master_id=5, name="Basmati Rice 1kg", variants=None,
-                is_active=True, status="APPROVED"):
+                is_active=True, status="APPROVED", brand_name=None,
+                image_url=None):
     """Real ORM instance so relationship assignment (sp.product_master) works."""
     from app.models.product import ProductMaster, ProductStatus
 
@@ -163,6 +165,17 @@ def make_master(master_id=5, name="Basmati Rice 1kg", variants=None,
     master.is_deleted = False
     master.brand_id = None
     master.variants = list(variants) if variants is not None else [make_variant()]
+    if brand_name is not None:
+        # set_committed_value bypasses the relationship's backref event,
+        # which would require a fully-attached ORM Brand instance.
+        attributes.set_committed_value(
+            master, "brand", SimpleNamespace(name=brand_name)
+        )
+    if image_url is not None:
+        attributes.set_committed_value(
+            master, "images",
+            [SimpleNamespace(image_url=image_url, is_primary=True)],
+        )
     return master
 
 
@@ -248,7 +261,11 @@ class TestBarcodeScanFlow:
         """Scan → identify → find product → FOUND with variant list."""
         from app.services import barcode_intake_service as svc
 
-        master = make_master(variants=[make_variant()])
+        master = make_master(
+            variants=[make_variant()],
+            brand_name="India Gate",
+            image_url="https://example.com/basmati.jpg",
+        )
         db = IntakeMockDB()
         from app.models.product import BarcodeRelationship, ProductIdentifier, ProductMaster
 
@@ -262,6 +279,8 @@ class TestBarcodeScanFlow:
         assert len(result["matches"]) == 1
         match = result["matches"][0]
         assert match["name"] == "Basmati Rice 1kg"
+        assert match["brand_name"] == "India Gate"
+        assert match["image_url"] == "https://example.com/basmati.jpg"
         assert match["variants"][0]["sku"] == "RICE-1KG"
         assert match["is_available_in_catalog"] is True
 

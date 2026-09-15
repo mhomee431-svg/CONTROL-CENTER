@@ -31,6 +31,27 @@ class ProductsState {
 final productsControllerProvider =
     NotifierProvider<ProductsController, ProductsState>(ProductsController.new);
 
+/// Result of a delta stock update. [error] holds the readable backend
+/// message when [ok] is false (negative stock, invalid numbers, permission,
+/// offline) so the sheet can show it verbatim.
+class StockAdjustOutcome {
+  const StockAdjustOutcome({required this.ok, this.result, this.error});
+
+  final bool ok;
+  final StockAdjustmentResult? result;
+  final String? error;
+}
+
+/// Result of loading a product's audit trail.
+class ProductHistoryLoad {
+  const ProductHistoryLoad({this.history, this.error});
+
+  final ProductHistoryResult? history;
+  final String? error;
+
+  bool get ok => history != null;
+}
+
 class ProductsController extends Notifier<ProductsState> {
   @override
   ProductsState build() => ProductsState.loading();
@@ -77,6 +98,111 @@ class ProductsController extends Notifier<ProductsState> {
     return updated != null;
   }
 
+  /// Applies a **delta** stock change through the backend audit-trail
+  /// endpoint (req 25) and swaps in the server-computed quantity/state — the
+  /// backend stays authoritative; the client never guesses the new stock.
+  ///
+  /// Returns [StockAdjustOutcome]: on failure [StockAdjustOutcome.error]
+  /// carries the readable backend message (e.g. negative inventory).
+  Future<StockAdjustOutcome> adjustStock({
+    required int productId,
+    required int delta,
+    String adjustmentType = 'CORRECTION',
+    String? reason,
+  }) async {
+    final shopId = _shopId;
+    if (shopId == null) {
+      return const StockAdjustOutcome(
+          ok: false, error: 'No shop selected');
+    }
+    if (delta == 0) {
+      // Mirrors the backend rule — never round-trip a no-op.
+      return const StockAdjustOutcome(
+          ok: false, error: 'Quantity change cannot be zero');
+    }
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw const ApiException(message: 'Not signed in');
+      final result = await _repo.adjustStock(shopId, productId, {
+        'adjustment_type': adjustmentType,
+        'quantity_adjustment': delta,
+        'reason': ?reason,
+      }, token);
+      // Trust the server's post-update numbers, not the client's arithmetic.
+      state = ProductsState(
+        status: state.status == ProductsStatus.accessDenied
+            ? ProductsStatus.accessDenied
+            : ProductsStatus.ready,
+        items: [
+          for (final item in state.items)
+            if (item.id == productId)
+              item.copyWith(
+                quantity: result.newQuantity,
+                stockStatus: result.stockStatus,
+                isAvailable: result.newQuantity > 0,
+                lastUpdated: result.lastInventoryUpdate ?? DateTime.now(),
+                source: 'MANUAL',
+                updatedBy: item.updatedBy,
+              )
+            else
+              item,
+        ],
+        summary: state.summary,
+      );
+      return StockAdjustOutcome(ok: true, result: result);
+    } on ApiException catch (e) {
+      final message = e.isForbidden
+          ? 'You do not have permission to update stock for this shop.'
+          : (e.statusCode == 404
+              ? 'This product is no longer in your inventory.'
+              : e.message);
+      state = ProductsState(
+        status: e.isForbidden
+            ? ProductsStatus.accessDenied
+            : (state.status == ProductsStatus.accessDenied
+                ? ProductsStatus.accessDenied
+                : ProductsStatus.ready),
+        items: state.items,
+        summary: state.summary,
+        message: message,
+      );
+      return StockAdjustOutcome(ok: false, error: message);
+    } catch (_) {
+      const message = 'Could not update stock. Please retry.';
+      state = ProductsState(
+        status: ProductsStatus.ready,
+        items: state.items,
+        summary: state.summary,
+        message: message,
+      );
+      return const StockAdjustOutcome(ok: false, error: message);
+    }
+  }
+
+  /// Loads one product's audit trail (movements / adjustments / price
+  /// changes). Never throws — failures surface as a readable message so the
+  /// history sheet can render an inline error instead of dying.
+  Future<ProductHistoryLoad> loadHistory(int productId) async {
+    final shopId = _shopId;
+    if (shopId == null) {
+      return const ProductHistoryLoad(error: 'No shop selected');
+    }
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw const ApiException(message: 'Not signed in');
+      final history = await _repo.fetchProductHistory(shopId, productId, token);
+      return ProductHistoryLoad(history: history);
+    } on ApiException catch (e) {
+      return ProductHistoryLoad(
+        error: e.isForbidden
+            ? 'You do not have permission to view this history.'
+            : e.message,
+      );
+    } catch (_) {
+      return const ProductHistoryLoad(error: 'Could not load history.');
+    }
+  }
+
   /// Clears a one-off error message after it has been surfaced.
   void clearTransientMessage() {
     if (state.message != null) {
@@ -94,12 +220,14 @@ class ProductsController extends Notifier<ProductsState> {
     double? mrp,
     int? quantity,
     int? lowStockThreshold,
+    String? imageKey,
   }) async {
     final fields = <String, dynamic>{
       'price': ?price,
       'mrp': ?mrp,
       'quantity': ?quantity,
       'low_stock_threshold': ?lowStockThreshold,
+      'image_key': ?imageKey,
     };
     return await _patch(productId, fields) != null;
   }
@@ -149,6 +277,11 @@ class ProductsController extends Notifier<ProductsState> {
     required double price,
     double? mrp,
     String? unit,
+    String? sku,
+    String? brand,
+    String? description,
+    String? imageKey,
+    bool isAvailable = true,
     int quantity = 0,
     int lowStockThreshold = 5,
     required bool publish,
@@ -158,11 +291,20 @@ class ProductsController extends Notifier<ProductsState> {
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
+      // Payload mirrors the backend ShopkeeperProductCreate schema exactly.
+      // There is intentionally NO barcode field — barcodes only enter the
+      // system through the scanner flow (POST /scan-barcode).
       final created = await _repo.createProduct(shopId, {
         'name': name,
         'price': price,
         'mrp': ?mrp,
         if (unit != null && unit.isNotEmpty) 'unit': unit,
+        if (sku != null && sku.isNotEmpty) 'sku': sku,
+        if (brand != null && brand.isNotEmpty) 'brand_name': brand,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        'image_key': ?imageKey,
+        'is_available': isAvailable,
         'quantity': quantity,
         'low_stock_threshold': lowStockThreshold,
         'publish': publish,

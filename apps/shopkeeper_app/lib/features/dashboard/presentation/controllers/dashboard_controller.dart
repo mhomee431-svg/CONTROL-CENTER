@@ -3,16 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../inventory_import/data/import_repository.dart';
+import '../../../notifications/data/notifications_repository.dart';
+import '../../../products/data/product_repository.dart';
 import '../../data/dashboard_repository.dart';
 import '../../domain/dashboard_models.dart';
 
 enum DashboardStatus { loading, ready, accessDenied, noShop, error }
 
 class DashboardState {
-  const DashboardState({required this.status, this.data, this.message});
+  const DashboardState({
+    required this.status,
+    this.data,
+    this.alerts = const DashboardAlerts(),
+    this.message,
+  });
 
   final DashboardStatus status;
   final DashboardData? data;
+
+  /// "Needs attention" signals (req 21) — fail-soft, never blocks the load.
+  final DashboardAlerts alerts;
   final String? message;
 
   factory DashboardState.loading() =>
@@ -45,7 +56,9 @@ class DashboardController extends Notifier<DashboardState> {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
       final data = await _repo.fetchDashboard(shop.id, token);
-      state = DashboardState(status: DashboardStatus.ready, data: data);
+      final alerts = await _loadAlerts(shop.id, token, data);
+      state = DashboardState(
+          status: DashboardStatus.ready, data: data, alerts: alerts);
     } on ApiException catch (e) {
       // Backend refuses unauthorized shops with 403 — surface a distinct
       // state instead of a generic failure.
@@ -58,6 +71,59 @@ class DashboardController extends Notifier<DashboardState> {
       state = const DashboardState(
           status: DashboardStatus.error,
           message: 'Could not load the dashboard.');
+    }
+  }
+
+  /// Gathers the "needs attention" signals for the priority card (req 21):
+  /// failed/partial import jobs, stale inventory, unread notifications.
+  ///
+  /// Each lookup is independent and fails soft — an error only hides its
+  /// priority row; it never fails the dashboard load itself.
+  Future<DashboardAlerts> _loadAlerts(
+      int shopId, String token, DashboardData data) async {
+    final failedImport = await _guard(() async {
+      final jobs = await ref
+          .read(inventoryImportRepositoryProvider)
+          .listJobs(shopId, token, limit: 10);
+      for (final job in jobs) {
+        // Newest first — the first FAILED job (or one stored with row
+        // errors) is the one the shopkeeper should fix.
+        if (job.status == 'FAILED' || (job.status == 'PARTIAL' && job.hasErrors)) {
+          return job;
+        }
+      }
+      return null;
+    });
+    final unread = await _guard(() async {
+      final page = await ref
+          .read(notificationsRepositoryProvider)
+          .fetchNotifications(shopId, token, limit: 5);
+      return page.unreadCount;
+    });
+    final stale = await _guard(() async {
+      final overview =
+          await ref.read(productRepositoryProvider).fetchInventoryOverview(
+                shopId,
+                token,
+              );
+      return overview.items.where((item) => item.isStale).length;
+    });
+
+    final job = failedImport;
+    return DashboardAlerts(
+      failedImportName: job?.filename,
+      failedImportRows: job?.errorRows ?? 0,
+      staleCount: stale ?? 0,
+      unreadNotifications: unread ?? 0,
+    );
+  }
+
+  /// Runs a lookup and converts any failure into `null` (fail soft).
+  Future<T?> _guard<T>(Future<T> Function() run) async {
+    try {
+      return await run();
+    } catch (_) {
+      return null;
     }
   }
 

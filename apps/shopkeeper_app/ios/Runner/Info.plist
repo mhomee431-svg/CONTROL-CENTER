@@ -26,6 +26,50 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- ── Permissions ──────────────────────────────────────────────────────
+	     iOS counterpart of the runtime permissions declared in
+	     android/app/src/main/AndroidManifest.xml. Removing a key silently
+	     breaks the matching feature (iOS terminates the app on use). -->
+	<!-- mobile_scanner — barcode intake for inventory -->
+	<key>NSCameraUsageDescription</key>
+	<string>Scan product barcodes to add and update stock in your shop inventory.</string>
+	<!-- geolocator — shop GPS capture and map location picker -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Set your shop's exact location on the map so customers can find you.</string>
+	<!-- file_picker (FileType.image) — product / shop photos -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Attach a photo from your library to your products or shop profile.</string>
+	<!-- ─ Google Sign-In / Firebase Auth OAuth callback ────────────────────
+	     The scheme is the REVERSED Google OAuth client ID passed to the native
+	     SDK as CLIENT_ID (see lib/firebase_options.dart). It is required for
+	     the iOS Google Sign-In browser flow and for the Phone-Auth reCAPTCHA
+	     fallback. If a dedicated iOS OAuth client is registered later, replace
+	     it with the REVERSED_CLIENT_ID from GoogleService-Info.plist —
+	     see docs/deployment/IOS_SETUP.md. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.hyperlocal.app.google-oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.356092661742-hcvah5tufmgv5eas4ao4ijqk0vope50o</string>
+			</array>
+		</dict>
+	</array>
+	<!-- ── Local-network HTTP (development only) ────────────────────────────
+	     The dev backend is reached over plain HTTP on the PC's LAN IP
+	     (http://192.168.x.x:8000, see DevBackendDiscovery). This is the iOS
+	     equivalent of android:usesCleartextTraffic="true"; it does NOT relax
+	     ATS for public internet hosts. Production traffic stays HTTPS and is
+	     enforced by EnvConfig.validateProduction(). -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

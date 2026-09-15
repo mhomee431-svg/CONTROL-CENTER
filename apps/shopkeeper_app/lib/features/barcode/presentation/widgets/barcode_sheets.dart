@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -94,8 +95,25 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      if (e.statusCode == 409) {
+        // Req 27: the scanned product is already in this shop's inventory.
+        // Offer a way out instead of a dead-end error.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('This product is already in your inventory'),
+          action: SnackBarAction(
+            label: 'View products',
+            onPressed: () {
+              Navigator.of(context)
+                ..pop() // close the confirm sheet
+                ..pop(); // close the scanner screen
+              context.push('/products');
+            },
+          ),
+        ));
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -111,7 +129,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
     final isAvailableInCatalog = match.isAvailableInCatalog;
     final theme = Theme.of(context);
 
-    return Padding(
+        return Padding(
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
@@ -125,12 +143,46 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(children: [
+              // Product image (when the catalog master has one). The
+              // errorBuilder keeps the sheet usable when the (short-lived)
+              // image URL has expired or the network is unavailable.
+              if (match.imageUrl != null && match.imageUrl!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: CircleAvatar(
+                    radius: 22,
+                    child: ClipOval(
+                      child: Image.network(
+                        match.imageUrl!,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, e, stack) =>
+                            const Icon(Icons.image_outlined, size: 20),
+                      ),
+                    ),
+                  ),
+                ),
+              // Name + brand.
               Expanded(
-                child: Text(
-                  match.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      match.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    if (match.brand != null && match.brand!.isNotEmpty)
+                      Text(
+                        match.brand!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               IconButton(
@@ -350,6 +402,90 @@ class _BarcodeManualEntrySheetState
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.search),
               label: const Text('Look up'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when a scanned barcode resolves to NOT_FOUND (req 27).
+///
+/// Contract:
+///   * Explicitly says "Product not found" — never invents a Product Master
+///     or fabricates a match the backend did not return.
+///   * Offers exactly two actions: [Try Again] (rescan) and
+///     [Enter Manually] (open the manual entry form so the shopkeeper can
+///     add the listing themselves). No Product Master is ever invented on
+///     the shopkeeper's behalf.
+///   * Product suggestion / "request this product" is only ever shown when a
+///     backend endpoint for it exists. No such endpoint exists today, so this
+///     sheet intentionally renders no suggestion UI.
+class BarcodeNotFoundSheet extends StatelessWidget {
+  const BarcodeNotFoundSheet({
+    super.key,
+    required this.barcode,
+    required this.onTryAgain,
+    required this.onEnterManually,
+  });
+
+  /// The barcode that could not be matched, echoed back so the shopkeeper can
+  /// verify the digits (a mis-scan is the most common cause).
+  final String barcode;
+
+  /// Resume the camera for another scan attempt.
+  final VoidCallback onTryAgain;
+
+  /// Open the manual product-entry form.
+  final VoidCallback onEnterManually;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Icon(Icons.search_off_outlined,
+                size: 48, color: theme.colorScheme.outline),
+            const SizedBox(height: 12),
+            Text(
+              'Product not found',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No catalog product matches barcode '
+              '$barcode.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Check the barcode digits, or add the item manually — it will '
+              'be created under your shop.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onTryAgain,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onEnterManually,
+              icon: const Icon(Icons.keyboard_alt_outlined),
+              label: const Text('Enter Manually'),
             ),
           ],
         ),

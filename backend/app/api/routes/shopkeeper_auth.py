@@ -182,7 +182,7 @@ async def verify_phone(
         )
 
     try:
-        firebase_uid, phone = verify_firebase_id_token(token)
+        firebase_uid, phone = verify_firebase_id_token_claims(token)
     except FirebaseVerificationError as exc:
         record_auth_result("shopkeeper_verify_phone", False, "token_invalid")
         return error_response(exc.message, exc.error_code, exc.status_code)
@@ -277,7 +277,7 @@ async def register(
     #         "TOKEN_REQUIRED", 401,
     #     )
     # try:
-    #     firebase_uid, phone = verify_firebase_id_token(token)
+    #     firebase_uid, phone = verify_firebase_id_token_claims(token)
     # except FirebaseVerificationError as exc:
     #     record_auth_result("shopkeeper_register", False, "token_invalid")
     #     return error_response(exc.message, exc.error_code, exc.status_code)
@@ -459,7 +459,7 @@ async def verify_otp_login(
     the phone number and look up the user.
     """
     try:
-        phone = verify_firebase_id_token(payload.firebase_id_token)
+        phone = verify_firebase_id_token_claims(payload.firebase_id_token)
     except FirebaseVerificationError as exc:
         record_auth_result("shopkeeper_login", False, "firebase_verification_failed")
         return error_response(

@@ -136,7 +136,9 @@ void main() {
     expect(find.text('Quick Actions'), findsOneWidget);
     expect(find.text('Add Product'), findsOneWidget);
     expect(find.text('Inventory'), findsOneWidget);
-    expect(find.text('Pricing'), findsOneWidget);
+    expect(find.text('Pricing & Offers'), findsOneWidget);
+    expect(find.text('Reports & Insights'), findsOneWidget);
+    expect(find.text('All Features'), findsOneWidget);
     expect(find.text('Shop Profile'), findsOneWidget);
   });
 

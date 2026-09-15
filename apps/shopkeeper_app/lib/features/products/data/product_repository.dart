@@ -11,6 +11,16 @@ abstract class ProductRepository {
       int shopId, Map<String, dynamic> payload, String token);
   Future<ShopProductItem> updateProduct(
       int shopId, int productId, Map<String, dynamic> fields, String token);
+
+  /// Delta stock adjustment with a full backend audit trail
+  /// (`POST /shops/{shopId}/products/{productId}/stock-adjustments`).
+  Future<StockAdjustmentResult> adjustStock(int shopId, int productId,
+      Map<String, dynamic> payload, String token);
+
+  /// Inventory history: movements, adjustments and price changes, newest
+  /// first (`GET /shops/{shopId}/products/{productId}/history`).
+  Future<ProductHistoryResult> fetchProductHistory(
+      int shopId, int productId, String token);
 }
 
 class ApiProductRepository implements ProductRepository {
@@ -59,6 +69,27 @@ class ApiProductRepository implements ProductRepository {
       token: token,
     ) as Map<String, dynamic>;
     return ShopProductItem.fromJson(data);
+  }
+
+  @override
+  Future<StockAdjustmentResult> adjustStock(int shopId, int productId,
+      Map<String, dynamic> payload, String token) async {
+    final data = await _api.post(
+      '/api/v1/shopkeeper/shops/$shopId/products/$productId/stock-adjustments',
+      body: payload,
+      token: token,
+    ) as Map<String, dynamic>;
+    return StockAdjustmentResult.fromJson(data);
+  }
+
+  @override
+  Future<ProductHistoryResult> fetchProductHistory(
+      int shopId, int productId, String token) async {
+    final data = await _api.get(
+      '/api/v1/shopkeeper/shops/$shopId/products/$productId/history',
+      token: token,
+    ) as Map<String, dynamic>;
+    return ProductHistoryResult.fromJson(data);
   }
 }
 

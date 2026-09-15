@@ -38,6 +38,18 @@ abstract class AuthRepository {
     String? photoUrl,
   });
 
+  /// FUTURE (Phone OTP) — function seam, UI intentionally absent in the MVP.
+  ///
+  /// Exchanges a Firebase Phone-Auth ID token for a backend session. Firebase
+  /// issues ONE ID-token shape regardless of provider, so this hits the SAME
+  /// `/shopkeeper/auth/firebase-login` endpoint used by Google Sign-In.
+  ///
+  /// Adding OTP later = build the UI that obtains the token via
+  /// `FirebaseAuth.signInWithPhoneNumber` → confirmation → `getIdToken()`,
+  /// then call this method. Nothing below the [AuthRepository] contract
+  /// (endpoints, session models, token storage, session restore) changes.
+  Future<AuthSession> loginWithPhoneOtp({required String firebaseIdToken});
+
   /// Fetches ONLY the minimal Google profile fields (name, email, picture,
   /// email_verified) derived from the backend-verified Firebase token.
   /// Used to confirm the minimal-data boundary (Phase 19) end-to-end.
@@ -235,6 +247,17 @@ class ApiAuthRepository implements AuthRepository {
     debugPrint('  └─ user_id: ${data['user_id'] ?? (data['user'] as Map?)?['id'] ?? "null"}');
 
     return _persist(data);
+  }
+
+  @override
+  Future<AuthSession> loginWithPhoneOtp({
+    required String firebaseIdToken,
+  }) {
+    // Phone OTP and Google produce the SAME Firebase ID-token shape, so the
+    // OTP path reuses the identical backend exchange — no new endpoint, no
+    // new session model, no new token storage. This is the whole reason the
+    // MVP can add OTP later without a rewrite.
+    return firebaseLogin(firebaseIdToken: firebaseIdToken);
   }
 
   @override

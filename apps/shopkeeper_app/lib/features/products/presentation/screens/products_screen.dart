@@ -9,6 +9,7 @@ import '../../../offers/presentation/widgets/offer_create_sheet.dart';
 import '../../domain/product_models.dart';
 import '../controllers/products_controller.dart';
 import '../widgets/product_sheets.dart';
+import '../widgets/stock_sheets.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -69,11 +70,12 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add-product',
+        // Req 24: the FAB opens the method chooser (manual / barcode /
+        // bulk Excel) — power users still have the AppBar shortcuts.
         onPressed: ready
             ? () => showModalBottomSheet(
                 context: context,
-                isScrollControlled: true,
-                builder: (_) => const ProductCreateSheet(),
+                builder: (_) => const ProductAddMethodSheet(),
               )
             : null,
         icon: const Icon(Icons.add),
@@ -477,6 +479,16 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
                     onToggle: (available) => ref
                         .read(productsControllerProvider.notifier)
                         .setAvailability(items[i].id, available),
+                    onUpdateStock: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => StockUpdateSheet(item: items[i]),
+                    ),
+                    onHistory: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => ProductHistorySheet(item: items[i]),
+                    ),
                   ),
               ],
             ),
@@ -653,11 +665,15 @@ class _ProductTile extends StatelessWidget {
     required this.showDivider,
     required this.onTap,
     required this.onToggle,
+    required this.onUpdateStock,
+    required this.onHistory,
   });
 
   final ShopProductItem item;
   final bool showDivider;
   final VoidCallback onTap;
+  final VoidCallback onUpdateStock;
+  final VoidCallback onHistory;
   final ValueChanged<bool> onToggle;
 
   String _lastUpdatedLabel() {
@@ -780,6 +796,42 @@ class _ProductTile extends StatelessWidget {
                         color: scheme.outline)),
               const SizedBox(height: 2),
               Switch(value: item.isAvailable, onChanged: onToggle),
+            ],
+          ),
+        ),
+        // Quick actions: update stock + inspect audit trail (req 25).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+          child: Row(
+            children: [
+              TextButton.icon(
+                onPressed: onUpdateStock,
+                icon: const Icon(Icons.edit_note, size: 18),
+                label: const Text('Stock'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 4),
+              TextButton.icon(
+                onPressed: onHistory,
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('History'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              if (item.updatedBy != null) ...[
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    'by ${item.updatedBy}',
+                    style: TextStyle(
+                        fontSize: 11, color: Theme.of(context).colorScheme.outline),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

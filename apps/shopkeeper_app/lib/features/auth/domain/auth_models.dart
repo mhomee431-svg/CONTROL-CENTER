@@ -68,6 +68,9 @@ class ShopSummary {
   /// Effective permission keys, e.g. `update:shop`, `create:product`.
   final List<String> permissions;
 
+  bool get isOwner => membership == 'owner';
+  bool get isManager => membership == 'manager';
+
   bool get canManageSettings => permissions.contains('update:shop');
   bool get canManageProducts => permissions.contains('update:product');
 
@@ -92,3 +95,43 @@ class AuthSession {
   final ShopkeeperUser user;
   final List<ShopSummary> shops;
 }
+
+/// ── AUTHENTICATION DECISION (MVP) ─────────────────────────────────────────
+///
+/// MVP ships with EXACTLY ONE sign-in method:
+///
+///     Google Sign-In  →  Firebase Authentication  →  Firebase ID token
+///       →  backend `/shopkeeper/auth/firebase-login` (Admin-SDK verified)
+///       →  app session (backend-issued JWT pair).
+///
+/// NOT in the MVP (repository functions exist; UI is intentionally absent):
+///   * Phone OTP / SMS OTP / custom OTP service
+///   * Password authentication
+///   * Custom JWT login system
+///
+/// Phone-OTP extension path (no rewrite required):
+///   Firebase issues ONE ID-token shape regardless of provider. A future
+///   Phone-OTP UI obtains the token via
+///   `FirebaseAuth.signInWithPhoneNumber` → confirmation → `getIdToken()`,
+///   then calls [AuthRepository.loginWithPhoneOtp] — which exchanges the
+///   token on the SAME `/firebase-login` endpoint used by Google today.
+///   Nothing below the [AuthRepository] contract changes.
+enum AuthMethod {
+  /// MVP: Google Sign-In + Firebase Authentication (the ONLY active method).
+  googleFirebase,
+
+  /// FUTURE: Firebase Phone Auth (SMS OTP). Function seam already wired
+  /// through [AuthRepository.loginWithPhoneOtp]; UI comes later.
+  phoneOtp,
+
+  /// FUTURE: password authentication (repository functions exist; the
+  /// /register, /forgot-password and /reset-password routes are NOT linked
+  /// from the Google-only flow).
+  password,
+}
+
+extension AuthMethodMvp on AuthMethod {
+  /// True only for methods active in the current MVP.
+  bool get isActiveInMvp => this == AuthMethod.googleFirebase;
+}
+

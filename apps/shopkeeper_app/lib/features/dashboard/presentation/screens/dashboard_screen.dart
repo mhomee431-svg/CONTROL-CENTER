@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../products/presentation/widgets/product_sheets.dart'
+    show ProductAddMethodSheet;
 import '../../domain/dashboard_models.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../../shops/domain/shop_models.dart'
@@ -83,6 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ref.read(dashboardControllerProvider.notifier).load(),
               child: _DashboardBody(
                 data: state.data!,
+                alerts: state.alerts,
                 user: user,
                 shop: shop,
               ),
@@ -94,9 +97,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.data, this.user, this.shop});
+  const _DashboardBody({required this.data, this.alerts, this.user, this.shop});
 
   final DashboardData data;
+
+  /// "Needs attention" signals for the priority card (fail-soft).
+  final DashboardAlerts? alerts;
 
   /// Authenticated shopkeeper (for the personalised greeting).
   final dynamic user;
@@ -119,8 +125,16 @@ class _DashboardBody extends StatelessWidget {
         children: [
           // Shopkeeper Home header — greeting + shop summary + quick actions.
           _HomeHeader(user: user, shop: shop),
+          // "Needs attention" priorities (req 21) — only real, loaded data
+          // is surfaced; the card stays hidden when everything looks fine.
+          _PriorityCard(data: data, alerts: alerts),
           if (!data.isVerified)
             _VerificationBanner(verification: data.verification),
+          // Overview section header — the stat grid below is the daily read.
+          Text('Overview',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: columns,
             shrinkWrap: true,
@@ -304,22 +318,43 @@ class _HomeHeader extends StatelessWidget {
                 icon: Icons.add_box_outlined,
                 label: 'Add Product',
                 color: scheme.primary,
-                onTap: () => context.push('/products')),
+                // Req 24: every Add affordance goes through the method
+                // chooser (manual / barcode / bulk Excel) — consistent
+                // with the Products screen FAB.
+                onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    builder: (_) => const ProductAddMethodSheet())),
             _QuickAction(
                 icon: Icons.inventory_2_outlined,
                 label: 'Inventory',
                 color: AppTheme.verifiedGreen,
                 onTap: () => context.push('/products')),
             _QuickAction(
-                icon: Icons.currency_rupee,
-                label: 'Pricing',
+                icon: Icons.local_offer_outlined,
+                label: 'Pricing & Offers',
                 color: AppTheme.pendingAmber,
-                onTap: () => context.push('/products')),
+                // Pricing & Offers owns discounts / promo pricing (the
+                // create-offer sheet is also reachable from Products).
+                onTap: () => context.push('/offers')),
+            _QuickAction(
+                icon: Icons.insights_outlined,
+                label: 'Reports & Insights',
+                color: scheme.tertiary,
+                // Reports / Insights is backed by the shop analytics
+                // endpoints — real customer activity, never local guesses.
+                onTap: () => context.push('/insights')),
             _QuickAction(
                 icon: Icons.storefront_outlined,
                 label: 'Shop Profile',
                 color: scheme.secondary,
                 onTap: () => context.push('/shop-profile')),
+            _QuickAction(
+                icon: Icons.apps,
+                label: 'All Features',
+                color: scheme.primary,
+                // The complete feature map (dashboard, imports/POS, support,
+                // settings, …) in one hub.
+                onTap: () => context.push('/features')),
           ],
         ),
         const SizedBox(height: 24),
@@ -398,6 +433,137 @@ class _QuickAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Needs attention" priority card (req 21).
+///
+/// Fixed order: low stock, failed import, stale inventory, important
+/// notification, profile/setup issue. Only rows backed by real data are
+/// rendered — nothing is fabricated client-side; when no priority has data
+/// the card is not shown at all.
+class _PriorityCard extends StatelessWidget {
+  const _PriorityCard({required this.data, this.alerts});
+
+  final DashboardData data;
+  final DashboardAlerts? alerts;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final alert = alerts;
+    // The backend's own sorted needs_attention list (OUT_OF_STOCK first)
+    // names the exact products to fix — surface up to 3 of them.
+    final flagged = data.products.needsAttention;
+    final flaggedLabel = flagged.isEmpty
+        ? ''
+        : ' — ${flagged.take(3).map((p) => p.name).join(', ')}'
+            '${flagged.length > 3 ? ' +${flagged.length - 3} more' : ''}';
+    final rows = <_PriorityRow>[
+      if (data.products.lowStock + data.products.outOfStock > 0)
+        _PriorityRow(
+          icon: Icons.warning_amber_outlined,
+          color: AppTheme.pendingAmber,
+          title: 'Low stock',
+          subtitle:
+              '${data.products.lowStock} low '
+              '${data.products.outOfStock > 0 ? '· ${data.products.outOfStock} out of stock' : ''}'
+              '$flaggedLabel',
+          route: '/products',
+        ),
+      if (alert != null && alert.hasFailedImport)
+        _PriorityRow(
+          icon: Icons.error_outline,
+          color: scheme.error,
+          title: 'Failed import',
+          subtitle:
+              '${alert.failedImportName} — ${alert.failedImportRows} row(s) '
+              'could not be applied',
+          route: '/inventory-import',
+        ),
+      if (alert != null && alert.staleCount > 0)
+        _PriorityRow(
+          icon: Icons.hourglass_bottom_outlined,
+          color: scheme.tertiary,
+          title: 'Inventory stale',
+          subtitle:
+              '${alert.staleCount} product(s) not updated in a while',
+          route: '/products',
+        ),
+      if (alert != null && alert.unreadNotifications > 0)
+        _PriorityRow(
+          icon: Icons.notifications_active_outlined,
+          color: scheme.primary,
+          title: 'Important notification',
+          subtitle: '${alert.unreadNotifications} unread notification(s)',
+          route: '/notifications',
+        ),
+      if (!data.isVerified)
+        _PriorityRow(
+          icon: Icons.store_outlined,
+          color: scheme.primary,
+          title: 'Profile setup issue',
+          subtitle: 'Complete shop verification to publish to customers',
+          route: '/shop-settings',
+        ),
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Needs attention',
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0)
+                  Divider(height: 1, indent: 56, color: scheme.outlineVariant),
+                rows[i].toTile(context),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+/// One actionable priority row inside [_PriorityCard].
+class _PriorityRow {
+  const _PriorityRow({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String route;
+
+  Widget toTile(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      subtitle: Text(subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 12, color: Theme.of(context)
+              .colorScheme.outline)),
+      trailing: const Icon(Icons.chevron_right, size: 20),
+      onTap: () => context.push(route),
     );
   }
 }

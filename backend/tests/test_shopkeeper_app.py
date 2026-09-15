@@ -88,6 +88,9 @@ class MockQuery:
     def delete(self, synchronize_session=False):
         return 0
 
+    def scalar(self, *args, **kwargs):
+        return False
+
 
 class ShopkeeperMockDB:
     """DB mock tuned for shopkeeper_service call patterns."""
@@ -273,7 +276,7 @@ class TestShopkeeperRegistration:
         # Mock Firebase token verification → returns (firebase_uid, phone).
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
+            "verify_firebase_id_token_claims",
             lambda token: ("fb-uid-0000000001", "+919000000011"),
         )
         # Mock business-ID generation (deterministic) so the test is stable
@@ -316,7 +319,7 @@ class TestShopkeeperRegistration:
 
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
+            "verify_firebase_id_token_claims",
             lambda token: ("fb-uid-0000000002", "+919000000012"),
         )
 
@@ -364,7 +367,7 @@ class TestShopkeeperVerifyPhone:
         def _raise(token):
             raise FirebaseVerificationError("Invalid token")
 
-        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token", _raise)
+        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token_claims", _raise)
 
         response = run_async(
             shopkeeper_auth.verify_phone(self._request(), ShopkeeperMockDB())
@@ -388,7 +391,7 @@ class TestShopkeeperVerifyPhone:
 
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
+            "verify_firebase_id_token_claims",
             lambda token: ("fb-uid-new", "+919000000020"),
         )
 
@@ -411,7 +414,7 @@ class TestShopkeeperVerifyPhone:
 
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
+            "verify_firebase_id_token_claims",
             lambda token: ("fb-uid-existing", "+919000000021"),
         )
         monkeypatch.setattr(
@@ -452,7 +455,7 @@ class TestShopkeeperLogin:
         def _raise(token):
             raise FirebaseVerificationError("Invalid token")
 
-        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token", _raise)
+        monkeypatch.setattr(shopkeeper_auth, "verify_firebase_id_token_claims", _raise)
 
         request = MagicMock()
         request.client.host = "127.0.0.1"
@@ -471,7 +474,7 @@ class TestShopkeeperLogin:
 
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
+            "verify_firebase_id_token_claims",
             lambda token: "+919000000014",
         )
 
@@ -492,7 +495,7 @@ class TestShopkeeperLogin:
 
         monkeypatch.setattr(
             shopkeeper_auth,
-            "verify_firebase_id_token",
+            "verify_firebase_id_token_claims",
             lambda token: "+919000000015",
         )
 

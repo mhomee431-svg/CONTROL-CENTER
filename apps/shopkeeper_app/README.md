@@ -1,6 +1,21 @@
 # hyperlocal_shopkeeper_app
 
-A new Flutter project.
+Shop management console for shopkeepers (Flutter). Targets **Android** and
+**iOS** from the same codebase.
+
+## Platforms
+
+| Platform | Status | Notes |
+| --- | --- | --- |
+| Android | Active | Credential Manager Google Sign-In (`MainActivity.kt`), Firebase via `android/app/google-services.json` (`com.hyperlocal.app`). |
+| iOS | Configured | Scaffold + `Info.plist` permissions + bundle id `com.hyperlocal.app`; Google Sign-In runs through Firebase's OAuth provider flow. Building requires macOS/Xcode — see **[docs/deployment/IOS_SETUP.md](../../docs/deployment/IOS_SETUP.md)**. |
+
+```bash
+flutter pub get
+flutter run                 # Android device/emulator
+flutter analyze lib test    # works on any host
+flutter test                # works on any host (includes iOS config tests)
+```
 
 ## Getting Started
 

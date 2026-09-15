@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../products/presentation/controllers/products_controller.dart';
+import '../products/presentation/widgets/product_sheets.dart';
 import 'domain/barcode_models.dart';
 import 'presentation/controllers/barcode_controller.dart';
 import 'presentation/widgets/barcode_sheets.dart';
@@ -26,7 +27,7 @@ class BarcodeScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
-  late final MobileScannerController _cameraController;
+  late MobileScannerController _cameraController;
 
   /// Guards against duplicate detections of the same code while a resolve
   /// round-trip is in flight.
@@ -35,22 +36,34 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   @override
   void initState() {
     super.initState();
-    _cameraController = MobileScannerController(
-      formats: const [
-        BarcodeFormat.ean13,
-        BarcodeFormat.ean8,
-        BarcodeFormat.upcA,
-        BarcodeFormat.upcE,
-        BarcodeFormat.code128,
-      ],
-      detectionSpeed: DetectionSpeed.normal,
-    );
+    _cameraController = _createCameraController();
   }
+
+  MobileScannerController _createCameraController() => MobileScannerController(
+        formats: const [
+          BarcodeFormat.ean13,
+          BarcodeFormat.ean8,
+          BarcodeFormat.upcA,
+          BarcodeFormat.upcE,
+          BarcodeFormat.code128,
+        ],
+        detectionSpeed: DetectionSpeed.normal,
+      );
 
   @override
   void dispose() {
     _cameraController.dispose();
     super.dispose();
+  }
+
+  /// Req 27: the camera can die mid-session (permission revoked, another
+  /// app grabs the camera, device too slow to initialize). Recreating the
+  /// controller re-runs initialization — and re-requests permission —
+  /// instead of leaving the shopkeeper trapped on a black screen.
+  void _restartCamera() {
+    final old = _cameraController;
+    setState(() => _cameraController = _createCameraController());
+    old.dispose();
   }
 
   void _resumeScanning() {
@@ -88,7 +101,31 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
       return;
     }
 
-    // NOT_FOUND / INVALID / SERVICE_UNAVAILABLE → friendly message + retry.
+    // NOT_FOUND → dedicated "Product not found" sheet (req 27): echoes the
+    // barcode, offers Try Again (resume camera) and Enter Manually (full
+    // create form). No product-suggestion UI exists because the backend has
+    // no suggestion endpoint — nothing is silently invented.
+    if (resolution.status == BarcodeResolutionStatus.notFound) {
+      showModalBottomSheet<void>(
+        context: context,
+        isDismissible: false,
+        enableDrag: false,
+        builder: (sheetContext) => BarcodeNotFoundSheet(
+          barcode: resolution.barcode,
+          onTryAgain: () {
+            Navigator.of(sheetContext).pop();
+            _resumeScanning();
+          },
+          onEnterManually: () {
+            Navigator.of(sheetContext).pop();
+            _showCreateProductSheet();
+          },
+        ),
+      );
+      return;
+    }
+
+    // INVALID / SERVICE_UNAVAILABLE → friendly message + manual retype.
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(_resultMessage(resolution)),
       action: SnackBarAction(
@@ -97,6 +134,24 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
       ),
     ));
     _resumeScanning();
+  }
+
+  /// NOT_FOUND fallback (req 27): create the product via the full manual
+  /// form; a successful create closes the scanner and refreshes inventory.
+  void _showCreateProductSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ProductCreateSheet(
+        onCreated: () {
+          Navigator.of(context).pop(); // close the scanner screen
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Product added to inventory'),
+          ));
+          ref.read(productsControllerProvider.notifier).load();
+        },
+      ),
+    );
   }
 
   /// MULTIPLE_MATCHES: the shopkeeper must explicitly choose which catalog
@@ -245,7 +300,18 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
       ),
       body: Stack(
         children: [
-          MobileScanner(controller: _cameraController, onDetect: _onDetect),
+          MobileScanner(
+            controller: _cameraController,
+            onDetect: _onDetect,
+            // Req 27: explicit permission-denied / unavailable states —
+            // Retry re-initializes the camera; manual entry and the AppBar
+            // back button are always available so the user is never trapped.
+            errorBuilder: (context, error) => _ScannerErrorView(
+              error: error,
+              onRetry: _restartCamera,
+              onManualEntry: _showManualEntrySheet,
+            ),
+          ),
           // Scan-frame overlay.
           Center(
             child: Container(
@@ -281,4 +347,89 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
     );
   }
 }
+
+/// Req 27: dedicated camera-failure view. Distinguishes permission denial
+/// (fix in system Settings, then retry) from unsupported devices and other
+/// initialization failures. Manual barcode entry is always offered so the
+/// flow never dead-ends; back navigation stays in the AppBar.
+class _ScannerErrorView extends StatelessWidget {
+  const _ScannerErrorView({
+    required this.error,
+    required this.onRetry,
+    required this.onManualEntry,
+  });
+
+  final MobileScannerException? error;
+  final VoidCallback onRetry;
+  final VoidCallback onManualEntry;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = error?.errorCode;
+    final (IconData icon, String title, String detail) = switch (code) {
+      MobileScannerErrorCode.permissionDenied => (
+          Icons.no_photography_outlined,
+          'Camera permission needed',
+          'Enable the camera for this app in system Settings, then retry. '
+              'You can also add products without scanning.',
+        ),
+      MobileScannerErrorCode.unsupported => (
+          Icons.videocam_off_outlined,
+          'Camera unavailable',
+          'Barcode scanning is not supported on this device. '
+              'Enter the barcode manually instead.',
+        ),
+      _ => (
+          Icons.error_outline,
+          'Camera unavailable',
+          'The camera could not start. Retry, or enter the barcode '
+              'manually.',
+        ),
+    };
+
+    return Container(
+      width: double.infinity,
+      color: Colors.black,
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(icon, color: Colors.white, size: 48),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          // Retry is pointless when the device simply cannot scan.
+          if (code != MobileScannerErrorCode.unsupported)
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry camera'),
+            ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onManualEntry,
+            icon: const Icon(Icons.keyboard_alt_outlined),
+            label: const Text('Enter barcode manually'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 

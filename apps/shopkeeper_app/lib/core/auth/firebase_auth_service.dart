@@ -10,6 +10,35 @@ class FirebaseAuthResult {
   final String idToken;
 }
 
+/// How Google Sign-In is obtained on a given platform.
+///
+/// Google's "native" Google Sign-In on Android is the Credential Manager API,
+/// which is implemented in `MainActivity.kt` behind a MethodChannel — it does
+/// NOT exist on iOS. iOS therefore uses Firebase's own OAuth provider flow
+/// (`OAuthProvider` + `ASWebAuthenticationSession`), which yields the exact
+/// same Firebase ID token and needs no app-side native code.
+enum GoogleSignInStrategy {
+  /// Browser: Firebase JS SDK popup.
+  webPopup,
+
+  /// Android: native Credential Manager MethodChannel (`MainActivity.kt`).
+  androidCredentialManager,
+
+  /// iOS: Firebase OAuth provider flow (no MethodChannel involved).
+  firebaseOAuthProvider,
+}
+
+/// Picks the Google Sign-In implementation for [platform].
+///
+/// Everything except iOS keeps the pre-existing path; unknown platforms fall
+/// back to the credential-manager channel, whose missing-plugin error is turned
+/// into an actionable message by [FirebaseAuthService.signInWithGoogle].
+GoogleSignInStrategy googleSignInStrategyFor(TargetPlatform platform) =>
+    switch (platform) {
+      TargetPlatform.iOS => GoogleSignInStrategy.firebaseOAuthProvider,
+      _ => GoogleSignInStrategy.androidCredentialManager,
+    };
+
 class FirebaseAuthService {
   FirebaseAuthService({FirebaseAuth? auth}) : _authOverride = auth;
 
@@ -43,6 +72,10 @@ class FirebaseAuthService {
   }
 
   /// Sign in with Google. Returns a Firebase ID token + the Firebase user.
+  ///
+  /// The platform decides HOW the Google credential is obtained (see
+  /// [GoogleSignInStrategy]); every path ends in the same Firebase session and
+  /// the same ID-token contract, so the backend exchange is untouched.
   Future<FirebaseAuthResult> signInWithGoogle() async {
     debugPrint('  ├─ signInWithGoogle() called');
     debugPrint('  ├─ Platform: ${kIsWeb ? "web" : "native (Android/iOS)"}');
@@ -50,12 +83,62 @@ class FirebaseAuthService {
       debugPrint('  └─ Using web sign-in flow (popup)');
       return _signInWithGoogleWeb();
     }
-    debugPrint('  └─ Using native sign-in flow (Credential Manager)');
+    // iOS: the Android Credential Manager channel does not exist there, so the
+    // credential comes from Firebase's own OAuth provider flow instead.
+    final strategy = googleSignInStrategyFor(defaultTargetPlatform);
+    debugPrint('  └─ Native flow: ${strategy.name}');
+    if (strategy == GoogleSignInStrategy.firebaseOAuthProvider) {
+      return _signInWithGoogleOAuthProvider();
+    }
     return _signInWithGoogleNative();
   }
 
+  /// iOS path: Firebase's own Google OAuth provider flow.
+  ///
+  /// `signInWithProvider` drives `OAuthProvider(providerID: "google.com")`
+  /// through the system browser (`ASWebAuthenticationSession`), needing:
+  ///   * `iosClientId` / `iosBundleId` in the Firebase options — forwarded to
+  ///     the native SDK as `CLIENT_ID` / `BUNDLE_ID` (`lib/firebase_options.dart`);
+  ///   * the REVERSED client ID registered as a `CFBundleURLTypes` scheme in
+  ///     `ios/Runner/Info.plist`, so the browser can hand the result back.
+  ///
+  /// See `docs/deployment/IOS_SETUP.md` for the full checklist.
+  Future<FirebaseAuthResult> _signInWithGoogleOAuthProvider() async {
+    // Same reason as the Android path: drop a stale Firebase session first so a
+    // cached invalid credential is never replayed.
+    try {
+      await signOut();
+    } catch (_) {
+      // Best-effort: continue with the fresh sign-in request.
+    }
+    try {
+      final credential = await _auth.signInWithProvider(GoogleAuthProvider());
+      return await _resultFrom(credential);
+    } on FirebaseAuthException {
+      rethrow;
+    } on PlatformException catch (e) {
+      // Browser-level failures surface through the plugin as PlatformException.
+      throw FirebaseAuthException(
+        code: e.code,
+        message: e.message ?? 'Google Sign-In failed',
+      );
+    } on MissingPluginException {
+      // firebase_auth unavailable on this platform — say so plainly.
+      throw FirebaseAuthException(
+        code: 'google-sign-in-unavailable',
+        message: 'Google Sign-In is not available on this platform yet.',
+      );
+    }
+  }
+
   Future<FirebaseAuthResult> _signInWithGoogleWeb() async {
-    final credential = await _auth.signInWithPopup(GoogleAuthProvider());
+    return _resultFrom(await _auth.signInWithPopup(GoogleAuthProvider()));
+  }
+
+  /// Normalises a Firebase [UserCredential] into the app's
+  /// [FirebaseAuthResult] (Firebase user + freshly refreshed ID token) so every
+  /// platform path ends in the identical result contract.
+  Future<FirebaseAuthResult> _resultFrom(UserCredential credential) async {
     final user = credential.user;
     if (user == null) {
       throw FirebaseAuthException(
@@ -123,6 +206,16 @@ class FirebaseAuthService {
 
       debugPrint('  └─ FirebaseAuthResult ready: user=${user.uid}, token=${idToken.length} chars');
       return FirebaseAuthResult(user: user, idToken: idToken);
+    } on MissingPluginException {
+      // The Google-Auth channel is implemented in MainActivity.kt (Android
+      // only). On iOS the flow runs through the Firebase OAuth provider path
+      // instead, and on desktop there is no implementation at all — say so
+      // plainly instead of failing with a generic message.
+      debugPrint('Google Sign-In: native channel unavailable on this platform');
+      throw FirebaseAuthException(
+        code: 'google-sign-in-unavailable',
+        message: 'Google Sign-In is not available on this platform yet.',
+      );
     } on PlatformException catch (e) {
       final details = e.details ?? 'No details';
       debugPrint(

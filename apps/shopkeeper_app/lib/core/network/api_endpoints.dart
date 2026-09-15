@@ -37,6 +37,35 @@ class ApiEndpoints {
   static String product(String shopId, String productId) =>
       '${products(shopId)}/$productId';
 
+  // ── Reports / Insights (shopkeeper analytics) ──
+  // Aggregated server-side from the real analytics event stream (shop views,
+  // product clicks, customer interactions, inventory freshness). Requires the
+  // `dashboard:read` permission on the shop.
+  //
+  // `full` returns every section in ONE call (the load the Reports / Insights
+  // screen performs). The granular endpoints stay available for future
+  // drill-down views — nothing is computed client-side.
+  static String analyticsFull(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/full';
+  static String analyticsOverview(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/overview';
+  static String analyticsViews(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/views';
+  static String analyticsClicks(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/clicks';
+  static String analyticsTopProducts(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/top-products';
+  static String analyticsTopSearches(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/top-searches';
+  static String analyticsInteractions(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/interactions';
+  static String analyticsDevices(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/devices';
+  static String analyticsHourly(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/hourly';
+  static String analyticsFreshness(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/analytics/freshness';
+
   // ── Merchant categories (shop-registration wizard) ──
   static const String businessCategories =
       '/api/v1/shopkeeper/businesses/categories';

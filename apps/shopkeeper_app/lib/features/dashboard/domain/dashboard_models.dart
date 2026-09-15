@@ -1,5 +1,31 @@
 import '../../shops/domain/shop_models.dart';
 
+/// One product the backend flagged as needing attention
+/// (LOW_STOCK / LIMITED_STOCK / OUT_OF_STOCK, sorted OUT_OF_STOCK first).
+class NeedsAttentionItem {
+  const NeedsAttentionItem({
+    required this.shopProductId,
+    required this.name,
+    required this.quantity,
+    required this.stockStatus,
+  });
+
+  final int shopProductId;
+  final String name;
+  final int quantity;
+  final String stockStatus;
+
+  bool get isOutOfStock => stockStatus == 'OUT_OF_STOCK';
+
+  factory NeedsAttentionItem.fromJson(Map<String, dynamic> json) =>
+      NeedsAttentionItem(
+        shopProductId: (json['shop_product_id'] as num?)?.toInt() ?? 0,
+        name: json['name'] as String? ?? 'Unnamed',
+        quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+        stockStatus: json['stock_status'] as String? ?? 'UNKNOWN',
+      );
+}
+
 /// Aggregate product statistics from the dashboard payload.
 class ProductStats {
   const ProductStats({
@@ -10,6 +36,7 @@ class ProductStats {
     required this.lowStock,
     required this.outOfStock,
     required this.totalUnits,
+    this.needsAttention = const [],
   });
 
   final int total;
@@ -20,6 +47,9 @@ class ProductStats {
   final int outOfStock;
   final int totalUnits;
 
+  /// Up to 10 named products (server-sorted, OUT_OF_STOCK first).
+  final List<NeedsAttentionItem> needsAttention;
+
   factory ProductStats.fromJson(Map<String, dynamic> json) => ProductStats(
         total: (json['total'] as num?)?.toInt() ?? 0,
         active: (json['active'] as num?)?.toInt() ?? 0,
@@ -28,6 +58,11 @@ class ProductStats {
         lowStock: (json['low_stock'] as num?)?.toInt() ?? 0,
         outOfStock: (json['out_of_stock'] as num?)?.toInt() ?? 0,
         totalUnits: (json['total_units'] as num?)?.toInt() ?? 0,
+        needsAttention:
+            ((json['needs_attention'] as List<dynamic>?) ?? const [])
+                .whereType<Map<String, dynamic>>()
+                .map(NeedsAttentionItem.fromJson)
+                .toList(growable: false),
       );
 }
 
@@ -61,6 +96,38 @@ class OffersSummary {
         active: (json['active'] as num?)?.toInt() ?? 0,
         draft: (json['draft'] as num?)?.toInt() ?? 0,
       );
+}
+
+/// Non-fatal "needs attention" signals for the dashboard priority card.
+///
+/// Every field degrades independently: a failed lookup simply hides the
+/// corresponding priority row — it never blocks the dashboard itself.
+class DashboardAlerts {
+  const DashboardAlerts({
+    this.failedImportName,
+    this.failedImportRows = 0,
+    this.staleCount = 0,
+    this.unreadNotifications = 0,
+  });
+
+  /// Filename of the most recent import job that failed or completed with
+  /// row errors (from the import-jobs listing, not fabricated client-side).
+  final String? failedImportName;
+
+  /// Rows the failed/partial import could not apply.
+  final int failedImportRows;
+
+  /// Products whose inventory data the backend flagged as STALE.
+  final int staleCount;
+
+  /// Unread notifications for this shop.
+  final int unreadNotifications;
+
+  bool get hasFailedImport => failedImportName != null;
+
+  /// True when none of the priority rows has data — the card stays hidden.
+  bool get isEmpty =>
+      !hasFailedImport && staleCount == 0 && unreadNotifications == 0;
 }
 
 /// Full operational dashboard payload.

@@ -141,6 +141,15 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthSession> loginWithPhoneOtp({
+    required String firebaseIdToken,
+  }) {
+    // Offline-dev parity with ApiAuthRepository: OTP reuses the Google
+    // exchange because both providers yield the same Firebase ID token.
+    return firebaseLogin(firebaseIdToken: firebaseIdToken);
+  }
+
+  @override
   Future<AuthSession> updateProfile({
     required String name,
     String? phoneNumber,

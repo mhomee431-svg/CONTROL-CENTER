@@ -159,11 +159,41 @@ def _serialize_match(master: ProductMaster, match_type: str) -> dict[str, Any]:
         "product_master_id": master.id,
         "name": master.name,
         "brand_id": getattr(master, "brand_id", None),
+        "brand_name": _relationship_value(master, "brand", "name"),
+        "image_url": _primary_image_url(master),
         "status": status_value,
         "is_available_in_catalog": not unavailable,
         "match_type": match_type,
         "variants": variants,
     }
+
+
+def _relationship_value(master: ProductMaster, attr: str, leaf: str) -> Any:
+    """Read ``master.<attr>.<leaf>`` tolerating detached ORM instances.
+
+    Test fixtures construct masters outside a session, so a lazy load of an
+    unset relationship raises ``DetachedInstanceError``; a session-bound
+    instance (production) loads it normally. Either way this never blocks
+    the resolution response.
+    """
+    try:
+        related = getattr(master, attr, None)
+    except Exception:  # noqa: BLE001 — DetachedInstanceError and friends
+        return None
+    return getattr(related, leaf, None)
+
+
+def _primary_image_url(master: ProductMaster) -> str | None:
+    """Primary product image URL — first primary image, else the first."""
+    try:
+        images = getattr(master, "images", None) or []
+    except Exception:  # noqa: BLE001 — DetachedInstanceError and friends
+        return None
+    if not images:
+        return None
+    primaries = [img for img in images if getattr(img, "is_primary", False)]
+    chosen = primaries[0] if primaries else images[0]
+    return getattr(chosen, "image_url", None)
 
 
 def resolve_barcode(db: Session, barcode: str) -> dict[str, Any]:

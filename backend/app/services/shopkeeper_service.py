@@ -1612,9 +1612,26 @@ def list_inventory(
     )
     epoch = datetime.min.replace(tzinfo=timezone.utc)
 
-    entries: list[tuple[datetime, dict[str, Any]]] = []
+    # Resolve updater names once (distinct ids → single query) so every item
+    # can show "Updated by <name>" without N+1 user lookups.
+    updater_ids: set[int] = set()
+    per_product_inv: dict[int, Inventory | None] = {}
     for sp in products:
         inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+        per_product_inv[sp.id] = inv
+        updater = getattr(inv, "last_updated_by", None) if inv is not None else None
+        if updater:
+            updater_ids.add(int(updater))
+    updater_names: dict[int, str] = {}
+    if updater_ids:
+        from app.models.user import User
+
+        for u in db.query(User).filter(User.id.in_(updater_ids)).all():
+            updater_names[u.id] = u.name or f"User #{u.id}"
+
+    entries: list[tuple[datetime, dict[str, Any]]] = []
+    for sp in products:
+        inv = per_product_inv[sp.id]
         item = serialize_product(sp, inv)
         last_updated_raw = (
             sp.last_inventory_update
@@ -1625,6 +1642,12 @@ def list_inventory(
         if last_updated_raw.tzinfo is None:
             last_updated_raw = last_updated_raw.replace(tzinfo=timezone.utc)
         item["last_updated"] = _iso(last_updated_raw)
+        updater_id = getattr(inv, "last_updated_by", None) if inv is not None else None
+        item["updated_by"] = (
+            updater_names.get(int(updater_id))
+            if updater_id
+            else None
+        )
         item["source"] = (
             inv.last_updated_source.value
             if inv is not None and getattr(inv, "last_updated_source", None) is not None

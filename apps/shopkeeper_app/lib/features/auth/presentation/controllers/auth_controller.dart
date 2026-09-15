@@ -16,6 +16,7 @@ import '../../../shops/presentation/controllers/shops_controller.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../../barcode/presentation/controllers/barcode_controller.dart';
 import '../../../inventory_import/presentation/controllers/import_controller.dart';
+import '../../../insights/presentation/controllers/insights_controller.dart';
 import 'selected_shop.dart';
 
 enum AuthStatus {
@@ -241,6 +242,67 @@ class AuthController extends Notifier<AuthState> {
     };
   }
 
+  /// FUTURE (Phone OTP) — function seam, UI intentionally absent in the MVP.
+  ///
+  /// Completes sign-in from a Firebase Phone-Auth ID token. The future OTP UI
+  /// is responsible for obtaining the token (`signInWithPhoneNumber` →
+  /// confirmation → `getIdToken()`); this method applies the EXACT same
+  /// session contract as [signInWithGoogle]: backend exchange → restriction
+  /// gate → primary-shop sync → authenticated state. Because both providers
+  /// yield the same Firebase ID-token shape, adding the OTP UI later requires
+  /// no changes to this controller, the repository, or the session models.
+  Future<bool> loginWithPhoneOtp({required String firebaseIdToken}) async {
+    state = AuthState.loading();
+    try {
+      final session = await _repo.loginWithPhoneOtp(
+        firebaseIdToken: firebaseIdToken,
+      );
+      final restriction = _accountRestriction(session.user.status);
+      if (restriction != null) {
+        state = AuthState.accountRestricted(
+          restriction.message,
+          errorCode: restriction.code,
+        );
+        return false;
+      }
+      _syncPrimaryShop(session.shops);
+      state = AuthState.authenticated(user: session.user, shops: session.shops);
+      return true;
+    } on ApiException catch (e) {
+      if (e.errorCode == 'ACCOUNT_NOT_ACTIVE') {
+        state = AuthState.accountRestricted(
+          e.message.isNotEmpty ? e.message : 'Account is not active.',
+          errorCode: e.errorCode,
+        );
+        return false;
+      }
+      state = AuthState.error(e.message, errorCode: e.errorCode);
+      return false;
+    } catch (_) {
+      state = AuthState.error('Sign-in failed. Please try again.');
+      return false;
+    }
+  }
+
+  /// Switches the business the app is scoped to.
+  ///
+  /// Single-shop MVP: the one authorized shop is auto-selected at sign-in
+  /// ([_syncPrimaryShop]), so this is effectively a no-op today — but it is
+  /// the CANONICAL entry point for future business switching / multi-business
+  /// dashboards, so screens should call this instead of writing to
+  /// [selectedShopProvider] directly.
+  ///
+  /// Authorization boundary: the shop MUST be one the backend granted access
+  /// to ([AuthState.shops]). Unknown shops are rejected — the client never
+  /// self-authorizes a business switch.
+  bool selectBusiness(ShopSummary shop) {
+    final authorized =
+        state.shops.any((s) => s.id == shop.id);
+    if (!authorized) return false;
+    ref.read(selectedShopProvider.notifier).select(shop);
+    return true;
+  }
+
   /// Google Sign-In (Firebase Authentication).
   ///
   /// Flow: Google Sign-In → Firebase → Firebase ID token → backend
@@ -311,9 +373,13 @@ class AuthController extends Notifier<AuthState> {
       debugPrint('  ├─ Code: ${e.code}');
       debugPrint('  ├─ Message: ${e.message}');
       debugPrint('  └─ Credential: ${e.credential}');
-      // Closing the picker/popup is a normal cancel, not an error.
+      // Closing the picker/popup/browser sheet is a normal cancel, not an
+      // error. `canceled` / `web-context-cancelled` are what the iOS OAuth
+      // provider flow returns when the user dismisses Safari.
       if (e.code == 'google-sign-in-cancelled' ||
-          e.code == 'auth/popup-closed-by-user') {
+          e.code == 'auth/popup-closed-by-user' ||
+          e.code == 'canceled' ||
+          e.code == 'web-context-cancelled') {
         debugPrint('→ User cancelled sign-in (not an error)');
         state = AuthState.unauthenticated();
       } else {
@@ -446,6 +512,9 @@ class AuthController extends Notifier<AuthState> {
     ref.read(notificationsControllerProvider.notifier).reset();
     ref.read(barcodeControllerProvider.notifier).reset();
     ref.read(importControllerProvider.notifier).reset();
+    // Customer-activity reports are scoped to one account's shops — they must
+    // never survive into the next session.
+    ref.read(insightsControllerProvider.notifier).reset();
 
     // 4) Unauthenticated → the router redirect sends the user to login.
     state = AuthState.unauthenticated();

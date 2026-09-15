@@ -10,7 +10,10 @@ import 'package:hyperlocal_shopkeeper_app/features/dashboard/domain/dashboard_mo
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/data/import_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/domain/import_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/insights/data/insights_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/insights/domain/insights_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/data/shop_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/domain/shop_models.dart';
@@ -155,6 +158,16 @@ class FakeAuthRepository implements AuthRepository {
     lastRegisteredName = name;
     if (submitError != null) throw submitError!;
     return restoreResult ?? makeSession();
+  }
+
+  @override
+  Future<AuthSession> loginWithPhoneOtp({
+    required String firebaseIdToken,
+  }) {
+    // FUTURE Phone-OTP seam: same exchange as Google (one Firebase ID-token
+    // shape). Counted separately so tests can prove the OTP path routes
+    // through the identical /firebase-login contract.
+    return firebaseLogin(firebaseIdToken: firebaseIdToken);
   }
 
   @override
@@ -566,5 +579,245 @@ class FakeImportRepo implements InventoryImportRepository {
             errorRows: 0,
           ),
         ];
+  }
+}
+
+
+// ---- Products fakes ---------------------------------------------------------
+
+class FakeProductRepo implements ProductRepository {
+  FakeProductRepo({
+    this.items = const [],
+    this.onCreate,
+    this.onUpdate,
+    this.onAdjustStock,
+    this.onHistory,
+  });
+
+  /// Items returned by [fetchInventoryOverview].
+  final List<ShopProductItem> items;
+
+  /// Optional hooks overriding the create/update response.
+  final ShopProductItem? Function(Map<String, dynamic> payload)? onCreate;
+  final ShopProductItem? Function(int productId, Map<String, dynamic> fields)?
+      onUpdate;
+
+  int overviewCalls = 0;
+  int? lastShopId;
+  Map<String, dynamic>? lastCreatePayload;
+  int? lastUpdatedId;
+  Map<String, dynamic>? lastUpdateFields;
+
+  ShopProductItem _itemFromPayload(Map<String, dynamic> payload) =>
+      ShopProductItem(
+        id: 77,
+        name: payload['name'] as String? ?? 'New product',
+        status: 'ACTIVE',
+        price: (payload['price'] as num?)?.toDouble() ?? 0,
+        isActive: true,
+        isAvailable: payload['is_available'] as bool? ?? true,
+        quantity: payload['quantity'] as int? ?? 0,
+        stockStatus: 'IN_STOCK',
+      );
+
+  @override
+  Future<InventoryOverview> fetchInventoryOverview(
+    int shopId,
+    String token,
+  ) async {
+    overviewCalls++;
+    lastShopId = shopId;
+    final summary = (
+      total: items.length,
+      active: items.where((i) => i.isActive && i.isAvailable).length,
+      inStock: items.where((i) => i.stockStatus == 'IN_STOCK').length,
+      lowStock: items.where((i) => i.isLowStock).length,
+      outOfStock: items.where((i) => i.isOutOfStock).length,
+      totalUnits: items.fold(0, (sum, i) => sum + i.quantity),
+    );
+    return InventoryOverview(items: items, summary: summary);
+  }
+
+  @override
+  Future<ShopProductItem> createProduct(
+    int shopId,
+    Map<String, dynamic> payload,
+    String token,
+  ) async {
+    lastShopId = shopId;
+    lastCreatePayload = payload;
+    final overridden = onCreate?.call(payload);
+    if (overridden != null) return overridden;
+    return _itemFromPayload(payload);
+  }
+
+  @override
+  Future<ShopProductItem> updateProduct(
+    int shopId,
+    int productId,
+    Map<String, dynamic> fields,
+    String token,
+  ) async {
+    lastShopId = shopId;
+    lastUpdatedId = productId;
+    lastUpdateFields = fields;
+    final overridden = onUpdate?.call(productId, fields);
+    if (overridden != null) return overridden;
+    return _itemFromPayload(fields);
+  }
+
+  /// Overrides the [adjustStock] response; receives
+  /// `(shopId, productId, payload, token)`. Return a [StockAdjustmentResult]
+  /// to succeed, or throw to simulate a rejection.
+  final StockAdjustmentResult? Function(
+          int, int, Map<String, dynamic>, String)?
+      onAdjustStock;
+
+  /// Overrides the [fetchProductHistory] response.
+  final ProductHistoryResult? Function(int, int, String)? onHistory;
+
+  int adjustStockCalls = 0;
+  int historyCalls = 0;
+  int? lastAdjustedId;
+  Map<String, dynamic>? lastAdjustPayload;
+  int? lastHistoryProductId;
+
+  @override
+  Future<StockAdjustmentResult> adjustStock(
+    int shopId,
+    int productId,
+    Map<String, dynamic> payload,
+    String token,
+  ) async {
+    adjustStockCalls++;
+    lastShopId = shopId;
+    lastAdjustedId = productId;
+    lastAdjustPayload = payload;
+    final overridden = onAdjustStock?.call(shopId, productId, payload, token);
+    if (overridden != null) return overridden;
+    final delta = (payload['quantity_adjustment'] as num?)?.toInt() ?? 0;
+    final base = items.where((i) => i.id == productId).firstOrNull;
+    final previous = base?.quantity ?? 0;
+    return StockAdjustmentResult(
+      shopProductId: productId,
+      previousQuantity: previous,
+      quantityAdjustment: delta,
+      newQuantity: previous + delta,
+      stockStatus: 'IN_STOCK',
+      adjustmentType: payload['adjustment_type'] as String?,
+    );
+  }
+
+  @override
+  Future<ProductHistoryResult> fetchProductHistory(
+    int shopId,
+    int productId,
+    String token,
+  ) async {
+    historyCalls++;
+    lastShopId = shopId;
+    lastHistoryProductId = productId;
+    final overridden = onHistory?.call(shopId, productId, token);
+    if (overridden != null) return overridden;
+    return ProductHistoryResult(shopProductId: productId, entries: const []);
+  }
+}
+
+// ---- Reports / Insights fakes ----------------------------------------------
+
+/// Mirrors the `GET /shopkeeper/shops/{id}/analytics/full` payload
+/// (`backend/app/services/shopkeeper_analytics.py`). Pass [empty] to model a
+/// shop with no recorded customer activity yet.
+Map<String, dynamic> insightsJson({bool empty = false}) => {
+  'overview': {
+    'views': {
+      'today': empty ? 0 : 42,
+      'yesterday': empty ? 0 : 30,
+      'change_pct': empty ? 0 : 40.0,
+      'this_week': empty ? 0 : 210,
+      'last_week': empty ? 0 : 180,
+      'week_change_pct': empty ? 0 : 16.7,
+    },
+    'clicks': {
+      'today': empty ? 0 : 12,
+      'this_week': empty ? 0 : 80,
+    },
+    'interactions': {
+      'today': empty ? 0 : 5,
+      'this_week': empty ? 0 : 33,
+    },
+    'generated_at': '2026-01-31T10:00:00',
+  },
+  'views_timeseries': empty
+      ? const []
+      : const [
+          {'date': '2026-01-30', 'views': 30},
+          {'date': '2026-01-31', 'views': 42},
+        ],
+  'clicks_timeseries': empty
+      ? const []
+      : const [
+          {'date': '2026-01-30', 'clicks': 9},
+          {'date': '2026-01-31', 'clicks': 12},
+        ],
+  'top_products': empty
+      ? const []
+      : const [
+          {'shop_product_id': 7, 'sku': 'SKU-RICE-1', 'views': 25},
+          {'shop_product_id': 8, 'sku': '', 'views': 11},
+        ],
+  'top_searches': empty
+      ? const []
+      : const [
+          {'query': 'basmati rice', 'count': 9},
+        ],
+  'interactions': {
+    'call_views': empty ? 0 : 3,
+    'messages': empty ? 0 : 2,
+    'ratings': empty ? 0 : 1,
+    'period_days': 30,
+  },
+  'devices': empty
+      ? const <String, dynamic>{}
+      : const {'android': 30, 'ios': 10, 'unknown': 2},
+  'hourly': empty
+      ? const []
+      : const [
+          {'hour': 0, 'views': 0},
+          {'hour': 9, 'views': 4},
+          {'hour': 18, 'views': 12},
+        ],
+  'freshness': {
+    'score': empty ? 0 : 75.0,
+    'total_products': empty ? 0 : 20,
+    'fresh': empty ? 0 : 15,
+    'stale': empty ? 0 : 5,
+  },
+};
+
+class FakeInsightsRepo implements InsightsRepository {
+  FakeInsightsRepo({this.json, this.error});
+
+  /// Raw payload returned on success (defaults to [insightsJson]).
+  final Map<String, dynamic>? json;
+
+  /// When set, thrown instead of returning [json].
+  final Object? error;
+
+  int calls = 0;
+  int? lastShopId;
+  int? lastDays;
+
+  @override
+  Future<InsightsBundle> fetchInsights(
+    int shopId,
+    String token, {
+    int days = kInsightsDefaultRange,
+  }) async {
+    calls++;
+    lastShopId = shopId;
+    lastDays = days;
+    if (error != null) throw error!;
+    return InsightsBundle.fromJson(json ?? insightsJson());
   }
 }

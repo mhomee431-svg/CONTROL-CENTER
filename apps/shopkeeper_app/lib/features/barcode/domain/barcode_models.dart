@@ -13,6 +13,8 @@ class CatalogProductMatch {
     required this.productMasterId,
     required this.name,
     this.brandId,
+    this.brand,
+    this.imageUrl,
     this.status,
     required this.isAvailableInCatalog,
     required this.matchType,
@@ -22,6 +24,13 @@ class CatalogProductMatch {
   final int productMasterId;
   final String name;
   final int? brandId;
+
+  /// Human-readable brand name (may be null when the master has no brand).
+  final String? brand;
+
+  /// Primary product image URL (may be null when no image is attached).
+  final String? imageUrl;
+
   final String? status;
   final bool isAvailableInCatalog;
   final String matchType;
@@ -32,6 +41,8 @@ class CatalogProductMatch {
         productMasterId: (json['product_master_id'] as num?)?.toInt() ?? 0,
         name: json['name'] as String? ?? 'Unnamed',
         brandId: (json['brand_id'] as num?)?.toInt(),
+        brand: json['brand_name'] as String?,
+        imageUrl: json['image_url'] as String?,
         status: json['status'] as String?,
         isAvailableInCatalog:
             json['is_available_in_catalog'] as bool? ?? false,
