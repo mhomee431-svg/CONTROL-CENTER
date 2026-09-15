@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_providers.dart';
 import '../domain/product_models.dart';
 
@@ -35,7 +36,7 @@ class ApiProductRepository implements ProductRepository {
     // source, which is what the Products screen renders; the overview shape
     // is preserved via _inventoryOverviewFromData so callers stay unchanged.
     final data = await _api.get(
-      '/api/v1/shopkeeper/shops/$shopId/inventory',
+      ApiEndpoints.inventory('$shopId'),
       query: const {'view': 'list'},
       token: token,
     ) as Map<String, dynamic>;
@@ -55,8 +56,11 @@ class ApiProductRepository implements ProductRepository {
   @override
   Future<ShopProductItem> createProduct(
       int shopId, Map<String, dynamic> payload, String token) async {
-    final data = await _api.post('/api/v1/shopkeeper/shops/$shopId/products',
-        body: payload, token: token) as Map<String, dynamic>;
+    final data = await _api.post(
+      ApiEndpoints.products('$shopId'),
+      body: payload,
+      token: token,
+    ) as Map<String, dynamic>;
     return ShopProductItem.fromJson(data);
   }
 
@@ -64,7 +68,7 @@ class ApiProductRepository implements ProductRepository {
   Future<ShopProductItem> updateProduct(int shopId, int productId,
       Map<String, dynamic> fields, String token) async {
     final data = await _api.patch(
-      '/api/v1/shopkeeper/shops/$shopId/products/$productId',
+      ApiEndpoints.product('$shopId', '$productId'),
       body: fields,
       token: token,
     ) as Map<String, dynamic>;
@@ -75,7 +79,7 @@ class ApiProductRepository implements ProductRepository {
   Future<StockAdjustmentResult> adjustStock(int shopId, int productId,
       Map<String, dynamic> payload, String token) async {
     final data = await _api.post(
-      '/api/v1/shopkeeper/shops/$shopId/products/$productId/stock-adjustments',
+      ApiEndpoints.stockAdjustments('$shopId', '$productId'),
       body: payload,
       token: token,
     ) as Map<String, dynamic>;
@@ -86,7 +90,7 @@ class ApiProductRepository implements ProductRepository {
   Future<ProductHistoryResult> fetchProductHistory(
       int shopId, int productId, String token) async {
     final data = await _api.get(
-      '/api/v1/shopkeeper/shops/$shopId/products/$productId/history',
+      ApiEndpoints.productHistory('$shopId', '$productId'),
       token: token,
     ) as Map<String, dynamic>;
     return ProductHistoryResult.fromJson(data);

@@ -91,6 +91,20 @@ class AuthController extends Notifier<AuthState> {
     // Install the global 401 → sign-out hook (no-op in tests that never
     // touch the network stack).
     globalUnauthorizedHandler = forceSessionExpired;
+
+    // SINGLE SOURCE OF TRUTH (authorized businesses): ShopsController is the
+    // ONLY place that fetches the shop list from the backend
+    // (`GET /shopkeeper/shops`). Whenever it publishes a fresh `ready` list,
+    // this listener mirrors it into the session snapshot ([AuthState.shops])
+    // that the router guards and [selectBusiness] read, and runs the ONE
+    // selection policy ([_syncPrimaryShop]). No second copy of the list can
+    // drift — registration, refresh and sign-in all converge here.
+    ref.listen<ShopsState>(shopsControllerProvider, (prev, next) {
+      if (next.status == ShopsStatus.ready) {
+        _syncAuthorizedShops(next.shops);
+      }
+    });
+
     return AuthState.initial();
   }
 
@@ -112,6 +126,27 @@ class AuthController extends Notifier<AuthState> {
     } else {
       ref.read(selectedShopProvider.notifier).select(null);
     }
+  }
+
+  /// Mirrors a freshly-fetched authorized-shops list into the session
+  /// snapshot and re-runs the single selection policy. Called by the
+  /// [shopsControllerProvider] listener in [build] — the only path through
+  /// which [AuthState.shops] changes after sign-in.
+  void _syncAuthorizedShops(List<ShopSummary> shops) {
+    final current = state;
+    if (!current.isAuthenticated) return;
+    if (listEquals(current.shops, shops)) return;
+    state = AuthState.authenticated(
+      user: current.user ??
+          const ShopkeeperUser(
+            id: 0,
+            phoneNumber: '',
+            name: '',
+            role: 'shopkeeper',
+          ),
+      shops: shops,
+    );
+    _syncPrimaryShop(shops);
   }
 
   /// Called after the user completes first-time profile creation. Adds the

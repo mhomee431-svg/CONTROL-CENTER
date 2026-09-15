@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_providers.dart';
 import '../domain/dashboard_models.dart';
 
@@ -16,7 +17,7 @@ class ApiDashboardRepository implements DashboardRepository {
 
   @override
   Future<DashboardData> fetchDashboard(int shopId, String token) async {
-    final data = await _api.get('/api/v1/shopkeeper/shops/$shopId/dashboard',
+    final data = await _api.get(ApiEndpoints.dashboard('$shopId'),
         token: token) as Map<String, dynamic>;
     return DashboardData.fromJson(data);
   }

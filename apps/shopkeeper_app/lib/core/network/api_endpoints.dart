@@ -37,6 +37,14 @@ class ApiEndpoints {
   static String product(String shopId, String productId) =>
       '${products(shopId)}/$productId';
 
+  /// Delta stock adjustment with a backend audit trail.
+  static String stockAdjustments(String shopId, String productId) =>
+      '${product(shopId, productId)}/stock-adjustments';
+
+  /// Inventory history for one product (movements, adjustments, price changes).
+  static String productHistory(String shopId, String productId) =>
+      '${product(shopId, productId)}/history';
+
   // ── Reports / Insights (shopkeeper analytics) ──
   // Aggregated server-side from the real analytics event stream (shop views,
   // product clicks, customer interactions, inventory freshness). Requires the
@@ -101,6 +109,53 @@ class ApiEndpoints {
   // Atomic create+link of one offer to selected shop products.
   static String assignOffer(int shopId) =>
       '/api/v1/shopkeeper/shops/$shopId/offers/assign';
+
+  /// Shopkeeper-scoped offer list, optionally filtered by status
+  /// (`active` | `expired` | `draft` | `scheduled`).
+  static String offers(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/offers';
+
+  // ── Shop holidays ──
+  // Date-specific closures (GET list / POST create / DELETE remove). Distinct
+  // from the weekly schedule carried in `shopSettings`.
+  static String shopHolidays(String id) => '${shop(id)}/holidays';
+  static String shopHoliday(String id, int holidayId) =>
+      '${shopHolidays(id)}/$holidayId';
+
+  // ─ POS integration (point-of-sale connectors) ─
+  // Backend exposes a full connector lifecycle: provider catalogue, integration
+  // CRUD, credential/config/schedule updates, connect / disconnect / reconnect,
+  // device registration, manual sync triggers, sync status and job history.
+  static const String posProviders = '/api/v1/shopkeeper/pos/providers';
+  static const String posRegister = '/api/v1/shopkeeper/pos/register';
+  static const String posIntegrations = '/api/v1/shopkeeper/pos/integrations';
+
+  static String posIntegration(int integrationId) =>
+      '$posIntegrations/$integrationId';
+  static String posCredentials(int integrationId) =>
+      '${posIntegration(integrationId)}/credentials';
+  static String posConfig(int integrationId) =>
+      '${posIntegration(integrationId)}/config';
+  static String posSchedule(int integrationId) =>
+      '${posIntegration(integrationId)}/schedule';
+  static String posConnect(int integrationId) =>
+      '${posIntegration(integrationId)}/connect';
+  static String posDisconnect(int integrationId) =>
+      '${posIntegration(integrationId)}/disconnect';
+  static String posReconnect(int integrationId) =>
+      '${posIntegration(integrationId)}/reconnect';
+  static String posDevices(int integrationId) =>
+      '${posIntegration(integrationId)}/devices';
+  static String posSync(int integrationId) =>
+      '${posIntegration(integrationId)}/sync';
+  static String posStatus(int integrationId) =>
+      '${posIntegration(integrationId)}/status';
+  static String posJobs(int integrationId) =>
+      '${posIntegration(integrationId)}/jobs';
+
+  static const String posJob = '/api/v1/shopkeeper/pos/jobs';
+  static String posJobDetail(int jobId) => '$posJob/$jobId';
+  static String posJobRetry(int jobId) => '$posJob/$jobId/retry';
 
   // ── Excel inventory imports (Phase 24 Part B) ──
   static String inventoryImports(int shopId) =>

@@ -95,6 +95,158 @@ class OfferAssignResult {
       );
 }
 
+/// One offer row as returned by
+/// `GET /shopkeeper/shops/{shop_id}/offers`.
+///
+/// [displayStatus] is derived **server-side** from the date window, so the
+/// Active / Scheduled / Expired tabs never re-derive dates on the client and
+/// can never disagree with the backend.
+class OfferSummary {
+  const OfferSummary({
+    required this.id,
+    required this.title,
+    required this.offerType,
+    required this.status,
+    required this.displayStatus,
+    required this.productCount,
+    this.description,
+    this.discountValue,
+    this.discountPercentage,
+    this.startDate,
+    this.endDate,
+    this.isVisible = true,
+    this.termsConditions,
+  });
+
+  final int id;
+  final String title;
+  final String? description;
+
+  /// Raw backend enum, e.g. `PERCENTAGE_DISCOUNT`.
+  final String offerType;
+
+  /// Stored status: `ACTIVE` | `DRAFT` | `EXPIRED` (may be PAUSED etc.).
+  final String status;
+
+  /// Shopkeeper-facing bucket: `ACTIVE` | `SCHEDULED` | `EXPIRED` | `DRAFT`.
+  final String displayStatus;
+
+  /// ₹ amount off (FLAT_DISCOUNT).
+  final double? discountValue;
+
+  /// Percent off (PERCENTAGE_DISCOUNT).
+  final double? discountPercentage;
+
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool isVisible;
+  final String? termsConditions;
+
+  /// How many shop products the offer is linked to.
+  final int productCount;
+
+  /// True when the offer is in its live window right now.
+  bool get isLive => displayStatus == 'ACTIVE';
+
+  /// True when the window has not started yet.
+  bool get isScheduled => displayStatus == 'SCHEDULED';
+
+  /// True when the offer is over (status EXPIRED or the window closed).
+  bool get isExpired => displayStatus == 'EXPIRED';
+
+  /// True when the offer is still a draft and not published.
+  bool get isDraft => displayStatus == 'DRAFT';
+
+  /// Friendly name for the backend `offer_type` enum.
+  String get offerTypeLabel {
+    for (final type in ShopkeeperOfferType.values) {
+      if (type.code == offerType) return type.label;
+    }
+    return offerType;
+  }
+
+  /// The deduction as the shopkeeper would say it, e.g. `15% off` / `₹50 off`.
+  String get discountLabel {
+    if (discountPercentage != null && discountPercentage! > 0) {
+      return '${_trimNumber(discountPercentage!)}% off';
+    }
+    if (discountValue != null && discountValue! > 0) {
+      return '₹${_trimNumber(discountValue!)} off';
+    }
+    return offerTypeLabel;
+  }
+
+  /// Validity window, e.g. `12 Jan – 20 Jan 2026`.
+  String get windowLabel {
+    final start = startDate;
+    final end = endDate;
+    if (start == null || end == null) return '';
+    return '${_formatDay(start)}  –  ${_formatDay(end)}';
+  }
+
+  factory OfferSummary.fromJson(Map<String, dynamic> json) => OfferSummary(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        title: json['title'] as String? ?? '',
+        description: json['description'] as String?,
+        offerType: json['offer_type'] as String? ?? '',
+        status: json['status'] as String? ?? 'DRAFT',
+        displayStatus:
+            json['display_status'] as String? ?? json['status'] as String? ?? 'DRAFT',
+        discountValue: (json['discount_value'] as num?)?.toDouble(),
+        discountPercentage: (json['discount_percentage'] as num?)?.toDouble(),
+        startDate: _parseDate(json['start_date']),
+        endDate: _parseDate(json['end_date']),
+        isVisible: json['is_visible'] as bool? ?? true,
+        termsConditions: json['terms_conditions'] as String?,
+        productCount: (json['product_count'] as num?)?.toInt() ?? 0,
+      );
+
+  static DateTime? _parseDate(Object? raw) {
+    if (raw is DateTime) return raw;
+    if (raw is String && raw.isNotEmpty) return DateTime.tryParse(raw)?.toLocal();
+    return null;
+  }
+}
+
+/// Result of `GET /shopkeeper/shops/{shop_id}/offers`.
+class OfferListPage {
+  const OfferListPage({required this.items, required this.count});
+
+  final List<OfferSummary> items;
+  final int count;
+
+  bool get isEmpty => items.isEmpty;
+
+  factory OfferListPage.fromJson(Map<String, dynamic> json) {
+    final raw = json['items'];
+    final items = raw is List
+        ? raw
+            .whereType<Map<String, dynamic>>()
+            .map(OfferSummary.fromJson)
+            .toList(growable: false)
+        : <OfferSummary>[];
+    return OfferListPage(
+      items: items,
+      count: (json['count'] as num?)?.toInt() ?? items.length,
+    );
+  }
+}
+
+/// Drops the trailing `.0` from whole numbers so `15.0%` reads as `15%`.
+String _trimNumber(double value) {
+  if (value == value.roundToDouble()) return value.toInt().toString();
+  return value.toString();
+}
+
+const List<String> _monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/// Compact `12 Jan 2026` formatting (no intl dependency in this app).
+String _formatDay(DateTime date) =>
+    '${date.day} ${_monthNames[date.month - 1]} ${date.year}';
+
 /// Client-side validation mirroring the backend `ShopkeeperOfferAssign`
 /// rules. Returns an error message, or null when the field is valid.
 class OfferValidators {

@@ -14,6 +14,12 @@ abstract class OffersRepository {
     OfferAssignRequest request,
     String token,
   );
+
+  /// Offers belonging to this shop, newest window first.
+  ///
+  /// [status] filters by the shopkeeper-facing bucket (`active`, `scheduled`,
+  /// `expired`, `draft`); omit it for every offer.
+  Future<OfferListPage> fetchOffers(int shopId, String token, {String? status});
 }
 
 class ApiOffersRepository implements OffersRepository {
@@ -33,6 +39,22 @@ class ApiOffersRepository implements OffersRepository {
       token: token,
     ) as Map<String, dynamic>;
     return OfferAssignResult.fromJson(data);
+  }
+
+  @override
+  Future<OfferListPage> fetchOffers(
+    int shopId,
+    String token, {
+    String? status,
+  }) async {
+    final data = await _api.get(
+      ApiEndpoints.offers(shopId),
+      token: token,
+      query: {
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    ) as Map<String, dynamic>;
+    return OfferListPage.fromJson(data);
   }
 }
 

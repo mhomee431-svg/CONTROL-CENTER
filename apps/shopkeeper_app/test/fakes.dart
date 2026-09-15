@@ -1,4 +1,4 @@
-import 'package:hyperlocal_shopkeeper_app/core/auth/firebase_auth_service.dart';
+﻿import 'package:hyperlocal_shopkeeper_app/core/auth/firebase_auth_service.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
@@ -13,6 +13,10 @@ import 'package:hyperlocal_shopkeeper_app/features/inventory_import/domain/impor
 import 'package:hyperlocal_shopkeeper_app/features/insights/data/insights_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/insights/domain/insights_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/offers/data/offers_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/offers/domain/offer_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/pos/data/pos_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/pos/domain/pos_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/data/shop_repository.dart';
@@ -458,10 +462,35 @@ class FakeBarcodeRepo implements BarcodeRepository {
 
 // ---- Notifications fakes ------------------------------------------------------------
 
+/// Returns [n] flagged as read, preserving every other field. Mirrors the
+/// server-confirmed shape the real backend returns after a mark-as-read.
+ShopkeeperNotification _asReadNotification(ShopkeeperNotification n) =>
+    ShopkeeperNotification(
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      type: n.type,
+      isRead: true,
+      createdAt: n.createdAt,
+      deepLink: n.deepLink,
+    );
+
+/// In-memory notifications repository.
+///
+/// The fake is **stateful with respect to read state**: every id passed to
+/// [markAsRead] stays read on all subsequent [fetchNotifications] calls, and
+/// the returned `unreadCount` accounts for them. Without this the fake could
+/// only ever replay its constructor `page`, so a test that reads a
+/// notification and then refetches would see the *original* unread count
+/// again — making it impossible to prove the UI tracks server state.
+///
+/// When nothing has been marked read the base `page` is returned untouched,
+/// so existing fixtures (e.g. a page whose `unreadCount` is independent of
+/// its `items`) keep their exact previous behaviour.
 class FakeNotificationsRepo implements NotificationsRepository {
   FakeNotificationsRepo({this.page, this.error, this.markAsReadError});
 
-  /// Notifications page returned on success.
+  /// Notifications page returned on success (the baseline state).
   final NotificationsPage? page;
 
   /// When set, thrown by [fetchNotifications].
@@ -481,13 +510,108 @@ class FakeNotificationsRepo implements NotificationsRepository {
   }) async {
     fetchCalls++;
     if (error != null) throw error!;
-    return page ?? const NotificationsPage(items: [], unreadCount: 0);
+    final base = page ?? const NotificationsPage(items: [], unreadCount: 0);
+    if (markedRead.isEmpty) return base;
+
+    // Apply the accumulated read state on top of the baseline page.
+    final items = <ShopkeeperNotification>[];
+    var consumed = 0;
+    for (final n in base.items) {
+      if (!markedRead.contains(n.id)) {
+        items.add(n);
+        continue;
+      }
+      if (n.isUnread) consumed++;
+      items.add(_asReadNotification(n));
+    }
+    final unread = base.unreadCount - consumed;
+    return NotificationsPage(
+      items: items,
+      unreadCount: unread < 0 ? 0 : unread,
+    );
   }
 
   @override
   Future<void> markAsRead(int notificationId, String token) async {
     if (markAsReadError != null) throw markAsReadError!;
-    markedRead.add(notificationId);
+    if (!markedRead.contains(notificationId)) markedRead.add(notificationId);
+  }
+}
+
+// ---- Offers fakes -----------------------------------------------------------
+
+/// Builds one offer row for the list fixture. Defaults describe a LIVE offer so
+/// tests only override the field they are actually exercising.
+OfferSummary offerSummary({
+  int id = 1,
+  String title = 'Monsoon Sale',
+  String offerType = 'PERCENTAGE_DISCOUNT',
+  String status = 'ACTIVE',
+  String? displayStatus,
+  double? discountPercentage = 15,
+  double? discountValue,
+  int productCount = 3,
+  DateTime? startDate,
+  DateTime? endDate,
+}) =>
+    OfferSummary(
+      id: id,
+      title: title,
+      offerType: offerType,
+      status: status,
+      displayStatus: displayStatus ?? status,
+      discountPercentage: discountPercentage,
+      discountValue: discountValue,
+      productCount: productCount,
+      startDate: startDate ?? DateTime(2026, 1, 12),
+      endDate: endDate ?? DateTime(2026, 1, 20),
+    );
+
+class FakeOffersRepo implements OffersRepository {
+  FakeOffersRepo({this.page, this.listError, this.assignError, this.assignResult});
+
+  /// Page returned by [fetchOffers] on success.
+  final OfferListPage? page;
+
+  /// When set, thrown by [fetchOffers].
+  final Object? listError;
+
+  /// When set, thrown by [assignOffer].
+  final Object? assignError;
+
+  /// Result returned by [assignOffer] on success.
+  final OfferAssignResult? assignResult;
+
+  final List<String?> requestedStatuses = [];
+  int fetchCalls = 0;
+  int assignCalls = 0;
+
+  @override
+  Future<OfferListPage> fetchOffers(
+    int shopId,
+    String token, {
+    String? status,
+  }) async {
+    fetchCalls++;
+    requestedStatuses.add(status);
+    if (listError != null) throw listError!;
+    return page ?? const OfferListPage(items: [], count: 0);
+  }
+
+  @override
+  Future<OfferAssignResult> assignOffer(
+    int shopId,
+    OfferAssignRequest request,
+    String token,
+  ) async {
+    assignCalls++;
+    if (assignError != null) throw assignError!;
+    return assignResult ??
+        const OfferAssignResult(
+          offerId: 1,
+          title: 'Monsoon Sale',
+          productCount: 1,
+        );
   }
 }
 
@@ -819,5 +943,203 @@ class FakeInsightsRepo implements InsightsRepository {
     lastDays = days;
     if (error != null) throw error!;
     return InsightsBundle.fromJson(json ?? insightsJson());
+  }
+}
+
+// ---- POS fakes --------------------------------------------------------------
+
+/// One POS integration fixture. Defaults describe a CONNECTED integration.
+PosIntegration posIntegration({
+  int id = 50,
+  int shopId = 10,
+  String providerCode = 'MOCK',
+  String providerName = 'Mock POS (built-in)',
+  String status = 'ACTIVE',
+  int mappedProducts = 12,
+  int deviceCount = 1,
+  DateTime? lastSyncAt,
+  String? lastSyncStatus,
+  PosSyncJob? latestJob,
+}) =>
+    PosIntegration(
+      id: id,
+      shopId: shopId,
+      providerCode: providerCode,
+      providerName: providerName,
+      status: status,
+      syncEnabled: status == 'ACTIVE',
+      syncIntervalMinutes: 30,
+      mappedProducts: mappedProducts,
+      deviceCount: deviceCount,
+      lastSyncAt: lastSyncAt,
+      lastSyncStatus: lastSyncStatus,
+      latestJob: latestJob,
+    );
+
+/// One sync-job fixture. Defaults describe a completed successful full sync.
+PosSyncJob posJob({
+  int id = 900,
+  String syncType = 'FULL',
+  String status = 'COMPLETED',
+  String trigger = 'MANUAL',
+  int itemsProcessed = 5,
+  int itemsSucceeded = 5,
+  int itemsFailed = 0,
+  String? errorSummary,
+  DateTime? startedAt,
+  DateTime? completedAt,
+}) =>
+    PosSyncJob(
+      id: id,
+      syncType: syncType,
+      status: status,
+      trigger: trigger,
+      itemsProcessed: itemsProcessed,
+      itemsSucceeded: itemsSucceeded,
+      itemsFailed: itemsFailed,
+      errorSummary: errorSummary,
+      startedAt: startedAt ?? DateTime(2026, 9, 14, 9, 30),
+      completedAt: completedAt ?? DateTime(2026, 9, 14, 9, 31),
+    );
+
+/// In-memory POS backend: [register] appends a PENDING integration, [connect]
+/// flips it per [connectResult] so the controller's reload sees the new state.
+class FakePosRepo implements PosRepository {
+  FakePosRepo({
+    List<PosIntegration>? integrations,
+    this.providers = const [
+      PosProviderInfo(
+        code: 'MOCK',
+        displayName: 'Mock POS (built-in)',
+        supportsIncremental: true,
+      ),
+    ],
+    this.jobs = const [],
+    this.statusResult,
+    this.connectResult = true,
+    this.listError,
+    this.connectError,
+    this.syncError,
+    this.syncJobResult,
+  }) : integrations = integrations ?? [];
+
+  final List<PosIntegration> integrations;
+  final List<PosProviderInfo> providers;
+  final List<PosSyncJob> jobs;
+
+  /// Overrides `.../status` responses (defaults to the stored integration).
+  final PosIntegration? statusResult;
+
+  /// What `connect` reports (false simulates a credential refusal).
+  final bool connectResult;
+
+  /// When set, listIntegrations throws this.
+  final Object? listError;
+
+  /// When set, connect throws this.
+  final Object? connectError;
+
+  /// When set, triggerSync throws this.
+  final Object? syncError;
+
+  /// Returned by triggerSync on success.
+  final PosSyncJob? syncJobResult;
+
+  int providerCalls = 0;
+  int listCalls = 0;
+  int registerCalls = 0;
+  int connectCalls = 0;
+  int disconnectCalls = 0;
+  int syncCalls = 0;
+  int statusCalls = 0;
+  int jobsCalls = 0;
+
+  String? lastRegisteredProvider;
+
+  @override
+  Future<List<PosProviderInfo>> listProviders(String token) async {
+    providerCalls++;
+    return providers;
+  }
+
+  @override
+  Future<List<PosIntegration>> listIntegrations(
+    int shopId,
+    String token,
+  ) async {
+    listCalls++;
+    if (listError != null) throw listError!;
+    return integrations
+        .where((i) => i.shopId == shopId)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<PosIntegration> register(
+    int shopId,
+    String providerCode,
+    String token, {
+    String integrationType = 'API',
+  }) async {
+    registerCalls++;
+    lastRegisteredProvider = providerCode;
+    final created = posIntegration(
+      id: 77,
+      shopId: shopId,
+      providerCode: providerCode,
+      status: 'PENDING',
+    );
+    integrations.add(created);
+    return created;
+  }
+
+  @override
+  Future<bool> connect(int integrationId, String token) async {
+    connectCalls++;
+    if (connectError != null) throw connectError!;
+    if (connectResult) {
+      final i = integrations.indexWhere((x) => x.id == integrationId);
+      if (i != -1) integrations[i] = posIntegration(id: integrationId, status: 'ACTIVE');
+    }
+    return connectResult;
+  }
+
+  @override
+  Future<PosIntegration> disconnect(int integrationId, String token) async {
+    disconnectCalls++;
+    final i = integrations.indexWhere((x) => x.id == integrationId);
+    if (i != -1) {
+      integrations[i] = posIntegration(id: integrationId, status: 'DISCONNECTED');
+      return integrations[i];
+    }
+    return posIntegration(id: integrationId, status: 'DISCONNECTED');
+  }
+
+  @override
+  Future<PosSyncJob> triggerSync(
+    int integrationId,
+    String token, {
+    String syncType = 'FULL',
+  }) async {
+    syncCalls++;
+    if (syncError != null) throw syncError!;
+    return syncJobResult ?? posJob();
+  }
+
+  @override
+  Future<PosIntegration> status(int integrationId, String token) async {
+    statusCalls++;
+    return statusResult ??
+        integrations.firstWhere((x) => x.id == integrationId, orElse: () => posIntegration(id: integrationId));
+  }
+
+  @override
+  Future<List<PosSyncJob>> listJobs(
+    int integrationId,
+    String token, {
+    int limit = 20,
+  }) async {
+    jobsCalls++;
+    return jobs;
   }
 }

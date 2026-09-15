@@ -4,7 +4,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../inventory_import/data/import_repository.dart';
-import '../../../notifications/data/notifications_repository.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../../products/data/product_repository.dart';
 import '../../data/dashboard_repository.dart';
 import '../../domain/dashboard_models.dart';
@@ -94,11 +94,14 @@ class DashboardController extends Notifier<DashboardState> {
       }
       return null;
     });
+    // SINGLE SOURCE OF TRUTH (unread notifications): the count lives ONLY in
+    // NotificationsController (which owns the optimistic mark-as-read
+    // updates). The dashboard asks that controller for its count instead of
+    // fetching the notifications page itself — a second copy here would
+    // drift from the badge the moment the shopkeeper reads a notification.
     final unread = await _guard(() async {
-      final page = await ref
-          .read(notificationsRepositoryProvider)
-          .fetchNotifications(shopId, token, limit: 5);
-      return page.unreadCount;
+      await ref.read(notificationsControllerProvider.notifier).load();
+      return ref.read(notificationsControllerProvider).unreadCount;
     });
     final stale = await _guard(() async {
       final overview =

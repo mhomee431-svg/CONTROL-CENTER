@@ -16,6 +16,7 @@ import re
 import uuid
 from typing import Any
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, defer
 
 from app.core.exceptions import (
@@ -1905,6 +1906,104 @@ def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dic
         "product_ids": product_ids,
         "product_count": len(product_ids),
     }
+
+
+def _offer_display_status(offer: Offer, now: datetime) -> str:
+    """Shopkeeper-facing status bucket for one offer.
+
+    The stored ``status`` column cannot express "ACTIVE but not started yet" or
+    "ACTIVE but the window already closed", so those two are DERIVED from the
+    date window. The shopkeeper app's Active / Scheduled / Expired tabs read
+    this field rather than re-deriving dates on the client.
+    """
+    if offer.status == OfferStatus.ACTIVE:
+        if offer.start_date is not None and offer.start_date > now:
+            return "SCHEDULED"
+        if offer.end_date is not None and offer.end_date < now:
+            return "EXPIRED"
+    return offer.status.value
+
+
+def _offer_summary(offer: Offer, product_count: int, now: datetime) -> dict[str, Any]:
+    """Wire shape for one offer row (list + detail views share it)."""
+    return {
+        "id": offer.id,
+        "title": offer.title,
+        "description": offer.description,
+        "offer_type": offer.offer_type.value,
+        "discount_value": (
+            float(offer.discount_value) if offer.discount_value is not None else None
+        ),
+        "discount_percentage": (
+            float(offer.discount_percentage)
+            if offer.discount_percentage is not None
+            else None
+        ),
+        "status": offer.status.value,
+        "display_status": _offer_display_status(offer, now),
+        "start_date": _iso(offer.start_date),
+        "end_date": _iso(offer.end_date),
+        "is_visible": bool(offer.is_visible),
+        "terms_conditions": offer.terms_conditions,
+        "product_count": product_count,
+    }
+
+
+def list_shop_offers(
+    access: ShopAccess, db: Session, status_filter: str | None = None
+) -> dict[str, Any]:
+    """Offers belonging to this shop, newest window first.
+
+    ``status_filter`` accepts the shopkeeper-facing buckets ``active``,
+    ``scheduled``, ``expired`` and ``draft``; anything else (or ``None``)
+    returns every offer for the shop. Read-only — requires ``offer:read``,
+    which both owners and managers hold.
+    """
+    access.require("offer", "read")
+
+    now = datetime.now(timezone.utc)
+    query = (
+        db.query(Offer)
+        .filter(
+            Offer.shop_id == access.shop.id,
+            Offer.is_deleted == False,  # noqa: E712
+        )
+        .order_by(Offer.start_date.desc(), Offer.id.desc())
+    )
+
+    bucket = (status_filter or "").strip().lower()
+    if bucket == "draft":
+        query = query.filter(Offer.status == OfferStatus.DRAFT)
+    elif bucket == "expired":
+        query = query.filter(
+            or_(Offer.status == OfferStatus.EXPIRED, Offer.end_date < now)
+        )
+    elif bucket == "scheduled":
+        query = query.filter(
+            Offer.status == OfferStatus.ACTIVE, Offer.start_date > now
+        )
+    elif bucket == "active":
+        query = query.filter(
+            Offer.status == OfferStatus.ACTIVE,
+            Offer.start_date <= now,
+            Offer.end_date >= now,
+        )
+
+    offers = query.all()
+
+    # One grouped count instead of a per-row query (avoids N+1 on the list).
+    counts: dict[int, int] = {}
+    if offers:
+        rows = (
+            db.query(OfferProduct.offer_id, func.count(OfferProduct.id))
+            .filter(OfferProduct.offer_id.in_([o.id for o in offers]))
+            .group_by(OfferProduct.offer_id)
+            .all()
+        )
+        counts = {offer_id: int(total) for offer_id, total in rows}
+
+    items = [_offer_summary(o, counts.get(o.id, 0), now) for o in offers]
+    return {"items": items, "count": len(items)}
 
 
 # ── Profile / settings updates ───────────────────────────────────────────

@@ -54,16 +54,11 @@ class ShopsController extends Notifier<ShopsState> {
       }
       final shops = await _repo.listMyShops(token);
       state = ShopsState(status: ShopsStatus.ready, shops: shops);
-      // Keep the selection valid: drop it if the shop is no longer
-      // authorized; auto-select when exactly one shop remains.
-      final selected = ref.read(selectedShopProvider);
-      final selectedId = selected?.id;
-      if (selectedId != null && !shops.any((s) => s.id == selectedId)) {
-        ref.read(selectedShopProvider.notifier).select(null);
-      }
-      if (selectedId == null && shops.length == 1) {
-        ref.read(selectedShopProvider.notifier).select(shops.first);
-      }
+      // NOTE: selection validity / auto-select policy is NOT duplicated here.
+      // AuthController listens to this `ready` state and runs the ONE
+      // selection policy (drop invalid selection, auto-select when exactly
+      // one shop) while mirroring the list into [AuthState.shops] for the
+      // router guards — single source of truth for both.
     } on ApiException catch (e) {
       state = ShopsState(status: ShopsStatus.error, errorMessage: e.message);
     } catch (_) {

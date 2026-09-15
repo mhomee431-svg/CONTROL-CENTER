@@ -471,6 +471,34 @@ async def assign_offer_to_products(
     db.commit()
     return success_response(data=result, message="Offer assigned", status_code=201)
 
+
+@router.get("/shops/{shop_id}/offers")
+async def list_shop_offers(
+    shop_id: int,
+    status: str | None = Query(
+        None,
+        description="Bucket filter: active | scheduled | expired | draft. "
+        "Omit for every offer.",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Offers belonging to this shop, newest window first.
+
+    Read-only; the shopkeeper app's Offers screen renders these directly so a
+    freshly created offer is visible without a reload.
+    """
+    from app.core.exceptions import AppError
+    from app.core.responses import error_response
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.list_shop_offers(access, db, status_filter=status)
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    return success_response(data=result)
+
+
 @router.get("/leads")
 async def shopkeeper_leads(
     current_user: User = Depends(get_current_user),
