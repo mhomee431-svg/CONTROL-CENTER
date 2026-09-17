@@ -635,6 +635,7 @@ class TestExcelPartialFailure(ExcelTestBase):
 
         by_row = {p["row_number"]: p for p in result["preview"]}
         assert by_row[2]["error_code"] == "INVALID_BARCODE"
+
         assert by_row[3]["error_code"] == "NEGATIVE_QUANTITY"
         assert by_row[4]["error_code"] == "UNKNOWN_PRODUCT"
 
@@ -820,3 +821,56 @@ class TestCanonicalInventoryVerify(ExcelTestBase):
         assert view_ex[0]["quantity"] == 50
         assert view_ex[0]["price"] == 120.0
         assert view_ex[0]["source"] == "EXCEL_UPLOAD"
+
+
+class TestSampleWorkbook(ExcelTestBase):
+    """Download Sample — the Import Center's downloadable template."""
+
+    def test_sample_round_trips_and_imports_cleanly(self):
+        from app.models.inventory_import import InventoryImportRow
+        from app.models.product import (
+            ProductIdentifier,
+            ProductMaster,
+            ProductVariant,
+        )
+        from app.services import excel_import_service as svc
+        from app.services import xlsx_lite
+
+        content = svc.build_sample_workbook()
+        assert content.startswith(b"PK")  # a real .xlsx (zip container)
+
+        # The header maps onto every canonical field, and the writer/reader
+        # pair can never drift apart.
+        grid = xlsx_lite.read_workbook(content)
+        mapping = svc.map_headers(grid[0])
+        for field in ("barcode", "product_name", "brand", "variant",
+                      "sku", "price", "mrp", "quantity", "availability"):
+            assert field in mapping, field
+
+        # And the whole file stages cleanly: every example row resolves and
+        # validates, so a shopkeeper filling it in starts from a valid file.
+        db = IntakeMockDB()
+        db.queue_first(ProductIdentifier, [
+            make_identifier(barcode="8901234567890", master_id=21),
+            make_identifier(barcode="8901234567883", master_id=23),
+        ])
+        db.queue_first(ProductVariant, [
+            make_variant(variant_id=31, name="500 ml", sku="FF-MILK-500"),
+        ])
+        db.queue_first(ProductMaster, [
+            make_master(master_id=21, name="Aashirvaad Salt 1kg",
+                        variants=[make_variant(variant_id=32, name="1 kg")]),
+            make_master(master_id=22, name="Farm Fresh Milk 500ml",
+                        variants=[make_variant(variant_id=31, name="500 ml",
+                                               sku="FF-MILK-500")]),
+            make_master(master_id=23, name="India Gate Basmati 5kg",
+                        variants=[make_variant(variant_id=33, name="5 kg")]),
+        ])
+
+        result = svc.create_import(
+            FakeAccess(), db, make_user(), svc.SAMPLE_FILE_NAME, content
+        )
+        assert result["total_rows"] == 3
+        assert result["valid_rows"] == 3
+        assert result["error_rows"] == 0
+        assert len(db.objects_of(InventoryImportRow)) == 3

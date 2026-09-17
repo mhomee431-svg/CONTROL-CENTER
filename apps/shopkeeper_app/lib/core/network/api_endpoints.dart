@@ -166,4 +166,9 @@ class ApiEndpoints {
 
   static String inventoryImportConfirm(int shopId, int jobId) =>
       '/api/v1/shopkeeper/inventory-imports/$jobId/confirm?shop_id=$shopId';
+
+  /// Download Sample — the import template workbook (raw .xlsx bytes, not the
+  /// JSON envelope).
+  static String inventoryImportSample(int shopId) =>
+      '${inventoryImports(shopId)}/sample';
 }

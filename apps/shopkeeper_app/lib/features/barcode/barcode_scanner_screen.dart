@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -66,10 +68,27 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
     old.dispose();
   }
 
+  /// Restart the live feed once a result sheet has closed.
+  ///
+  /// Skipped when the scanner is no longer the top route: a save or the
+  /// conflict hand-off pops this screen, and `start()` on a controller that is
+  /// being disposed throws `controllerDisposed` from an unawaited future.
   void _resumeScanning() {
     if (!mounted) return;
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     setState(() => _isProcessing = false);
-    _cameraController.start();
+    unawaited(_startCameraSafely());
+  }
+
+  /// `MobileScannerController.start()` throws [MobileScannerException]
+  /// (`controllerDisposed`) when the controller went away mid-call — expected
+  /// while the screen is closing, and nothing is left to recover.
+  Future<void> _startCameraSafely() async {
+    try {
+      await _cameraController.start();
+    } on MobileScannerException {
+      // The screen is gone; there is nothing left to restart.
+    }
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -298,51 +317,65 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
             ),
         ],
       ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: _cameraController,
-            onDetect: _onDetect,
-            // Req 27: explicit permission-denied / unavailable states —
-            // Retry re-initializes the camera; manual entry and the AppBar
-            // back button are always available so the user is never trapped.
-            errorBuilder: (context, error) => _ScannerErrorView(
-              error: error,
-              onRetry: _restartCamera,
-              onManualEntry: _showManualEntrySheet,
-            ),
-          ),
-          // Scan-frame overlay.
-          Center(
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 3,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  'Position a product barcode inside the frame — '
-                  'it is detected automatically.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
+      body: ValueListenableBuilder<MobileScannerState>(
+        valueListenable: _cameraController,
+        builder: (context, cameraState, _) {
+          // Req 27: the frame and its instruction only make sense over a live
+          // camera. When initialization fails (permission denied, unsupported
+          // device, camera taken by another app) MobileScanner renders the
+          // error view, and this overlay used to be drawn on top of it —
+          // hiding the message that explains what went wrong.
+          final cameraFailed = cameraState.error != null;
+          return Stack(
+            children: [
+              MobileScanner(
+                controller: _cameraController,
+                onDetect: _onDetect,
+                // Req 27: explicit permission-denied / unavailable states —
+                // Retry re-initializes the camera; manual entry and the AppBar
+                // back button are always available so the user is never
+                // trapped.
+                errorBuilder: (context, error) => _ScannerErrorView(
+                  error: error,
+                  onRetry: _restartCamera,
+                  onManualEntry: _showManualEntrySheet,
                 ),
               ),
-            ),
-          ),
-        ],
+              if (!cameraFailed) ...[
+                // Scan-frame overlay.
+                Center(
+                  child: Container(
+                    width: 260,
+                    height: 260,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        'Position a product barcode inside the frame — '
+                        'it is detected automatically.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

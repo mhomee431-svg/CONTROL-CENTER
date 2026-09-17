@@ -1,0 +1,310 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../products/domain/product_models.dart';
+import '../../../products/presentation/controllers/products_controller.dart';
+
+/// Shared presentation helpers for the Inventory module (dashboard, list,
+/// stock, history, sync). Every screen reads server vocabulary through these
+/// helpers so labels/colors can never drift between screens.
+
+// ── Money ────────────────────────────────────────────────────────────────────
+
+/// Drops the trailing `.0` from whole numbers so `₹120.0` reads as `₹120`.
+String trimNumber(num value) {
+  if (value == value.roundToDouble()) return value.toInt().toString();
+  return value.toString();
+}
+
+/// `₹`-prefixed price label, e.g. `₹120` / `₹119.5`.
+String moneyLabel(num value) => '₹${trimNumber(value)}';
+
+// ── Inventory source (server vocabulary, display-only mapping) ──────────────
+
+String _humanizeKey(String key) => key
+    .split('_')
+    .map((p) => p.isEmpty ? p : '${p[0]}${p.substring(1).toLowerCase()}')
+    .join(' ');
+
+/// Human label for a server inventory `source` value. Unknown values are
+/// humanised instead of throwing, so a new server source still renders.
+String inventorySourceLabel(String? source) {
+  final key = (source ?? '').trim().toUpperCase();
+  return switch (key) {
+    '' || 'UNKNOWN' || 'MANUAL' => 'Updated in app',
+    'BARCODE_SCAN' => 'Barcode scan',
+    'POS_INTEGRATION' => 'POS sync',
+    'EXCEL_UPLOAD' => 'Excel import',
+    'SYSTEM' => 'System',
+    _ => _humanizeKey(key),
+  };
+}
+
+/// Icon for an inventory source chip.
+IconData inventorySourceIcon(String? source) {
+  final key = (source ?? '').trim().toUpperCase();
+  return switch (key) {
+    'BARCODE_SCAN' => Icons.qr_code_scanner_outlined,
+    'POS_INTEGRATION' => Icons.point_of_sale_outlined,
+    'EXCEL_UPLOAD' => Icons.upload_file_outlined,
+    'SYSTEM' => Icons.smart_toy_outlined,
+    _ => Icons.edit_outlined,
+  };
+}
+
+/// Color for an inventory source chip.
+Color inventorySourceColor(String? source) {
+  final key = (source ?? '').trim().toUpperCase();
+  return switch (key) {
+    'BARCODE_SCAN' => const Color(0xFF1A73E8),
+    'POS_INTEGRATION' => const Color(0xFF7B1FA2),
+    'EXCEL_UPLOAD' => const Color(0xFF0B5D3B),
+    'SYSTEM' => AppTheme.suspendedGrey,
+    _ => const Color(0xFF5F6368),
+  };
+}
+
+// ── Freshness (server tiers: RECENTLY_UPDATED / FRESH / STALE) ──────────────
+
+/// Shopkeeper-facing freshness label; `null`/unknown renders as `—`.
+String freshnessLabel(String? status) {
+  final key = (status ?? '').trim().toUpperCase();
+  return switch (key) {
+    'RECENTLY_UPDATED' || 'FRESH' => 'Fresh',
+    'STALE' => 'Needs update',
+    _ => '—',
+  };
+}
+
+/// Color for a freshness chip ([freshnessLabel] owns the wording).
+Color freshnessColor(String? status) {
+  final key = (status ?? '').trim().toUpperCase();
+  if (key == 'RECENTLY_UPDATED' || key == 'FRESH') return AppTheme.verifiedGreen;
+  if (key == 'STALE') return AppTheme.pendingAmber;
+  return AppTheme.suspendedGrey;
+}
+
+// ── Dates ────────────────────────────────────────────────────────────────────
+
+const List<String> _monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/// Compact `12 Jan 2026` formatting (no intl dependency needed here).
+String shortDateLabel(DateTime date) =>
+    '${date.day} ${_monthNames[date.month - 1]} ${date.year}';
+
+/// Friendly relative label for a last-updated timestamp:
+/// `Today 14:05` / `Yesterday` / `12 Jan 2026` / `—` when null.
+String lastUpdatedLabel(DateTime? when) {
+  if (when == null) return '—';
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(when.year, when.month, when.day);
+  final diff = today.difference(day).inDays;
+  if (diff <= 0) {
+    final hh = when.hour.toString().padLeft(2, '0');
+    final mm = when.minute.toString().padLeft(2, '0');
+    return 'Today $hh:$mm';
+  }
+  if (diff == 1) return 'Yesterday';
+  return shortDateLabel(when);
+}
+
+// ── Reusable widgets ─────────────────────────────────────────────────────────
+
+/// Small rounded label chip (stock state, freshness, source, offer status).
+class InfoChip extends StatelessWidget {
+  const InfoChip({
+    super.key,
+    required this.label,
+    required this.color,
+    this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dashboard stat tile — a big number with a label, tappable.
+class StatCard extends StatelessWidget {
+  const StatCard({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.color,
+    this.onTap,
+  });
+
+  final String label;
+  final int value;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Standard async-state body for screens fed by `productsControllerProvider`:
+/// loading spinner / access denied / error + retry, then [builder] with data.
+///
+/// The rendering itself lives in the shared `SystemStateView` — this class only
+/// translates the inventory controller's status into a system state, so the
+/// four-way contract and its widgets exist in ONE place across the app.
+class ProductsAsyncBody extends StatelessWidget {
+  const ProductsAsyncBody({
+    super.key,
+    required this.status,
+    this.message,
+    required this.onRetry,
+    required this.builder,
+  });
+
+  final ProductsStatus status;
+  final String? message;
+  final VoidCallback onRetry;
+  final WidgetBuilder builder;
+
+  @override
+  Widget build(BuildContext context) {
+    return SystemStateBody(
+      isLoading: status == ProductsStatus.loading,
+      failure: switch (status) {
+        ProductsStatus.accessDenied => SystemStateSpec.resolve(
+          state: SystemState.permissionDenied,
+          title: 'Access denied',
+          message: message,
+          fallbackMessage: "You do not have access to this shop's inventory.",
+        ),
+        ProductsStatus.error => SystemStateSpec.resolve(
+          title: 'Could not load inventory',
+          message: message,
+          fallbackMessage: 'Please check your connection and retry.',
+        ),
+        _ => null,
+      },
+      onRetry: onRetry,
+      builder: builder,
+    );
+  }
+}
+
+/// Pick-one-product list used by Update Stock, Stock History, Update Price
+/// and Price History when they are opened without a specific product.
+class ProductPickerListView extends StatelessWidget {
+  const ProductPickerListView({
+    super.key,
+    required this.items,
+    required this.onSelected,
+    this.subtitle,
+  });
+
+  final List<ShopProductItem> items;
+  final ValueChanged<ShopProductItem> onSelected;
+
+  /// Extra line rendered under each product name (e.g. current stock).
+  final String Function(ShopProductItem item)? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return SystemStateView.empty(
+        title: 'No products yet',
+        message: 'Add products or import them from Excel first.',
+        icon: Icons.inventory_2_outlined,
+      );
+    }
+    return ListView.separated(
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        final item = items[i];
+        return ListTile(
+          title: Text(item.name),
+          subtitle: Text(
+            subtitle?.call(item) ??
+                '${StockStateView.of(item.stockStatus).label} · ${item.quantity} units',
+            style: const TextStyle(fontSize: 12),
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => onSelected(item),
+        );
+      },
+    );
+  }
+}
+
+// ── Stock chip ──────────────────────────────────────────────────────────────
+
+/// Color for a [StockStateView] label chip.
+Color stockStateColor(StockStateView state) {
+  if (state.isOutOfStock) return AppTheme.rejectedRed;
+  if (state.isLowStock) return AppTheme.pendingAmber;
+  if (state.isInStock) return AppTheme.verifiedGreen;
+  return AppTheme.suspendedGrey;
+}

@@ -675,11 +675,15 @@ def dashboard_payload(access: ShopAccess, db: Session) -> dict[str, Any]:
     offers: list[Offer] = db.query(Offer).filter(Offer.shop_id == shop.id).all()
     now = datetime.now(timezone.utc)
     offers_summary = {
-        "total": len(offers),
+                "total": len(offers),
         "active": sum(
             1
             for o in offers
-            if o.status == OfferStatus.ACTIVE and o.end_date is not None and o.end_date >= now
+            if (
+                o.status == OfferStatus.ACTIVE
+                and o.end_date is not None
+                and _to_utc(o.end_date) >= now
+            )
         ),
         "draft": sum(1 for o in offers if o.status == OfferStatus.DRAFT),
     }
@@ -1841,8 +1845,8 @@ def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dic
     # Phase 28 — subscription entitlement enforcement (offers + cap).
     _enforce_offers(db, access)
 
-    start_date = data["start_date"]
-    end_date = data["end_date"]
+    start_date = _to_utc(data["start_date"])
+    end_date = _to_utc(data["end_date"])
     if end_date <= start_date:
         raise ValidationError("Offer end date must be after start date")
 
@@ -1908,6 +1912,20 @@ def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dic
     }
 
 
+def _to_utc(dt: datetime) -> datetime:
+    """Normalize a possibly-naive datetime to UTC-aware for comparison.
+
+    The Offer date columns are stored offset-naive, while callers compare them
+    against an offset-aware `now`. Comparing the two directly raises
+    'can't compare offset-naive and offset-aware datetimes' — the 500 that
+    broke the dashboard and offers list. Normalize the column value first so
+    the comparison is always aware-vs-aware.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _offer_display_status(offer: Offer, now: datetime) -> str:
     """Shopkeeper-facing status bucket for one offer.
 
@@ -1917,9 +1935,9 @@ def _offer_display_status(offer: Offer, now: datetime) -> str:
     this field rather than re-deriving dates on the client.
     """
     if offer.status == OfferStatus.ACTIVE:
-        if offer.start_date is not None and offer.start_date > now:
+        if offer.start_date is not None and _to_utc(offer.start_date) > now:
             return "SCHEDULED"
-        if offer.end_date is not None and offer.end_date < now:
+        if offer.end_date is not None and _to_utc(offer.end_date) < now:
             return "EXPIRED"
     return offer.status.value
 

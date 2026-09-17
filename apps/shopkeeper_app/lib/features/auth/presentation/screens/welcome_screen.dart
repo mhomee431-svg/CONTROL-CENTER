@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/state/system_state.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/auth_methods.dart';
+import '../../domain/auth_models.dart';
 import '../controllers/auth_controller.dart';
 
 /// Primary entry screen for the Shopkeeper App.
 ///
-/// Single-auth MVP: Google Sign-In is the ONLY login method. No OTP, no
-/// phone, no password. On tap the native Google picker opens, Firebase
-/// exchanges the credential for an ID token, the token is sent to FastAPI,
-/// and the backend either loads the existing shopkeeper or creates one on the
-/// first sign-in.
+/// The VISIBLE auth methods are driven by [kEnabledAuthMethods]
+/// (see `../../domain/auth_methods.dart`) — screens consult
+/// [isAuthMethodEnabledProvider] instead of hardcoding method buttons, so a
+/// future method (Phone OTP) becomes UI-visible by adding ONE entry to that
+/// list, with no widget changes.
+///
+/// MVP: Google Sign-In + Firebase Authentication is the only enabled method.
+/// On tap the native Google picker opens, Firebase exchanges the credential
+/// for an ID token, the token is sent to FastAPI, and the backend either loads
+/// the existing shopkeeper or creates one on the first sign-in.
 class WelcomeScreen extends ConsumerWidget {
   const WelcomeScreen({super.key});
 
@@ -50,6 +58,12 @@ class WelcomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final isLoading =
         ref.watch(authControllerProvider.select((s) => s.isLoading));
+    // Session-expired notice: a mid-session 401 signs the shopkeeper out and
+    // lands them HERE silently. Saying why ("your session expired", not "login
+    // failed") turns an alarming dead end into an expected, explainable stop.
+    final sessionExpired =
+        ref.watch(authControllerProvider.select((s) => s.systemState)) ==
+            SystemState.sessionExpired;
     final h = MediaQuery.of(context).size.height;
 
     return Scaffold(
@@ -73,6 +87,12 @@ class WelcomeScreen extends ConsumerWidget {
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: theme.colorScheme.outline)),
                   const SizedBox(height: 24),
+                  if (sessionExpired) ...[
+                    _SessionExpiredNotice(spec: SystemStateSpec.of(
+                      SystemState.sessionExpired,
+                    )),
+                    const SizedBox(height: 20),
+                  ],
                   _StorefrontIllustration(height: h * 0.26),
                   const SizedBox(height: 28),
                   Text('Welcome Back',
@@ -88,12 +108,19 @@ class WelcomeScreen extends ConsumerWidget {
                         height: 1.4,
                       )),
                   const SizedBox(height: 36),
-                  _GoogleSignInButton(
-                    isLoading: isLoading,
-                    onPressed: isLoading
-                        ? null
-                        : () => _signInWithGoogle(context, ref),
-                  ),
+                  // Auth-method switch (auth_methods.dart): the Google button
+                  // renders only while its method is enabled, so a future
+                  // method becomes visible by adding ONE list entry — no
+                  // widget changes.
+                  if (ref.watch(isAuthMethodEnabledProvider(
+                    AuthMethod.googleFirebase,
+                  )))
+                    _GoogleSignInButton(
+                      isLoading: isLoading,
+                      onPressed: isLoading
+                          ? null
+                          : () => _signInWithGoogle(context, ref),
+                    ),
                   const SizedBox(height: 22),
                   Text(
                     'By continuing, you agree to our Terms & Privacy Policy.',
@@ -110,6 +137,60 @@ class WelcomeScreen extends ConsumerWidget {
             ),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+/// Why the shopkeeper is back on this screen: their session expired mid-work.
+///
+/// The copy comes from the shared [SystemStateSpec] — one wording for the
+/// "Session expired" state everywhere in the app.
+class _SessionExpiredNotice extends StatelessWidget {
+  const _SessionExpiredNotice({required this.spec});
+
+  final SystemStateSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(spec.icon, size: 22, color: scheme.onErrorContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  spec.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onErrorContainer,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  spec.message,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onErrorContainer,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

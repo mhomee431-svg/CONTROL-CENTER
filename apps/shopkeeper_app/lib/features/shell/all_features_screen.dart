@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/route_names.dart';
+
 /// One destination of the Shopkeeper feature map.
 class ShopkeeperFeature {
   const ShopkeeperFeature({
@@ -28,7 +29,8 @@ class ShopkeeperFeature {
 ///
 /// Every entry deep-links to the screen that owns that feature's backend data;
 /// the hub itself renders no business numbers. "Imports / POS" is split into
-/// its two destinations (Excel import and POS integration) because they are
+/// its own destinations — the single-screen Excel import ("Import from Excel"),
+/// the guided Import Center flow, and the POS integration — because they are
 /// separate screens with separate backends.
 const List<ShopkeeperFeature> kShopkeeperFeatures = <ShopkeeperFeature>[
   ShopkeeperFeature(
@@ -48,9 +50,9 @@ const List<ShopkeeperFeature> kShopkeeperFeatures = <ShopkeeperFeature>[
   ShopkeeperFeature(
     id: 'inventory',
     title: 'Inventory',
-    subtitle: 'Stock levels & adjustments',
+    subtitle: 'Stock health, freshness & adjustments',
     icon: Icons.warehouse_outlined,
-    route: Routes.products,
+    route: Routes.inventoryDashboard,
   ),
   ShopkeeperFeature(
     id: 'offers',
@@ -61,10 +63,17 @@ const List<ShopkeeperFeature> kShopkeeperFeatures = <ShopkeeperFeature>[
   ),
   ShopkeeperFeature(
     id: 'imports',
-    title: 'Imports / POS',
-    subtitle: 'Bulk Excel inventory import',
+    title: 'Import from Excel',
+    subtitle: 'Upload a filled workbook & review every row',
     icon: Icons.upload_file_outlined,
     route: Routes.inventoryImport,
+  ),
+  ShopkeeperFeature(
+    id: 'import-center',
+    title: 'Import Center',
+    subtitle: 'Sample workbook, guided upload & history',
+    icon: Icons.cloud_upload_outlined,
+    route: Routes.importCenter,
   ),
   ShopkeeperFeature(
     id: 'pos',
@@ -136,9 +145,8 @@ class AllFeaturesScreen extends StatelessWidget {
           children: [
             Text(
               'Everything you manage, in one place',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
@@ -153,10 +161,7 @@ class AllFeaturesScreen extends StatelessWidget {
                 children: [
                   for (var i = 0; i < kShopkeeperFeatures.length; i++) ...[
                     if (i > 0)
-                      Divider(
-                        height: 1,
-                        color: Theme.of(context).dividerColor,
-                      ),
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
                     ListTile(
                       key: kShopkeeperFeatures[i].tileKey,
                       leading: Icon(

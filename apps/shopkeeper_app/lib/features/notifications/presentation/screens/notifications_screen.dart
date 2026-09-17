@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/notification_models.dart';
 import '../controllers/notifications_controller.dart';
@@ -36,7 +37,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     });
 
     final state = ref.watch(notificationsControllerProvider);
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -56,13 +56,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         child: switch (state.status) {
           NotificationsStatus.loading =>
             const Center(child: CircularProgressIndicator()),
-          NotificationsStatus.error => _ErrorView(
-              message: state.message ?? 'Could not load notifications.',
+          NotificationsStatus.error => SystemStateView(
+              // The screen owns the retry; the copy, icon and way out come from
+              // the shared state vocabulary so this failure reads exactly like
+              // every other failure in the app.
+              spec: SystemStateSpec.resolve(
+                state: SystemState.genericRetry,
+                title: state.message ?? 'Could not load notifications.',
+                message: 'Check your connection and try again.',
+              ),
               onRetry: () =>
                   ref.read(notificationsControllerProvider.notifier).load(),
             ),
           NotificationsStatus.ready => state.items.isEmpty
-              ? _EmptyView(color: scheme.outline)
+              ? SystemStateView.empty(
+                  title: 'No notifications yet',
+                  message: 'Inventory alerts and updates will appear here',
+                  icon: Icons.notifications_none,
+                )
               : RefreshIndicator(
                   onRefresh: () => ref
                       .read(notificationsControllerProvider.notifier)
@@ -111,6 +122,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         context.go(Routes.shopProfile);
       case 'SUBSCRIPTION':
         context.go(Routes.account);
+      default:
+        // Anything else opens its own detail view, so tapping a row is never a
+        // dead end.
+        context.push(Routes.notificationDetail, extra: notification);
     }
   }
 }
@@ -122,15 +137,9 @@ class _NotificationTile extends StatelessWidget {
   final ShopkeeperNotification notification;
   final VoidCallback? onTap;
 
-  String get _timeLabel {
-    final n = notification.createdAt;
-    final diff = DateTime.now().difference(n);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return DateFormat('d MMM').format(n);
-  }
+  /// Relative timestamp — rendered through the SHARED helper so the Alerts
+  /// tab and the Home dashboard strip always read identically.
+  String get _timeLabel => notificationTimeLabel(notification.createdAt);
 
   @override
   Widget build(BuildContext context) {
@@ -181,56 +190,4 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
-class _EmptyView extends StatelessWidget {
-  const _EmptyView({required this.color});
 
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.notifications_none, size: 64, color: color),
-          const SizedBox(height: 16),
-          Text('No notifications yet',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'Inventory alerts and updates will appear here',
-            style: TextStyle(
-                fontSize: 13, color: Theme.of(context).colorScheme.outline),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_outlined,
-                size: 64, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
-  }
-}

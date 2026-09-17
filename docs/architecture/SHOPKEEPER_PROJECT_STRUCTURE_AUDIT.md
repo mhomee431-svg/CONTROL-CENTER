@@ -126,9 +126,11 @@ be harmful churn.
 | `core/auth/` | `core/auth/` | **KEEP** | Matches. |
 | `core/location/` | `features/shops/data/` (11 files) | **ADAPT** ⭐ | Biggest smell in the app. See **F3**. |
 | `core/errors/` | `ApiException` inside `api_client.dart` | **GAP (low)** | Only one exception type exists today. Extract when a second appears — not before. |
+| `core/state/` | **`core/state/system_state.dart` + `system_state_view.dart` (ADDED)** | **ADOPTED** | The REJECT trigger below was met: 6+ features hand-rolled the same error/empty views (`PosMessageView`, `_MessageView`, `ShopModuleBody`, `_ErrorView` ×5, `_AccessDenied` ×3, empty-state widgets). One file now owns the nine system states (offline, network error, server error, permission denied, session expired, unauthorized, maintenance, generic retry, empty) — copy, icon and the ONE way out — and one reusable view renders them. Transport failures are classified once in `ApiException` (`kind`, `systemState`). Pinned by `test/system_state_test.dart`. |
+| `core/ui/` | **`core/ui/lazy_list.dart` (ADDED)** | **ADOPTED** | The §3 trigger was met: the products list, the four inventory scopes and the price list all hand-rolled the same `ListView` page (eager header + rows + empty state). One lazy scroll implementation now owns it — rows are built only near the viewport (a keystroke re-filters instead of re-creating every row widget), headers/footers stay eager, and the empty state renders inside the same scroll view. The card-look variant reads its corners/border/colour from `CardTheme`, nothing hard-coded. |
 | `core/logging/` | `debugPrint` + `FlutterError.onError` in `main.dart` | **GAP (low)** | `main.dart` already notes "remote reporter pending". Real gap, low urgency. |
 | `core/utils/` | `features/auth/data/phone_utils.dart` | **GAP (low)** | `phone_utils.dart` is the only true cross-cutting util and it is auth-specific; feature-local is defensible. |
-| `core/permissions/` `connectivity/` `constants/` `widgets/` `dialogs/` `formatters/` `validators/` | *absent* | **REJECT (for now)** | No consumers exist. Creating them now = empty folders. Revisit when 3+ features duplicate the same helper. |
+| `core/permissions/` `connectivity/` `constants/` `widgets/` `dialogs/` `formatters/` `validators/` | *absent* (`core/widgets/` was superseded by the narrower `core/state/` — see the row above) | **REJECT (for now)** | No consumers exist. Creating them now = empty folders. Revisit when 3+ features duplicate the same helper. |
 | `features/authentication/` | `auth/` | **KEEP** | Shorter, unambiguous. Rename = churn. |
 | `features/home/` | `dashboard/` | **KEEP** | "Dashboard" is the product's own word for it (used in the journey spec). |
 | `features/onboarding/` `profile/` | `shop_registration/` | **KEEP** | "shop_registration" is more precise than "onboarding". |
@@ -313,10 +315,25 @@ lib/
 ```
 
 **Deliberately NOT created:** `lib/app/`, `theme/` split, `core/errors/`,
-`core/utils/`, `core/constants/`, `core/widgets/`, `core/dialogs/`,
+`core/utils/`, `core/constants/`, `core/dialogs/`,
 `core/formatters/`, `core/validators/`, `core/connectivity/`,
 `core/permissions/`. Each has zero current consumers; adding them now would be
 scaffolding that rots. The trigger for each is stated in §3.
+
+**Created since this audit** (the §3 trigger — "3+ features duplicate the same
+helper" — was met): `core/state/` — the nine system states as one vocabulary
+(`system_state.dart`) and one reusable view (`system_state_view.dart`). Feature
+screens keep their own `*Status` enums and simply translate them; there is still
+no screen per state, only two shared components inside feature screens.
+
+The same trigger was later met for list screens: `core/ui/lazy_list.dart` — one
+lazy scroll implementation (eager header/footer, viewport-built rows, shared
+empty-state slot) used by the products list, the four inventory scopes and the
+price list. Its search predicate is shared too:
+`features/products/domain/product_search.dart` indexes each row's
+name/brand/SKU/variant once per catalog, so every screen's search means the same
+thing and a keystroke costs one `contains` per row instead of four lower-cased
+strings.
 
 ---
 

@@ -44,6 +44,21 @@ abstract class ShopRepository {
     required String closeTime,
     required String token,
   });
+
+  /// The shop's stored weekly schedule (`GET /shopkeeper/shops/{id}/hours`).
+  Future<List<ShopHourEntry>> fetchOperatingHours(
+    int shopId,
+    String token,
+  );
+
+  /// Replaces the whole weekly schedule (`PUT /shopkeeper/shops/{id}/hours`).
+  /// [hours] must carry all 7 days (0=Monday..6=Sunday) — the server upserts
+  /// per day and keeps the rest untouched.
+  Future<void> saveOperatingHours({
+    required int shopId,
+    required List<ShopHourEntry> hours,
+    required String token,
+  });
 }
 
 class ApiShopRepository implements ShopRepository {
@@ -146,19 +161,45 @@ class ApiShopRepository implements ShopRepository {
     required String openTime,
     required String closeTime,
     required String token,
+  }) =>
+      saveOperatingHours(
+        shopId: shopId,
+        token: token,
+        hours: [
+          for (var day = 0; day < 7; day++)
+            ShopHourEntry(
+              dayOfWeek: day,
+              openTime: openTime,
+              closeTime: closeTime,
+              isClosed: false,
+            ),
+        ],
+      );
+
+  @override
+  Future<List<ShopHourEntry>> fetchOperatingHours(
+    int shopId,
+    String token,
+  ) async {
+    final data =
+        await _api.get(ApiEndpoints.shopHours('$shopId'), token: token)
+            as Map<String, dynamic>;
+    return ((data['hours'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShopHourEntry.fromJson)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> saveOperatingHours({
+    required int shopId,
+    required List<ShopHourEntry> hours,
+    required String token,
   }) async {
     await _api.put(
       ApiEndpoints.shopHours('$shopId'),
       token: token,
-      body: [
-        for (var day = 0; day < 7; day++)
-          {
-            'day_of_week': day,
-            'open_time': openTime,
-            'close_time': closeTime,
-            'is_closed': false,
-          },
-      ],
+      body: [for (final hour in hours) hour.toJson()],
     );
   }
 }

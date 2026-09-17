@@ -19,10 +19,10 @@ import 'fakes.dart';
 /// The journey's "Main Shopkeeper Features" block requires every one of these
 /// DESTINATIONS to be reachable from Shopkeeper Home.
 ///
-/// Inventory shares the Products destination in the current build and
-/// Imports / POS is split across two screens (Excel import + POS), so the
-/// feature map carries 11 tiles for the 10 journey features. Dashboard is the
-/// shell root (bottom nav) and is asserted separately.
+/// Inventory has its own destination and Imports / POS is split across three
+/// screens (the Excel import, the guided Import Center and POS), so the feature
+/// map carries 12 tiles for the 10 journey features. Dashboard is the shell root
+/// (bottom nav) and is asserted separately.
 const List<String> kJourneyFeatureRoutes = <String>[
   '/products',
   '/offers',
@@ -286,34 +286,40 @@ void main() {
       expect(fake.calls, 2);
     });
 
-    test('backend 403 becomes access-denied (no dashboard:read grant)', () async {
-      final container = journeyContainer(
-        session: makeSession(),
-        insights: FakeInsightsRepo(
-          error: const ApiException(
-            statusCode: 403,
-            message: 'You do not have access to this shop.',
+    test(
+      'backend 403 becomes access-denied (no dashboard:read grant)',
+      () async {
+        final container = journeyContainer(
+          session: makeSession(),
+          insights: FakeInsightsRepo(
+            error: const ApiException(
+              statusCode: 403,
+              message: 'You do not have access to this shop.',
+            ),
           ),
-        ),
-      );
-      await container.read(insightsControllerProvider.notifier).load();
+        );
+        await container.read(insightsControllerProvider.notifier).load();
 
-      final state = container.read(insightsControllerProvider);
-      expect(state.status, InsightsStatus.accessDenied);
-      expect(state.message, 'You do not have access to this shop.');
-    });
+        final state = container.read(insightsControllerProvider);
+        expect(state.status, InsightsStatus.accessDenied);
+        expect(state.message, 'You do not have access to this shop.');
+      },
+    );
 
-    test('a network failure becomes an error state, not fake numbers', () async {
-      final container = journeyContainer(
-        session: makeSession(),
-        insights: FakeInsightsRepo(error: Exception('boom')),
-      );
-      await container.read(insightsControllerProvider.notifier).load();
+    test(
+      'a network failure becomes an error state, not fake numbers',
+      () async {
+        final container = journeyContainer(
+          session: makeSession(),
+          insights: FakeInsightsRepo(error: Exception('boom')),
+        );
+        await container.read(insightsControllerProvider.notifier).load();
 
-      final state = container.read(insightsControllerProvider);
-      expect(state.status, InsightsStatus.error);
-      expect(state.bundle, isNull);
-    });
+        final state = container.read(insightsControllerProvider);
+        expect(state.status, InsightsStatus.error);
+        expect(state.bundle, isNull);
+      },
+    );
 
     test('no selected shop reports noShop instead of an empty chart', () async {
       final container = journeyContainer(session: makeEmptyProfileSession());

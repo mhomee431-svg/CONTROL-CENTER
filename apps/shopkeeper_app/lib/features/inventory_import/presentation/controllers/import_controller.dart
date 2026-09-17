@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -235,5 +237,109 @@ class InventoryImportController extends Notifier<ImportState> {
       return message;
     }
     return fallback;
+  }
+}
+
+/// Contract for writing a generated workbook to the device (injectable for
+/// tests — the platform dialog is unavailable in widget tests).
+abstract class WorkbookSaveService {
+  /// Offers [bytes] to the shopkeeper as [fileName]. Returns `false` when the
+  /// dialog was dismissed without saving (not an error).
+  Future<bool> saveWorkbook(String fileName, Uint8List bytes);
+}
+
+/// Production saver backed by the file_picker plugin (SAF on Android —
+/// the bytes are written by the plugin, no storage permission required).
+class PlatformWorkbookSaver implements WorkbookSaveService {
+  const PlatformWorkbookSaver();
+
+  @override
+  Future<bool> saveWorkbook(String fileName, Uint8List bytes) async {
+    final path = await FilePicker.platform.saveFile(
+      fileName: fileName,
+      bytes: bytes,
+    );
+    return path != null && path.isNotEmpty;
+  }
+}
+
+final workbookSaveProvider = Provider<WorkbookSaveService>(
+  (ref) => const PlatformWorkbookSaver(),
+);
+
+/// Download Sample state — kept separate from the pick → preview → confirm
+/// flow because the template never touches inventory.
+class SampleDownloadState {
+  const SampleDownloadState({this.inProgress = false, this.message});
+
+  final bool inProgress;
+
+  /// Set once an attempt finishes. `null` means "nothing to report"
+  /// (idle, in progress, or the shopkeeper dismissed the save dialog).
+  final String? message;
+}
+
+final sampleDownloadProvider =
+    NotifierProvider<SampleDownloadController, SampleDownloadState>(
+      SampleDownloadController.new,
+    );
+
+/// Fetches the sample workbook and hands it to the platform save dialog.
+class SampleDownloadController extends Notifier<SampleDownloadState> {
+  @override
+  SampleDownloadState build() => const SampleDownloadState();
+
+  /// Download Sample (Import Center). Never throws — the outcome is reported
+  /// through [SampleDownloadState.message].
+  Future<void> download() async {
+    if (state.inProgress) return;
+    final shopId = ref.read(selectedShopProvider)?.id;
+    if (shopId == null) {
+      state = const SampleDownloadState(
+        message: 'Select a shop first.',
+      );
+      return;
+    }
+    state = const SampleDownloadState(inProgress: true);
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw const ApiException(message: 'Not signed in');
+      final bytes = await ref
+          .read(inventoryImportRepositoryProvider)
+          .downloadSample(shopId, token);
+      final saved = await ref
+          .read(workbookSaveProvider)
+          .saveWorkbook(sampleWorkbookFileName, bytes);
+      state = SampleDownloadState(
+        message: saved ? 'Sample workbook saved' : null, // dismissed = silent
+      );
+    } on ApiException catch (e) {
+      state = SampleDownloadState(
+        message: _sampleFailure(e),
+      );
+    } catch (_) {
+      state = const SampleDownloadState(
+        message: 'Could not download the sample. Please retry.',
+      );
+    }
+  }
+
+  /// Called by the screen once the outcome snackbar has been shown, so a
+  /// rebuild never re-shows it.
+  void clearMessage() {
+    if (state.message != null) state = const SampleDownloadState();
+  }
+
+  String _sampleFailure(ApiException e) {
+    if (e.isUnauthorized || e.statusCode == 401) {
+      return 'Your session has expired. Please sign in again.';
+    }
+    if (e.isForbidden || e.statusCode == 403) {
+      return 'You do not have permission to import inventory.';
+    }
+    if (e.statusCode == null) {
+      return 'No internet connection. Check your network and retry.';
+    }
+    return 'Could not download the sample. Please retry.';
   }
 }

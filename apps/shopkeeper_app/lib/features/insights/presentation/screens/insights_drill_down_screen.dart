@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/insights_models.dart';
 import '../controllers/insights_controller.dart';
@@ -195,6 +197,9 @@ class _ReadyView extends StatelessWidget {
   }
 }
 
+/// Failure view — the shared system-state renderer with the drill-down's own
+/// retry key. The state (offline / server / maintenance / generic) comes from
+/// the controller's message, so the icon and way out match the real cause.
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
 
@@ -203,26 +208,19 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 40, color: scheme.error),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              key: const Key('drilldown-retry'),
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+    final carried = SystemStateSpec.fromMessage(message);
+    return SystemStateView(
+      spec: carried != null
+          ? SystemStateSpec.of(carried)
+          : SystemStateSpec(
+              state: SystemState.genericRetry,
+              title: 'Could not load this report',
+              message: message,
+              icon: Icons.error_outline,
+              action: SystemAction.retry,
             ),
-          ],
-        ),
-      ),
+      onRetry: onRetry,
+      retryKey: const Key('drilldown-retry'),
     );
   }
 }

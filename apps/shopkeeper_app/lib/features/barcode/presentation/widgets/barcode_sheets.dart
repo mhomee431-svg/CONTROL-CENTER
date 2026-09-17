@@ -86,6 +86,9 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
           ));
       if (!mounted) return;
       if (created != null) {
+        // Never leave the button mid-save: the caller pops this sheet, but the
+        // spinner must not outlive the save if it does not.
+        setState(() => _saving = false);
         widget.onSaved();
         return;
       }
@@ -107,7 +110,12 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
               Navigator.of(context)
                 ..pop() // close the confirm sheet
                 ..pop(); // close the scanner screen
-              context.push(Routes.products);
+              // Req 27: the scanner is launched from the Products tab and from
+              // the dashboard's Add Product action, so `push` here stacked a
+              // second Products page on top of the one already open. `go`
+              // reselects the tab instead — the same call the Alerts deep-link
+              // uses for this destination.
+              context.go(Routes.products);
             },
           ),
         ));
@@ -158,6 +166,9 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                         width: 44,
                         height: 44,
                         fit: BoxFit.cover,
+                        // Decode at ~2x the 44px avatar instead of the source
+                        // resolution: a thumbnail never needs the full bytes.
+                        cacheWidth: 88,
                         errorBuilder: (_, e, stack) =>
                             const Icon(Icons.image_outlined, size: 20),
                       ),
@@ -330,8 +341,16 @@ class _BarcodeManualEntrySheetState
   final _formKey = GlobalKey<FormState>();
   bool _resolving = false;
 
-  // Same barcode families the camera accepts (mirrors backend validation).
-  static final _barcodePattern = RegExp(r'^\d{8}(\d{4}(\d{2})?)?$');
+  // The same barcode families the camera accepts and the backend validates
+  // (`VALID_BARCODE_LENGTHS`): EAN-8 (8), UPC-A (12), EAN-13 (13) and
+  // GTIN-14 (14) digits. EAN-13 was missing from the old pattern, so the
+  // most common retail barcode in India was rejected by this form.
+  static final _barcodePattern = RegExp(r'^(?:\d{8}|\d{12,14})$');
+
+  /// Mirrors the backend's `normalize_barcode`: separators printed around a
+  /// barcode are stripped before the digits are validated.
+  static String _normalize(String raw) =>
+      raw.trim().replaceAll(RegExp(r'[\s-]'), '');
 
   @override
   void dispose() {
@@ -346,7 +365,7 @@ class _BarcodeManualEntrySheetState
     Navigator.pop(context); // dismiss the sheet; the screen shows progress
     await ref
         .read(barcodeControllerProvider.notifier)
-        .resolve(_controller.text.trim());
+        .resolve(_normalize(_controller.text));
   }
 
   @override
@@ -377,14 +396,14 @@ class _BarcodeManualEntrySheetState
               controller: _controller,
               autofocus: true,
               keyboardType: TextInputType.number,
-              maxLength: 14,
+              maxLength: 20, // 14 digits + the separators _normalize strips
               decoration: const InputDecoration(
                 labelText: 'Barcode',
                 hintText: 'e.g. 8901234567890',
                 counterText: '',
               ),
               validator: (v) {
-                final value = (v ?? '').trim();
+                final value = _normalize(v ?? '');
                 if (value.isEmpty) return 'Barcode is required';
                 if (!_barcodePattern.hasMatch(value)) {
                   return 'Enter 8, 12, 13 or 14 digits';

@@ -11,6 +11,8 @@ import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/presentation/controllers/dashboard_controller.dart';
+import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/domain/shop_models.dart';
 
 import 'fakes.dart';
@@ -140,6 +142,127 @@ void main() {
     expect(find.text('Reports & Insights'), findsOneWidget);
     expect(find.text('All Features'), findsOneWidget);
     expect(find.text('Shop Profile'), findsOneWidget);
+  });
+
+  // HOME screen inventory: "Dashboard notifications" is a strip on the
+  // Shopkeeper Home that reads the Alerts controller (single source of truth)
+  // — it never fetches its own page, so it cannot disagree with the badge on
+  // the Alerts tab.
+  group('home dashboard notifications strip', () {
+    /// Builds a Home container with the Alerts repo under test's control.
+    ProviderContainer makeHomeContainer(FakeNotificationsRepo notifications) {
+      final container = ProviderContainer(overrides: [
+        authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository()..restoreResult = makeSession()),
+        dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepo()),
+        notificationsRepositoryProvider.overrideWithValue(notifications),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
+        selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
+      ]);
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    /// Pumps the real app so the assertion runs against the shipped Home.
+    Future<void> pumpHome(
+        WidgetTester tester, ProviderContainer container) async {
+      tester.view.physicalSize = const Size(1080, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const ShopkeeperApp(),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows the newest updates plus the unread count',
+        (tester) async {
+      final container = makeHomeContainer(FakeNotificationsRepo(
+        page: NotificationsPage(
+          items: [
+            notificationFixture(id: 1, title: 'Low stock: Amul Milk'),
+            notificationFixture(id: 2, title: 'New order received'),
+            notificationFixture(id: 3, title: 'Price update applied'),
+            notificationFixture(id: 4, title: 'Older notification'),
+          ],
+          unreadCount: 2,
+        ),
+      ));
+      await pumpHome(tester, container);
+
+      expect(find.text('Recent Updates'), findsOneWidget);
+      expect(find.text('Low stock: Amul Milk'), findsOneWidget);
+      expect(find.text('New order received'), findsOneWidget);
+      expect(find.text('Price update applied'), findsOneWidget);
+      // Home is a summary — the 4th (oldest) row belongs to the Alerts tab.
+      expect(find.text('Older notification'), findsNothing);
+      expect(find.text('2 new'), findsOneWidget);
+      expect(find.text('View all'), findsOneWidget);
+    });
+
+    testWidgets('hides itself when there is nothing to report',
+        (tester) async {
+      final container = makeHomeContainer(FakeNotificationsRepo());
+      await pumpHome(tester, container);
+
+      expect(find.text('Recent Updates'), findsNothing);
+      expect(find.text('View all'), findsNothing);
+      // The rest of the Home screen is untouched.
+      expect(find.text(expectedGreeting('Ramesh')), findsOneWidget);
+      expect(find.text('Quick Actions'), findsOneWidget);
+    });
+
+    testWidgets('fail-soft: a notifications failure never breaks Home',
+        (tester) async {
+      final container = makeHomeContainer(FakeNotificationsRepo(
+        error: const ApiException(
+            statusCode: 403, message: 'You do not have access to this shop.'),
+      ));
+      await pumpHome(tester, container);
+
+      expect(find.text('Recent Updates'), findsNothing);
+      expect(find.text('View all'), findsNothing);
+      expect(find.text('Kirana Corner'), findsOneWidget);
+      expect(find.text('Quick Actions'), findsOneWidget);
+    });
+
+    testWidgets('tapping a row marks it read through the Alerts controller',
+        (tester) async {
+      final fake = FakeNotificationsRepo(
+        page: NotificationsPage(
+          items: [notificationFixture(id: 7, title: 'Low stock: Amul Milk')],
+          unreadCount: 1,
+        ),
+      );
+      final container = makeHomeContainer(fake);
+      await pumpHome(tester, container);
+
+      await tester.tap(find.text('Low stock: Amul Milk'));
+      await tester.pumpAndSettle();
+
+      // Same optimistic mark-as-read the Alerts tab performs.
+      expect(fake.markedRead, contains(7));
+    });
+
+    testWidgets('View all opens the Alerts tab', (tester) async {
+      final container = makeHomeContainer(FakeNotificationsRepo(
+        page: NotificationsPage(
+          items: [notificationFixture(id: 1, title: 'Low stock: Amul Milk')],
+          unreadCount: 1,
+        ),
+      ));
+      await pumpHome(tester, container);
+
+      await tester.tap(find.text('View all'));
+      await tester.pumpAndSettle();
+
+      // Alerts tab AppBar (the bottom-nav destination is labelled "Alerts").
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Quick Actions'), findsNothing);
+    });
   });
 
   group('app startup (Phase 23)', () {

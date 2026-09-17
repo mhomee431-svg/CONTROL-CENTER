@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
+import '../widgets/pos_shared.dart';
 
 /// POS (Point of Sale) integration — connect a vendor connector, trigger
 /// syncs, and watch the real job history. All state comes from
@@ -85,7 +90,6 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(posControllerProvider);
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('POS integration')),
@@ -93,17 +97,19 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         child: switch (state.status) {
           PosStatus.loading =>
             const Center(child: CircularProgressIndicator()),
-          PosStatus.noShop => _MessageView(
-              icon: Icons.storefront_outlined,
+          // Both non-ready states render through the ONE shared state view, so
+          // "no shop" and "could not load" read exactly like every other empty
+          // / failed screen in the app (icon, copy, Retry button).
+          PosStatus.noShop => SystemStateView.empty(
               title: 'No shop selected',
-              body: 'Choose a shop to manage its POS integration.',
-              color: scheme.outline,
+              message: 'Choose a shop to manage its POS integration.',
+              icon: Icons.storefront_outlined,
             ),
-          PosStatus.error => _MessageView(
-              icon: Icons.cloud_off_outlined,
-              title: state.message ?? 'Could not load POS.',
-              body: 'Check your connection and try again.',
-              color: scheme.outline,
+          PosStatus.error => SystemStateView(
+              spec: SystemStateSpec.resolve(
+                title: state.message ?? 'Could not load POS.',
+                message: 'Check your connection and try again.',
+              ),
               onRetry: () => ref.read(posControllerProvider.notifier).load(),
             ),
           PosStatus.ready when state.needsOnboarding => _ConnectView(
@@ -229,99 +235,104 @@ class _ConnectedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ListView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(_statusIcon, color: _statusColor(scheme)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            integration.providerName,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          Text(
-                            _statusLabel,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _statusColor(scheme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(_statusIcon, color: _statusColor(scheme)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              integration.providerName,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                          ),
-                        ],
+                            Text(
+                              _statusLabel,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _statusColor(scheme),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 const SizedBox(height: 12),
-                Text(
-                  [
-                    '${integration.mappedProducts} products mapped',
-                    '${integration.deviceCount} devices',
-                    if (integration.lastSyncAt != null)
-                      'Last sync: ${_ConnectedView.shortDateTime(integration.lastSyncAt!)}',
-                  ].join('  ·  '),
-                  style: TextStyle(fontSize: 12, color: scheme.outline),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onDisconnect,
-                        icon: const Icon(Icons.link_off),
-                        label: const Text('Disconnect'),
+                  Text(
+                    [
+                      '${integration.mappedProducts} products mapped',
+                      '${integration.deviceCount} devices',
+                      if (integration.lastSyncAt != null)
+                        'Last sync: ${_ConnectedView.shortDateTime(integration.lastSyncAt!)}',
+                    ].join('  ·  '),
+                    style: TextStyle(fontSize: 12, color: scheme.outline),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onDisconnect,
+                          icon: const Icon(Icons.link_off),
+                          label: const Text('Disconnect'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: onSync,
-                        icon: const Icon(Icons.sync),
-                        label: const Text('Sync now'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: onSync,
+                          icon: const Icon(Icons.sync),
+                          label: const Text('Sync now'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Text('Sync history', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 8),
-        Card(
-          clipBehavior: Clip.antiAlias,
-          child: jobs.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Text(
-                      'No syncs yet.\nTap "Sync now" to pull your POS data.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: scheme.outline),
+          const SizedBox(height: 16),
+          _section(context, 'Manage', _manageTiles(integration)),
+          const SizedBox(height: 16),
+          Text('Sync history', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: jobs.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        'No syncs yet.\nTap "Sync now" to pull your POS data.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: scheme.outline),
+                      ),
                     ),
-                  ),
-                )
-              : Column(
-                  children: [
-                    for (var i = 0; i < jobs.length; i++) ...[
-                      if (i > 0) const Divider(height: 1),
-                      _SyncJobTile(job: jobs[i]),
+                  )
+                : Column(
+                    children: [
+                      for (var i = 0; i < jobs.length; i++) ...[
+                        if (i > 0) const Divider(height: 1),
+                        _SyncJobTile(job: jobs[i]),
+                      ],
                     ],
-                  ],
-                ),
-        ),
-      ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -334,6 +345,76 @@ class _ConnectedView extends StatelessWidget {
   static String shortDateTime(DateTime dt) =>
       '${dt.day} ${_months[dt.month - 1]} ${dt.year}, '
       '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  /// The module's own destinations. "Sync now" above is the one-tap full sync;
+  /// the Sync tile opens the screen where the scope is chosen.
+  static List<PosHubTile> _manageTiles(PosIntegration integration) => [
+    PosHubTile(
+      const Key('pos-tile-sync'),
+      Icons.sync_outlined,
+      'Sync',
+      'Choose a full or incremental sync and run it',
+      Routes.posSync,
+    ),
+    PosHubTile(
+      const Key('pos-tile-history'),
+      Icons.history_outlined,
+      'Sync history',
+      'Every job the connector has run, with its outcome',
+      Routes.posSyncHistory,
+    ),
+    PosHubTile(
+      const Key('pos-tile-setup'),
+      Icons.settings_outlined,
+      'Connection setup',
+      'Vendor, connection type and credentials',
+      Routes.posConnectionSetup,
+    ),
+    PosHubTile(
+      const Key('pos-tile-error'),
+      Icons.bug_report_outlined,
+      'Diagnose a problem',
+      integration.hasError
+          ? 'The connector is in an error state — see what to do'
+          : 'What to check when a sync or the link misbehaves',
+      Routes.posError,
+    ),
+  ];
+
+  Widget _section(BuildContext context, String title, List<PosHubTile> tiles) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const Divider(height: 1),
+                ListTile(
+                  key: tiles[i].tileKey,
+                  leading: Icon(
+                    tiles[i].icon,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text(tiles[i].title),
+                  subtitle: Text(
+                    tiles[i].subtitle,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(tiles[i].route),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 
@@ -382,56 +463,6 @@ class _SyncJobTile extends StatelessWidget {
   }
 }
 
-/// Centred icon + copy for the no-shop and error states.
-class _MessageView extends StatelessWidget {
-  const _MessageView({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.color,
-    this.onRetry,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-  final Color color;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 56, color: color),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              body,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: color),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 20),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
+/// Centred icon + copy for the no-shop and error states — rendered by the
+/// shared `SystemStateView`, which owns the layout for every feature.
 

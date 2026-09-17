@@ -20,7 +20,11 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_role
+from app.core.dependencies import (
+    get_current_session_id,
+    get_current_user,
+    require_role,
+)
 from app.core.exceptions import AppError, ForbiddenError, UnauthorizedError
 from app.core.logging import get_logger
 from app.core.observability.metrics import record_auth_result
@@ -68,6 +72,7 @@ from app.services.auth_service import (
     is_account_allowed,
     issue_tokens,
     logout_session,
+    refresh_session,
 )
 from app.services.firebase_auth_service import authenticate_with_firebase
 from app.services.firebase_verification import (
@@ -887,13 +892,18 @@ async def refresh_token(
 async def logout(
     payload: ShopkeeperLogoutRequest,
     current_user: User = Depends(get_current_user),
+    token_session_id: Optional[str] = Depends(get_current_session_id),
     db: Session = Depends(get_db),
 ):
-    """Revoke the current session (or all sessions with revoke_all)."""
+    """Revoke the current session (or all sessions with revoke_all).
+
+    The session is the one the bearer token was issued for when the client sends
+    no explicit ``session_id`` — otherwise logout left the session active.
+    """
     result = logout_session(
         db,
         current_user,
-        session_id=payload.session_id,
+        session_id=payload.session_id or token_session_id,
         revoke_all=payload.revoke_all,
     )
     db.commit()

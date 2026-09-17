@@ -206,7 +206,14 @@ class ApiAuthRepository implements AuthRepository {
   Future<void> logout() async {
     try {
       final access = await _tokens.readAccessToken();
-      await _api.post(ApiEndpoints.logout, body: {}, token: access);
+      final sessionId = await _tokens.readSessionId();
+      // Send the session that this token was issued for, so the server actually
+      // revokes it. An empty body left the session live until token expiry.
+      await _api.post(
+        ApiEndpoints.logout,
+        body: {'session_id': ?sessionId},
+        token: access,
+      );
     } on ApiException catch (_) {
       // Server-side revocation failures must not block local sign-out.
     } finally {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/import_models.dart';
 import '../controllers/import_controller.dart';
@@ -47,7 +49,18 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
       }
     });
 
+    // Download Sample outcome — a separate flow, so a separate listener.
+    ref.listen<SampleDownloadState>(sampleDownloadProvider, (prev, next) {
+      final message = next.message;
+      if (message != null && prev?.message != message) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+        ref.read(sampleDownloadProvider.notifier).clearMessage();
+      }
+    });
+
     final state = ref.watch(importControllerProvider);
+    final sampleDownload = ref.watch(sampleDownloadProvider);
     final uploading = state.status == ImportStatus.uploading;
     final confirming = state.status == ImportStatus.confirming;
     final saving = uploading || confirming;
@@ -73,6 +86,9 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
           ImportStatus.idle => _IdleView(
             onImportTap: saving ? null : _pickAndUpload,
             hasJobs: state.jobs.isNotEmpty,
+            onDownloadSample:
+                sampleDownload.inProgress ? null : _downloadSample,
+            downloadingSample: sampleDownload.inProgress,
           ),
           ImportStatus.uploading => const _UploadingView(),
           ImportStatus.preview => _PreviewView(
@@ -112,15 +128,30 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
     ref.read(importControllerProvider.notifier).resetFlow();
     setState(() {});
   }
+
+  /// Download Sample — fetches the template workbook and offers the platform
+  /// save dialog. The outcome surfaces through the controller's message.
+  Future<void> _downloadSample() async {
+    if (ref.read(sampleDownloadProvider).inProgress) return;
+    await ref.read(sampleDownloadProvider.notifier).download();
+    setState(() {});
+  }
 }
 
 // ── Idle: empty state + import CTA ─────────────────────────────────────────
 
 class _IdleView extends StatelessWidget {
-  const _IdleView({required this.onImportTap, required this.hasJobs});
+  const _IdleView({
+    required this.onImportTap,
+    required this.hasJobs,
+    required this.onDownloadSample,
+    required this.downloadingSample,
+  });
 
   final VoidCallback? onImportTap;
   final bool hasJobs;
+  final VoidCallback? onDownloadSample;
+  final bool downloadingSample;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +180,20 @@ class _IdleView extends StatelessWidget {
               onPressed: onImportTap,
               icon: const Icon(Icons.upload_file_outlined),
               label: const Text('Choose Excel file'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onDownloadSample,
+              icon: downloadingSample
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_outlined),
+              label: Text(
+                downloadingSample ? 'Downloading...' : 'Download sample',
+              ),
             ),
             if (hasJobs) ...[
               const SizedBox(height: 24),
@@ -386,8 +431,11 @@ class _DoneView extends StatelessWidget {
   }
 }
 
-// ── Error: friendly message + retry ─────────────────────────────────────────
-
+// ── Error: the shared system-state renderer + the import flow's own retry ────
+//
+// The retry label stays "Try again" (restarting the import flow, not re-hitting
+// the same request), while the icon/way-out still match the real cause — an
+// offline failure or a backend maintenance window read differently from a bug.
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
 
@@ -396,32 +444,19 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.cloud_off_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.outline,
+    final carried = SystemStateSpec.fromMessage(message);
+    return SystemStateView(
+      spec: carried != null
+          ? SystemStateSpec.of(carried)
+          : SystemStateSpec(
+              state: SystemState.genericRetry,
+              title: 'Import failed',
+              message: message,
+              icon: Icons.cloud_off_outlined,
+              action: SystemAction.retry,
             ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_outlined),
-              label: const Text('Try again'),
-            ),
-          ],
-        ),
-      ),
+      onRetry: onRetry,
+      retryLabel: 'Try again',
     );
   }
 }

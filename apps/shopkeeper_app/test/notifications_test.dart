@@ -125,4 +125,39 @@ void main() {
       expect(fake.markedRead, containsAll([1, 2]));
     });
   });
+
+  // Rendered by BOTH notification surfaces (the Alerts tab and the Home
+  // dashboard strip) through one shared helper — `now` is injected so these
+  // assertions never depend on the wall clock.
+  group('notificationTimeLabel', () {
+    final now = DateTime(2026, 9, 16, 12);
+
+    test('renders the relative buckets', () {
+      expect(
+        notificationTimeLabel(now.subtract(const Duration(seconds: 30)),
+            now: now),
+        'just now',
+      );
+      expect(
+        notificationTimeLabel(now.subtract(const Duration(minutes: 12)),
+            now: now),
+        '12m ago',
+      );
+      expect(
+        notificationTimeLabel(now.subtract(const Duration(hours: 3)), now: now),
+        '3h ago',
+      );
+      expect(
+        notificationTimeLabel(now.subtract(const Duration(days: 2)), now: now),
+        '2d ago',
+      );
+    });
+
+    test('falls back to a calendar date beyond a week', () {
+      expect(
+        notificationTimeLabel(DateTime(2026, 9, 4, 9), now: now),
+        '4 Sep',
+      );
+    });
+  });
 }

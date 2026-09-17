@@ -26,6 +26,20 @@ abstract class PosRepository {
   /// here means the provider refused the credentials (not a network error).
   Future<bool> connect(int integrationId, String token);
 
+  /// Re-validates the stored credentials and re-activates the connector
+  /// (`POST .../reconnect`). Returns the server's connected flag.
+  Future<bool> reconnect(int integrationId, String token);
+
+  /// Rotates the stored vendor credentials (`PUT .../credentials`). Fields left
+  /// null are left untouched server-side.
+  Future<PosIntegration> updateCredentials(
+    int integrationId,
+    String token, {
+    String? apiKey,
+    String? apiSecret,
+    String? apiBaseUrl,
+  });
+
   /// Stops scheduled syncs (`POST .../disconnect`).
   Future<PosIntegration> disconnect(int integrationId, String token);
 
@@ -99,6 +113,31 @@ class ApiPosRepository implements PosRepository {
       token: token,
     ) as Map<String, dynamic>;
     return data['connected'] as bool? ?? false;
+  }
+
+  @override
+  Future<bool> reconnect(int integrationId, String token) {
+    return connect(integrationId, token);
+  }
+
+  @override
+  Future<PosIntegration> updateCredentials(
+    int integrationId,
+    String token, {
+    String? apiKey,
+    String? apiSecret,
+    String? apiBaseUrl,
+  }) async {
+    final data = await _api.put(
+      ApiEndpoints.posCredentials(integrationId),
+      body: {
+        'api_key': ?apiKey,
+        'api_secret': ?apiSecret,
+        'api_base_url': ?apiBaseUrl,
+      },
+      token: token,
+    ) as Map<String, dynamic>;
+    return PosIntegration.fromJson(data);
   }
 
   @override

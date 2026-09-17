@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-/// Help center, FAQ, contact support, and report issue.
+import '../../../../core/router/route_names.dart';
+import '../../domain/support_models.dart';
+
+/// Help & support hub: the ways to reach the team, plus the most-asked
+/// questions.
+///
+/// Every action here opens a REAL screen (`Routes.faq`,
+/// `Routes.contactSupport`, `Routes.reportIssue`, `Routes.accountSettings`).
+/// The previous inline dialogs were replaced by them, so the hub and the detail
+/// screens cannot drift apart — and the questions below come from [supportFaqs],
+/// the same list the help centre searches.
 class SupportScreen extends ConsumerWidget {
   const SupportScreen({super.key});
 
+  /// A taste of the help centre; the complete, searchable list is one tap away.
+  static List<FaqEntry> get _previewFaqs =>
+      supportFaqs.take(4).toList(growable: false);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final preview = _previewFaqs;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Help & support')),
       body: SafeArea(
@@ -19,7 +37,7 @@ class SupportScreen extends ConsumerWidget {
                   child: _ActionCard(
                     icon: Icons.chat_outlined,
                     label: 'Contact us',
-                    onTap: () => _showContactDialog(context),
+                    onTap: () => context.push(Routes.contactSupport),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -27,7 +45,27 @@ class SupportScreen extends ConsumerWidget {
                   child: _ActionCard(
                     icon: Icons.bug_report_outlined,
                     label: 'Report issue',
-                    onTap: () => _showReportDialog(context),
+                    onTap: () => context.push(Routes.reportIssue),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.menu_book_outlined,
+                    label: 'Help centre',
+                    onTap: () => context.push(Routes.faq),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    onTap: () => context.push(Routes.accountSettings),
                   ),
                 ),
               ],
@@ -41,22 +79,51 @@ class SupportScreen extends ConsumerWidget {
             Card(
               clipBehavior: Clip.antiAlias,
               child: Column(
-                children: const [
-                  _FaqTile(
-                    question: 'How do I add products?',
-                    answer: 'Tap the "+" button on the Products screen. You can add manually, scan a barcode, or import from Excel.',
-                  ),
-                  Divider(height: 1),
-                  _FaqTile(
-                    question: 'How does barcode scanning work?',
-                    answer: 'Tap the barcode icon on the Products screen and scan a product barcode.',
-                  ),
-                  Divider(height: 1),
-                  _FaqTile(
-                    question: 'How do I update stock?',
-                    answer: 'Tap any product to edit its details including quantity and price.',
-                  ),
+                children: [
+                  for (var i = 0; i < preview.length; i++) ...[
+                    if (i > 0) const Divider(height: 1),
+                    _FaqTile(
+                      question: preview[i].question,
+                      answer: preview[i].answer,
+                    ),
+                  ],
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('support_view_all_faqs'),
+              onPressed: () => context.push(Routes.faq),
+              icon: const Icon(Icons.help_outline),
+              label: const Text('View all questions'),
+            ),
+            const SizedBox(height: 24),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Still stuck?',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Write to ${SupportContact.email} or call '
+                      '${SupportContact.phone}. Support hours: '
+                      '${SupportContact.hours}.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: scheme.onSurface.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -64,81 +131,9 @@ class SupportScreen extends ConsumerWidget {
       ),
     );
   }
-
-  void _showContactDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Contact support'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Need help? Reach us at:'),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.email_outlined, size: 18),
-                SizedBox(width: 8),
-                Text('support@passly.biz'),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.phone_outlined, size: 18),
-                SizedBox(width: 8),
-                Text('+91 90000 00000'),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showReportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Report an issue'),
-        content: const TextField(
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Describe the issue you are facing...',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Issue reported. We will get back to you soon.',
-                  ),
-                ),
-              );
-            },
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
+/// One square shortcut on the support hub.
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.icon,
@@ -172,6 +167,8 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
+/// One question on the hub. The answer stays collapsed so four of them fit on a
+/// single screen.
 class _FaqTile extends StatelessWidget {
   const _FaqTile({required this.question, required this.answer});
 
@@ -189,6 +186,7 @@ class _FaqTile extends StatelessWidget {
             answer,
             style: TextStyle(
               fontSize: 13,
+              height: 1.4,
               color: Theme.of(context).colorScheme.outline,
             ),
           ),

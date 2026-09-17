@@ -50,6 +50,12 @@ SHOPKEEPER_PERMISSIONS: list[tuple[str, str]] = [
     # Offers
     ("offer", "read"),
     ("offer", "update"),
+    # Verification documents (shopkeeper_extra: list/upload/delete)
+    ("documents", "read"),
+    ("documents", "create"),
+    ("documents", "delete"),
+    # Shop-scoped notifications inbox (shopkeeper_extra)
+    ("notifications", "read"),
 ]
 
 #: Reduced catalog for shop MANAGERS — inventory & products, no settings.
@@ -62,6 +68,8 @@ SHOPKEEPER_MANAGER_PERMISSIONS: list[tuple[str, str]] = [
     ("inventory", "read"),
     ("inventory", "update"),
     ("offer", "read"),
+    ("documents", "read"),
+    ("notifications", "read"),
 ]
 
 

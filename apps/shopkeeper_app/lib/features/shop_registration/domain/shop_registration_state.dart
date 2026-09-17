@@ -5,7 +5,7 @@ import '../../shops/data/location_service.dart';
 import '../../shops/domain/shop_models.dart';
 
 /// Steps of the "Register Your Shop" wizard, in visual order.
-enum RegistrationStep { welcome, businessInfo, location, documents, success }
+enum RegistrationStep { welcome, businessInfo, location, documents, review, success }
 
 /// Business types offered on the Business Information step.
 const kBusinessTypes = <String>[

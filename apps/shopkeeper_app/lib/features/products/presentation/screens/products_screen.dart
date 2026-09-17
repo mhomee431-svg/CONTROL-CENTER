@@ -3,12 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/lazy_list.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../offers/presentation/widgets/offer_create_sheet.dart';
 import '../../domain/product_models.dart';
+import '../../domain/product_search.dart';
 import '../controllers/products_controller.dart';
+import '../widgets/product_details_sheet.dart';
 import '../widgets/product_sheets.dart';
 import '../widgets/stock_sheets.dart';
 
@@ -83,77 +88,35 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         label: const Text('Add'),
       ),
       body: SafeArea(
-        child: switch (state.status) {
-          ProductsStatus.loading => const Center(
-              child: CircularProgressIndicator(),
+        // Loading / permission-denied / error all go through the shared
+        // system-state body, so the async contract exists in ONE place.
+        //
+        // `isEmpty` stays false on purpose: an empty catalog is NOT a system
+        // state here — the counters, search box and filters must stay on screen
+        // (the shopkeeper's next move is "Add"), and `_ReadyBody` owns that copy.
+        child: SystemStateBody(
+          isLoading: state.status == ProductsStatus.loading,
+          failure: switch (state.status) {
+            ProductsStatus.accessDenied => SystemStateSpec.resolve(
+              state: SystemState.permissionDenied,
+              title: 'No access to this shop',
+              message: state.message,
+              fallbackMessage: 'You do not have access to this shop.',
             ),
-          ProductsStatus.accessDenied => _AccessDenied(message: state.message),
-          ProductsStatus.error => _ErrorView(
-              message: state.message ?? 'Could not load inventory.',
-              onRetry: () =>
-                  ref.read(productsControllerProvider.notifier).load(),
+            ProductsStatus.error => SystemStateSpec.resolve(
+              title: 'Could not load inventory',
+              message: state.message,
+              fallbackMessage: 'Please check your connection and retry.',
             ),
-          ProductsStatus.ready => RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(productsControllerProvider.notifier).load(),
-              child: _ReadyBody(allItems: state.items, summary: state.summary),
-            ),
-        },
-      ),
-    );
-  }
-}
-
-class _AccessDenied extends StatelessWidget {
-  const _AccessDenied({this.message});
-  final String? message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.gpp_bad_outlined,
-                size: 64, color: Theme.of(context).colorScheme.error),
-            const SizedBox(height: 12),
-            Text(message ?? 'You do not have access to this shop.',
-                textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: () => context.go(Routes.shops),
-              icon: const Icon(Icons.swap_horiz),
-              label: const Text('Switch shop'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_outlined,
-                size: 64, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
+            _ => null,
+          },
+          onRetry: () => ref.read(productsControllerProvider.notifier).load(),
+          onSwitchShop: () => context.go(Routes.shops),
+          builder: (_) => RefreshIndicator(
+            onRefresh: () =>
+                ref.read(productsControllerProvider.notifier).load(),
+            child: _ReadyBody(allItems: state.items, summary: state.summary),
+          ),
         ),
       ),
     );
@@ -231,6 +194,15 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
   ProductSort _sort = ProductSort.recentlyUpdated;
   ProductFilterApplied _filter = const ProductFilterApplied();
 
+  /// Searchable text, indexed once per catalog instead of once per keystroke.
+  final ProductSearchCache _searchIndex = ProductSearchCache();
+
+  /// Last filtered + sorted result, with the inputs it was built from.
+  List<ShopProductItem>? _visibleCache;
+  ProductFilterApplied? _visibleForFilter;
+  ProductSort? _visibleForSort;
+  List<ShopProductItem>? _visibleForItems;
+
   @override
   void dispose() {
     _search.dispose();
@@ -248,13 +220,27 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     });
   }
 
+  /// Filtered + sorted rows, recomputed only when one of its inputs actually
+  /// changed: the search text, a filter, the sort, or the catalog itself.
+  ///
+  /// One shared, pre-indexed predicate covers every human-readable identity of
+  /// a listing (name, brand, SKU, variant) — the same predicate the inventory
+  /// scopes and the price list use, so "search" can never mean two things. The
+  /// guard below it means a rebuild that has nothing to do with the list (a
+  /// snackbar, an availability flip) reuses the previous answer instead of
+  /// re-running the predicate over every product.
   List<ShopProductItem> get _visible {
-    final q = _filter.search.trim().toLowerCase();
-    var items = widget.allItems.where((i) {
-      final nameMatches = q.isEmpty || i.name.toLowerCase().contains(q);
-      final brandMatches =
-          q.isEmpty || (i.brand ?? '').toLowerCase().contains(q);
-      if (!nameMatches && !brandMatches) return false;
+    if (_visibleCache != null &&
+        _visibleForSort == _sort &&
+        _visibleForFilter == _filter &&
+        identical(_visibleForItems, widget.allItems)) {
+      return _visibleCache!;
+    }
+
+    final search = _searchIndex.of(widget.allItems);
+
+    final items = widget.allItems.where((i) {
+      if (!search.matches(i, _filter.search)) return false;
 
       switch (_filter.stock) {
         case 'in_stock':
@@ -308,7 +294,26 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
           return tb.compareTo(ta);
         });
     }
+
+    _visibleCache = items;
+    _visibleForFilter = _filter;
+    _visibleForSort = _sort;
+    _visibleForItems = widget.allItems;
     return items;
+  }
+
+  /// Distinct, case-insensitively sorted values present in the loaded catalog
+  /// — the option lists behind the filter sheet's Category / Brand pickers.
+  /// Sourced from real rows so a filter can never be offered that matches
+  /// nothing.
+  List<String> _distinctValues(String? Function(ShopProductItem) pick) {
+    final values = <String>{};
+    for (final item in widget.allItems) {
+      final value = pick(item)?.trim();
+      if (value != null && value.isNotEmpty) values.add(value);
+    }
+    return values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 
   void _openFilters() {
@@ -318,6 +323,8 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
       showDragHandle: true,
       builder: (_) => ProductFilterSheet(
         initial: _filter,
+        categories: _distinctValues((i) => i.category),
+        brands: _distinctValues((i) => i.brand),
         // Rebuild the filter instead of copyWith-ing it: copyWith treats a
         // `null` argument as "keep the previous value", which makes clearing
         // the Availability segment (or tapping Reset) a no-op.
@@ -343,9 +350,14 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     _message();
     final items = _visible;
 
-    return ListView(
+    return LazyListView(
       padding: const EdgeInsets.all(16),
-      children: [
+      style: LazyListStyle.card,
+      itemCount: items.length,
+      // Eager header: the summary, the search box and the filter/sort row are a
+      // fixed handful of widgets, so they live outside the lazy row builder and
+      // stay usable while the list below them is empty.
+      header: [
         if (widget.summary != null) _SummaryChips(summary: widget.summary!),
         const SizedBox(height: 12),
         TextField(
@@ -353,7 +365,7 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
           onChanged: (v) =>
               setState(() => _filter = _filter.copyWith(search: v)),
           decoration: InputDecoration(
-            hintText: 'Search by name or brand…',
+            hintText: 'Search name, brand or SKU…',
             prefixIcon: const Icon(Icons.search),
             isDense: true,
             suffixIcon: _filter.search.isEmpty
@@ -406,13 +418,17 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
         Row(
           children: [
             Expanded(
-              child: Text(
-                '${items.length} of ${widget.allItems.length} products',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
+              // Hidden for an empty shop: "0 of 0 products" stacked on top of
+              // "No products yet" is pure noise.
+              child: widget.allItems.isEmpty
+                  ? const SizedBox.shrink()
+                  : Text(
+                      '${items.length} of ${widget.allItems.length} products',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
             ),
             if (_filter.hasActiveFilters)
               TextButton.icon(
@@ -449,53 +465,45 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
             ),
           ],
         ),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 48),
-            child: Center(
-              child: Text(
-                _filter.search.isEmpty
-                    ? 'No products yet.\nTap "Add" to create your first listing.'
-                    : 'No products match "${_filter.search}".',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.outline),
-              ),
-            ),
-          )
-        else
-          Card(
-            clipBehavior: Clip.antiAlias,
-            margin: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (var i = 0; i < items.length; i++)
-                  _ProductTile(
-                    item: items[i],
-                    showDivider: i < items.length - 1,
-                    onTap: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) => ProductEditSheet(item: items[i]),
-                    ),
-                    onToggle: (available) => ref
-                        .read(productsControllerProvider.notifier)
-                        .setAvailability(items[i].id, available),
-                    onUpdateStock: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) => StockUpdateSheet(item: items[i]),
-                    ),
-                    onHistory: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) => ProductHistorySheet(item: items[i]),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        const SizedBox(height: 32),
-      ],
+        ],
+      // Rows are built lazily: a keystroke re-filters the catalog, but only the
+      // rows near the viewport are re-created, so a large shop stays
+      // responsive instead of rebuilding every row per character.
+      itemBuilder: (context, i) => _ProductTile(
+        item: items[i],
+        showDivider: i < items.length - 1,
+        // Tapping a row opens read-only Product Details; every write
+        // (edit/stock/history) is launched from there.
+        onTap: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => ProductDetailsSheet(item: items[i]),
+        ),
+        onToggle: (available) => ref
+            .read(productsControllerProvider.notifier)
+            .setAvailability(items[i].id, available),
+        onUpdateStock: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => StockUpdateSheet(item: items[i]),
+        ),
+        onHistory: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => ProductHistorySheet(item: items[i]),
+        ),
+      ),
+      // No rows: the feature's own explanation stands in for the list, inside
+      // the same scroll view (so it stays reachable).
+      emptyPlaceholder: _EmptyResults(
+        catalogIsEmpty: widget.allItems.isEmpty,
+        search: _filter.search,
+        onClear: () {
+          _search.clear();
+          setState(() => _filter = const ProductFilterApplied());
+        },
+      ),
+      footer: const [SizedBox(height: 32)],
     );
   }
 }
@@ -505,10 +513,18 @@ class ProductFilterSheet extends StatefulWidget {
     super.key,
     required this.initial,
     required this.onApply,
+    this.categories = const [],
+    this.brands = const [],
   });
 
   final ProductFilterApplied initial;
   final ValueChanged<ProductFilterApplied> onApply;
+
+  /// Category / brand values present in the loaded catalog. An empty list
+  /// hides that picker entirely — the sheet never offers a filter that
+  /// cannot match a row.
+  final List<String> categories;
+  final List<String> brands;
 
   @override
   State<ProductFilterSheet> createState() => _ProductFilterSheetState();
@@ -518,12 +534,16 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
   final _minController = TextEditingController();
   final _maxController = TextEditingController();
   bool? _availability;
+  String? _category;
+  String? _brand;
   bool _recentlyUpdated = false;
 
   @override
   void initState() {
     super.initState();
     _availability = widget.initial.availability;
+    _category = widget.initial.category;
+    _brand = widget.initial.brand;
     _recentlyUpdated = widget.initial.recentlyUpdated;
     final minP = widget.initial.minPrice;
     final maxP = widget.initial.maxPrice;
@@ -567,6 +587,24 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                   setState(() => _availability = s.isEmpty ? null : s.first),
             ),
           ),
+          if (widget.categories.isNotEmpty)
+            _FilterSection(
+              label: 'Category',
+              child: _picker(
+                options: widget.categories,
+                value: _category,
+                onChanged: (value) => setState(() => _category = value),
+              ),
+            ),
+          if (widget.brands.isNotEmpty)
+            _FilterSection(
+              label: 'Brand',
+              child: _picker(
+                options: widget.brands,
+                value: _brand,
+                onChanged: (value) => setState(() => _brand = value),
+              ),
+            ),
           _FilterSection(
             label: 'Recently updated',
             child: SwitchListTile(
@@ -609,8 +647,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: () => widget.onApply(ProductFilterApplied(
-                    search: widget.initial.search)),
+                onPressed: _reset,
                 child: const Text('Reset'),
               ),
               const SizedBox(width: 8),
@@ -622,11 +659,54 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
     );
   }
 
+  /// Single-choice picker with an explicit "Any" (no filter) option, so
+  /// clearing a selection is one tap instead of a hidden gesture.
+  Widget _picker({
+    required List<String> options,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String?>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        isDense: true,
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('Any')),
+        for (final option in options)
+          DropdownMenuItem<String?>(
+            value: option,
+            child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+
+  /// Clears every picker *and* applies the empty filter in one step, so the
+  /// sheet can never display one thing while the list behind it shows another
+  /// (Apply would otherwise re-send the stale local selections).
+  void _reset() {
+    setState(() {
+      _availability = null;
+      _category = null;
+      _brand = null;
+      _recentlyUpdated = false;
+      _minController.clear();
+      _maxController.clear();
+    });
+    widget.onApply(ProductFilterApplied(search: widget.initial.search));
+  }
+
   void _apply() {
     widget.onApply(ProductFilterApplied(
       search: widget.initial.search,
       stock: widget.initial.stock,
       availability: _availability,
+      category: _category,
+      brand: _brand,
       recentlyUpdated: _recentlyUpdated,
       minPrice: double.tryParse(_minController.text.trim()),
       maxPrice: double.tryParse(_maxController.text.trim()),
@@ -659,6 +739,10 @@ class _FilterSection extends StatelessWidget {
     );
   }
 }
+
+/// One row's slice of the single card the products list paints — see
+/// [LazyCardSliver] in `core/ui/lazy_list.dart`, which owns this chrome so every
+/// card-style list in the app keeps the same card look while staying lazy.
 
 class _ProductTile extends StatelessWidget {
   const _ProductTile({
@@ -718,6 +802,22 @@ class _ProductTile extends StatelessWidget {
               child: hasImage
                   ? Image.network(item.imageUrl!,
                       fit: BoxFit.cover,
+                      // Decode at roughly 2x the 48px box instead of the
+                      // source resolution: a thumbnail never needs the bytes.
+                      cacheWidth: 96,
+                      // Without this a slow image is an empty grey box, which
+                      // reads as "no image" rather than "still loading".
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null
+                              ? child
+                              : Center(
+                                  child: SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: scheme.outline),
+                                  ),
+                                ),
                       errorBuilder: (context, error, stackTrace) => Icon(
                           Icons.inventory_2_outlined,
                           size: 22,
@@ -783,21 +883,33 @@ class _ProductTile extends StatelessWidget {
                   style: TextStyle(fontSize: 11, color: scheme.outline)),
             ],
           ),
-          trailing: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Rs ${item.price.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (item.mrp != null && item.mrp! > item.price)
-                Text('Rs ${item.mrp!.toStringAsFixed(0)}',
-                    style: TextStyle(
-                        fontSize: 11,
-                        decoration: TextDecoration.lineThrough,
-                        color: scheme.outline)),
-              const SizedBox(height: 2),
-              Switch(value: item.isAvailable, onChanged: onToggle),
-            ],
+          // The trailing slot is height-constrained by ListTile (56px), which
+          // the stacked price / MRP / availability switch can exceed — the
+          // FittedBox keeps the row overflow-free at every text scale instead
+          // of painting the striped overflow banner.
+          trailing: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Rs ${item.price.toStringAsFixed(0)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (item.mrp != null && item.mrp! > item.price)
+                  Text('Rs ${item.mrp!.toStringAsFixed(0)}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          decoration: TextDecoration.lineThrough,
+                          color: scheme.outline)),
+                const SizedBox(height: 2),
+                Switch(
+                  value: item.isAvailable,
+                  onChanged: onToggle,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
           ),
         ),
         // Quick actions: update stock + inspect audit trail (req 25).
@@ -839,6 +951,63 @@ class _ProductTile extends StatelessWidget {
         if (showDivider)
           Divider(height: 1, color: Theme.of(context).dividerColor),
       ],
+    );
+  }
+}
+
+/// The "nothing to show" state of the list.
+///
+/// Three different causes need three different answers. Telling the shopkeeper
+/// to "create your first listing" while a filter — not the catalog — is empty
+/// would be plainly wrong, so the copy is chosen from what actually emptied
+/// the list, and the action clears exactly that.
+class _EmptyResults extends StatelessWidget {
+  const _EmptyResults({
+    required this.catalogIsEmpty,
+    required this.search,
+    required this.onClear,
+  });
+
+  /// True when the shop has no listings at all, not merely no visible ones.
+  final bool catalogIsEmpty;
+
+  /// The live search text (empty when a filter alone emptied the list).
+  final String search;
+
+  /// Clears the search box and every filter.
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final query = search.trim();
+    final (message, action) = catalogIsEmpty
+        ? ('No products yet.\nTap "Add" to create your first listing.', null)
+        : query.isNotEmpty
+            ? ('No products match "$query".', 'Clear search')
+            : ('No products match your filters.', 'Clear filters');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(
+        children: [
+          Icon(
+            catalogIsEmpty
+                ? Icons.inventory_2_outlined
+                : Icons.filter_alt_off_outlined,
+            size: 40,
+            color: scheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.outline)),
+          if (action != null) ...[
+            const SizedBox(height: 8),
+            TextButton(onPressed: onClear, child: Text(action)),
+          ],
+        ],
+      ),
     );
   }
 }

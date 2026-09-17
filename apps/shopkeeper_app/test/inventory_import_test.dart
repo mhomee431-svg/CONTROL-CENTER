@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
@@ -6,6 +10,7 @@ import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/data/import_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/domain/import_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/presentation/controllers/import_controller.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory_import/presentation/screens/inventory_import_screen.dart';
 
 import 'fakes.dart';
 
@@ -24,6 +29,30 @@ class FakeWorkbookPicker implements WorkbookPickerService {
     if (shouldCancel) return null;
     return workbook ??
         const PickedWorkbook(path: '/tmp/test.xlsx', name: 'test.xlsx');
+  }
+}
+
+/// Fake save dialog for Download Sample: records what was offered and can
+/// gate completion so the in-flight guard is testable.
+class FakeWorkbookSaver implements WorkbookSaveService {
+  FakeWorkbookSaver({this.shouldSave = true, this.gate});
+
+  bool shouldSave;
+
+  /// When set, [saveWorkbook] blocks until it is completed.
+  Completer<bool>? gate;
+
+  int calls = 0;
+  final List<String> savedNames = [];
+  final List<Uint8List> savedBytes = [];
+
+  @override
+  Future<bool> saveWorkbook(String fileName, Uint8List bytes) async {
+    calls++;
+    savedNames.add(fileName);
+    savedBytes.add(bytes);
+    if (gate != null) return gate!.future;
+    return shouldSave;
   }
 }
 
@@ -404,6 +433,137 @@ void main() {
       expect(state.preview, isNull);
       expect(state.jobs, hasLength(1));
       expect(state.jobs.first.filename, 'old.xlsx');
+    });
+  });
+
+  group('SampleDownloadController — Download Sample', () {
+    ProviderContainer makeContainer({
+      required FakeImportRepo repo,
+      required FakeWorkbookSaver saver,
+      int? shopId = 10,
+    }) {
+      final container = ProviderContainer(overrides: [
+        inventoryImportRepositoryProvider.overrideWithValue(repo),
+        workbookPickerProvider.overrideWithValue(FakeWorkbookPicker()),
+        workbookSaveProvider.overrideWithValue(saver),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
+        selectedShopProvider.overrideWith(
+            () => SelectedShopOverride(shopId == null ? null : ownerShop(id: shopId))),
+      ]);
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('downloads the template and hands it to the save dialog',
+        () async {
+      final repo = FakeImportRepo();
+      final saver = FakeWorkbookSaver();
+      final container = makeContainer(repo: repo, saver: saver);
+
+      await container.read(sampleDownloadProvider.notifier).download();
+
+      expect(repo.sampleCalls, 1);
+      expect(repo.lastSampleShopId, 10);
+      expect(saver.savedNames.single, sampleWorkbookFileName);
+      expect(saver.savedBytes.single, isNotEmpty);
+      expect(container.read(sampleDownloadProvider).message,
+          'Sample workbook saved');
+    });
+
+    test('a dismissed save dialog is silent, not an error', () async {
+      final repo = FakeImportRepo();
+      final saver = FakeWorkbookSaver(shouldSave: false);
+      final container = makeContainer(repo: repo, saver: saver);
+
+      await container.read(sampleDownloadProvider.notifier).download();
+
+      expect(repo.sampleCalls, 1);
+      expect(saver.calls, 1);
+      expect(container.read(sampleDownloadProvider).message, isNull);
+    });
+
+    test('a download failure reports copy and never reaches the saver',
+        () async {
+      final repo = FakeImportRepo(
+        error: const ApiException(statusCode: null, message: 'Network error'),
+      );
+      final saver = FakeWorkbookSaver();
+      final container = makeContainer(repo: repo, saver: saver);
+
+      await container.read(sampleDownloadProvider.notifier).download();
+
+      expect(repo.sampleCalls, 1);
+      expect(saver.calls, 0);
+      expect(container.read(sampleDownloadProvider).message,
+          contains('internet'));
+    });
+
+    test('without a shop the sample is never requested', () async {
+      final repo = FakeImportRepo();
+      final saver = FakeWorkbookSaver();
+      final container = makeContainer(repo: repo, saver: saver, shopId: null);
+
+      await container.read(sampleDownloadProvider.notifier).download();
+
+      expect(repo.sampleCalls, 0);
+      expect(container.read(sampleDownloadProvider).message,
+          'Select a shop first.');
+    });
+
+    test('a second download while one is in flight is ignored', () async {
+      final saver = FakeWorkbookSaver(gate: Completer<bool>());
+      final container = makeContainer(repo: FakeImportRepo(), saver: saver);
+
+      final first = container.read(sampleDownloadProvider.notifier).download();
+      // Let the first attempt reach the (gated) save dialog.
+      for (var i = 0; i < 10; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      await container.read(sampleDownloadProvider.notifier).download();
+
+      expect(saver.calls, 1);
+      saver.gate!.complete(true);
+      await first;
+      expect(container.read(sampleDownloadProvider).message,
+          'Sample workbook saved');
+    });
+  });
+
+  group('InventoryImportScreen — Download Sample (widget)', () {
+    testWidgets('offers the sample download and reports the save',
+        (tester) async {
+      final repo = FakeImportRepo();
+      final saver = FakeWorkbookSaver();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          inventoryImportRepositoryProvider.overrideWithValue(repo),
+          workbookSaveProvider.overrideWithValue(saver),
+          tokenStoreProvider.overrideWithValue(
+              InMemoryTokenStore(accessToken: 'test-access-token')),
+          selectedShopProvider
+              .overrideWith(() => SelectedShopOverride(ownerShop())),
+        ],
+        child: const MaterialApp(home: InventoryImportScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose Excel file'), findsOneWidget);
+      expect(find.text('Download sample'), findsOneWidget);
+
+      await tester.tap(find.text('Download sample'));
+      await tester.pumpAndSettle();
+
+      expect(repo.sampleCalls, 1);
+      expect(repo.lastSampleShopId, 10);
+      expect(saver.calls, 1);
+      expect(saver.savedNames.single, sampleWorkbookFileName);
+      expect(saver.savedBytes.single, isNotEmpty);
+      expect(find.text('Sample workbook saved'), findsOneWidget);
+
+      // Let the snackbar time out so no timer outlives the test.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
     });
   });
 }

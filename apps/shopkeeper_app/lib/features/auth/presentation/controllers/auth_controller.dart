@@ -8,11 +8,13 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_providers.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/auth/firebase_auth_service.dart';
+import '../../../../core/state/system_state.dart';
 import '../../domain/auth_models.dart';
 import '../../data/auth_repository.dart';
 import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../../../shops/presentation/controllers/shops_controller.dart';
+import '../../../notifications/presentation/controllers/notification_preferences_controller.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../../barcode/presentation/controllers/barcode_controller.dart';
 import '../../../inventory_import/presentation/controllers/import_controller.dart';
@@ -44,6 +46,7 @@ class AuthState {
     this.errorCode,
     this.user,
     this.shops = const [],
+    this.systemState,
   });
 
   final AuthStatus status;
@@ -51,6 +54,12 @@ class AuthState {
   final String? errorCode;
   final ShopkeeperUser? user;
   final List<ShopSummary> shops;
+
+  /// Which of the nine system states a failed startup check is (offline vs
+  /// server fault vs maintenance), so the splash renders the right copy and
+  /// way out instead of a generic "could not complete startup". Null unless
+  /// [AuthStatus.sessionError].
+  final SystemState? systemState;
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isLoading => status == AuthStatus.loading;
@@ -81,8 +90,12 @@ class AuthState {
   }) => AuthState(status: AuthStatus.authenticated, user: user, shops: shops);
   factory AuthState.unauthenticated() =>
       const AuthState(status: AuthStatus.unauthenticated);
-  factory AuthState.sessionExpired() =>
-      const AuthState(status: AuthStatus.sessionExpired);
+  factory AuthState.sessionExpired() => const AuthState(
+    status: AuthStatus.sessionExpired,
+    // The interceptor only gives up after the refresh token was rejected too:
+    // this is a real expiry, and the Welcome screen says so.
+    systemState: SystemState.sessionExpired,
+  );
 
   /// Account inactive/suspended — the message comes from the backend
   /// (or the startup status check) and is shown on the account-status screen.
@@ -101,9 +114,17 @@ class AuthState {
   /// Startup check could not determine the session state (offline / backend
   /// 5xx). Deliberately NOT signed-out: the splash holds with a Retry so a
   /// stored valid session is never lost and no Welcome-flicker happens.
-  factory AuthState.sessionError(String message) => AuthState(
+  ///
+  /// [systemState] says WHICH failure it was, so the splash shows "No internet
+  /// connection" vs "Server error" vs "Under maintenance" — and Retry only
+  /// where retrying can help.
+  factory AuthState.sessionError(
+    String message, {
+    SystemState? systemState,
+  }) => AuthState(
     status: AuthStatus.sessionError,
     errorMessage: message,
+    systemState: systemState,
   );
 }
 
@@ -278,7 +299,10 @@ class AuthController extends Notifier<AuthState> {
       // instead of flicking to Welcome (which reads as "signed out").
       if ((e.statusCode ?? 500) >= 500) {
         state = AuthState.sessionError(
-          e.message.isNotEmpty ? e.message : 'Could not reach Hyperlocal servers.',
+          e.message.isNotEmpty
+              ? e.message
+              : 'Could not reach Hyperlocal servers.',
+          systemState: e.systemState,
         );
         return false;
       }
@@ -292,6 +316,8 @@ class AuthController extends Notifier<AuthState> {
       // and no Welcome-flicker happens.
       state = AuthState.sessionError(
         'Could not complete startup. Check your connection and retry.',
+        // No HTTP answer at all: the device could not reach the network.
+        systemState: SystemState.networkError,
       );
       return false;
     }
@@ -302,6 +328,40 @@ class AuthController extends Notifier<AuthState> {
   /// for the next successful startup check.
   void skipStartupRetry() {
     state = AuthState.unauthenticated();
+  }
+
+  /// Edit-Profile hook: re-reads `/auth/me` and updates ONLY the user's name
+  /// in the current session snapshot (single source of truth — the screens
+  /// that show the profile re-render from this state). No-op when the
+  /// session is not authenticated or the refresh fails.
+  Future<void> refreshUserName() async {
+    if (state.status != AuthStatus.authenticated || state.user == null) return;
+    try {
+      final session = await _repo.restoreSession();
+      final freshName = session?.user.name;
+      if (freshName == null || freshName.trim().isEmpty) return;
+      final current = state.user!;
+      if (current.name == freshName) return;
+      state = AuthState(
+        status: state.status,
+        errorMessage: state.errorMessage,
+        errorCode: state.errorCode,
+        user: ShopkeeperUser(
+          id: current.id,
+          phoneNumber: current.phoneNumber,
+          name: freshName,
+          email: session?.user.email,
+          role: current.role,
+          businessId: current.businessId,
+          avatarUrl: current.avatarUrl,
+          status: current.status,
+          isShopkeeper: current.isShopkeeper,
+        ),
+        shops: state.shops,
+      );
+    } catch (_) {
+      // Cosmetic refresh only — failures are silently ignored.
+    }
   }
 
   /// Maps a backend account lifecycle status to the account-status screen
@@ -592,6 +652,8 @@ class AuthController extends Notifier<AuthState> {
     ref.read(dashboardControllerProvider.notifier).reset();
     ref.read(productsControllerProvider.notifier).reset();
     ref.read(notificationsControllerProvider.notifier).reset();
+    // Delivery preferences are per account as well — never carry them over.
+    ref.read(notificationPreferencesProvider.notifier).reset();
     ref.read(barcodeControllerProvider.notifier).reset();
     ref.read(importControllerProvider.notifier).reset();
     // Customer-activity reports are scoped to one account's shops — they must

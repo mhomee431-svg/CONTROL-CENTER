@@ -206,9 +206,32 @@ class ShopRegistrationController
         state = state.copyWith(step: RegistrationStep.businessInfo);
       case RegistrationStep.documents:
         state = state.copyWith(step: RegistrationStep.location);
+      case RegistrationStep.review:
+        state = state.copyWith(step: RegistrationStep.documents);
       case RegistrationStep.welcome || RegistrationStep.success:
         break;
     }
+  }
+
+  /// 4 → 5 (documents → review). Documents are the last optional inputs;
+  /// the final review shows every entered detail before submission.
+  void nextFromDocuments() {
+    state = state.copyWith(step: RegistrationStep.review);
+  }
+
+  /// Review step "Edit" affordances — jump back to a specific step. All
+  /// entered data is preserved in state; the user re-enters the pipeline
+  /// through the normal Next buttons (→ review again before submit).
+  void editBusinessInfo() {
+    state = state.copyWith(step: RegistrationStep.businessInfo);
+  }
+
+  void editLocation() {
+    state = state.copyWith(step: RegistrationStep.location);
+  }
+
+  void editDocuments() {
+    state = state.copyWith(step: RegistrationStep.documents);
   }
 
   // ── Location (delegates to the EXISTING capture controller) ─────────────

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/offer_models.dart';
 import '../controllers/offers_controller.dart';
 import '../widgets/offer_create_sheet.dart';
+import '../widgets/offer_details_sheet.dart';
 
 /// Offers management — active, expired, and create new offers.
 class OffersScreen extends ConsumerStatefulWidget {
@@ -118,35 +121,40 @@ class _OffersTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-
     return switch (state.status) {
       OffersListStatus.loading =>
         const Center(child: CircularProgressIndicator()),
-      OffersListStatus.noShop => _MessageView(
-          icon: Icons.storefront_outlined,
+      // No shop / empty list are EMPTY states: the feature owns the wording and
+      // the call to action, the shared view owns the layout.
+      OffersListStatus.noShop => SystemStateView.empty(
           title: 'No shop selected',
-          body: 'Choose a shop to see its offers.',
-          color: scheme.outline,
+          message: 'Choose a shop to see its offers.',
+          icon: Icons.storefront_outlined,
         ),
-      OffersListStatus.error => _MessageView(
-          icon: Icons.cloud_off_outlined,
-          title: state.message ?? 'Could not load offers.',
-          body: 'Check your connection and try again.',
-          color: scheme.outline,
+      OffersListStatus.error => SystemStateView(
+          spec: SystemStateSpec.resolve(
+            state: SystemState.genericRetry,
+            title: state.message ?? 'Could not load offers.',
+            message: 'Check your connection and try again.',
+          ),
           onRetry: () => ref.read(offersListControllerProvider.notifier).load(),
         ),
       OffersListStatus.ready => offers.isEmpty
-          ? _MessageView(
+          ? SystemStateView.empty(
+              title: showCreateCta ? 'No active offers' : 'No expired offers',
+              message: showCreateCta
+                  ? 'Create an offer to attract more customers'
+                  : 'Expired offers will appear here',
               icon: showCreateCta
                   ? Icons.local_offer_outlined
                   : Icons.history_outlined,
-              title: showCreateCta ? 'No active offers' : 'No expired offers',
-              body: showCreateCta
-                  ? 'Create an offer to attract more customers'
-                  : 'Expired offers will appear here',
-              color: scheme.outline,
-              onCreate: showCreateCta ? onCreate : null,
+              action: showCreateCta
+                  ? FilledButton.icon(
+                      onPressed: onCreate,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create offer'),
+                    )
+                  : null,
             )
           : RefreshIndicator(
               onRefresh: () =>
@@ -155,8 +163,11 @@ class _OffersTab extends ConsumerWidget {
                 itemCount: offers.length,
                 separatorBuilder: (_, _) => Divider(
                     height: 1, color: Theme.of(context).dividerColor),
-                itemBuilder: (context, index) =>
-                    _OfferTile(offer: offers[index]),
+                itemBuilder: (context, index) => _OfferTile(
+                  offer: offers[index],
+                  onTap: () =>
+                      showOfferDetailsSheet(context, offers[index]),
+                ),
               ),
             ),
     };
@@ -164,9 +175,12 @@ class _OffersTab extends ConsumerWidget {
 }
 
 class _OfferTile extends StatelessWidget {
-  const _OfferTile({required this.offer});
+  const _OfferTile({required this.offer, required this.onTap});
 
   final OfferSummary offer;
+
+  /// Opens the full Offer Details sheet (the row is a summary only).
+  final VoidCallback onTap;
 
   String get _statusLabel {
     if (offer.isLive) return 'Live';
@@ -188,6 +202,7 @@ class _OfferTile extends StatelessWidget {
     final window = offer.windowLabel;
 
     return ListTile(
+      onTap: onTap,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: CircleAvatar(
@@ -244,67 +259,5 @@ class _OfferTile extends StatelessWidget {
 
 /// Centred icon + copy, used for the empty, no-shop and error states.
 ///
-/// [onRetry] renders a retry button (error); [onCreate] renders the primary
-/// "Create offer" call-to-action (empty active tab). When both are null the
-/// view is purely informational.
-class _MessageView extends StatelessWidget {
-  const _MessageView({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.color,
-    this.onRetry,
-    this.onCreate,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-  final Color color;
-  final VoidCallback? onRetry;
-  final VoidCallback? onCreate;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 56, color: color),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              body,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: color),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 20),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-            if (onCreate != null) ...[
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: onCreate,
-                icon: const Icon(Icons.add),
-                label: const Text('Create offer'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
+/// The layout lives in the shared [SystemStateView]; this file only decides
+/// which state applies and what its copy/action is.

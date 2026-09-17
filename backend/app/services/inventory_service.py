@@ -46,6 +46,17 @@ def get_freshness_threshold(source: InventorySource) -> timedelta:
     return FRESHNESS_THRESHOLDS.get(source, DEFAULT_FRESHNESS_THRESHOLD)
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Normalize a datetime to timezone-aware UTC (naive assumed UTC).
+
+    Production (PostgreSQL TIMESTAMPTZ) returns aware datetimes; SQLite returns
+    naive ones. Comparing the two raises ``TypeError``.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def compute_freshness(
     last_updated: Optional[datetime],
     source: InventorySource = InventorySource.MANUAL,
@@ -587,9 +598,9 @@ def activate_offer(db: Session, offer_id: int) -> Optional[Offer]:
     if offer is None:
         return None
     now = datetime.now(timezone.utc)
-    if now < offer.start_date:
+    if now < _as_utc(offer.start_date):
         offer.status = OfferStatus.DRAFT
-    elif now > offer.end_date:
+    elif now > _as_utc(offer.end_date):
         offer.status = OfferStatus.EXPIRED
     else:
         offer.status = OfferStatus.ACTIVE

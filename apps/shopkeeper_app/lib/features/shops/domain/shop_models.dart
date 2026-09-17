@@ -8,10 +8,24 @@ export '../../auth/domain/auth_models.dart' show ShopSummary;
 /// (PENDING → SUBMITTED → UNDER_REVIEW → VERIFIED / REJECTED / EXPIRED).
 
 class VerificationInfo {
-  const VerificationInfo({required this.status, this.reviewNotes});
+  const VerificationInfo({
+    required this.status,
+    this.reviewNotes,
+    this.submittedAt,
+    this.reviewedAt,
+    this.verifiedAt,
+    this.expiresAt,
+  });
 
   final String status;
   final String? reviewNotes;
+
+  /// Lifecycle timestamps straight from the server (ISO-8601 strings).
+  /// The Shop Status screen renders this timeline — nothing is derived.
+  final String? submittedAt;
+  final String? reviewedAt;
+  final String? verifiedAt;
+  final String? expiresAt;
 
   bool get isVerified => status == 'VERIFIED';
   bool get isRejected => status == 'REJECTED';
@@ -21,6 +35,10 @@ class VerificationInfo {
       VerificationInfo(
         status: (json?['status'] as String?) ?? 'PENDING',
         reviewNotes: json?['review_notes'] as String?,
+        submittedAt: json?['submitted_at'] as String?,
+        reviewedAt: json?['reviewed_at'] as String?,
+        verifiedAt: json?['verified_at'] as String?,
+        expiresAt: json?['expires_at'] as String?,
       );
 }
 
@@ -72,6 +90,13 @@ class ShopDetail {
     this.locationSource,
     this.locationType,
     this.locationCapturedAt,
+    // Business-information payload (`GET /shopkeeper/shops/{id}`).
+    this.alternatePhone,
+    this.whatsappNumber,
+    this.gstin,
+    this.createdAt,
+    this.address,
+    this.hours = const <ShopHourEntry>[],
   });
 
   final ShopSummary summary;
@@ -106,6 +131,40 @@ class ShopDetail {
   final String? locationType;
   final String? locationCapturedAt;
 
+  // Business-information payload (Phase: Shop Profile module).
+  final String? alternatePhone;
+  final String? whatsappNumber;
+  final String? gstin;
+
+  /// ISO-8601 "member since" straight from the server.
+  final String? createdAt;
+
+  /// The shop's address when the payload carries one (the registration
+  /// response does; the detail endpoint may omit it).
+  final ShopAddress? address;
+
+  /// Weekly operating hours when the payload carries them (the dedicated
+  /// `GET /shops/{id}/hours` endpoint is the authoritative source).
+  final List<ShopHourEntry> hours;
+
+  /// Whether the shop has stored coordinates on the server.
+  bool get hasLocation =>
+      latitude != null && longitude != null && hasValidCoordinates;
+
+  bool get hasValidCoordinates =>
+      (latitude?.abs() ?? 0) <= 90 && (longitude?.abs() ?? 0) <= 180;
+
+  /// `12.345678, 78.123456` — for the Shop Location screen.
+  String get coordinatesLabel => latitude == null || longitude == null
+      ? '—'
+      : '${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}';
+
+  /// Human category label (`PHARMACY` → `Pharmacy`) — `—` when unset.
+  String get categoryLabel =>
+      summary.category == null || summary.category!.isEmpty
+          ? '—'
+          : humanizeCode(summary.category!);
+
   factory ShopDetail.fromJson(Map<String, dynamic> json) => ShopDetail(
         summary: ShopSummary.fromJson(json),
         description: json['description'] as String?,
@@ -136,7 +195,167 @@ class ShopDetail {
         locationSource: json['location_source'] as String?,
         locationType: json['location_type'] as String?,
         locationCapturedAt: json['location_captured_at'] as String?,
+        alternatePhone: json['alternate_phone'] as String?,
+        whatsappNumber: json['whatsapp_number'] as String?,
+        gstin: json['gstin'] as String?,
+        createdAt: json['created_at'] as String?,
+        address: ShopAddress.fromJson(
+          json['address'] as Map<String, dynamic>?,
+        ),
+        hours: ((json['hours'] as List<dynamic>?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(ShopHourEntry.fromJson)
+            .toList(growable: false),
       );
+}
+
+/// One weekday of the shop's weekly schedule
+/// (`GET/PUT /shopkeeper/shops/{id}/hours`; `day_of_week` 0=Monday..6=Sunday).
+class ShopHourEntry {
+  const ShopHourEntry({
+    required this.dayOfWeek,
+    required this.openTime,
+    required this.closeTime,
+    required this.isClosed,
+  });
+
+  /// 0 = Monday … 6 = Sunday (server contract, see `is_shop_open`).
+  final int dayOfWeek;
+  final String? openTime;
+  final String? closeTime;
+  final bool isClosed;
+
+  /// `Monday` … `Sunday`.
+  String get dayLabel => kWeekDayLabels[dayOfWeek.clamp(0, 6)];
+
+  /// `09:00 – 21:00` or `Closed` — display only, never derived further.
+  String get hoursLabel => isClosed
+      ? 'Closed'
+      : '${openTime ?? '—'} – ${closeTime ?? '—'}';
+
+  /// `HH:MM` in, `HH:MM` out (the server accepts `HH:MM` and `HH:MM:SS`).
+  static String? _normalizeTime(Object? value) {
+    if (value is! String || value.isEmpty) return null;
+    final parts = value.split(':');
+    if (parts.length >= 2) return '${parts[0]}:${parts[1]}';
+    return value;
+  }
+
+  factory ShopHourEntry.fromJson(Map<String, dynamic> json) => ShopHourEntry(
+        dayOfWeek: (json['day_of_week'] as num?)?.toInt() ?? 0,
+        openTime: _normalizeTime(json['open_time']),
+        closeTime: _normalizeTime(json['close_time']),
+        isClosed: json['is_closed'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'day_of_week': dayOfWeek,
+        'open_time': openTime ?? '09:00',
+        'close_time': closeTime ?? '21:00',
+        'is_closed': isClosed,
+      };
+
+  ShopHourEntry copyWith({String? openTime, String? closeTime, bool? isClosed}) =>
+      ShopHourEntry(
+        dayOfWeek: dayOfWeek,
+        openTime: openTime ?? this.openTime,
+        closeTime: closeTime ?? this.closeTime,
+        isClosed: isClosed ?? this.isClosed,
+      );
+
+  /// A full-open week at the server's default 09:00–21:00 (registration
+  /// default on the backend) — used to seed the editor when the shop has no
+  /// stored rows yet.
+  static List<ShopHourEntry> defaultWeek() => [
+        for (var day = 0; day < 7; day++)
+          ShopHourEntry(
+            dayOfWeek: day,
+            openTime: '09:00',
+            closeTime: '21:00',
+            isClosed: false,
+          ),
+      ];
+
+  /// Normalizes a server week to exactly 7 rows (0..6), defaulting missing
+  /// days so the editor is never missing a weekday.
+  static List<ShopHourEntry> normalizeWeek(List<ShopHourEntry> hours) {
+    final byDay = {for (final h in hours) h.dayOfWeek: h};
+    return [
+      for (var day = 0; day < 7; day++)
+        byDay[day] ?? ShopHourEntry(dayOfWeek: day, openTime: '09:00', closeTime: '21:00', isClosed: true),
+    ];
+  }
+}
+
+/// Weekday labels for the `day_of_week` 0=Monday..6=Sunday server contract.
+const kWeekDayLabels = <String>[
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+/// The shop's registered address (registration payload; the detail endpoint
+/// omits it, so every field is tolerant).
+class ShopAddress {
+  const ShopAddress({
+    this.line1,
+    this.line2,
+    this.landmark,
+    this.city,
+    this.state,
+    this.pincode,
+    this.country,
+  });
+
+  final String? line1;
+  final String? line2;
+  final String? landmark;
+  final String? city;
+  final String? state;
+  final String? pincode;
+  final String? country;
+
+  bool get hasContent => [
+        line1,
+        line2,
+        landmark,
+        city,
+        state,
+        pincode,
+        country,
+      ].any((part) => part != null && part.trim().isNotEmpty);
+
+  /// One-line display form, skipping empty parts.
+  String get formatted => [
+        line1,
+        line2,
+        landmark,
+        city,
+        state,
+        pincode,
+        country,
+      ].whereType<String>().map((p) => p.trim()).where((p) => p.isNotEmpty).join(', ');
+
+  factory ShopAddress.fromJson(Map<String, dynamic>? json) => ShopAddress(
+        line1: json?['line1'] as String? ?? json?['address_line1'] as String?,
+        line2: json?['line2'] as String? ?? json?['address_line2'] as String?,
+        landmark: json?['landmark'] as String?,
+        city: json?['city'] as String?,
+        state: json?['state'] as String?,
+        pincode: json?['pincode'] as String?,
+        country: json?['country'] as String?,
+      );
+}
+
+/// `PHARMACY_HEALTHCARE` → `Pharmacy healthcare` — display only.
+String humanizeCode(String code) {
+  final lowered = code.replaceAll('_', ' ').toLowerCase().trim();
+  if (lowered.isEmpty) return code;
+  return lowered[0].toUpperCase() + lowered.substring(1);
 }
 
 /// Static category choices for shop registration forms.

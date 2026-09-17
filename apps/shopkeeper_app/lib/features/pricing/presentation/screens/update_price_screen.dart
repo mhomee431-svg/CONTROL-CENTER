@@ -1,0 +1,282 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../products/domain/product_models.dart';
+import '../../../products/presentation/controllers/products_controller.dart';
+import '../widgets/pricing_shared.dart';
+import '../../../inventory/presentation/widgets/inventory_shared.dart'
+    show moneyLabel, trimNumber, InfoChip;
+
+/// Update Price — edit one product's selling price and MRP. The PATCH goes
+/// through the products controller, which swaps in the server response, so
+/// the list and every other screen stay consistent.
+///
+/// Opened with a product (from the price list) or with a product picker.
+class UpdatePriceScreen extends ConsumerStatefulWidget {
+  const UpdatePriceScreen({super.key, this.product});
+
+  final ShopProductItem? product;
+
+  @override
+  ConsumerState<UpdatePriceScreen> createState() => _UpdatePriceScreenState();
+}
+
+class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
+  ShopProductItem? _selected;
+  late final TextEditingController _priceController;
+  late final TextEditingController _mrpController;
+  bool _saving = false;
+  String? _error;
+
+  /// True once the PATCH succeeded — drives the inline confirmation panel
+  /// (`update-price-success`). Cleared as soon as the shopkeeper edits again.
+  bool _saved = false;
+
+  bool get _pickerMode => widget.product == null && _selected == null;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.product;
+    final initial = widget.product;
+    _priceController = TextEditingController(
+      text: initial == null ? '' : trimNumber(initial.price),
+    );
+    _mrpController = TextEditingController(
+      text: initial?.mrp == null ? '' : trimNumber(initial!.mrp!),
+    );
+    Future.microtask(() {
+      final state = ref.read(productsControllerProvider);
+      if (_pickerMode &&
+          state.status == ProductsStatus.loading &&
+          state.items.isEmpty) {
+        ref.read(productsControllerProvider.notifier).load();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _mrpController.dispose();
+    super.dispose();
+  }
+
+  ShopProductItem get _product => _selected ?? widget.product!;
+
+  void _selectProduct(ShopProductItem item) {
+    setState(() {
+      _selected = item;
+      _priceController.text = trimNumber(item.price);
+      _mrpController.text = item.mrp == null ? '' : trimNumber(item.mrp!);
+      _error = null;
+      _saved = false;
+    });
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    final price = double.tryParse(_priceController.text.trim());
+    if (price == null || price <= 0) {
+      setState(() => _error = 'Enter a valid selling price greater than 0.');
+      return;
+    }
+    final mrpRaw = _mrpController.text.trim();
+    final mrp = mrpRaw.isEmpty ? null : double.tryParse(mrpRaw);
+    if (mrpRaw.isNotEmpty && (mrp == null || mrp <= 0)) {
+      setState(() => _error = 'MRP must be a positive amount.');
+      return;
+    }
+    if (mrp != null && mrp < price) {
+      setState(() => _error = 'MRP cannot be lower than the selling price.');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+      _saved = false;
+    });
+    final ok = await ref
+        .read(productsControllerProvider.notifier)
+        .saveEdits(productId: _product.id, price: price, mrp: mrp);
+    if (!mounted) return;
+    if (ok) {
+      // Confirmation stays ON the screen (an inline panel rather than a
+      // SnackBar + pop) so the shopkeeper sees the server-accepted price and
+      // can keep editing without losing context.
+      setState(() {
+        _saving = false;
+        _saved = true;
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Price updated')));
+    } else {
+      final message = ref.read(productsControllerProvider).message;
+      setState(() {
+        _saving = false;
+        _error = message ?? 'Could not update the price. Retry.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(productsControllerProvider);
+
+    if (_pickerMode) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Update price')),
+        body: PricingAsyncBody(
+          status: state.status,
+          message: state.message,
+          onRetry: () => ref.read(productsControllerProvider.notifier).load(),
+          builder: (context) => PricingProductPicker(
+            items: state.items,
+            onSelected: _selectProduct,
+          ),
+        ),
+      );
+    }
+
+    final product = _product;
+    final discount = discountPercentOff(product.mrp, product.price);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Update price'),
+        actions: [
+          if (widget.product == null)
+            IconButton(
+              tooltip: 'Choose another product',
+              icon: const Icon(Icons.swap_horiz_outlined),
+              onPressed: () => setState(() => _selected = null),
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Current: ${moneyLabel(product.price)}'
+                    '${product.mrp == null ? '' : ' · MRP ${moneyLabel(product.mrp!)}'}',
+                    key: const Key('update-price-current'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  if (discount != null) ...[
+                    const SizedBox(height: 6),
+                    InfoChip(
+                      label: '${trimNumber(discount)}% off',
+                      color: AppTheme.verifiedGreen,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (_saved) ...[
+            const SizedBox(height: 16),
+            Card(
+              key: const Key('update-price-success'),
+              margin: EdgeInsets.zero,
+              color: AppTheme.verifiedGreen.withValues(alpha: 0.10),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      size: 20,
+                      color: AppTheme.verifiedGreen,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Price updated — now ₹${_priceController.text.trim()}'
+                        '${_mrpController.text.trim().isEmpty ? '' : ' · MRP ₹${_mrpController.text.trim()}'}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    key: const Key('update-price-field'),
+                    controller: _priceController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Selling price (₹)',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('update-price-mrp-field'),
+                    controller: _mrpController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'MRP (₹, optional)',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        _error!,
+                        key: const Key('update-price-error'),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const Key('update-price-save'),
+                      onPressed: _saving ? null : _save,
+                      child: _saving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Save price'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,89 @@
+== users ==
+1 +918002806797 None has_pw=True shopkeeper
+2 None home91334@gmail.com has_pw=False shopkeeper
+== shop_owners ==
+(1, 2, 1)
+
+== TOKEN ISSUED (real session row) == 40aac9df-1d26-4c74-9d25-0c73c4b210fd home91334@gmail.com
+
+== ENDPOINT SWEEP (reads must be 200) ==
+OK  200 /shopkeeper/auth/me -> {"success":true,"message":"OK","data":{"id":2,"name":"Home","phone_number":null,"email":"home91334@g
+OK  200 /shopkeeper/auth/profile -> {"success":true,"message":"OK","data":{"user":{"id":2,"name":"Home","email":"home91334@gmail.com","p
+OK  200 /shopkeeper/shops -> {"success":true,"message":"OK","data":{"shops":[{"id":1,"name":"jhaa","status":"REGISTERED","is_veri
+OK  200 /shopkeeper/shops/1/dashboard -> {"success":true,"message":"Success","data":{"shop":{"id":1,"name":"jhaa","status":"REGISTERED","is_v
+OK  200 /shopkeeper/shops/1 -> {"success":true,"message":"Success","data":{"id":1,"name":"jhaa","status":"REGISTERED","is_verified"
+OK  200 /shopkeeper/shops/1/inventory?view=overview -> {"success":true,"message":"Success","data":{"items":[{"shop_product_id":2,"name":"Perasitsmol","sku"
+OK  200 /shopkeeper/shops/1/inventory?view=list -> {"success":true,"message":"Success","data":{"items":[{"id":2,"shop_id":1,"name":"Perasitsmol","sku":
+OK  200 /shopkeeper/shops/1/inventory?view=low-stock -> {"success":true,"message":"Success","data":{"items":[{"shop_product_id":2,"name":"Perasitsmol","sku"
+OK  200 /shopkeeper/shops/1/inventory -> {"success":true,"message":"Success","data":{"items":[{"shop_product_id":2,"name":"Perasitsmol","sku"
+OK  200 /shopkeeper/shops/1/products -> {"success":true,"message":"Success","data":{"products":[{"id":1,"shop_id":1,"name":"Shampoo","sku":"
+OK  200 /shopkeeper/shops/1/catalog/search?q=shampoo -> {"success":true,"message":"Success","data":{"results":[{"product_master_id":1,"name":"Shampoo","slug
+OK  200 /shopkeeper/shops/1/offers -> {"success":true,"message":"Success","data":{"items":[{"id":1,"title":"Diwali","description":null,"of
+OK  200 /shopkeeper/shops/1/documents -> {"success":true,"message":"Success","data":{"documents":[],"count":0}}
+OK  200 /shopkeeper/shops/1/notifications -> {"success":true,"message":"Success","data":{"notifications":[],"count":0,"unread":0}}
+OK  200 /shopkeeper/shops/1/hours -> {"success":true,"message":"Success","data":{"hours":[{"id":1,"day_of_week":0,"open_time":"09:00:00",
+OK  200 /shopkeeper/shops/1/holidays -> {"success":true,"message":"Success","data":{"holidays":[]}}
+OK  200 /shopkeeper/leads?shop_id=1 -> {"success":true,"message":"OK","data":{"leads":[],"count":0}}
+OK  200 /shopkeeper/shops/1/analytics/overview -> {"success":true,"message":"Success","data":{"views":{"today":0,"yesterday":0,"change_pct":0.0,"this_
+OK  200 /shopkeeper/shops/1/analytics/views -> {"success":true,"message":"Success","data":{"timeseries":[],"days":30}}
+OK  200 /shopkeeper/shops/1/analytics/clicks -> {"success":true,"message":"Success","data":{"timeseries":[],"days":30}}
+OK  200 /shopkeeper/shops/1/analytics/top-products -> {"success":true,"message":"Success","data":{"products":[],"days":30}}
+OK  200 /shopkeeper/shops/1/analytics/top-searches -> {"success":true,"message":"Success","data":{"searches":[],"days":30}}
+OK  200 /shopkeeper/shops/1/analytics/interactions -> {"success":true,"message":"Success","data":{"call_views":0,"messages":0,"ratings":0,"period_days":30
+OK  200 /shopkeeper/shops/1/analytics/devices -> {"success":true,"message":"Success","data":{"devices":{},"days":30}}
+OK  200 /shopkeeper/shops/1/analytics/hourly -> {"success":true,"message":"Success","data":{"hourly":[],"days":7}}
+OK  200 /shopkeeper/shops/1/analytics/freshness -> {"success":true,"message":"Success","data":{"score":0.0,"total_products":2,"fresh":0,"stale":2}}
+OK  200 /shopkeeper/shops/1/analytics/full -> {"success":true,"message":"Success","data":{"overview":{"views":{"today":0,"yesterday":0,"change_pct
+OK  200 /shopkeeper/pos/providers -> {"success":true,"message":"Success","data":{"providers":[{"code":"MOCK","display_name":"Mock POS (bu
+OK  200 /shopkeeper/pos/integrations?shop_id=1 -> {"success":true,"message":"Success","data":{"integrations":[]}}
+
+== WRITE SWEEP (must never be 500) ==
+OK     422 POST /shopkeeper/auth/register -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/auth/verify-otp -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/auth/forgot-password -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/auth/reset-password -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/auth/profile-create -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     200 POST /shopkeeper/auth/logout -> {"success":true,"message":"Logged out successfully","data":{"revoked":0}}
+OK     422 POST /shopkeeper/shops -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     200 PUT /shopkeeper/shops/1/profile -> {"success":true,"message":"Shop profile updated","data":{"updated_fields":[]}}
+OK     200 PUT /shopkeeper/shops/1/settings -> {"success":true,"message":"Shop settings updated","data":{"updated_fields":[]}}
+OK     422 PATCH /shopkeeper/shops/1/location -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/shops/1/products -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     200 PATCH /shopkeeper/shops/1/products/2 -> {"success":true,"message":"Product updated","data":{"id":2,"shop_id":1,"name":"P
+OK     422 POST /shopkeeper/shops/1/inventory/products -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/shops/1/products/2/stock-adjustments -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     200 GET /shopkeeper/shops/1/products/2/history -> {"success":true,"message":"Success","data":{"shop_product_id":2,"count":2,"entri
+OK     422 POST /shopkeeper/shops/1/inventory/bulk -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/shops/1/offers/assign -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/shops/1/documents -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     404 DELETE /shopkeeper/shops/1/documents/999999 -> {"success":false,"message":"Document not found","error_code":"NOT_FOUND","data":
+OK     422 PUT /shopkeeper/shops/1/hours -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     422 POST /shopkeeper/shops/1/holidays -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     404 DELETE /shopkeeper/shops/1/holidays/999999 -> {"success":false,"message":"Holiday not found","error_code":"NOT_FOUND","data":n
+OK     404 PUT /shopkeeper/notifications/999999/read -> {"success":false,"message":"Notification not found","error_code":"NOT_FOUND","da
+OK     422 POST /shopkeeper/pos/register -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     404 PUT /shopkeeper/pos/integrations/999999/credentials -> {"success":false,"message":"POS integration not found","error_code":"NOT_FOUND",
+OK     422 PUT /shopkeeper/pos/integrations/999999/config -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     404 PUT /shopkeeper/pos/integrations/999999/schedule -> {"success":false,"message":"POS integration not found","error_code":"NOT_FOUND",
+OK     404 POST /shopkeeper/pos/integrations/999999/connect -> {"success":false,"message":"POS integration not found","error_code":"NOT_FOUND",
+OK     404 POST /shopkeeper/pos/integrations/999999/disconnect -> {"success":false,"message":"POS integration not found","error_code":"NOT_FOUND",
+OK     404 POST /shopkeeper/pos/integrations/999999/reconnect -> {"success":false,"message":"POS integration not found","error_code":"NOT_FOUND",
+OK     422 POST /shopkeeper/pos/integrations/999999/devices -> {"success":false,"message":"Validation error","error_code":"VALIDATION_ERROR","d
+OK     404 POST /shopkeeper/pos/integrations/999999/sync -> {"success":false,"message":"POS integration not found","error_code":"NOT_FOUND",
+OK     404 POST /shopkeeper/pos/jobs/999999/retry -> {"success":false,"message":"POS sync job not found","error_code":"NOT_FOUND","da
+
+== REFRESH ==
+200 {"success":true,"message":"Token refreshed","data":{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzg5NjIxNjAyLCJpYXQiOjE3ODk2MTk
+
+== REFRESH TOKEN REUSE (must be 401, must revoke) ==
+OK   401 {"success":false,"message":"Refresh token reuse detected. Session revoked.","error_code":"UNAUTHORIZED","data":null}
+
+== GOOGLE PROFILE (needs real Firebase token -> 4xx, never 5xx) ==
+OK   401 {"success":false,"message":"Invalid or expired Firebase token: InvalidIdTokenError: Firebase ID toke
+
+== SWEEPED (unauthenticated must be 401/403) ==
+OK   401 /shopkeeper/shops/1/dashboard
+OK   401 /shopkeeper/auth/me
+
+== RESULT ==
+ALL_SHOPKEEPER_ENDPOINTS_200_OK

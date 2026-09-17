@@ -74,8 +74,16 @@ class ImportPreview {
   final ImportJob meta;
   final List<ImportRow> rows;
 
-  int get validCount => rows.where((r) => !r.isError).length;
-  int get errorCount => rows.where((r) => r.isError).length;
+  /// Rows that will be applied to inventory.
+  ///
+  /// The staged payload may omit row-level detail (large imports are summarised
+  /// by the job counters only), so the job's own `valid_rows` / `error_rows`
+  /// are the fallback — the Confirm action must never be disabled just because
+  /// the preview did not ship a `report.rows` array.
+  int get validCount =>
+      rows.isEmpty ? meta.validRows : rows.where((r) => !r.isError).length;
+  int get errorCount =>
+      rows.isEmpty ? meta.errorRows : rows.where((r) => r.isError).length;
 
   factory ImportPreview.fromJson(Map<String, dynamic> json) {
     final meta = ImportJob.fromJson(json);

@@ -217,6 +217,36 @@ class TestShopkeeperPermissions:
         assert ("inventory", "update") in SHOPKEEPER_PERMISSIONS
         assert ("dashboard", "read") in SHOPKEEPER_PERMISSIONS
 
+    def test_catalog_covers_every_route_requirement(self):
+        """Regression guard for the "missing permission ⇒ owner gets 403" bug.
+
+        Every ``access.require("<resource>", "<action>")`` call in the backend
+        must resolve for an OWNER (the full catalog). When a route required a
+        resource that was absent from the catalog (documents, notifications),
+        owners were refused with FORBIDDEN on their own shop.
+        """
+        import re
+        from pathlib import Path
+
+        from app.core.shopkeeper_permissions import SHOPKEEPER_PERMISSIONS
+
+        app_dir = Path(__file__).resolve().parents[1] / "app"
+        pattern = re.compile(
+            r"""\.require\(\s*["']([a-z_]+)["']\s*,\s*["']([a-z_]+)["']\s*\)"""
+        )
+
+        required: set[tuple[str, str]] = set()
+        for source in app_dir.rglob("*.py"):
+            required.update(pattern.findall(source.read_text(encoding="utf-8")))
+
+        # Sanity: the scan must actually see the known call sites.
+        assert ("dashboard", "read") in required
+        assert ("notifications", "read") in required
+
+        catalog = set(SHOPKEEPER_PERMISSIONS)
+        missing = sorted(required - catalog)
+        assert not missing, f"routes require permissions absent from catalog: {missing}"
+
     def test_owner_gets_full_catalog(self):
         from app.core.shopkeeper_permissions import (
             SHOPKEEPER_PERMISSIONS,

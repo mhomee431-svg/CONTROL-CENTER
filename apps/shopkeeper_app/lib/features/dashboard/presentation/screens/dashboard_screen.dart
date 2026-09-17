@@ -5,15 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../products/presentation/widgets/product_sheets.dart'
     show ProductAddMethodSheet;
+import '../../../notifications/domain/notification_models.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../domain/dashboard_models.dart';
 import '../controllers/dashboard_controller.dart';
-import '../../../shops/domain/shop_models.dart'
-    show VerificationInfo;
+import '../../../shops/domain/shop_models.dart' show VerificationInfo;
 import '../../../shops/presentation/widgets/verification_badge.dart';
 
 /// Operational dashboard for the selected shop.
@@ -29,7 +32,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     Future.microtask(
-        () => ref.read(dashboardControllerProvider.notifier).load());
+      () => ref.read(dashboardControllerProvider.notifier).load(),
+    );
   }
 
   @override
@@ -49,12 +53,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(shop?.name ?? 'Dashboard',
-                style: const TextStyle(fontSize: 18)),
-            Text('Business dashboard',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.outline)),
+            Text(
+              shop?.name ?? 'Dashboard',
+              style: const TextStyle(fontSize: 18),
+            ),
+            Text(
+              'Business dashboard',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -62,35 +71,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           // shop's profile/settings when one exists.
           if (shop != null)
             IconButton(
-                tooltip: 'Shop settings',
-                onPressed: () => context.push(Routes.shopSettings),
-                icon: const Icon(Icons.tune)),
+              tooltip: 'Shop settings',
+              onPressed: () => context.push(Routes.shopSettings),
+              icon: const Icon(Icons.tune),
+            ),
         ],
       ),
       body: SafeArea(
         child: switch (state.status) {
-          DashboardStatus.loading =>
-            const Center(child: CircularProgressIndicator()),
-          DashboardStatus.accessDenied => _AccessDeniedView(
-              message:
-                  state.message ?? 'You do not have access to this shop.',
+          DashboardStatus.loading => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          DashboardStatus.accessDenied => SystemStateView(
+            spec: SystemStateSpec.resolve(
+              state: SystemState.permissionDenied,
+              title: 'No access to this shop',
+              message: state.message,
+              fallbackMessage: 'You do not have access to this shop.',
             ),
+            onSwitchShop: () => context.push(Routes.shops),
+          ),
           DashboardStatus.noShop => const _NoShopView(),
-          DashboardStatus.error => _ErrorView(
-              message: state.message ?? 'Something went wrong.',
-              onRetry: () =>
-                  ref.read(dashboardControllerProvider.notifier).load(),
+          DashboardStatus.error => SystemStateView(
+            spec: SystemStateSpec.resolve(
+              message: state.message,
+              fallbackMessage: 'Something went wrong.',
             ),
+            onRetry: () =>
+                ref.read(dashboardControllerProvider.notifier).load(),
+          ),
           DashboardStatus.ready => RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(dashboardControllerProvider.notifier).load(),
-              child: _DashboardBody(
-                data: state.data!,
-                alerts: state.alerts,
-                user: user,
-                shop: shop,
-              ),
+            onRefresh: () =>
+                ref.read(dashboardControllerProvider.notifier).load(),
+            child: _DashboardBody(
+              data: state.data!,
+              alerts: state.alerts,
+              user: user,
+              shop: shop,
             ),
+          ),
         },
       ),
     );
@@ -113,121 +132,141 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final columns = constraints.maxWidth >= 900 ? 4 : 2;
-      const gap = 12.0;
-      const outerPadding = 32.0; // ListView horizontal padding (16 × 2)
-      final tileWidth = (constraints.maxWidth - outerPadding - (columns - 1) * gap) / columns;
-      // Keep stat cards tall enough for their content at every width
-      // (fixed ratios overflowed on wide screens).
-      final ratio = math.max(1.35, tileWidth / 112);
-      return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Shopkeeper Home header — greeting + shop summary + quick actions.
-          _HomeHeader(user: user, shop: shop),
-          // "Needs attention" priorities (req 21) — only real, loaded data
-          // is surfaced; the card stays hidden when everything looks fine.
-          _PriorityCard(data: data, alerts: alerts),
-          if (!data.isVerified)
-            _VerificationBanner(verification: data.verification),
-          // Overview section header — the stat grid below is the daily read.
-          Text('Overview',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 900 ? 4 : 2;
+        const gap = 12.0;
+        const outerPadding = 32.0; // ListView horizontal padding (16 × 2)
+        final tileWidth =
+            (constraints.maxWidth - outerPadding - (columns - 1) * gap) /
+            columns;
+        // Keep stat cards tall enough for their content at every width
+        // (fixed ratios overflowed on wide screens).
+        final ratio = math.max(1.35, tileWidth / 112);
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Shopkeeper Home header — greeting + shop summary + quick actions.
+            _HomeHeader(user: user, shop: shop),
+            // Dashboard notifications — the newest updates for this shop, read
+            // from the Alerts controller (single source of truth) so Home and
+            // the Alerts tab can never disagree. Hides itself when empty/failed.
+            const _RecentNotificationsStrip(),
+            // "Needs attention" priorities (req 21) — only real, loaded data
+            // is surfaced; the card stays hidden when everything looks fine.
+            _PriorityCard(data: data, alerts: alerts),
+            if (!data.isVerified)
+              _VerificationBanner(verification: data.verification),
+            // Overview section header — the stat grid below is the daily read.
+            Text(
+              'Overview',
               style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: columns,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: gap,
-            crossAxisSpacing: gap,
-            childAspectRatio: ratio,
-            children: [
-              _StatCard(
-                icon: Icons.inventory_2_outlined,
-                label: 'Products',
-                value: '${data.products.total}',
-                subText:
-                    '${data.products.active} active · ${data.products.inactive} inactive',
-              ),
-              _StatCard(
-                icon: Icons.check_circle_outline,
-                label: 'Active products',
-                value: '${data.products.active}',
-                subText: 'visible to customers',
-              ),
-              _InventoryCard(stats: data.products),
-              _StatCard(
-                icon: Icons.local_offer_outlined,
-                label: 'Offers',
-                value: '${data.offers.active} active',
-                subText: '${data.offers.draft} draft · ${data.offers.total} total',
-                // Offers live on the product listings — deep-link there
-                // where the create-offer sheet is reachable.
-                onTap: () => context.push(Routes.products),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: Icon(
-                data.subscription.isActive
-                    ? Icons.workspace_premium
-                    : Icons.upcoming_outlined,
-                color: data.subscription.isActive
-                    ? AppTheme.verifiedGreen
-                    : Theme.of(context).colorScheme.outline,
-              ),
-              title: const Text('Subscription'),
-              subtitle: Text(data.subscription.hasSubscription
-                  ? '${data.subscription.plan ?? 'Plan'} · ${data.subscription.status}'
-                  : 'No active plan'),
-              trailing: Text(
-                data.subscription.status,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: columns,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: gap,
+              crossAxisSpacing: gap,
+              childAspectRatio: ratio,
+              children: [
+                _StatCard(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Products',
+                  value: '${data.products.total}',
+                  subText:
+                      '${data.products.active} active · ${data.products.inactive} inactive',
+                ),
+                _StatCard(
+                  icon: Icons.check_circle_outline,
+                  label: 'Active products',
+                  value: '${data.products.active}',
+                  subText: 'visible to customers',
+                ),
+                _InventoryCard(stats: data.products),
+                _StatCard(
+                  icon: Icons.local_offer_outlined,
+                  label: 'Offers',
+                  value: '${data.offers.active} active',
+                  subText:
+                      '${data.offers.draft} draft · ${data.offers.total} total',
+                  // Offers live on the product listings — deep-link there
+                  // where the create-offer sheet is reachable.
+                  onTap: () => context.push(Routes.products),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  data.subscription.isActive
+                      ? Icons.workspace_premium
+                      : Icons.upcoming_outlined,
                   color: data.subscription.isActive
                       ? AppTheme.verifiedGreen
                       : Theme.of(context).colorScheme.outline,
                 ),
+                title: const Text('Subscription'),
+                subtitle: Text(
+                  data.subscription.hasSubscription
+                      ? '${data.subscription.plan ?? 'Plan'} · ${data.subscription.status}'
+                      : 'No active plan',
+                ),
+                trailing: Text(
+                  data.subscription.status,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: data.subscription.isActive
+                        ? AppTheme.verifiedGreen
+                        : Theme.of(context).colorScheme.outline,
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text('Recent updates', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          if (data.recentUpdates.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('Nothing yet — updates will appear here.',
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.outline)),
-              ),
-            )
-          else
-            Card(
-              clipBehavior: Clip.antiAlias,
-              margin: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  for (var i = 0; i < data.recentUpdates.length; i++)
-                    _UpdateTile(
-                      update: data.recentUpdates[i],
-                      showDivider: i < data.recentUpdates.length - 1,
+            const SizedBox(height: 8),
+            Text(
+              'Recent updates',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            if (data.recentUpdates.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Nothing yet — updates will appear here.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
                     ),
-                ],
+                  ),
+                ),
+              )
+            else
+              Card(
+                clipBehavior: Clip.antiAlias,
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < data.recentUpdates.length; i++)
+                      _UpdateTile(
+                        update: data.recentUpdates[i],
+                        showDivider: i < data.recentUpdates.length - 1,
+                      ),
+                  ],
+                ),
               ),
-            ),
-          const SizedBox(height: 32),
-        ],
-      );
-    });
+            const SizedBox(height: 32),
+          ],
+        );
+      },
+    );
   }
 }
+
 /// Shopkeeper Home header — shown above the operational dashboard: a
 /// personalised time-aware greeting, the shop summary (name, category,
 /// profile status) and quick actions. Every value comes from the
@@ -280,12 +319,18 @@ class _HomeHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$_greeting, $_firstName',
-            style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700, color: scheme.primary)),
+        Text(
+          '$_greeting, $_firstName',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: scheme.primary,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text('Welcome back to your business dashboard.',
-            style: TextStyle(fontSize: 13, color: scheme.outline)),
+        Text(
+          'Welcome back to your business dashboard.',
+          style: TextStyle(fontSize: 13, color: scheme.outline),
+        ),
         const SizedBox(height: 16),
         // ── Shop summary (authenticated session data — never faked) ──
         Card(
@@ -296,18 +341,29 @@ class _HomeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _infoRow(context, Icons.storefront, 'Shop', shop?.name),
-                _infoRow(context, Icons.category_outlined, 'Category',
-                    _categoryLabel(shop?.category as String?)),
-                _infoRow(context, Icons.badge_outlined, 'Profile Status',
-                    'Profile Created'),
+                _infoRow(
+                  context,
+                  Icons.category_outlined,
+                  'Category',
+                  _categoryLabel(shop?.category as String?),
+                ),
+                _infoRow(
+                  context,
+                  Icons.badge_outlined,
+                  'Profile Status',
+                  'Profile Created',
+                ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
-        Text('Quick Actions',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          'Quick Actions',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 12),
         // Quick actions are navigation targets; the linked screens own the
         // real backend data — nothing is fabricated on this home.
@@ -316,46 +372,55 @@ class _HomeHeader extends StatelessWidget {
           runSpacing: 16,
           children: [
             _QuickAction(
-                icon: Icons.add_box_outlined,
-                label: 'Add Product',
-                color: scheme.primary,
-                // Req 24: every Add affordance goes through the method
-                // chooser (manual / barcode / bulk Excel) — consistent
-                // with the Products screen FAB.
-                onTap: () => showModalBottomSheet<void>(
-                    context: context,
-                    builder: (_) => const ProductAddMethodSheet())),
+              icon: Icons.add_box_outlined,
+              label: 'Add Product',
+              color: scheme.primary,
+              // Req 24: every Add affordance goes through the method
+              // chooser (manual / barcode / bulk Excel) — consistent
+              // with the Products screen FAB.
+              onTap: () => showModalBottomSheet<void>(
+                context: context,
+                builder: (_) => const ProductAddMethodSheet(),
+              ),
+            ),
             _QuickAction(
-                icon: Icons.inventory_2_outlined,
-                label: 'Inventory',
-                color: AppTheme.verifiedGreen,
-                onTap: () => context.push(Routes.products)),
+              icon: Icons.inventory_2_outlined,
+              label: 'Inventory',
+              color: AppTheme.verifiedGreen,
+              // Inventory owns its own module hub (stock health, freshness,
+              // adjustments, history) — open that, not the product catalog.
+              onTap: () => context.push(Routes.inventoryDashboard),
+            ),
             _QuickAction(
-                icon: Icons.local_offer_outlined,
-                label: 'Pricing & Offers',
-                color: AppTheme.pendingAmber,
-                // Pricing & Offers owns discounts / promo pricing (the
-                // create-offer sheet is also reachable from Products).
-                onTap: () => context.push(Routes.offers)),
+              icon: Icons.local_offer_outlined,
+              label: 'Pricing & Offers',
+              color: AppTheme.pendingAmber,
+              // Pricing & Offers owns discounts / promo pricing (the
+              // create-offer sheet is also reachable from Products).
+              onTap: () => context.push(Routes.offers),
+            ),
             _QuickAction(
-                icon: Icons.insights_outlined,
-                label: 'Reports & Insights',
-                color: scheme.tertiary,
-                // Reports / Insights is backed by the shop analytics
-                // endpoints — real customer activity, never local guesses.
-                onTap: () => context.push(Routes.insights)),
+              icon: Icons.insights_outlined,
+              label: 'Reports & Insights',
+              color: scheme.tertiary,
+              // Reports / Insights is backed by the shop analytics
+              // endpoints — real customer activity, never local guesses.
+              onTap: () => context.push(Routes.insights),
+            ),
             _QuickAction(
-                icon: Icons.storefront_outlined,
-                label: 'Shop Profile',
-                color: scheme.secondary,
-                onTap: () => context.push(Routes.shopProfile)),
+              icon: Icons.storefront_outlined,
+              label: 'Shop Profile',
+              color: scheme.secondary,
+              onTap: () => context.push(Routes.shopProfile),
+            ),
             _QuickAction(
-                icon: Icons.apps,
-                label: 'All Features',
-                color: scheme.primary,
-                // The complete feature map (dashboard, imports/POS, support,
-                // settings, …) in one hub.
-                onTap: () => context.push(Routes.features)),
+              icon: Icons.apps,
+              label: 'All Features',
+              color: scheme.primary,
+              // The complete feature map (dashboard, imports/POS, support,
+              // settings, …) in one hub.
+              onTap: () => context.push(Routes.features),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -364,7 +429,11 @@ class _HomeHeader extends StatelessWidget {
   }
 
   Widget _infoRow(
-      BuildContext context, IconData icon, String label, String? value) {
+    BuildContext context,
+    IconData icon,
+    String label,
+    String? value,
+  ) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -374,11 +443,12 @@ class _HomeHeader extends StatelessWidget {
           Icon(icon, size: 18, color: scheme.primary),
           const SizedBox(width: 10),
           Expanded(
-            child: Text('$label: ${value ?? 'Not set'}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            child: Text(
+              '$label: ${value ?? 'Not set'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -423,12 +493,15 @@ class _QuickAction extends StatelessWidget {
               children: [
                 Icon(icon, size: 24, color: color),
                 const SizedBox(height: 6),
-                Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        const TextStyle(fontSize: 12,
-                            fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -460,7 +533,7 @@ class _PriorityCard extends StatelessWidget {
     final flaggedLabel = flagged.isEmpty
         ? ''
         : ' — ${flagged.take(3).map((p) => p.name).join(', ')}'
-            '${flagged.length > 3 ? ' +${flagged.length - 3} more' : ''}';
+              '${flagged.length > 3 ? ' +${flagged.length - 3} more' : ''}';
     final rows = <_PriorityRow>[
       if (data.products.lowStock + data.products.outOfStock > 0)
         _PriorityRow(
@@ -488,8 +561,7 @@ class _PriorityCard extends StatelessWidget {
           icon: Icons.hourglass_bottom_outlined,
           color: scheme.tertiary,
           title: 'Inventory stale',
-          subtitle:
-              '${alert.staleCount} product(s) not updated in a while',
+          subtitle: '${alert.staleCount} product(s) not updated in a while',
           route: Routes.products,
         ),
       if (alert != null && alert.unreadNotifications > 0)
@@ -514,9 +586,11 @@ class _PriorityCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Needs attention',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          'Needs attention',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 12),
         Card(
           margin: EdgeInsets.zero,
@@ -556,13 +630,19 @@ class _PriorityRow {
   Widget toTile(BuildContext context) {
     return ListTile(
       leading: Icon(icon, color: color),
-      title: Text(title,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      subtitle: Text(subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, color: Theme.of(context)
-              .colorScheme.outline)),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      ),
+      subtitle: Text(
+        subtitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.outline,
+        ),
+      ),
       trailing: const Icon(Icons.chevron_right, size: 20),
       onTap: () => context.push(route),
     );
@@ -584,18 +664,20 @@ class _VerificationBanner extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          VerificationBadge(status: verification.status, compact: false),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              rejected
-                  ? 'Verification rejected${verification.reviewNotes != null ? ' — ${verification.reviewNotes}' : ''}'
-                  : 'Your shop is not verified yet. Some features may be limited.',
-              style: TextStyle(fontSize: 13, color: color),
+        child: Row(
+          children: [
+            VerificationBadge(status: verification.status, compact: false),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                rejected
+                    ? 'Verification rejected${verification.reviewNotes != null ? ' — ${verification.reviewNotes}' : ''}'
+                    : 'Your shop is not verified yet. Some features may be limited.',
+                style: TextStyle(fontSize: 13, color: color),
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -630,32 +712,39 @@ class _StatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(children: [
-              Icon(icon, size: 18, color: scheme.primary),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(label,
+            Row(
+              children: [
+                Icon(icon, size: 18, color: scheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.outline,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ]),
+                      fontSize: 12,
+                      color: scheme.outline,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(
+                value,
+                style: Theme.of(context).textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
-            Text(subText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: scheme.outline)),
+            Text(
+              subText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: scheme.outline),
+            ),
           ],
         ),
       ),
@@ -681,23 +770,33 @@ class _InventoryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(children: [
-              Icon(Icons.warehouse_outlined, size: 18, color: scheme.primary),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text('Inventory status',
+            Row(
+              children: [
+                Icon(Icons.warehouse_outlined, size: 18, color: scheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Inventory status',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.outline,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ]),
+                      fontSize: 12,
+                      color: scheme.outline,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             _row('In stock', stats.inStock, AppTheme.verifiedGreen, context),
             _row('Low stock', stats.lowStock, AppTheme.pendingAmber, context),
-            _row('Out of stock', stats.outOfStock, AppTheme.rejectedRed, context),
+            _row(
+              'Out of stock',
+              stats.outOfStock,
+              AppTheme.rejectedRed,
+              context,
+            ),
           ],
         ),
       ),
@@ -707,19 +806,25 @@ class _InventoryCard extends StatelessWidget {
   Widget _row(String label, int count, Color color, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Row(children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(label, style: const TextStyle(fontSize: 12)),
-        ),
-        Text('$count',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
-      ]),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -743,21 +848,30 @@ class _UpdateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      ListTile(
-        dense: true,
-        leading: Icon(_icon, size: 20),
-        title: Text(update.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: update.quantity != null
-            ? Text('qty ${update.quantity}',
-                style: TextStyle(
+    return Column(
+      children: [
+        ListTile(
+          dense: true,
+          leading: Icon(_icon, size: 20),
+          title: Text(
+            update.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: update.quantity != null
+              ? Text(
+                  'qty ${update.quantity}',
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context).colorScheme.outline))
-            : null,
-      ),
-      if (showDivider)
-        Divider(height: 1, color: Theme.of(context).dividerColor),
-    ]);
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                )
+              : null,
+        ),
+        if (showDivider)
+          Divider(height: 1, color: Theme.of(context).dividerColor),
+      ],
+    );
   }
 }
 
@@ -783,13 +897,18 @@ class _NoShopView extends StatelessWidget {
                 CircleAvatar(
                   radius: 40,
                   backgroundColor: scheme.primaryContainer,
-                  child: const Icon(Icons.storefront,
-                      size: 40, color: Color(0xFF0B5D3B)),
+                  child: const Icon(
+                    Icons.storefront,
+                    size: 40,
+                    color: Color(0xFF0B5D3B),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text('Welcome to Passly Biz!',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall),
+                Text(
+                  'Welcome to Passly Biz!',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Your account is ready. Add your first store to start '
@@ -819,66 +938,193 @@ class _NoShopView extends StatelessWidget {
   }
 }
 
-class _AccessDeniedView extends StatelessWidget {
-  const _AccessDeniedView({required this.message});
+/// "Dashboard notifications" strip on the Shopkeeper Home.
+///
+/// Reads the SAME single source of truth as the Alerts tab
+/// ([notificationsControllerProvider]) instead of fetching its own page — a
+/// second copy would drift from the Alerts badge the moment anything is read.
+///
+/// Fail-soft by design: with nothing to report (or when the load failed) the
+/// strip removes itself rather than adding an error to the home screen; the
+/// "Needs attention" card owns alerting.
+class _RecentNotificationsStrip extends ConsumerWidget {
+  const _RecentNotificationsStrip();
 
-  final String message;
+  /// Home is a summary — the Alerts tab owns the full history.
+  static const _maxItems = 3;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(notificationsControllerProvider);
+    final scheme = Theme.of(context).colorScheme;
+
+    if (state.status == NotificationsStatus.error) {
+      return const SizedBox.shrink();
+    }
+    if (state.status == NotificationsStatus.loading) {
+      return _NotificationsSkeleton(placeholder: scheme.outlineVariant);
+    }
+    final items = state.items.take(_maxItems).toList(growable: false);
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final unread = state.unreadCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Icon(Icons.gpp_bad_outlined,
-                size: 64, color: Theme.of(context).colorScheme.error),
-            const SizedBox(height: 12),
-            Text('No access to this shop',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline)),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: () => context.push(Routes.shops),
-              icon: const Icon(Icons.swap_horiz),
-              label: const Text('Switch shop'),
+            Text(
+              'Recent Updates',
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            if (unread > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  '$unread new',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.error,
+                  ),
+                ),
+              ),
+            // Alerts is a bottom-navigation destination: `go` switches the
+            // shell branch (keeping the tab bar) instead of stacking a page.
+            TextButton(
+              onPressed: () => context.go(Routes.notifications),
+              child: const Text('View all'),
             ),
           ],
         ),
+        const SizedBox(height: 4),
+        Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0)
+                  Divider(height: 1, indent: 56, color: scheme.outlineVariant),
+                _NotificationStripRow(notification: items[i]),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+/// One compact row inside the Home "Dashboard notifications" strip.
+class _NotificationStripRow extends ConsumerWidget {
+  const _NotificationStripRow({required this.notification});
+
+  final ShopkeeperNotification notification;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final unread = notification.isUnread;
+
+    return ListTile(
+      onTap: () {
+        // Optimistic mark-as-read through the SSOT controller (the exact call
+        // the Alerts tab makes), then open the full list for context.
+        ref
+            .read(notificationsControllerProvider.notifier)
+            .markAsRead(notification.id);
+        context.go(Routes.notifications);
+      },
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: Badge(
+        isLabelVisible: unread,
+        smallSize: 10,
+        child: CircleAvatar(
+          backgroundColor: unread
+              ? scheme.primaryContainer
+              : theme.dividerColor.withValues(alpha: 0.3),
+          child: Icon(
+            notificationIcon(notification.type),
+            size: 20,
+            color: unread ? scheme.primary : scheme.outline,
+          ),
+        ),
+      ),
+      title: Text(
+        notification.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        notification.body,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: scheme.outline),
+      ),
+      trailing: Text(
+        notificationTimeLabel(notification.createdAt),
+        style: TextStyle(fontSize: 11, color: scheme.outline),
       ),
     );
   }
 }
 
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
+/// Placeholder shown while notifications load, so Home never jumps straight
+/// from nothing to a full card.
+class _NotificationsSkeleton extends StatelessWidget {
+  const _NotificationsSkeleton({required this.placeholder});
 
-  final String message;
-  final VoidCallback onRetry;
+  final Color placeholder;
+
+  /// Stable handle for widget tests.
+  static const skeletonKey = ValueKey('home-notifications-skeleton');
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_outlined,
-                size: 64, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
+    Widget bar(double width, double height) => Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: placeholder,
+        borderRadius: BorderRadius.circular(4),
       ),
+    );
+
+    return Column(
+      key: skeletonKey,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        bar(140, 16),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) Divider(height: 1, indent: 56, color: placeholder),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 2,
+                  ),
+                  leading: CircleAvatar(backgroundColor: placeholder),
+                  title: bar(160, 12),
+                  subtitle: bar(220, 10),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
-

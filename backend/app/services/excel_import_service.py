@@ -359,6 +359,45 @@ def _resolve_catalog_entry(
 # ── Upload → Validate File → Parse → Validate Rows ────────────────────────
 
 
+# ── Download Sample (Import Center) ────────────────────────────────────────
+
+SAMPLE_FILE_NAME = "inventory-import-sample.xlsx"
+
+# The canonical column order — exactly the names `map_headers` resolves, so a
+# shopkeeper who fills this file in never fights the validator.
+_SAMPLE_HEADER = [
+    "Barcode", "Product Name", "Brand", "Variant",
+    "SKU", "Price", "MRP", "Quantity", "Availability",
+]
+
+# Three example rows, each individually format-valid (`validate_row` passes
+# them once the catalog resolves):
+#   1. every column filled
+#   2. minimal — no barcode, identified by SKU instead
+#   3. an out-of-stock row (quantity 0 / availability "no")
+# Barcodes carry correct GS1 check digits — a bad one would teach the wrong
+# format. Unfilled catalog references are expected: the import never invents
+# catalog entries, so rows that name unknown products are reported, not guessed.
+_SAMPLE_ROWS = [
+    ["8901234567890", "Aashirvaad Salt 1kg", "Aashirvaad", "1 kg",
+     "AAS-SALT-1KG", 28.5, 32, 24, "yes"],
+    ["", "Farm Fresh Milk 500ml", "", "500 ml",
+     "FF-MILK-500", 26, "", 12, "yes"],
+    ["8901234567883", "India Gate Basmati 5kg", "India Gate", "5 kg",
+     "IG-RICE-5KG", 480, 540, 0, "no"],
+]
+
+
+def build_sample_workbook() -> bytes:
+    """Build the Import Center's downloadable sample workbook.
+
+    Written by the same `xlsx_lite` writer the parser reads, so the two can
+    never drift apart.
+    """
+    return xlsx_lite.write_workbook([_SAMPLE_HEADER] + _SAMPLE_ROWS)
+
+
+
 def _serialize_job(job: InventoryImportJob) -> dict[str, Any]:
     status = getattr(job.status, "value", str(job.status))
     return {

@@ -111,6 +111,24 @@ def get_current_user(
     return user
 
 
+def get_current_session_id(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[str]:
+    """Session id carried by the bearer token, if any.
+
+    ``get_current_user`` validates the session named by this claim, so logout
+    can revoke exactly the session the caller is using when the client does not
+    pass ``session_id`` explicitly. Firebase ID tokens carry no session claim →
+    ``None`` (nothing server-side to revoke; Firebase owns that token).
+    """
+    if credentials is None:
+        return None
+    try:
+        return get_token_claims(credentials.credentials).get("session_id")
+    except Exception:  # noqa: BLE001 — Firebase tokens fail JWT decoding
+        return None
+
+
 def get_current_user_firebase(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db),

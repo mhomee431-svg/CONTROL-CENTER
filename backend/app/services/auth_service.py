@@ -30,6 +30,18 @@ def generate_refresh_token() -> str:
     return secrets.token_urlsafe(48)
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Normalize a datetime to timezone-aware UTC (naive assumed UTC).
+
+    Production (PostgreSQL TIMESTAMPTZ) returns aware datetimes; SQLite returns
+    naive ones. Comparing the two raises ``TypeError`` — which surfaced as an
+    HTTP 500 on token refresh.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def issue_tokens(
     user: User,
     db: Session,
@@ -193,7 +205,7 @@ def refresh_session(
     if not session_record.is_active or session_record.is_revoked:
         raise UnauthorizedError("Session has been revoked")
 
-    if session_record.refresh_token_expires_at and now > session_record.refresh_token_expires_at:
+    if session_record.refresh_token_expires_at and now > _as_utc(session_record.refresh_token_expires_at):
         session_record.is_active = False
         session_record.is_revoked = True
         session_record.revoked_at = now
@@ -202,7 +214,7 @@ def refresh_session(
         db.flush()
         raise UnauthorizedError("Refresh token expired")
 
-    if session_record.expires_at and now > session_record.expires_at:
+    if session_record.expires_at and now > _as_utc(session_record.expires_at):
         session_record.is_active = False
         session_record.is_revoked = True
         session_record.revoked_at = now

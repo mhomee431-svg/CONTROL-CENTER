@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/network/token_store.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
-import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
+import '../controllers/shop_profile_controller.dart';
+import '../widgets/shop_profile_shared.dart';
 import '../widgets/verification_badge.dart';
 
-/// Shop profile — view + edit whitelisted business information.
+/// Shop Profile — the module hub: who the shop is, then navigable tiles for
+/// every part of it (Edit shop, Business information, Business category,
+/// Operating hours, Shop location, Shop status) plus the operational settings.
 class ShopProfileScreen extends ConsumerStatefulWidget {
   const ShopProfileScreen({super.key});
 
@@ -16,190 +19,170 @@ class ShopProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
-  ShopDetail? _detail;
-  bool _loading = true;
-  String? _error;
-
-  bool get _canEdit =>
-      ref.read(selectedShopProvider)?.canManageSettings ?? false;
-
   @override
   void initState() {
     super.initState();
-    Future.microtask(_load);
-  }
-
-  Future<void> _load() async {
-    final shop = ref.read(selectedShopProvider);
-    if (shop == null) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw Exception('Not signed in');
-      final detail =
-          await ref.read(shopRepositoryProvider).getShopDetail(shop.id, token);
-      if (!mounted) return;
-      setState(() {
-        _detail = detail;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Could not load the shop profile.';
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _edit(String key, String label, String? current,
-      {int maxLines = 1, TextInputType? keyboard}) async {
-    final controller = TextEditingController(text: current ?? '');
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit $label'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: maxLines,
-          keyboardType: keyboard,
-          decoration: InputDecoration(labelText: label),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save')),
-        ],
-      ),
+    Future.microtask(
+      () => ref.read(shopProfileDetailProvider.notifier).load(),
     );
-    if (saved != true) return;
-    final shop = ref.read(selectedShopProvider);
-    if (shop == null) return;
-    try {
-      await ref
-          .read(shopRepositoryProvider)
-          .updateProfile(
-            shop.id,
-            {key: controller.text.trim()},
-            (await ref.read(tokenStoreProvider).readAccessToken())!,
-          );
-      await _load();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$label updated')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Update failed. Please retry.')));
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final detail = _detail;
+    // Switching businesses re-scopes the module to the newly selected shop.
+    ref.listen(selectedShopProvider, (prev, next) {
+      if (prev?.id != next?.id) {
+        ref.read(shopProfileDetailProvider.notifier).load();
+      }
+    });
+
+    final state = ref.watch(shopProfileDetailProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop profile'), actions: [
-        IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-      ]),
+      appBar: AppBar(
+        title: const Text('Shop profile'),
+        actions: [
+          IconButton(
+            key: const Key('shop-profile-refresh'),
+            tooltip: 'Refresh',
+            onPressed: () =>
+                ref.read(shopProfileDetailProvider.notifier).load(),
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null || detail == null
-                ? Center(child: Text(_error ?? 'Not available'))
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                Expanded(
-                                  child: Text(detail.summary.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge),
-                                ),
-                                VerificationBadge(
-                                    status: detail.verification.status),
-                              ]),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${detail.summary.membership == 'owner' ? 'Owner' : 'Manager'} · ${detail.summary.status}',
-                                style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .outline),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (!_canEdit)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'Managers have read-only access to the profile.',
-                            style: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.outline),
-                          ),
-                        )
-                      else ...[
-                        const SizedBox(height: 8),
-                        _row(context, Icons.badge_outlined, 'Name',
-                            detail.summary.name,
-                            () => _edit('name', 'Shop name',
-                                detail.summary.name)),
-                        _row(context, Icons.sell_outlined, 'Tagline',
-                            detail.tagline ?? '—',
-                            () => _edit(
-                                'tagline', 'Tagline', detail.tagline)),
-                        _row(context, Icons.description_outlined,
-                            'Description', detail.description ?? '—',
-                            () => _edit('description', 'Description',
-                                detail.description,
-                                maxLines: 3)),
-                        _row(context, Icons.phone_outlined, 'Phone',
-                            detail.phone ?? '—',
-                            () => _edit('phone', 'Phone', detail.phone,
-                                keyboard: TextInputType.phone)),
-                        _row(context, Icons.email_outlined, 'Email',
-                            detail.email ?? '—',
-                            () => _edit('email', 'Email', detail.email,
-                                keyboard: TextInputType.emailAddress)),
-                        _row(context, Icons.language, 'Website',
-                            detail.websiteUrl ?? '—',
-                            () => _edit(
-                                'website_url', 'Website',
-                                detail.websiteUrl)),
-                      ],
-                    ],
-                  ),
+        child: ShopModuleBody(
+          state: state,
+          onRetry: () => ref.read(shopProfileDetailProvider.notifier).load(),
+          builder: (context, detail) => RefreshIndicator(
+            onRefresh: () =>
+                ref.read(shopProfileDetailProvider.notifier).load(),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _identityCard(context, detail),
+                const SizedBox(height: 16),
+                ShopSection(
+                  title: 'Business',
+                  tiles: [
+                    ShopHubTile(
+                      const Key('shop-tile-edit'),
+                      Icons.edit_outlined,
+                      'Edit shop',
+                      'Name, tagline, description and contact details',
+                      Routes.shopEdit,
+                    ),
+                    ShopHubTile(
+                      Key('shop-tile-business-info'),
+                      Icons.info_outline,
+                      'Business information',
+                      'Category, GSTIN, owner and member-since facts',
+                      Routes.shopBusinessInfo,
+                    ),
+                    ShopHubTile(
+                      Key('shop-tile-category'),
+                      Icons.category_outlined,
+                      'Business category',
+                      'What your shop sells and what it requires',
+                      Routes.shopBusinessCategory,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ShopSection(
+                  title: 'Operations',
+                  tiles: [
+                    ShopHubTile(
+                      const Key('shop-tile-hours'),
+                      Icons.schedule_outlined,
+                      'Operating hours',
+                      'Opening times for every weekday',
+                      Routes.shopOperatingHours,
+                    ),
+                    ShopHubTile(
+                      const Key('shop-tile-location'),
+                      Icons.location_on_outlined,
+                      'Shop location',
+                      detail.hasLocation
+                          ? 'Stored pin: ${detail.coordinatesLabel}'
+                          : 'No pin stored yet — add one from GPS',
+                      Routes.shopLocationView,
+                    ),
+                    ShopHubTile(
+                      const Key('shop-tile-status'),
+                      Icons.flag_outlined,
+                      'Shop status',
+                      'Verification, subscription and order acceptance',
+                      Routes.shopStatus,
+                    ),
+                    ShopHubTile(
+                      const Key('shop-tile-settings'),
+                      Icons.tune_outlined,
+                      'Shop settings',
+                      'Order acceptance, delivery and pickup',
+                      Routes.shopSettings,
+                    ),
+                  ],
+                ),
+                if (!shopCanEdit(ref)) ...[
+                  const SizedBox(height: 16),
+                  const ShopPermissionNotice(),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _row(BuildContext context, IconData icon, String label, String value,
-      VoidCallback onEdit) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-      subtitle: Text(value, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: IconButton(
-          icon: const Icon(Icons.edit_outlined), onPressed: onEdit),
+  Widget _identityCard(BuildContext context, ShopDetail detail) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    detail.summary.name,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                VerificationBadge(status: detail.verification.status),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${detail.summary.membership == 'owner' ? 'Owner' : 'Manager'}'
+              ' · ${humanizeCode(detail.summary.status)}'
+              ' · ${detail.categoryLabel}',
+              style: TextStyle(fontSize: 12, color: scheme.outline),
+            ),
+            if ((detail.tagline ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(detail.tagline!, style: const TextStyle(fontSize: 13)),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.phone_outlined, size: 16, color: scheme.outline),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    detail.phone ?? 'No phone added yet',
+                    style: TextStyle(fontSize: 12, color: scheme.outline),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
-

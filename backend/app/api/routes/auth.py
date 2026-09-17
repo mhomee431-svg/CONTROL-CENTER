@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from typing import Optional
+
+from app.core.dependencies import get_current_session_id, get_current_user
 from app.core.exceptions import UnauthorizedError
 from app.core.logging import get_logger
 from app.core.observability.metrics import record_auth_result
@@ -507,9 +509,14 @@ async def refresh_token(
 async def logout(
     payload: LogoutRequest,
     current_user: User = Depends(get_current_user),
+    token_session_id: Optional[str] = Depends(get_current_session_id),
     db: Session = Depends(get_db),
 ):
-    """Revoke the current session (or specify session_id / revoke_all)."""
+    """Revoke the current session (or specify session_id / revoke_all).
+
+    Falls back to the session named by the bearer token's ``session_id`` claim,
+    so a client that sends no ``session_id`` still gets a real revocation.
+    """
     try:
         if payload.revoke_all:
             result = logout_session(db, current_user, revoke_all=True)
@@ -517,7 +524,7 @@ async def logout(
             result = logout_session(
                 db,
                 current_user,
-                session_id=payload.session_id,
+                session_id=payload.session_id or token_session_id,
             )
     except UnauthorizedError as exc:
         return error_response(

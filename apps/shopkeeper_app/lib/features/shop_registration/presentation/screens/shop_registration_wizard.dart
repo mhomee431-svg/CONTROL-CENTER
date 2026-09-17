@@ -117,7 +117,25 @@ class _ShopRegistrationWizardState
                 website: _website,
                 social: _social,
                 onBack: _back,
+                onNext: _nextFromDocuments,
+              ),
+            RegistrationStep.review => _ReviewStep(
+                key: const ValueKey('review'),
+                state: state,
+                onBack: _back,
+                onEditBusiness: () => ref
+                    .read(shopRegistrationControllerProvider.notifier)
+                    .editBusinessInfo(),
+                onEditLocation: () => ref
+                    .read(shopRegistrationControllerProvider.notifier)
+                    .editLocation(),
+                onEditDocuments: () => ref
+                    .read(shopRegistrationControllerProvider.notifier)
+                    .editDocuments(),
                 onSubmit: _submit,
+                onDismissError: () => ref
+                    .read(shopRegistrationControllerProvider.notifier)
+                    .clearSubmitError(),
               ),
             RegistrationStep.success => _SuccessStep(
                 key: const ValueKey('success'),
@@ -170,6 +188,10 @@ class _ShopRegistrationWizardState
       );
     }
   }
+
+  void _nextFromDocuments() => ref
+      .read(shopRegistrationControllerProvider.notifier)
+      .nextFromDocuments();
 
   Future<void> _submit() async {
     await ref.read(shopRegistrationControllerProvider.notifier).submit();
@@ -888,7 +910,7 @@ class _DocumentsStep extends StatefulWidget {
     required this.website,
     required this.social,
     required this.onBack,
-    required this.onSubmit,
+    required this.onNext,
   });
 
   final ShopRegistrationState state;
@@ -896,7 +918,7 @@ class _DocumentsStep extends StatefulWidget {
   final TextEditingController website;
   final TextEditingController social;
   final VoidCallback onBack;
-  final VoidCallback onSubmit;
+  final VoidCallback onNext;
 
   @override
   State<_DocumentsStep> createState() => _DocumentsStepState();
@@ -913,7 +935,6 @@ class _DocumentsStepState extends State<_DocumentsStep> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
-    final submitting = state.isSubmitting;
 
     return Column(
       children: [
@@ -935,7 +956,7 @@ class _DocumentsStepState extends State<_DocumentsStep> {
                     ProviderScope.containerOf(context, listen: false)
                         .read(shopRegistrationControllerProvider.notifier)
                         .clearSubmitError();
-                    widget.onSubmit();
+                    widget.onNext();
                   },
                 ),
                 const SizedBox(height: 12),
@@ -1013,17 +1034,9 @@ class _DocumentsStepState extends State<_DocumentsStep> {
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               PrimaryButton(
-                label: 'Submit Registration',
-                icon: Icons.check_circle_outline,
-                loading: submitting,
-                loadingLabel: switch (state.submitPhase) {
-                  SubmitPhase.uploadingDocuments => 'Uploading documents …',
-                  SubmitPhase.creatingShop => 'Submitting registration …',
-                  SubmitPhase.savingHours => 'Saving hours …',
-                  SubmitPhase.attachingDocuments => 'Attaching documents …',
-                  _ => 'Please wait …',
-                },
-                onPressed: submitting ? null : widget.onSubmit,
+                label: 'Review details',
+                icon: Icons.visibility_outlined,
+                onPressed: widget.onNext,
               ),
               const SizedBox(height: 16),
             ],
@@ -1113,6 +1126,281 @@ class _TimeField extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---- Screen 4b -- Shop Details Review ----
+
+/// Final review before submission: every entered detail, grouped, with
+/// per-section "Edit" jumps back into the pipeline. Submission happens ONLY
+/// from here — the documents step forwards to this screen instead.
+class _ReviewStep extends StatelessWidget {
+  const _ReviewStep({
+    super.key,
+    required this.state,
+    required this.onBack,
+    required this.onEditBusiness,
+    required this.onEditLocation,
+    required this.onEditDocuments,
+    required this.onSubmit,
+    required this.onDismissError,
+  });
+
+  final ShopRegistrationState state;
+  final VoidCallback onBack;
+  final VoidCallback onEditBusiness;
+  final VoidCallback onEditLocation;
+  final VoidCallback onEditDocuments;
+  final VoidCallback onSubmit;
+  final VoidCallback onDismissError;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final submitting = state.isSubmitting;
+    final category = state.category;
+    final pin = state.pin;
+
+    String orDash(String? v) =>
+        (v == null || v.trim().isEmpty) ? '—' : v.trim();
+
+    return ListView(
+      padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
+      children: [
+        Row(children: [
+          IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back)),
+          Expanded(
+            child: Text('Review your details',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+          ),
+        ]),
+        const SizedBox(height: RegistrationSpacing.sectionGap),
+        _ReviewSection(
+          title: 'Business information',
+          onEdit: onEditBusiness,
+          rows: [
+            ('Shop name', orDash(state.shopName)),
+            ('Category', category?.name ?? '—'),
+            ('Business type', orDash(state.businessType)),
+            ('GSTIN', orDash(state.gstin)),
+            ('Udyam', orDash(state.udyam)),
+          ],
+        ),
+        const SizedBox(height: RegistrationSpacing.sectionGap),
+        _ReviewSection(
+          title: 'Location',
+          onEdit: onEditLocation,
+          rows: [
+            ('Address', orDash(state.addressLine)),
+            ('City', orDash(state.city)),
+            ('State', orDash(state.stateName)),
+            ('Pincode', orDash(state.pincode)),
+            ('Landmark', orDash(state.landmark)),
+            (
+              'Map pin',
+              pin == null
+                  ? 'Not placed — required'
+                  : 'Lat ${pin.latitude.toStringAsFixed(5)}, '
+                      'Lng ${pin.longitude.toStringAsFixed(5)}'
+            ),
+          ],
+        ),
+        const SizedBox(height: RegistrationSpacing.sectionGap),
+        _ReviewSection(
+          title: 'Additional information',
+          onEdit: onEditDocuments,
+          rows: [
+            ('Description', orDash(state.description)),
+            ('Open hours',
+                '${orDash(state.openTime)} – ${orDash(state.closeTime)}'),
+            ('Website', orDash(state.website)),
+            ('Social media', orDash(state.socialMedia)),
+          ],
+        ),
+        const SizedBox(height: RegistrationSpacing.sectionGap),
+        _ReviewDocuments(state: state),
+        const SizedBox(height: RegistrationSpacing.sectionGap),
+        if (state.submitError != null) ...[
+          Card(
+            color: scheme.errorContainer,
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: Icon(Icons.error_outline, color: scheme.error),
+              title: Text(state.submitError!,
+                  style: TextStyle(color: scheme.onErrorContainer)),
+              trailing: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: onDismissError,
+              ),
+            ),
+          ),
+          const SizedBox(height: RegistrationSpacing.fieldGap),
+        ],
+        PrimaryButton(
+          label: 'Submit Registration',
+          icon: Icons.check_circle_outline,
+          loading: submitting,
+          loadingLabel: switch (state.submitPhase) {
+            SubmitPhase.uploadingDocuments => 'Uploading documents …',
+            SubmitPhase.creatingShop => 'Submitting registration …',
+            SubmitPhase.savingHours => 'Saving hours …',
+            SubmitPhase.attachingDocuments => 'Attaching documents …',
+            _ => 'Please wait …',
+          },
+          onPressed: submitting ? null : onSubmit,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+/// One grouped card of the review: title + per-row Edit affordance.
+class _ReviewSection extends StatelessWidget {
+  const _ReviewSection({
+    required this.title,
+    required this.rows,
+    required this.onEdit,
+  });
+
+  final String title;
+  final List<(String, String)> rows;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                ),
+                TextButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit'),
+                ),
+              ],
+            ),
+          ),
+          for (final (label, value) in rows)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 110,
+                    child: Text(label,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            color: scheme.onSurfaceVariant)),
+                  ),
+                  Expanded(
+                    child: Text(value,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// Documents summary: each requirement with its picked/uploaded state.
+class _ReviewDocuments extends StatelessWidget {
+  const _ReviewDocuments({required this.state});
+
+  final ShopRegistrationState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text('Documents',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    final container =
+                        ProviderScope.containerOf(context, listen: false);
+                    container
+                        .read(shopRegistrationControllerProvider.notifier)
+                        .editDocuments();
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit'),
+                ),
+              ],
+            ),
+          ),
+          for (final slot in state.slotList)
+            ListTile(
+              dense: true,
+              leading: Icon(
+                slot.isUploaded
+                    ? Icons.check_circle
+                    : (slot.hasFile
+                        ? Icons.description
+                        : Icons.radio_button_off),
+                size: 20,
+                color:
+                    slot.isUploaded ? Colors.green : scheme.onSurfaceVariant,
+              ),
+              title: Text(slot.requirement.label,
+                  style: const TextStyle(fontSize: 14)),
+              subtitle: slot.pickedName != null
+                  ? Text(slot.pickedName!,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12))
+                  : null,
+              trailing: Text(
+                slot.isUploaded
+                    ? 'Uploaded'
+                    : (slot.hasFile ? 'Selected' : 'Not provided'),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: slot.isUploaded
+                        ? Colors.green
+                        : scheme.onSurfaceVariant),
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

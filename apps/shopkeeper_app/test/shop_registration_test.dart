@@ -7,6 +7,8 @@ import 'package:hyperlocal_shopkeeper_app/features/shop_registration/data/docume
 import 'package:hyperlocal_shopkeeper_app/features/shop_registration/domain/shop_registration_state.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shop_registration/controllers/shop_registration_controller.dart';
 
+import 'package:hyperlocal_shopkeeper_app/features/shop_registration/presentation/widgets/registration_widgets.dart';
+
 import 'fakes.dart';
 
 void main() {
@@ -113,6 +115,62 @@ void main() {
       expect(
           container.read(shopRegistrationControllerProvider).submitError,
           isNotNull);
+    });
+
+    test('documents → review → edit jumps preserve the pipeline', () async {
+      final shopRepo = FakeShopRepo();
+      final container = makeContainer(shopRepo)
+        ..read(shopRegistrationControllerProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final notifier =
+          container.read(shopRegistrationControllerProvider.notifier);
+
+      // Fill the business-info step with the REQUIRED fields (category +
+      // business type) so the pipeline can advance past it: the "Next"
+      // validators run on every visit, including after a review "Edit" jump.
+      notifier.startBusinessInfo();
+      await notifier.selectCategory(
+          container.read(shopRegistrationControllerProvider).categories.first);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      notifier.setBusinessType('Retail');
+      notifier.setShopName('Sharma Medical Store');
+
+      // Documents step forwards to the review step.
+      notifier.nextFromDocuments();
+      expect(container.read(shopRegistrationControllerProvider).step,
+          RegistrationStep.review);
+
+      // Back from review returns to documents (data preserved).
+      notifier.back();
+      expect(container.read(shopRegistrationControllerProvider).step,
+          RegistrationStep.documents);
+
+      // Back on review: the per-section Edit jumps land on the right step.
+      notifier.nextFromDocuments();
+      notifier.editBusinessInfo();
+      expect(container.read(shopRegistrationControllerProvider).step,
+          RegistrationStep.businessInfo);
+      expect(container.read(shopRegistrationControllerProvider).shopName,
+          'Sharma Medical Store');
+
+      notifier.nextFromBusinessInfo(); // validation still runs
+      expect(container.read(shopRegistrationControllerProvider).step,
+          RegistrationStep.location);
+
+      notifier.nextFromDocuments(); // jump pipeline for brevity
+      notifier.editLocation();
+      expect(container.read(shopRegistrationControllerProvider).step,
+          RegistrationStep.location);
+      notifier.nextFromDocuments();
+      notifier.editDocuments();
+      expect(container.read(shopRegistrationControllerProvider).step,
+          RegistrationStep.documents);
+    });
+
+    test('progress indicator includes the Review stage', () {
+      expect(StepProgressIndicator.labels,
+          contains('Review'));
+      expect(StepProgressIndicator.labels.length, 5);
     });
   });
 }

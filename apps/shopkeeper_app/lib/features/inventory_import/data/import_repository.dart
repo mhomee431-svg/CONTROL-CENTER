@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,7 +30,14 @@ abstract class InventoryImportRepository {
 
   /// Recent import jobs for this shop (newest first).
   Future<List<ImportJob>> listJobs(int shopId, String token, {int limit});
+
+  /// Download Sample — the import template workbook as raw .xlsx bytes.
+  Future<Uint8List> downloadSample(int shopId, String token);
 }
+
+/// File name the sample download is offered under (kept next to the endpoint
+/// so the client and the backend's Content-Disposition stay in sync).
+const String sampleWorkbookFileName = 'inventory-import-sample.xlsx';
 
 class ApiInventoryImportRepository implements InventoryImportRepository {
   ApiInventoryImportRepository(this._dio);
@@ -156,6 +165,28 @@ class ApiInventoryImportRepository implements InventoryImportRepository {
             .toList(growable: false);
       }
       throw ApiException(statusCode: response.statusCode, message: 'Not found');
+    } on DioException catch (e) {
+      _rethrow(e);
+    }
+  }
+
+  @override
+  Future<Uint8List> downloadSample(int shopId, String token) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.inventoryImportSample(shopId),
+        // Raw workbook bytes — the sample is a file, not the JSON envelope.
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+        ),
+      );
+      final bytes = response.data;
+      if (bytes is Uint8List && bytes.isNotEmpty) return bytes;
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: 'Sample could not be downloaded',
+      );
     } on DioException catch (e) {
       _rethrow(e);
     }

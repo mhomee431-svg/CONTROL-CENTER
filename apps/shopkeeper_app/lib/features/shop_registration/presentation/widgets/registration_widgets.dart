@@ -135,6 +135,7 @@ class StepProgressIndicator extends StatelessWidget {
     'Business Info',
     'Location',
     'Documents',
+    'Review',
     'Submit',
   ];
 
@@ -143,7 +144,8 @@ class StepProgressIndicator extends StatelessWidget {
     RegistrationStep.businessInfo => 0,
     RegistrationStep.location => 1,
     RegistrationStep.documents => 2,
-    RegistrationStep.success => 3,
+    RegistrationStep.review => 3,
+    RegistrationStep.success => 4,
   };
 
   @override

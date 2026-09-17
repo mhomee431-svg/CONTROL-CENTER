@@ -5,6 +5,7 @@ router. Every endpoint is association-checked via ``resolve_shop_access``.
 """
 
 from fastapi import APIRouter, Depends, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -169,6 +170,35 @@ async def upload_inventory_import(
         else "Import validated — preview ready for confirmation"
     )
     return success_response(data=result, message=message, status_code=201)
+
+
+@router.get("/shops/{shop_id}/inventory-imports/sample")
+async def download_import_sample(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Download Sample — a ready-to-fill .xlsx matching the import columns.
+
+    Returned as raw workbook bytes (not the JSON envelope) so the app can hand
+    it straight to the platform save dialog.
+    """
+    try:
+        _resolve(shop_id, current_user, db)
+    except AppError as exc:
+        return _app_error(exc)
+
+    content = excel_import_service.build_sample_workbook()
+    return Response(
+        content=content,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="{excel_import_service.SAMPLE_FILE_NAME}"',
+        },
+    )
 
 
 @router.get("/shops/{shop_id}/inventory-imports")

@@ -39,6 +39,7 @@ abstract final class Routes {
 
   // ── Profile / onboarding ─────────────────────────────────────────────────
   static const profileCreate = '/profile-create';
+  static const profileEdit = '/profile-edit';
   static const shopRegister = '/shop-register';
   static const shops = '/shops';
   static const shopLocation = '/shop-location';
@@ -61,12 +62,78 @@ abstract final class Routes {
   static const inventoryImport = '/inventory-import';
   static const offers = '/offers';
   static const pos = '/pos';
+  // ── POS module (point-of-sale connector flow) ────────────────────────────
+  static const posConnectionSetup = '/pos-connection-setup';
+  static const posSync = '/pos-sync';
+  static const posSyncProgress = '/pos-sync-progress';
+  static const posSyncResult = '/pos-sync-result';
+  static const posSyncHistory = '/pos-sync-history';
+  static const posError = '/pos-error';
   static const insights = '/insights';
+  // ── Inventory management (Inventory module) ───────────────────────────────
+  static const inventoryDashboard = '/inventory-dashboard';
+  static const inventoryList = '/inventory-list';
+  static const lowStock = '/low-stock';
+  static const outOfStock = '/out-of-stock';
+  static const inventoryFreshness = '/inventory-freshness';
+  static const inventorySyncStatus = '/inventory-sync-status';
+  static const updateStock = '/update-stock';
+  static const stockHistory = '/stock-history';
+
+  // ── Pricing (Price List / Offers) ─────────────────────────────────────────
+  static const priceList = '/price-list';
+  static const updatePrice = '/update-price';
+  static const priceHistory = '/price-history';
+  static const createOffer = '/create-offer';
+  static const activeOffers = '/active-offers';
+  static const expiredOffers = '/expired-offers';
+  static const offerDetails = '/offer-details';
+
+  // ── Shop Profile module (Business hub) ─────────────────────────────────────
+  static const shopEdit = '/shop-edit';
+  static const shopBusinessInfo = '/shop-business-info';
+  static const shopBusinessCategory = '/shop-business-category';
+  static const shopOperatingHours = '/shop-operating-hours';
+  static const shopLocationView = '/shop-location-view';
+  static const shopStatus = '/shop-status';
+
+  // ── Reports module (focused report views) ──────────────────────────────────
+  static const insightsSales = '/insights-sales';
+  static const insightsProducts = '/insights-products';
+  static const insightsInventory = '/insights-inventory';
+
+  // ── Import Center (Excel inventory import flow) ───────────────────────────
+  static const importCenter = '/import-center';
+  static const importUpload = '/import-upload';
+  static const importPreview = '/import-preview';
+  static const importProcessing = '/import-processing';
+  static const importHistory = '/import-history';
+
+  // ── Misc shell destinations (no shop required) ──────────────────────────
   static String insightsDrillDown(String metric) => '$insights/drill-down/$metric';
 
   // ── Misc shell destinations (no shop required) ──────────────────────────
   static const features = '/features';
   static const support = '/support';
+
+  // ── Notification detail & preferences ─────────────────────────────────────
+  static const notificationDetail = '/notification-detail';
+  static const notificationPreferences = '/notification-preferences';
+
+  // ── Settings module ───────────────────────────────────────────────────────
+  static const accountSettings = '/account-settings';
+  static const security = '/security';
+  static const appSettings = '/app-settings';
+  static const notificationSettings = '/notification-settings';
+  static const privacy = '/privacy';
+  static const terms = '/terms';
+  static const about = '/about';
+  static const logoutConfirmation = '/logout-confirmation';
+
+  // ── Support detail screens ────────────────────────────────────────────────
+  static const faq = '/faq';
+  static const contactSupport = '/contact-support';
+  static const reportIssue = '/report-issue';
 
   // ── Account-status gate (suspended / restricted) ────────────────────────
   static const accountStatus = '/account-status';

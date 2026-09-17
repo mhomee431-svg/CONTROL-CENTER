@@ -1,4 +1,7 @@
-﻿import 'package:hyperlocal_shopkeeper_app/core/auth/firebase_auth_service.dart';
+﻿import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:hyperlocal_shopkeeper_app/core/auth/firebase_auth_service.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
@@ -300,18 +303,31 @@ class FakeFirebaseAuthService extends FirebaseAuthService {
 }
 
 class FakeShopRepo implements ShopRepository {
-  FakeShopRepo({List<ShopSummary>? shops}) : shops = shops ?? [ownerShop()];
+  FakeShopRepo({List<ShopSummary>? shops, this.detail})
+      : shops = shops ?? [ownerShop()];
 
   final List<ShopSummary> shops;
+
+  /// Returned by [getShopDetail]; defaults to [shopDetailFixture].
+  ShopDetail? detail;
   int registeredShops = 0;
   String? lastRegisteredName;
+
+  /// Profile / settings field maps sent through the update endpoints.
+  final List<Map<String, dynamic>> profileCalls = [];
+  final List<Map<String, dynamic>> settingsCalls = [];
+
+  /// The last weekly schedule sent through [saveOperatingHours].
+  List<ShopHourEntry>? lastSavedHours;
+  int hoursReads = 0;
+  List<ShopHourEntry> storedHours = ShopHourEntry.defaultWeek();
 
   @override
   Future<List<ShopSummary>> listMyShops(String token) async => shops;
 
   @override
-  Future<ShopDetail> getShopDetail(int shopId, String token) =>
-      throw UnimplementedError();
+  Future<ShopDetail> getShopDetail(int shopId, String token) async =>
+      detail ?? shopDetailFixture();
 
   @override
   Future<ShopDetail> registerShop(
@@ -341,14 +357,18 @@ class FakeShopRepo implements ShopRepository {
     int shopId,
     Map<String, dynamic> fields,
     String token,
-  ) async {}
+  ) async {
+    profileCalls.add(fields);
+  }
 
   @override
   Future<void> updateSettings(
     int shopId,
     Map<String, dynamic> fields,
     String token,
-  ) async {}
+  ) async {
+    settingsCalls.add(fields);
+  }
 
   @override
   Future<Map<String, dynamic>> updateShopLocation(
@@ -401,8 +421,92 @@ class FakeShopRepo implements ShopRepository {
     required String openTime,
     required String closeTime,
     required String token,
-  }) async {}
+  }) =>
+      saveOperatingHours(
+        shopId: shopId,
+        token: token,
+        hours: [
+          for (var day = 0; day < 7; day++)
+            ShopHourEntry(
+              dayOfWeek: day,
+              openTime: openTime,
+              closeTime: closeTime,
+              isClosed: false,
+            ),
+        ],
+      );
+
+  @override
+  Future<List<ShopHourEntry>> fetchOperatingHours(
+    int shopId,
+    String token,
+  ) async {
+    hoursReads++;
+    return storedHours;
+  }
+
+  @override
+  Future<void> saveOperatingHours({
+    required int shopId,
+    required List<ShopHourEntry> hours,
+    required String token,
+  }) async {
+    lastSavedHours = hours;
+    storedHours = hours;
+  }
 }
+
+/// A full, realistic shop payload for the Shop Profile screens — mirrors the
+/// real `GET /shopkeeper/shops/{id}` contract (identity, contacts, toggles,
+/// location, verification timeline, subscription, rating).
+ShopDetail shopDetailFixture({
+  int id = 10,
+  String name = 'Sharma Kirana Store',
+  String? category = 'GROCERY',
+  bool verified = true,
+  bool acceptingOrders = true,
+  bool open24x7 = false,
+  double? latitude = 24.814512,
+  double? longitude = 84.234501,
+}) => ShopDetail(
+      summary: ShopSummary(
+        id: id,
+        name: name,
+        status: verified ? 'ACTIVE' : 'REGISTERED',
+        isVerified: verified,
+        category: category,
+        membership: 'owner',
+        permissions: const ['update:shop', 'create:product'],
+      ),
+      tagline: 'Fresh stock, fair prices',
+      description: 'Everyday essentials from your neighbourhood store.',
+      phone: '+91 98765 43210',
+      alternatePhone: '+91 98765 43211',
+      whatsappNumber: '+91 98765 43210',
+      email: 'shop@example.com',
+      websiteUrl: 'https://sharmakirana.example.com',
+      gstin: '22AAAAA0000A1Z5',
+      createdAt: '2026-01-12T09:30:00Z',
+      latitude: latitude,
+      longitude: longitude,
+      verification: const VerificationInfo(
+        status: 'VERIFIED',
+        submittedAt: '2026-01-12T10:00:00Z',
+        reviewedAt: '2026-01-13T12:00:00Z',
+        verifiedAt: '2026-01-13T12:00:00Z',
+      ),
+      subscription: const SubscriptionInfo(status: 'ACTIVE', plan: 'GROWTH'),
+      rating: 4.2,
+      reviewCount: 18,
+      isAcceptingOrders: acceptingOrders,
+      isDeliveryAvailable: true,
+      isPickupAvailable: false,
+      isOpen24x7: open24x7,
+      minOrderAmount: 199,
+      deliveryRadiusKm: 6,
+      deliveryFee: 25,
+      freeDeliveryAbove: 499,
+    );
 
 class FakeDashboardRepo implements DashboardRepository {
   FakeDashboardRepo({this.json, this.error});
@@ -520,6 +624,27 @@ ShopkeeperNotification _asReadNotification(ShopkeeperNotification n) =>
 /// When nothing has been marked read the base `page` is returned untouched,
 /// so existing fixtures (e.g. a page whose `unreadCount` is independent of
 /// its `items`) keep their exact previous behaviour.
+/// One notification row for list/strip fixtures.
+///
+/// [createdAt] is fixed by default so relative time labels stay stable
+/// regardless of when the suite runs.
+ShopkeeperNotification notificationFixture({
+  int id = 1,
+  String title = 'Low stock: Amul Milk',
+  String body = 'Only 3 left in store',
+  String type = 'INVENTORY_LOW',
+  bool isRead = false,
+  DateTime? createdAt,
+}) =>
+    ShopkeeperNotification(
+      id: id,
+      title: title,
+      body: body,
+      type: type,
+      isRead: isRead,
+      createdAt: createdAt ?? DateTime(2026, 9, 10, 8),
+    );
+
 class FakeNotificationsRepo implements NotificationsRepository {
   FakeNotificationsRepo({this.page, this.error, this.markAsReadError});
 
@@ -651,7 +776,13 @@ class FakeOffersRepo implements OffersRepository {
 // ---- Inventory import fakes ------------------------------------------------
 
 class FakeImportRepo implements InventoryImportRepository {
-  FakeImportRepo({this.onUpload, this.onConfirm, this.onList, this.error});
+  FakeImportRepo({
+    this.onUpload,
+    this.onConfirm,
+    this.onList,
+    this.error,
+    this.sampleBytes,
+  });
 
   /// When set, returned from upload/preview list calls.
   final ImportPreview? onUpload;
@@ -661,9 +792,14 @@ class FakeImportRepo implements InventoryImportRepository {
   /// When set, thrown from every call (simulates a network failure).
   final Object? error;
 
+  /// Returned by [downloadSample] (defaults to a plausible .xlsx magic).
+  final Uint8List? sampleBytes;
+
   int uploadCalls = 0;
   int confirmCalls = 0;
+  int sampleCalls = 0;
   int? lastShopId;
+  int? lastSampleShopId;
   PickedWorkbook? lastWorkbook;
 
   @override
@@ -736,6 +872,14 @@ class FakeImportRepo implements InventoryImportRepository {
             errorRows: 0,
           ),
         ];
+  }
+
+  @override
+  Future<Uint8List> downloadSample(int shopId, String token) async {
+    sampleCalls++;
+    lastSampleShopId = shopId;
+    if (error != null) throw error!;
+    return sampleBytes ?? Uint8List.fromList(const [0x50, 0x4b, 0x03, 0x04]);
   }
 }
 
@@ -1125,6 +1269,7 @@ class FakePosRepo implements PosRepository {
     this.jobs = const [],
     this.statusResult,
     this.connectResult = true,
+    this.providersError,
     this.listError,
     this.connectError,
     this.syncError,
@@ -1140,6 +1285,9 @@ class FakePosRepo implements PosRepository {
 
   /// What `connect` reports (false simulates a credential refusal).
   final bool connectResult;
+
+  /// When set, listProviders throws this.
+  final Object? providersError;
 
   /// When set, listIntegrations throws this.
   final Object? listError;
@@ -1157,7 +1305,12 @@ class FakePosRepo implements PosRepository {
   int listCalls = 0;
   int registerCalls = 0;
   int connectCalls = 0;
+  int reconnectCalls = 0;
+  int credentialsCalls = 0;
   int disconnectCalls = 0;
+
+  /// Last credential rotation received (null fields = left untouched).
+  ({String? apiKey, String? apiSecret, String? apiBaseUrl})? lastCredentials;
   int syncCalls = 0;
   int statusCalls = 0;
   int jobsCalls = 0;
@@ -1167,6 +1320,7 @@ class FakePosRepo implements PosRepository {
   @override
   Future<List<PosProviderInfo>> listProviders(String token) async {
     providerCalls++;
+    if (providersError != null) throw providersError!;
     return providers;
   }
 
@@ -1210,6 +1364,37 @@ class FakePosRepo implements PosRepository {
       if (i != -1) integrations[i] = posIntegration(id: integrationId, status: 'ACTIVE');
     }
     return connectResult;
+  }
+
+  @override
+  Future<bool> reconnect(int integrationId, String token) async {
+    reconnectCalls++;
+    if (connectError != null) throw connectError!;
+    if (connectResult) {
+      final i = integrations.indexWhere((x) => x.id == integrationId);
+      if (i != -1) {
+        integrations[i] = posIntegration(id: integrationId, status: 'ACTIVE');
+      }
+    }
+    return connectResult;
+  }
+
+  @override
+  Future<PosIntegration> updateCredentials(
+    int integrationId,
+    String token, {
+    String? apiKey,
+    String? apiSecret,
+    String? apiBaseUrl,
+  }) async {
+    credentialsCalls++;
+    lastCredentials = (
+      apiKey: apiKey,
+      apiSecret: apiSecret,
+      apiBaseUrl: apiBaseUrl,
+    );
+    final i = integrations.indexWhere((x) => x.id == integrationId);
+    return i != -1 ? integrations[i] : posIntegration(id: integrationId);
   }
 
   @override

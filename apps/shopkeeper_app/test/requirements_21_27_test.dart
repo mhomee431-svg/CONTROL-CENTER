@@ -858,9 +858,20 @@ void main() {
       await tester.tap(find.text('show'));
       await tester.pumpAndSettle();
 
-      // Bad check digit → format validation error.
+      // Non-numeric input → digits-only validation error.
       await tester.enterText(
-          find.byType(TextFormField), '8901234567891');
+          find.byType(TextFormField), '89O1234567891');
+      await tester.tap(find.text('Look up'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enter 8, 12, 13 or 14 digits'), findsOneWidget);
+
+      // A length no retail barcode uses (11 digits). The previous version of
+      // this assertion used a 13-digit code and called it a "bad check digit":
+      // the form had no check-digit logic at all — it rejected EAN-13 purely
+      // because the pattern had no 13-digit branch. Acceptance for each valid
+      // length now lives in `barcode_scanner_test.dart`.
+      await tester.enterText(find.byType(TextFormField), '89012345678');
       await tester.tap(find.text('Look up'));
       await tester.pumpAndSettle();
 

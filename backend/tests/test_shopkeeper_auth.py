@@ -530,3 +530,164 @@ class TestFirebaseLogin:
         )
         assert response.status_code == 403
         assert response.json()["error_code"] == "ACCOUNT_NOT_ACTIVE"
+# ── Token Refresh Tests ───────────────────────────────────────────────────────
+class TestTokenRefresh:
+    """Regression guard: ``/shopkeeper/auth/refresh`` must resolve.
+
+    The route called ``refresh_session`` without importing it, so every real
+    refresh attempt raised ``NameError`` → HTTP 500. The mobile app only calls
+    refresh once its short-lived access token ages out, which is why the fault
+    surfaced as a late "Internal Server Error" rather than at sign-in.
+    """
+
+    def test_refresh_rotates_tokens(self, client, db, active_user):
+        """A valid refresh token returns a NEW access + refresh token pair."""
+        from app.services.auth_service import issue_tokens
+
+        tokens = issue_tokens(active_user, db, device_id="refresh-test-device")
+        db.commit()
+
+        response = client.post(
+            "/api/v1/shopkeeper/auth/refresh",
+            json={
+                "refresh_token": tokens["refresh_token"],
+                "device_id": "refresh-test-device",
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()["data"]
+        assert data["access_token"]
+        assert data["token_type"] == "bearer"
+        # Rotation: the refresh token must never be replayed verbatim.
+        assert data["refresh_token"] != tokens["refresh_token"]
+
+    def test_refresh_rejects_unknown_token(self, client):
+        """An unknown refresh token is refused with 401 — never a 500 crash."""
+        response = client.post(
+            "/api/v1/shopkeeper/auth/refresh",
+            json={"refresh_token": "not-a-real-refresh-token"},
+        )
+
+        assert response.status_code == 401, response.text
+        body = response.json()
+        assert body["success"] is False
+
+
+# ── Logout Revocation Tests ───────────────────────────────────────────────────
+class TestLogoutRevokesSession:
+    """Regression guard: logout must end the session the token came from.
+
+    The route ignored the bearer token's ``session_id`` claim, so a request
+    without an explicit ``session_id`` revoked nothing and the token kept
+    working until it expired.
+    """
+
+    def test_logout_without_body_revokes_token_session(self, client, active_user):
+        from unittest.mock import patch
+
+        from app.services.firebase_verification import FirebaseVerificationError
+
+        login = client.post(
+            "/api/v1/shopkeeper/auth/login",
+            json={"identifier": "test@shopkeeper.com", "password": "Password123"},
+        )
+        assert login.status_code == 200, login.text
+        access = login.json()["data"]["access_token"]
+
+        headers = {"Authorization": f"Bearer {access}"}
+
+        # Legacy JWT path: Firebase verification is mocked to refuse (as it does
+        # for a non-Firebase token), so the JWT session check is exercised.
+        with patch(
+            "app.core.dependencies.verify_firebase_id_token",
+            side_effect=FirebaseVerificationError("not a firebase token"),
+        ):
+            # Token works before logout.
+            before = client.get("/api/v1/shopkeeper/auth/me", headers=headers)
+            assert before.status_code == 200, before.text
+
+            logout = client.post(
+                "/api/v1/shopkeeper/auth/logout", json={}, headers=headers
+            )
+            assert logout.status_code == 200, logout.text
+            assert logout.json()["data"]["revoked"] == 1
+
+            # …and is refused afterwards.
+            after = client.get("/api/v1/shopkeeper/auth/me", headers=headers)
+            assert after.status_code == 401, after.text
+
+# ── Logout / Revocation Tests ─────────────────────────────────────────────────
+class TestLogoutRevocation:
+    """Logout must really revoke the session the bearer token belongs to.
+
+    The app posts no ``session_id``; the route must fall back to the token's own
+    ``session_id`` claim, otherwise the session stayed valid until expiry.
+    """
+
+    @staticmethod
+    def _legacy_jwt_only():
+        """Simulate the production Firebase fall-through for custom JWTs.
+
+        With credentials configured, a custom access token makes
+        ``verify_firebase_id_token`` raise ``FirebaseVerificationError`` and
+        ``get_current_user`` proceeds to legacy JWT validation. Without
+        credentials (test/CI) it raises ``RuntimeError`` instead, which would
+        mask the behaviour under test.
+        """
+        from unittest.mock import patch
+
+        from app.services.firebase_verification import FirebaseVerificationError
+
+        return patch(
+            "app.core.dependencies.verify_firebase_id_token",
+            side_effect=FirebaseVerificationError("not a Firebase token"),
+        )
+
+    def test_logout_revokes_token_session(self, client, db, active_user):
+        from app.models.session import AuthSession
+        from app.services.auth_service import issue_tokens
+
+        tokens = issue_tokens(active_user, db, device_id="logout-test-device")
+        db.commit()
+        session = (
+            db.query(AuthSession)
+            .filter(AuthSession.session_id == tokens["session_id"])
+            .first()
+        )
+        assert session is not None and session.is_active is True
+
+        with self._legacy_jwt_only():
+            response = client.post(
+                "/api/v1/shopkeeper/auth/logout",
+                json={},
+                headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            )
+
+        assert response.status_code == 200, response.text
+        db.expire_all()
+        revoked = (
+            db.query(AuthSession)
+            .filter(AuthSession.session_id == tokens["session_id"])
+            .first()
+        )
+        assert revoked.is_active is False
+        assert revoked.is_revoked is True
+
+    def test_revoked_token_is_rejected(self, client, db, active_user):
+        """After logout the same access token must not authenticate again."""
+        from app.services.auth_service import issue_tokens
+
+        tokens = issue_tokens(active_user, db, device_id="logout-reuse-device")
+        db.commit()
+        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+        with self._legacy_jwt_only():
+            assert (
+                client.get("/api/v1/shopkeeper/auth/me", headers=headers).status_code
+                == 200
+            )
+            client.post("/api/v1/shopkeeper/auth/logout", json={}, headers=headers)
+            after = client.get("/api/v1/shopkeeper/auth/me", headers=headers)
+
+        assert after.status_code == 401

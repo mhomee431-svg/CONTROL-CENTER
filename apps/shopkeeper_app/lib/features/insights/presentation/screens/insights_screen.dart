@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/insights_models.dart';
@@ -99,6 +101,12 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 }
 
 /// Placeholder state: no shop yet, or the report could not be loaded.
+///
+/// Rendering is the shared [SystemStateView]; this wrapper keeps the Insights
+/// vocabulary (icon/title/message + optional action label). When the
+/// controller's message IS one of the app's canonical state strings (offline /
+/// maintenance copy arrives pre-classified from `ApiException`), that state's
+/// icon and copy win over the generic `error_outline`.
 class _MessageView extends StatelessWidget {
   const _MessageView({
     required this.icon,
@@ -116,29 +124,24 @@ class _MessageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 56, color: scheme.outline),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.outline),
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 20),
-              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
-          ],
-        ),
-      ),
+    // A canonical transport copy carries its own full state (icon + copy +
+    // action); everything else keeps Insights' own wording and icon.
+    final carried = onAction == null ? null : SystemStateSpec.fromMessage(title);
+    final spec = carried != null
+        ? SystemStateSpec.of(carried)
+        : SystemStateSpec(
+            state: onAction == null
+                ? SystemState.empty
+                : SystemState.genericRetry,
+            title: title,
+            message: message,
+            icon: icon,
+            action: onAction == null ? SystemAction.none : SystemAction.retry,
+          );
+    return SystemStateView(
+      spec: spec,
+      onRetry: onAction,
+      retryLabel: actionLabel ?? 'Retry',
     );
   }
 }

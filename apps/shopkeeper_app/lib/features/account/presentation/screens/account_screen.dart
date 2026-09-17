@@ -11,28 +11,6 @@ import '../../../shops/presentation/widgets/verification_badge.dart';
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
 
-  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content:
-            const Text('You will need to sign in with your Google account again.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Log out')),
-        ],
-      ),
-    );
-    if (confirmed == true && context.mounted) {
-      await ref.read(authControllerProvider.notifier).logout();
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
@@ -46,7 +24,10 @@ class AccountScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _UserCard(user: user),
+            InkWell(
+              onTap: () => context.push(Routes.profileEdit),
+              child: _UserCard(user: user),
+            ),
             const SizedBox(height: 16),
             _BusinessCard(shop: shop),
             const SizedBox(height: 8),
@@ -99,21 +80,43 @@ class AccountScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.support),
                 ),
+                Divider(height: 1, color: Theme.of(context).dividerColor),
+                ListTile(
+                  key: const Key('account_settings_tile'),
+                  leading: const Icon(Icons.settings_outlined),
+                  title: const Text('Account settings'),
+                  subtitle: const Text(
+                    'Profile, security, legal and support',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(Routes.accountSettings),
+                ),
               ]),
             ),
             const SizedBox(height: 16),
             Card(
               clipBehavior: Clip.antiAlias,
               margin: EdgeInsets.zero,
-              child: ListTile(
-                leading: Icon(Icons.logout, color: scheme.error),
-                key: const Key('account_logout_tile'),
-                title: Text('Log out',
-                    style: TextStyle(
-                        color: scheme.error,
-                        fontWeight: FontWeight.w600)),
-                onTap: () => _confirmLogout(context, ref),
-              ),
+              child: Column(children: [
+                ListTile(
+                  key: const Key('account_notification_settings_tile'),
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: const Text('Notification settings'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(Routes.notificationSettings),
+                ),
+                Divider(height: 1, color: Theme.of(context).dividerColor),
+                ListTile(
+                  leading: Icon(Icons.logout, color: scheme.error),
+                  key: const Key('account_logout_tile'),
+                  title: Text('Log out',
+                      style: TextStyle(
+                          color: scheme.error,
+                          fontWeight: FontWeight.w600)),
+                  onTap: () => context.push(Routes.logoutConfirmation),
+                ),
+              ]),
             ),
             const SizedBox(height: 24),
             Center(

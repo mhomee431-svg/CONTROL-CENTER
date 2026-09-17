@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/state/system_state.dart';
+import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/auth_controller.dart';
 
@@ -33,7 +35,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final auth = ref.watch(authControllerProvider);
     // Startup check failed (offline / backend 5xx): hold the splash with a
     // Retry instead of flicking to Welcome — the session (if any) is kept.
@@ -66,35 +67,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              if (startupFailed) ...[
-                const Icon(Icons.cloud_off, size: 40),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    (auth.errorMessage?.isNotEmpty ?? false)
-                        ? auth.errorMessage!
-                        : 'Could not complete startup.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 14, color: scheme.onSurfaceVariant),
+              if (startupFailed)
+                // The classified startup state (offline / server fault /
+                // maintenance) with its own copy and way out. Retry re-runs the
+                // startup check; "Sign in instead" abandons it WITHOUT wiping
+                // the stored session.
+                SystemStateView(
+                  spec: SystemStateSpec.resolve(
+                    state: auth.systemState,
+                    title: 'Could not complete startup',
+                    message: (auth.errorMessage?.isNotEmpty ?? false)
+                        ? auth.errorMessage
+                        : null,
+                    fallbackMessage:
+                        'Could not complete startup. Check your connection '
+                        'and retry.',
                   ),
-                ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: () => ref
+                  onRetry: () => ref
                       .read(authControllerProvider.notifier)
                       .checkSession(),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-                TextButton(
-                  onPressed: () => ref
-                      .read(authControllerProvider.notifier)
-                      .skipStartupRetry(),
-                  child: const Text('Sign in instead'),
-                ),
-              ] else
+                  secondary: TextButton(
+                    onPressed: () => ref
+                        .read(authControllerProvider.notifier)
+                        .skipStartupRetry(),
+                    child: const Text('Sign in instead'),
+                  ),
+                )
+              else
                 const CircularProgressIndicator(),
             ],
           ),

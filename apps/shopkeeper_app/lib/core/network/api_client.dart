@@ -1,10 +1,17 @@
 ﻿import 'package:dio/dio.dart';
 
+import '../state/system_state.dart';
+
 /// Normalized API failure carrying HTTP status and backend error code.
 class ApiException implements Exception {
   final int? statusCode;
   final String? errorCode;
   final String message;
+
+  /// Transport classification: WHY the request failed before (or without) an
+  /// HTTP answer. Populated by [ApiException.fromDioError]; defaults to
+  /// [ApiFailureKind.unknown] for hand-built failures (tests, fakes).
+  final ApiFailureKind kind;
 
   /// Raw `data` payload from the error envelope (if any). The barcode-lookup
   /// endpoint embeds the catalog matches inside a 300 / 404 error envelope,
@@ -16,6 +23,7 @@ class ApiException implements Exception {
     this.errorCode,
     required this.message,
     this.data,
+    this.kind = ApiFailureKind.unknown,
   });
 
   /// True when the backend refused shop access (association/permission).
@@ -24,31 +32,88 @@ class ApiException implements Exception {
   /// True when the session is no longer valid (401 unrecoverable).
   bool get isUnauthorized => statusCode == 401;
 
+  /// Which of the nine system states this failure is.
+  ///
+  /// Screens use it to pick the copy, the icon and — most importantly — the ONE
+  /// way out that can actually help (Retry vs Switch shop vs Sign in). See
+  /// `core/state/system_state.dart`.
+  SystemState get systemState => SystemStateSpec.classify(
+    statusCode: statusCode,
+    errorCode: errorCode,
+    failureKind: kind,
+    message: message,
+  );
+
   factory ApiException.fromDioError(DioException e) {
     final response = e.response;
     final body = response?.data;
+    final kind = _kindOf(e);
+    final statusCode = response?.statusCode;
     String message = e.message ?? 'Network error';
     String? errorCode;
     dynamic errorData;
+    var serverExplained = false;
     if (body is Map) {
       final bodyMessage = body['message'];
       if (bodyMessage is String && bodyMessage.isNotEmpty) {
         message = bodyMessage;
+        serverExplained = true;
       }
       final code = body['error_code'];
       if (code is String) errorCode = code;
       errorData = body['data'];
     }
+    // Infrastructure failures are NOT explained by the server:
+    //   * a transport failure leaves us with Dio's `message`
+    //     ("The connection errored: ..."), which is implementation-speak;
+    //   * a 503 means the backend deliberately is not serving (fail-closed
+    //     storage / OTP / queue outage), and its technical wording
+    //     ("Object storage is unavailable") is not something a shopkeeper can
+    //     act on.
+    // Both get the app's own state copy instead, so EVERY screen — migrated or
+    // not — shows the right thing (see SystemStateSpec.ownsCopy).
+    if (statusCode == 503) {
+      message = SystemStateSpec.of(SystemState.maintenance).message;
+    } else if (!serverExplained) {
+      message = switch (kind) {
+        ApiFailureKind.offline =>
+          SystemStateSpec.of(SystemState.offline).message,
+        ApiFailureKind.cancelled => 'Request was cancelled.',
+        ApiFailureKind.timeout ||
+        ApiFailureKind.badResponse ||
+        ApiFailureKind.unknown =>
+          SystemStateSpec.of(SystemState.networkError).message,
+      };
+    }
     return ApiException(
-      statusCode: response?.statusCode,
+      statusCode: statusCode,
       errorCode: errorCode,
       message: message,
       data: errorData,
+      kind: kind,
     );
   }
 
+  /// Dio reports a transport failure as a *type*; the rest of the app needs a
+  /// stable vocabulary. No response at all == the device could not reach the
+  /// network (offline); a timeout == the network exists but the server did not
+  /// answer in time.
+  static ApiFailureKind _kindOf(DioException e) => switch (e.type) {
+    DioExceptionType.cancel => ApiFailureKind.cancelled,
+    DioExceptionType.connectionTimeout ||
+    DioExceptionType.sendTimeout ||
+    DioExceptionType.receiveTimeout ||
+    DioExceptionType.transformTimeout => ApiFailureKind.timeout,
+    DioExceptionType.connectionError => ApiFailureKind.offline,
+    DioExceptionType.badResponse => ApiFailureKind.badResponse,
+    DioExceptionType.badCertificate => ApiFailureKind.unknown,
+    DioExceptionType.unknown =>
+      e.response == null ? ApiFailureKind.offline : ApiFailureKind.unknown,
+  };
+
   @override
-  String toString() => 'ApiException($statusCode, $errorCode): $message';
+  String toString() =>
+      'ApiException($statusCode, $errorCode, $kind): $message';
 }
 
 /// Thin Dio wrapper for the Shopkeeper backend:
@@ -115,6 +180,7 @@ class ApiClient {
         errorCode: body['error_code'] as String?,
         message: (body['message'] as String?) ?? 'Request failed',
         data: body['data'],
+        kind: ApiFailureKind.badResponse,
       );
     }
     return body;
