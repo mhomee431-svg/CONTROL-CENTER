@@ -7,6 +7,7 @@ import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dar
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/products_controller.dart';
@@ -68,6 +69,7 @@ void main() {
     final repo = FakeProductRepo(items: items, onUpdate: onUpdate);
     final container = ProviderContainer(overrides: [
       productRepositoryProvider.overrideWithValue(repo),
+      inventoryRepositoryProvider.overrideWithValue(repo),
       tokenStoreProvider.overrideWithValue(
           InMemoryTokenStore(accessToken: 'test-access-token')),
       selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
@@ -239,6 +241,8 @@ void main() {
         notificationsRepositoryProvider
             .overrideWithValue(FakeNotificationsRepo()),
         productRepositoryProvider.overrideWithValue(
+            FakeProductRepo(items: [product(name: 'Amul Milk 500ml')])),
+        inventoryRepositoryProvider.overrideWithValue(
             FakeProductRepo(items: [product(name: 'Amul Milk 500ml')])),
         tokenStoreProvider.overrideWithValue(
             InMemoryTokenStore(accessToken: 'test-access-token')),

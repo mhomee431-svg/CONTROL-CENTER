@@ -10,6 +10,7 @@ import 'package:hyperlocal_shopkeeper_app/features/inventory_import/data/import_
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/presentation/controllers/notifications_controller.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/data/shop_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/presentation/controllers/shops_controller.dart';
@@ -44,6 +45,7 @@ void main() {
         // inside a plain test() (no binding → no HttpOverrides) and hang ~30s.
         inventoryImportRepositoryProvider.overrideWithValue(FakeImportRepo()),
         productRepositoryProvider.overrideWithValue(FakeProductRepo()),
+        inventoryRepositoryProvider.overrideWithValue(FakeProductRepo()),
         tokenStoreProvider.overrideWithValue(
             InMemoryTokenStore(accessToken: 'test-access-token')),
         selectedShopProvider

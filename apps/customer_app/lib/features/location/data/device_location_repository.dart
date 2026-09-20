@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+
 import '../domain/location_repository.dart';
 import '../domain/models/location_exception.dart';
 import '../domain/models/location_permission_status.dart';
@@ -9,6 +10,7 @@ import '../domain/models/user_location.dart';
 import '../../../core/env/env_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/security/safe_logger.dart';
 
 /// Device-based location provider using `geolocator` + Google Geocoding API.
 ///
@@ -19,19 +21,18 @@ class DeviceLocationRepository implements LocationRepository {
   final ApiClient? _apiClient;
   final Dio _googleMapsDio;
 
-  DeviceLocationRepository({
-    ApiClient? apiClient,
-    Dio? googleMapsDio,
-  })  : _apiClient = apiClient,
-        _googleMapsDio = googleMapsDio ??
-            Dio(
-              BaseOptions(
-                baseUrl: 'https://maps.googleapis.com',
-                connectTimeout: const Duration(seconds: 12),
-                receiveTimeout: const Duration(seconds: 12),
-                responseType: ResponseType.json,
-              ),
-            );
+  DeviceLocationRepository({ApiClient? apiClient, Dio? googleMapsDio})
+    : _apiClient = apiClient,
+      _googleMapsDio =
+          googleMapsDio ??
+          Dio(
+            BaseOptions(
+              baseUrl: 'https://maps.googleapis.com',
+              connectTimeout: const Duration(seconds: 12),
+              receiveTimeout: const Duration(seconds: 12),
+              responseType: ResponseType.json,
+            ),
+          );
 
   @override
   Future<bool> isLocationServiceEnabled() async =>
@@ -75,8 +76,7 @@ class DeviceLocationRepository implements LocationRepository {
     // 1. Request permission — shows the system dialog if not yet granted.
     final permission = await requestPermission();
 
-    // ignore: avoid_print
-    print('[REPO] getCurrentLocation permission=$permission');
+    SafeLogger.debug('Device location permission=$permission');
     if (permission == LocationPermissionStatus.permanentlyDenied) {
       throw const LocationException(
         LocationErrorType.permissionPermanentlyDenied,
@@ -116,8 +116,7 @@ class DeviceLocationRepository implements LocationRepository {
         );
       }
 
-      // ignore: avoid_print
-      print('[REPO] GPS fix obtained: ${position.latitude},${position.longitude}');
+      SafeLogger.debug('GPS fix obtained from current position.');
       return await _buildLocationFromPosition(position);
     } on LocationException {
       rethrow;
@@ -134,8 +133,7 @@ class DeviceLocationRepository implements LocationRepository {
     try {
       final position = await Geolocator.getLastKnownPosition();
       if (position == null) return null;
-      // ignore: avoid_print
-      print('[REPO] GPS fix obtained: ${position.latitude},${position.longitude}');
+      SafeLogger.debug('GPS fix obtained from last known position.');
       return await _buildLocationFromPosition(position);
     } catch (_) {
       return null;
@@ -174,6 +172,7 @@ class DeviceLocationRepository implements LocationRepository {
       capturedAt: DateTime.now(),
     );
   }
+
   /// Reverse-geocodes using the NATIVE Android Geocoder (Google Play Services).
   /// No API key, no web service, no IP blocking. Returns null on any failure.
   Future<UserLocation?> _reverseGeocodeNative(Position position) async {
@@ -186,8 +185,7 @@ class DeviceLocationRepository implements LocationRepository {
       if (placemarks.isEmpty) return null;
       final place = placemarks.first;
 
-      // ignore: avoid_print
-      print('[NATIVE] Geocoder result: ${place.subLocality}, ${place.locality}, ${place.postalCode}');
+      SafeLogger.debug('Native geocoder returned a location result.');
 
       // All Placemark fields are nullable in geocoding v5 — normalize to ''.
       String s(String? v) => (v ?? '').trim();
@@ -195,7 +193,8 @@ class DeviceLocationRepository implements LocationRepository {
       // Area / sublocality - the Zepto-style headline.
       final areaParts = <String>[
         if (s(place.subLocality).isNotEmpty) s(place.subLocality),
-        if (s(place.subAdministrativeArea).isNotEmpty) s(place.subAdministrativeArea),
+        if (s(place.subAdministrativeArea).isNotEmpty)
+          s(place.subAdministrativeArea),
         if (s(place.name).isNotEmpty) s(place.name),
       ];
       var area = areaParts.join(', ');
@@ -203,8 +202,8 @@ class DeviceLocationRepository implements LocationRepository {
       final city = s(place.locality).isNotEmpty
           ? s(place.locality)
           : (s(place.subAdministrativeArea).isNotEmpty
-              ? s(place.subAdministrativeArea)
-              : s(place.administrativeArea));
+                ? s(place.subAdministrativeArea)
+                : s(place.administrativeArea));
       final state = s(place.administrativeArea);
       final pincode = s(place.postalCode);
       final label = city.isNotEmpty ? city : 'Current Location';
@@ -222,9 +221,9 @@ class DeviceLocationRepository implements LocationRepository {
         accuracyMeters: 0,
         capturedAt: DateTime.now(),
       );
-    } catch (e) {
-      // ignore: avoid_print
-      print('[NATIVE] Geocoder ERROR: $e');
+    } catch (e, stack) {
+      SafeLogger.warning('Native reverse geocoder failed: $e');
+      SafeLogger.debug(stack.toString());
       return null;
     }
   }
@@ -241,13 +240,17 @@ class DeviceLocationRepository implements LocationRepository {
           'key': EnvConfig.mapsApiKey,
           'language': 'en',
           'region': 'IN',
-          'result_type': 'street_address|route|sublocality|locality|administrative_area_level_2|administrative_area_level_1|postal_code'
-        }
+          'result_type': 'street_address|route|sublocality|locality|administrative_area_level_2|administrative_area_level_1|postal_code',
+        },
       );
-      return _reverseGeocodeFromJson(response.data, position.latitude, position.longitude);
-    } catch (e) {
-      // ignore: avoid_print
-      print('[GEOCODE] ERROR: $e');
+      return _reverseGeocodeFromJson(
+        response.data,
+        position.latitude,
+        position.longitude,
+      );
+    } catch (e, stack) {
+      SafeLogger.warning('Google reverse geocoder failed: $e');
+      SafeLogger.debug(stack.toString());
       return null;
     }
   }
@@ -356,16 +359,18 @@ class DeviceLocationRepository implements LocationRepository {
         );
         if (data is List) {
           return data
-              .map((e) => UserLocation(
-                    latitude: (e['latitude'] as num?)?.toDouble() ?? 0,
-                    longitude: (e['longitude'] as num?)?.toDouble() ?? 0,
-                    address: e['city']?.toString() ?? '',
-                    city: e['city']?.toString() ?? '',
-                    state: e['state']?.toString() ?? '',
-                    pincode: e['pincode']?.toString() ?? '',
-                    label: e['city']?.toString() ?? '',
-                    isManual: true,
-                  ))
+              .map(
+                (e) => UserLocation(
+                  latitude: (e['latitude'] as num?)?.toDouble() ?? 0,
+                  longitude: (e['longitude'] as num?)?.toDouble() ?? 0,
+                  address: e['city']?.toString() ?? '',
+                  city: e['city']?.toString() ?? '',
+                  state: e['state']?.toString() ?? '',
+                  pincode: e['pincode']?.toString() ?? '',
+                  label: e['city']?.toString() ?? '',
+                  isManual: true,
+                ),
+              )
               .toList();
         }
       } catch (_) {
@@ -383,10 +388,39 @@ class DeviceLocationRepository implements LocationRepository {
 
     // Local fallback for the Bihar target market (development only).
     final mockCities = [
-      const UserLocation(latitude: 25.5941, longitude: 85.1376, address: 'Patna Center', city: 'Patna', state: 'Bihar', pincode: '800001', label: 'Patna', isManual: true),
-      const UserLocation(latitude: 24.7914, longitude: 85.0002, address: 'Gaya Center', city: 'Gaya', state: 'Bihar', pincode: '823001', label: 'Gaya', isManual: true),
-      const UserLocation(latitude: 26.1209, longitude: 85.3647, address: 'Muzaffarpur Center', city: 'Muzaffarpur', state: 'Bihar', pincode: '842001', label: 'Muzaffarpur', isManual: true),
+      const UserLocation(
+        latitude: 25.5941,
+        longitude: 85.1376,
+        address: 'Patna Center',
+        city: 'Patna',
+        state: 'Bihar',
+        pincode: '800001',
+        label: 'Patna',
+        isManual: true,
+      ),
+      const UserLocation(
+        latitude: 24.7914,
+        longitude: 85.0002,
+        address: 'Gaya Center',
+        city: 'Gaya',
+        state: 'Bihar',
+        pincode: '823001',
+        label: 'Gaya',
+        isManual: true,
+      ),
+      const UserLocation(
+        latitude: 26.1209,
+        longitude: 85.3647,
+        address: 'Muzaffarpur Center',
+        city: 'Muzaffarpur',
+        state: 'Bihar',
+        pincode: '842001',
+        label: 'Muzaffarpur',
+        isManual: true,
+      ),
     ];
-    return mockCities.where((c) => c.city.toLowerCase().contains(query.toLowerCase())).toList();
+    return mockCities
+        .where((c) => c.city.toLowerCase().contains(query.toLowerCase()))
+        .toList();
   }
 }

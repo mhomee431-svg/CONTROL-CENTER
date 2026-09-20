@@ -10,7 +10,7 @@ abstract class ShopRepository {
   Future<List<ShopSummary>> listMyShops(String token);
   Future<ShopDetail> getShopDetail(int shopId, String token);
   Future<ShopDetail> registerShop(Map<String, dynamic> payload, String token);
-  Future<void> updateProfile(
+  Future<void> updateShopProfile(
       int shopId, Map<String, dynamic> fields, String token);
   Future<void> updateSettings(
       int shopId, Map<String, dynamic> fields, String token);
@@ -93,7 +93,7 @@ class ApiShopRepository implements ShopRepository {
   }
 
   @override
-  Future<void> updateProfile(
+  Future<void> updateShopProfile(
       int shopId, Map<String, dynamic> fields, String token) async {
     await _api.put(ApiEndpoints.shopProfile('$shopId'),
         body: fields, token: token);

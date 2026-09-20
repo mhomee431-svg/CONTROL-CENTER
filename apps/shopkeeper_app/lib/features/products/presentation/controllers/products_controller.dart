@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../inventory/data/inventory_repository.dart';
 import '../../data/product_repository.dart';
 import '../../data/products_snapshot_store.dart';
 import '../../domain/product_models.dart';
@@ -67,6 +68,11 @@ class ProductsController extends Notifier<ProductsState> {
 
   ProductRepository get _repo => ref.read(productRepositoryProvider);
 
+  /// Stock reads/writes (overview, adjustments, history, thresholds) belong to
+  /// the inventory repository; product CRUD stays in [_repo].
+  InventoryRepository get _inventoryRepo =>
+      ref.read(inventoryRepositoryProvider);
+
   int? get _shopId => ref.read(selectedShopProvider)?.id;
 
   Future<void> load() async {
@@ -80,7 +86,7 @@ class ProductsController extends Notifier<ProductsState> {
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
-      final overview = await _repo.fetchInventoryOverview(shopId, token);
+      final overview = await _inventoryRepo.fetchInventoryOverview(shopId, token);
       state = ProductsState(
         status: ProductsStatus.ready,
         items: overview.items,
@@ -137,7 +143,7 @@ class ProductsController extends Notifier<ProductsState> {
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
-      final result = await _repo.adjustStock(shopId, productId, {
+      final result = await _inventoryRepo.adjustStock(shopId, productId, {
         'adjustment_type': adjustmentType,
         'quantity_adjustment': delta,
         'reason': ?reason,
@@ -204,7 +210,7 @@ class ProductsController extends Notifier<ProductsState> {
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
-      final history = await _repo.fetchProductHistory(shopId, productId, token);
+      final history = await _inventoryRepo.fetchProductHistory(shopId, productId, token);
       return ProductHistoryLoad(history: history);
     } on ApiException catch (e) {
       return ProductHistoryLoad(

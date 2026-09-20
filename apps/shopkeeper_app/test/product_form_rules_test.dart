@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/category_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_form_rules.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/widgets/product_sheets.dart';
@@ -140,6 +141,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           productRepositoryProvider.overrideWithValue(repo),
+      inventoryRepositoryProvider.overrideWithValue(repo),
           categoryRepositoryProvider.overrideWithValue(categoryRepo),
           tokenStoreProvider.overrideWithValue(
               InMemoryTokenStore(accessToken: 'test-access-token')),

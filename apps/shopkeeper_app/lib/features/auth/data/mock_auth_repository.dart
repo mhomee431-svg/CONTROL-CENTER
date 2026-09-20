@@ -150,10 +150,7 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthSession> updateProfile({
-    required String name,
-    String? phoneNumber,
-  }) async {
+  Future<AuthSession> createProfile({required String name}) async {
     // Simulate network delay, then return the (mock) refreshed session.
     await Future.delayed(const Duration(seconds: 1));
     final session = await restoreSession();
@@ -162,7 +159,7 @@ class MockAuthRepository implements AuthRepository {
           user: ShopkeeperUser(
             id: 1,
             name: name,
-            phoneNumber: phoneNumber ?? '',
+            phoneNumber: '',
             role: 'owner',
           ),
           shops: const [],

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/annotations.dart';
@@ -34,7 +35,9 @@ void main() {
       mockProductDetailsRepository = MockProductDetailsRepository();
       container = ProviderContainer(
         overrides: [
-          productDetailsRepositoryProvider.overrideWithValue(mockProductDetailsRepository),
+          productDetailsRepositoryProvider.overrideWithValue(
+            mockProductDetailsRepository,
+          ),
         ],
       );
     });
@@ -47,45 +50,58 @@ void main() {
       when(mockProductDetailsRepository.getProductDetails(productId))
           .thenAnswer((_) async => productDetails);
 
-      final result = await container.read(productDetailsProvider(productId).future);
+      final result = await container.read(
+        productDetailsProvider(productId).future,
+      );
 
       expect(result, productDetails);
       verify(mockProductDetailsRepository.getProductDetails(productId));
       verifyNoMoreInteractions(mockProductDetailsRepository);
     });
 
-    test('productDetailsProvider error', skip: true, () async {
+        test('productDetailsProvider error', () async {
       final exception = Exception('Failed to fetch');
       when(mockProductDetailsRepository.getProductDetails(productId))
-          .thenAnswer((_) => Future.error(exception));
+          .thenThrow(exception);
 
       final provider = productDetailsProvider(productId);
 
+      // container.listen keeps the autoDispose provider alive and observes
+      // state transitions. The mock throws on getProductDetails, so Riverpod
+      // first enters AsyncLoading-with-error, then transitions to AsyncError.
       final completer = Completer<void>();
-      container.listen(provider, (previous, next) {
-        if (next is AsyncError) {
+      final sub = container.listen(provider, (previous, next) {
+        if (next.hasError && identical(next.error, exception)) {
           completer.complete();
         }
       });
 
+      // Trigger evaluation
       container.read(provider);
 
-      await completer.future.timeout(const Duration(seconds: 2), onTimeout: () => fail('Timed out'));
+      // Wait for the error state to be observed.
+      await completer.future.timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => fail('Timed out waiting for error state'),
+      );
 
+      // Provider should now be in an error state (kept alive by listener).
       final result = container.read(provider);
-
-      expect(result, isA<AsyncError>());
-      expect(result.error, exception);
+      expect(result.hasError, isTrue);
+      expect(result.error, same(exception));
 
       verify(mockProductDetailsRepository.getProductDetails(productId));
       verifyNoMoreInteractions(mockProductDetailsRepository);
+
+      sub.close();
     });
 
     test('toggleSave calls repository', () async {
       when(mockProductDetailsRepository.toggleSaveProduct(productId, true))
           .thenAnswer((_) async => {});
 
-      await container.read(productActionControllerProvider.notifier)
+      await container
+          .read(productActionControllerProvider.notifier)
           .toggleSave(productId, false);
 
       verify(mockProductDetailsRepository.toggleSaveProduct(productId, true));
@@ -94,7 +110,8 @@ void main() {
       when(mockProductDetailsRepository.toggleSaveProduct(productId, false))
           .thenAnswer((_) async => {});
 
-      await container.read(productActionControllerProvider.notifier)
+      await container
+          .read(productActionControllerProvider.notifier)
           .toggleSave(productId, true);
 
       verify(mockProductDetailsRepository.toggleSaveProduct(productId, false));

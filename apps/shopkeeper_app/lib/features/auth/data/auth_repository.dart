@@ -55,10 +55,13 @@ abstract class AuthRepository {
   /// Used to confirm the minimal-data boundary (Phase 19) end-to-end.
   Future<Map<String, dynamic>> fetchGoogleProfile();
 
-  /// Updates the current user's profile (name; phone accepted for contract
-  /// compatibility — the backend profile endpoint manages name/email) and
-  /// returns the refreshed session.
-  Future<AuthSession> updateProfile({required String name, String? phoneNumber});
+  /// Persists the profile fields the shopkeeper entered during first-time
+  /// onboarding (PUT /api/v1/profile) and returns the refreshed session.
+  ///
+  /// Single-owner note: the `/api/v1/profile` WRITE is a session-level step
+  /// here (onboarding) — it refreshes the cached session. Editable-profile
+  /// data access belongs to [ProfileRepository].
+  Future<AuthSession> createProfile({required String name});
 
   // ── Debug helpers for verbose login flow logging ──────────────────────
   Future<String?> debugReadToken();
@@ -298,10 +301,7 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthSession> updateProfile({
-    required String name,
-    String? phoneNumber,
-  }) async {
+  Future<AuthSession> createProfile({required String name}) async {
     final access = await _tokens.readAccessToken();
     await _api.put(ApiEndpoints.profile, body: {'name': name}, token: access);
     final session = await restoreSession();

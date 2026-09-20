@@ -20,6 +20,7 @@ import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notificati
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pos/data/pos_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/category_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/products_controller.dart';
@@ -115,6 +116,21 @@ void main() {
             freshnessStatus: 'STALE',
           ),
         ])),
+        inventoryRepositoryProvider.overrideWithValue(FakeProductRepo(
+          items: const [
+            ShopProductItem(
+              id: 1,
+              name: 'Amul Milk',
+              status: 'ACTIVE',
+              price: 30,
+              isActive: true,
+              isAvailable: true,
+              quantity: 0,
+              stockStatus: 'OUT_OF_STOCK',
+              freshnessStatus: 'STALE',
+            ),
+          ],
+        )),
       ]);
 
       await container.read(dashboardControllerProvider.notifier).load();
@@ -135,6 +151,7 @@ void main() {
         notificationsRepositoryProvider
             .overrideWithValue(FakeNotificationsRepo()),
         productRepositoryProvider.overrideWithValue(FakeProductRepo()),
+        inventoryRepositoryProvider.overrideWithValue(FakeProductRepo()),
       ]);
 
       await container.read(dashboardControllerProvider.notifier).load();
@@ -152,6 +169,7 @@ void main() {
         notificationsRepositoryProvider
             .overrideWithValue(FakeNotificationsRepo(error: Exception('x'))),
         productRepositoryProvider.overrideWithValue(FakeProductRepo()),
+        inventoryRepositoryProvider.overrideWithValue(FakeProductRepo()),
       ]);
 
       await container.read(dashboardControllerProvider.notifier).load();
@@ -166,8 +184,10 @@ void main() {
     test('sends every ShopkeeperProductCreate field and never a barcode',
         () async {
       final repo = FakeProductRepo();
-      final container =
-          makeContainer([productRepositoryProvider.overrideWithValue(repo)]);
+      final container = makeContainer([
+        productRepositoryProvider.overrideWithValue(repo),
+        inventoryRepositoryProvider.overrideWithValue(repo),
+      ]);
 
       final ok = await container
           .read(productsControllerProvider.notifier)
@@ -206,8 +226,10 @@ void main() {
 
     test('omits empty optional fields from the payload', () async {
       final repo = FakeProductRepo();
-      final container =
-          makeContainer([productRepositoryProvider.overrideWithValue(repo)]);
+      final container = makeContainer([
+        productRepositoryProvider.overrideWithValue(repo),
+        inventoryRepositoryProvider.overrideWithValue(repo),
+      ]);
 
       final ok = await container
           .read(productsControllerProvider.notifier)
@@ -226,8 +248,10 @@ void main() {
 
     test('saveEdits PATCHes the product image key', () async {
       final repo = FakeProductRepo();
-      final container =
-          makeContainer([productRepositoryProvider.overrideWithValue(repo)]);
+      final container = makeContainer([
+        productRepositoryProvider.overrideWithValue(repo),
+        inventoryRepositoryProvider.overrideWithValue(repo),
+      ]);
 
       final ok = await container
           .read(productsControllerProvider.notifier)
@@ -409,6 +433,21 @@ void main() {
             freshnessStatus: 'STALE',
           ),
         ])),
+        inventoryRepositoryProvider.overrideWithValue(FakeProductRepo(
+          items: const [
+            ShopProductItem(
+              id: 1,
+              name: 'Amul Milk',
+              status: 'ACTIVE',
+              price: 30,
+              isActive: true,
+              isAvailable: true,
+              quantity: 0,
+              stockStatus: 'OUT_OF_STOCK',
+              freshnessStatus: 'STALE',
+            ),
+          ],
+        )),
         tokenStoreProvider.overrideWithValue(
             InMemoryTokenStore(accessToken: 'test-access-token')),
         authRepositoryProvider
@@ -462,6 +501,7 @@ void main() {
         notificationsRepositoryProvider
             .overrideWithValue(FakeNotificationsRepo()),
         productRepositoryProvider.overrideWithValue(FakeProductRepo()),
+        inventoryRepositoryProvider.overrideWithValue(FakeProductRepo()),
         tokenStoreProvider.overrideWithValue(
             InMemoryTokenStore(accessToken: 'test-access-token')),
         authRepositoryProvider

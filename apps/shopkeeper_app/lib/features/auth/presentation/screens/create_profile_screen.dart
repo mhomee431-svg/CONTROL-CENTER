@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/ui/app_section_header.dart';
 import '../../../../core/ui/numeric_input.dart';
-import '../../../auth/data/auth_repository.dart';
+import '../../../profile/data/profile_repository.dart';
 import '../../../shops/presentation/controllers/shops_controller.dart';
 import '../controllers/auth_controller.dart';
 
@@ -126,7 +126,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       if (fullName.isNotEmpty) {
         try {
           await ref
-              .read(authRepositoryProvider)
+              .read(profileRepositoryProvider)
               .updateProfile(name: fullName);
         } catch (_) {
           // Profile update is best-effort; shop creation already succeeded.

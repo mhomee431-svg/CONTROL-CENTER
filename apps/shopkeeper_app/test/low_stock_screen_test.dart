@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/presentation/screens/low_stock_screen.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 
@@ -61,6 +62,7 @@ ProviderContainer makeContainer({required FakeProductRepo productRepo}) {
   return ProviderContainer(
     overrides: [
       productRepositoryProvider.overrideWithValue(productRepo),
+      inventoryRepositoryProvider.overrideWithValue(productRepo),
       tokenStoreProvider.overrideWithValue(
         InMemoryTokenStore(accessToken: 'test-access-token'),
       ),

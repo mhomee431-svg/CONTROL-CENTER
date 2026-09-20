@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/screens/products_screen.dart';
@@ -55,6 +56,7 @@ void main() {
     final repo = FakeProductRepo(items: items, onUpdate: onUpdate);
     final container = ProviderContainer(overrides: [
       productRepositoryProvider.overrideWithValue(repo),
+      inventoryRepositoryProvider.overrideWithValue(repo),
       tokenStoreProvider.overrideWithValue(
           InMemoryTokenStore(accessToken: 'test-access-token')),
       selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),

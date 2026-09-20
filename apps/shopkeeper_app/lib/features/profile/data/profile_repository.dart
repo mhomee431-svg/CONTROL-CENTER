@@ -1,9 +1,11 @@
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_providers.dart';
 import '../../../core/network/token_store.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The signed-in shopkeeper's own profile (identity, not shop data).
-///
+///   
 /// Backend contract: `GET/PUT /api/v1/profile` (IDOR-safe — the user is
 /// derived from the verified token, never from client input; PUT applies a
 /// PARTIAL update: omitted/`null` fields are left unchanged).
@@ -60,3 +62,10 @@ class ProfileRepository {
     return UserProfile.fromJson(data);
   }
 }
+
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  return ProfileRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(tokenStoreProvider),
+  );
+});

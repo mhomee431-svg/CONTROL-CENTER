@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_endpoints.dart';
-import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 
 import 'fakes.dart';
@@ -65,7 +65,7 @@ void main() {
     }
 
     test('server counts win — even against a misleading stock_status', () {
-      final repo = ApiProductRepository(
+      final repo = ApiInventoryRepository(
         FakeApiClient(response: body(withSummary: true)),
       );
       return repo.fetchInventoryOverview(10, 'tok').then((overview) {
@@ -77,7 +77,7 @@ void main() {
     });
 
     test('falls back to derived counts when the server ships no summary', () {
-      final repo = ApiProductRepository(
+      final repo = ApiInventoryRepository(
         FakeApiClient(response: body(withSummary: false)),
       );
       return repo.fetchInventoryOverview(10, 'tok').then((overview) {
@@ -93,7 +93,7 @@ void main() {
 
     test('requests the list view (the only one carrying freshness)', () {
       final client = FakeApiClient(response: body(withSummary: true));
-      final repo = ApiProductRepository(client);
+      final repo = ApiInventoryRepository(client);
       return repo.fetchInventoryOverview(10, 'tok').then((_) {
         expect(client.lastGetPath, ApiEndpoints.inventory('10'));
         expect(client.lastGetQuery, {'view': 'list'});
@@ -111,7 +111,7 @@ void main() {
         'stock_status': 'LOW_STOCK',
         'last_inventory_update': '2026-09-18T10:00:00Z',
       });
-      final repo = ApiProductRepository(client);
+      final repo = ApiInventoryRepository(client);
       return repo.updateLowStockThreshold(10, 77, 10, 'tok').then((result) {
         expect(client.lastPatchPath,
             ApiEndpoints.lowStockThreshold('10', '77'));
@@ -149,7 +149,7 @@ void main() {
           },
         ],
       });
-      final repo = ApiProductRepository(client);
+      final repo = ApiInventoryRepository(client);
       return repo.fetchStockAdjustments(10, 77, 'tok').then((history) {
         expect(client.lastGetPath,
             ApiEndpoints.stockAdjustmentHistory('10', '77'));
@@ -164,7 +164,7 @@ void main() {
     });
 
     test('an empty trail parses without crashing', () {
-      final repo = ApiProductRepository(FakeApiClient(response: {
+      final repo = ApiInventoryRepository(FakeApiClient(response: {
         'shop_product_id': 77,
         'adjustments': [],
         'count': 0,

@@ -11,7 +11,7 @@ import 'package:hyperlocal_shopkeeper_app/core/state/connectivity_controller.dar
 import 'package:hyperlocal_shopkeeper_app/core/state/system_state.dart';
 import 'package:hyperlocal_shopkeeper_app/core/theme/app_theme.dart';
 import 'package:hyperlocal_shopkeeper_app/core/ui/connectivity_banner.dart';
-import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/products_snapshot_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/products_controller.dart';
 
@@ -359,7 +359,7 @@ void main() {
       await store.save('1', _snapshotForShop1);
       final dio = Dio()..httpClientAdapter = _OfflineAdapter();
       final repo =
-          ApiProductRepository(ApiClient(dio: dio), snapshotStore: store);
+          ApiInventoryRepository(ApiClient(dio: dio), snapshotStore: store);
 
       final overview = await repo.fetchInventoryOverview(1, 'token');
 
@@ -372,7 +372,7 @@ void main() {
     test('offline fetch WITHOUT a snapshot surfaces the honest offline error',
         () async {
       final dio = Dio()..httpClientAdapter = _OfflineAdapter();
-      final repo = ApiProductRepository(ApiClient(dio: dio),
+      final repo = ApiInventoryRepository(ApiClient(dio: dio),
           snapshotStore: InMemoryProductsSnapshotStore());
 
       await expectLater(
@@ -387,7 +387,7 @@ void main() {
       await store.save('1', _snapshotForShop1);
       final dio = Dio()..httpClientAdapter = _ServerErrorAdapter();
       final repo =
-          ApiProductRepository(ApiClient(dio: dio), snapshotStore: store);
+          ApiInventoryRepository(ApiClient(dio: dio), snapshotStore: store);
 
       await expectLater(
         repo.fetchInventoryOverview(1, 'token'),
@@ -401,7 +401,7 @@ void main() {
       await store.save('1', _snapshotForShop1);
       final dio = Dio()..httpClientAdapter = _OfflineAdapter();
       final repo =
-          ApiProductRepository(ApiClient(dio: dio), snapshotStore: store);
+          ApiInventoryRepository(ApiClient(dio: dio), snapshotStore: store);
 
       await expectLater(
         repo.adjustStock(1, 11, {'quantity_adjustment': 5}, 'token'),

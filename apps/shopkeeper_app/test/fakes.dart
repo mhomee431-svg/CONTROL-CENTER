@@ -11,6 +11,7 @@ import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers
 import 'package:hyperlocal_shopkeeper_app/features/barcode/data/barcode_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/barcode/domain/barcode_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/data/import_repository.dart';
@@ -251,10 +252,7 @@ class FakeAuthRepository implements AuthRepository {
   }) async {}
 
   @override
-  Future<AuthSession> updateProfile({
-    required String name,
-    String? phoneNumber,
-  }) async {
+  Future<AuthSession> createProfile({required String name}) async {
     lastRegisteredName = name;
     if (submitError != null) throw submitError!;
     return restoreResult ?? makeSession();
@@ -357,7 +355,7 @@ class FakeShopRepo implements ShopRepository {
   }
 
   @override
-  Future<void> updateProfile(
+  Future<void> updateShopProfile(
     int shopId,
     Map<String, dynamic> fields,
     String token,
@@ -936,7 +934,10 @@ class FakeImportRepo implements InventoryImportRepository {
 
 // ---- Products fakes ---------------------------------------------------------
 
-class FakeProductRepo implements ProductRepository {
+/// Fake for BOTH the product-CRUD and the inventory repository seams — the
+/// shop-catalog fixtures (items, stock knobs) are shared by the products and
+/// the inventory flows, so one fake keeps the two provider overrides in sync.
+class FakeProductRepo implements ProductRepository, InventoryRepository {
   FakeProductRepo({
     this.items = const [],
     this.onCreate,

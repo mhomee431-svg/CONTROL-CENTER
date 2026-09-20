@@ -83,7 +83,7 @@ class ShopProfileDetailController extends Notifier<ShopProfileState> {
     final shop = ref.read(selectedShopProvider);
     if (shop == null) return false;
     try {
-      await _repo.updateProfile(shop.id, fields, await _token());
+      await _repo.updateShopProfile(shop.id, fields, await _token());
       await load();
       return true;
     } on ApiException catch (e) {

@@ -656,10 +656,7 @@ class AuthController extends Notifier<AuthState> {
   }) async {
     state = AuthState.loading();
     try {
-      final session = await _repo.updateProfile(
-        name: name,
-        phoneNumber: phoneNumber,
-      );
+      final session = await _repo.createProfile(name: name);
       _syncPrimaryShop(session.shops);
       state = AuthState.authenticated(user: session.user, shops: session.shops);
       return true;

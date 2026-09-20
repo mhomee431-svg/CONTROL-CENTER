@@ -27,6 +27,7 @@ import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/
 import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/price_history_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/price_list_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/update_price_screen.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 
@@ -107,8 +108,10 @@ ProviderContainer makeContainer({
 }) {
   return ProviderContainer(
     overrides: [
-      if (productRepo != null)
+      if (productRepo != null) ...[
         productRepositoryProvider.overrideWithValue(productRepo),
+        inventoryRepositoryProvider.overrideWithValue(productRepo),
+      ],
       if (offersRepo != null) offersRepositoryProvider.overrideWithValue(offersRepo),
       if (importRepo != null)
         inventoryImportRepositoryProvider.overrideWithValue(importRepo),

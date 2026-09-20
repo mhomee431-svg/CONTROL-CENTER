@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../domain/auth_service.dart';
 
 enum AuthStatus {
@@ -40,8 +41,9 @@ class AuthState {
       AuthState(status: AuthStatus.error, errorMessage: msg);
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);
 
 class AuthController extends Notifier<AuthState> {
   @override
@@ -49,7 +51,7 @@ class AuthController extends Notifier<AuthState> {
     return AuthState.initial();
   }
 
-    /// Determine the starting auth state on app launch.
+  /// Determine the starting auth state on app launch.
   ///
   /// ── Phase 11: guest-first experience ──────────────────────────────
   /// The customer is always treated as a guest on first open. There is
@@ -155,8 +157,8 @@ class AuthController extends Notifier<AuthState> {
   /// Signs the customer out locally after an unrecoverable auth failure
   /// (a 401 whose refresh also failed — the server session is gone).
   ///
-  /// The router reacts to [AuthStatus.sessionExpired] by returning the
-  /// customer to the Welcome screen; no UI changes are needed here.
+  /// The router reacts to [AuthStatus.sessionExpired] by keeping the customer
+  /// in guest-first browsing while account-only calls can prompt login again.
   Future<void> handleSessionExpired() async {
     try {
       await ref.read(authServiceProvider).clearLocalSession();

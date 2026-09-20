@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_providers.dart';
-import '../../../../core/network/token_store.dart';
 import '../../data/profile_repository.dart';
 
 /// State of the Edit-Profile screen.
@@ -55,11 +53,7 @@ class ProfileEditController extends Notifier<ProfileEditState> {
     return const ProfileEditState();
   }
 
-  ProfileRepository get _repo {
-    final api = ref.read(apiClientProvider);
-    final tokens = ref.read(tokenStoreProvider);
-    return ProfileRepository(api, tokens);
-  }
+  ProfileRepository get _repo => ref.read(profileRepositoryProvider);
 
   Future<void> _load() async {
     // The provider can be disposed while this load is still in flight (the

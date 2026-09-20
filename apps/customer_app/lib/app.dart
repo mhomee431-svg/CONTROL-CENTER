@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'core/network/api_client.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -14,9 +15,9 @@ import 'features/settings/presentation/controllers/settings_controller.dart';
 import 'core/storage/local_storage_driver.dart';
 
 /// Bridges network-level session-expiry events (401 + failed token refresh)
-/// into the auth state machine so the router returns the customer to the
-/// Welcome screen. Kept alive for the whole app lifetime by being watched
-/// from [HyperlocalApp].
+/// into the auth state machine so the router moves the customer back into a
+/// safe guest browsing state. Kept alive for the whole app lifetime by being
+/// watched from [HyperlocalApp].
 final sessionExpiryBridgeProvider = Provider<void>((ref) {
   final client = ref.watch(apiClientProvider);
   final subscription = client.sessionExpiredEvents.listen((_) {
@@ -54,20 +55,16 @@ class HyperlocalApp extends ConsumerWidget {
               .read(deviceTokenCoordinatorProvider)
               .syncAfterLogin(pushEnabled: settings.pushNotificationsEnabled),
         );
-      } else if (wasAuthenticated &&
-          next.status != AuthStatus.authenticated) {
+      } else if (wasAuthenticated && next.status != AuthStatus.authenticated) {
         // Logout: drop account-mirrored favorites from the device so they
         // never leak into another session. Device-level history (recent
         // searches, recently viewed) is capped and intentionally retained.
         unawaited(
-          LocalSavedAndHistoryRepository(
-            ref.read(localStorageDriverProvider),
-          ).purgeSyncedEntries(),
+          LocalSavedAndHistoryRepository(ref.read(localStorageDriverProvider))
+              .purgeSyncedEntries(),
         );
         // Unregister push delivery for this device.
-        unawaited(
-          ref.read(deviceTokenCoordinatorProvider).handleLogout(),
-        );
+        unawaited(ref.read(deviceTokenCoordinatorProvider).handleLogout());
       }
     });
 
@@ -81,4 +78,3 @@ class HyperlocalApp extends ConsumerWidget {
     );
   }
 }
-

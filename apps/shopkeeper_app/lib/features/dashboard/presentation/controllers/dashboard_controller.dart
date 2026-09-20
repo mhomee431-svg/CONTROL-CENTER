@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../inventory/data/inventory_repository.dart';
 import '../../../inventory_import/data/import_repository.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
-import '../../../products/data/product_repository.dart';
 import '../../data/dashboard_repository.dart';
 import '../../domain/dashboard_models.dart';
 
@@ -105,7 +105,7 @@ class DashboardController extends Notifier<DashboardState> {
     });
     final stale = await _guard(() async {
       final overview =
-          await ref.read(productRepositoryProvider).fetchInventoryOverview(
+          await ref.read(inventoryRepositoryProvider).fetchInventoryOverview(
                 shopId,
                 token,
               );
