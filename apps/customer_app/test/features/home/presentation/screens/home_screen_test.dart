@@ -170,4 +170,7 @@ class _EmptyNearbyShopsRepository implements HomeRepository {
       recentSearches: [],
     );
   }
+
+  @override
+  Future<List<Shop>> fetchShopsByPincode(String pincode) async => const [];
 }

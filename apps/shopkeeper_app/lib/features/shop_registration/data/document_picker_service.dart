@@ -7,7 +7,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/network/media_upload_service.dart';
+import '../../media/data/media_repository.dart';
 import '../../shops/domain/shop_models.dart';
 
 /// A locally-picked file ready for upload.
@@ -40,15 +40,15 @@ class DocumentPreflight {
 
   static String? validate(PickedFile file, DocumentMediaCategory media) {
     final allowed =
-        MediaUploadService.allowedExtensions[mediaCategory(media)] ??
+        MediaRepository.allowedExtensions[mediaCategory(media)] ??
             const <String>[];
     if (!allowed.contains(file.extension)) {
       return 'Only ${allowed.join('/')} files are supported';
     }
     if (file.sizeBytes <= 0) return 'File is empty';
     final cap = media == DocumentMediaCategory.shopImage
-        ? MediaUploadService.maxImageBytes
-        : MediaUploadService.maxDocumentBytes;
+        ? MediaRepository.maxImageBytes
+        : MediaRepository.maxDocumentBytes;
     if (file.sizeBytes > cap) {
       return 'File exceeds the ${cap ~/ (1024 * 1024)} MB limit';
     }
@@ -67,7 +67,7 @@ class DocumentPreflight {
   /// The pickers are filtered with this list so a shopkeeper can never select a
   /// file the backend would reject.
   static List<String> allowedFor(DocumentMediaCategory media) =>
-      MediaUploadService.allowedExtensions[mediaCategory(media)] ??
+      MediaRepository.allowedExtensions[mediaCategory(media)] ??
           const <String>[];
 
   /// Builds a [PickedFile] from platform-provided data.

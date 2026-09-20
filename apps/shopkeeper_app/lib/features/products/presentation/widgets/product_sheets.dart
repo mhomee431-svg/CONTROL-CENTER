@@ -8,10 +8,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/network/media_upload_service.dart';
-import '../../../../core/network/token_store.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../media/data/media_repository.dart';
 import '../../../pos/presentation/controllers/pos_controller.dart';
 import '../../domain/category_taxonomy.dart';
 import '../../domain/product_form_rules.dart';
@@ -55,17 +54,14 @@ Future<(MediaObject, String)?> _pickAndUploadProductImage(
     return null;
   }
   final size = File(path).lengthSync();
-  if (size > MediaUploadService.maxImageBytes) {
+  if (size > MediaRepository.maxImageBytes) {
     showMessage('Image must be smaller than 5 MB');
     return null;
   }
 
   onUploading(true);
   try {
-    final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
-    final media = await ref.read(mediaUploadServiceProvider).upload(
-          token: token,
+    final media = await ref.read(mediaRepositoryProvider).upload(
           category: 'PRODUCT_IMAGE',
           filePath: path,
           contentType: contentType,

@@ -3,6 +3,35 @@ import '../domain/models/home_data.dart';
 import '../../../core/catalog/approved_categories.dart';
 
 class MockHomeRepository implements HomeRepository {
+  /// Shared sample so the pin-search screen shows the same nearby shops the
+  /// home feed serves in mock mode.
+  static const List<Shop> _sampleNearbyShops = [
+    Shop(
+      id: 's1',
+      name: 'Gupta Electronics',
+      imageUrl: 'https://via.placeholder.com/300',
+      distance: 1.2,
+      rating: 4.5,
+      isVerified: true,
+    ),
+    Shop(
+      id: 's2',
+      name: 'Sharma Hardware',
+      imageUrl: 'https://via.placeholder.com/300',
+      distance: 0.8,
+      rating: 4.2,
+      isVerified: false,
+    ),
+    Shop(
+      id: 's3',
+      name: 'Patna Medical Hall',
+      imageUrl: 'https://via.placeholder.com/300',
+      distance: 2.1,
+      rating: 4.8,
+      isVerified: true,
+    ),
+  ];
+
   @override
   Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
     // Simulate network latency
@@ -61,32 +90,7 @@ class MockHomeRepository implements HomeRepository {
           priceRange: '₹1,800 - ₹2,200',
         ),
       ],
-      nearbyShops: const [
-        Shop(
-          id: 's1',
-          name: 'Gupta Electronics',
-          imageUrl: 'https://via.placeholder.com/300',
-          distance: 1.2,
-          rating: 4.5,
-          isVerified: true,
-        ),
-        Shop(
-          id: 's2',
-          name: 'Sharma Hardware',
-          imageUrl: 'https://via.placeholder.com/300',
-          distance: 0.8,
-          rating: 4.2,
-          isVerified: false,
-        ),
-        Shop(
-          id: 's3',
-          name: 'Patna Medical Hall',
-          imageUrl: 'https://via.placeholder.com/300',
-          distance: 2.1,
-          rating: 4.8,
-          isVerified: true,
-        ),
-      ],
+      nearbyShops: _sampleNearbyShops,
       recentSearches: const ['Paracetamol 500mg', 'Bosch Drill', 'Ceiling Fan'],
       recentlyViewed: const [
         Product(
@@ -139,5 +143,12 @@ class MockHomeRepository implements HomeRepository {
         ),
       ],
     );
+  }
+
+  @override
+  Future<List<Shop>> fetchShopsByPincode(String pincode) async {
+    // Simulate network latency
+    await Future.delayed(const Duration(milliseconds: 600));
+    return _sampleNearbyShops;
   }
 }

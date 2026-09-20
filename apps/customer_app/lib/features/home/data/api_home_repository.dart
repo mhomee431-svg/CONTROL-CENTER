@@ -45,6 +45,23 @@ class ApiHomeRepository implements HomeRepository {
     }
   }
 
+  @override
+  Future<List<Shop>> fetchShopsByPincode(String pincode) async {
+    final data = await _apiClient.get(
+      ApiEndpoints.nearbyShops,
+      queryParameters: {'pincode': pincode},
+      requiresAuth: false,
+    );
+
+    if (data is Map<String, dynamic> && data['shops'] is List) {
+      return (data['shops'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map(Shop.fromJson)
+          .toList(growable: false);
+    }
+    return const [];
+  }
+
   HomeData _parseHomeData(Map<String, dynamic> data) {
     List<Product> parseProducts(String key) =>
         (data[key] as List<dynamic>? ?? [])

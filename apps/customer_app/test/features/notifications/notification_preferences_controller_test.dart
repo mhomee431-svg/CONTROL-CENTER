@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_app/features/notifications/data/mock_notification_repository.dart';
 import 'package:hyperlocal_app/features/notifications/domain/models/notification_preferences.dart';
 import 'package:hyperlocal_app/features/notifications/presentation/controllers/notification_preferences_controller.dart';
-import 'package:hyperlocal_app/features/notifications/presentation/controllers/notifications_controller.dart';
+import 'package:hyperlocal_app/features/notifications/domain/notification_repository.dart';
 
 void main() {
   group('NotificationPreferencesController', () {

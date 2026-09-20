@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/network/api_client.dart';
-import '../../../core/network/media_upload_service.dart';
 import '../../../core/network/token_store.dart';
 import '../../auth/presentation/controllers/selected_shop.dart';
+import '../../media/data/media_repository.dart';
 import '../../shops/data/shop_repository.dart';
 import '../../shops/domain/location_capture_state.dart';
 import '../../shops/domain/shop_models.dart';
@@ -38,7 +38,7 @@ class ShopRegistrationController
   }
 
   ShopRepository get _repo => ref.read(shopRepositoryProvider);
-  MediaUploadService get _media => ref.read(mediaUploadServiceProvider);
+  MediaRepository get _media => ref.read(mediaRepositoryProvider);
 
   Future<String?> _token() =>
       ref.read(tokenStoreProvider).readAccessToken();
@@ -520,7 +520,6 @@ class ShopRegistrationController
         final ext = path.split(Platform.pathSeparator).last
             .split('.').last.toLowerCase();
         final object = await _media.upload(
-          token: token,
           category: DocumentPreflight.mediaCategory(
               slot.requirement.mediaCategory),
           filePath: path,

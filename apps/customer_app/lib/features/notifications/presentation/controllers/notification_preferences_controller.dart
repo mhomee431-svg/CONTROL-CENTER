@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/notification_preferences.dart';
-import 'notifications_controller.dart';
+import '../../domain/notification_repository.dart';
 
 /// State wrapper for the notification preferences editor.
 class NotificationPreferencesState {

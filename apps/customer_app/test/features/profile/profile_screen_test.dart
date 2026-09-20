@@ -7,6 +7,7 @@ import 'package:hyperlocal_app/features/profile/data/mock_profile_repository.dar
 import 'package:hyperlocal_app/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:hyperlocal_app/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:hyperlocal_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:hyperlocal_app/features/profile/domain/profile_repository.dart';
 
 class _StubAuthController extends AuthController {
   final AuthStatus initialStatus;

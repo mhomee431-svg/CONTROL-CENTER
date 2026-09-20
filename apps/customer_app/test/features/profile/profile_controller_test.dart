@@ -4,6 +4,7 @@ import 'package:hyperlocal_app/features/auth/presentation/controllers/auth_contr
 import 'package:hyperlocal_app/features/profile/data/mock_profile_repository.dart';
 import 'package:hyperlocal_app/features/profile/domain/models/user_profile.dart';
 import 'package:hyperlocal_app/features/profile/presentation/controllers/profile_controller.dart';
+import 'package:hyperlocal_app/features/profile/domain/profile_repository.dart';
 
 /// Pins the auth controller to a fixed status so profile loading can be
 /// exercised for each account state.

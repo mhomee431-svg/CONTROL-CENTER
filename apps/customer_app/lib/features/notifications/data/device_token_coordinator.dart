@@ -5,8 +5,6 @@ import '../../../../core/storage/secure_storage_service.dart';
 import '../../auth/domain/auth_service.dart' show authAppVersion;
 import '../domain/models/device_token_registration.dart';
 import '../domain/notification_repository.dart';
-import '../presentation/controllers/notifications_controller.dart'
-    show notificationsRepositoryProvider;
 import 'fcm_notification_service.dart';
 
 /// Coordinates device push-token registration with the backend notification

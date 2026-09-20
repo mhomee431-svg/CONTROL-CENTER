@@ -2,27 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/home_repository.dart';
 import '../../domain/models/home_data.dart';
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/theme/app_theme.dart';
 
-/// Provider that fetches nearby shops for a given 6-digit area pin code.
+/// Shops that serve a manually-entered 6-digit area pin code. Data access
+/// lives in [HomeRepository] (repository rule: screens never call the API).
 final shopsByPinProvider = FutureProvider.autoDispose
     .family<List<Shop>, String>((ref, pin) async {
-      final apiClient = ref.watch(apiClientProvider);
-      final data = await apiClient.get(
-        ApiEndpoints.nearbyShops,
-        queryParameters: {'pincode': pin},
-        requiresAuth: false,
-      );
-
-      if (data is Map<String, dynamic> && data['shops'] is List) {
-        return (data['shops'] as List)
-            .map((e) => Shop.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      return [];
+      return ref.watch(homeRepositoryProvider).fetchShopsByPincode(pin);
     });
 
 /// Shows shops near a manually-entered area pin code.

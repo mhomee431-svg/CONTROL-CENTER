@@ -4,9 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
 import 'package:hyperlocal_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:hyperlocal_app/features/notifications/data/mock_notification_repository.dart';
-import 'package:hyperlocal_app/features/notifications/presentation/controllers/notifications_controller.dart';
 import 'package:hyperlocal_app/features/settings/presentation/controllers/settings_controller.dart';
 import 'package:hyperlocal_app/features/settings/presentation/screens/settings_screen.dart';
+import 'package:hyperlocal_app/features/notifications/domain/notification_repository.dart';
 
 class _StubAuthController extends AuthController {
   final AuthStatus initialStatus;

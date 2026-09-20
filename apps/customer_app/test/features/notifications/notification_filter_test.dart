@@ -6,7 +6,6 @@ import 'package:hyperlocal_app/features/notifications/domain/models/app_notifica
 import 'package:hyperlocal_app/features/notifications/domain/models/device_token_registration.dart';
 import 'package:hyperlocal_app/features/notifications/domain/models/notification_preferences.dart';
 import 'package:hyperlocal_app/features/notifications/domain/notification_repository.dart';
-import 'package:hyperlocal_app/features/notifications/presentation/controllers/notifications_controller.dart';
 import 'package:hyperlocal_app/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:hyperlocal_app/features/notifications/presentation/widgets/notification_filter_bar.dart';
 
