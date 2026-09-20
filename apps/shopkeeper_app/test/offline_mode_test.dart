@@ -325,11 +325,16 @@ void main() {
   });
 
   group('logout wipes the offline cache', () {
-    test('ProductsController.reset clears the snapshot store', () async {
+    test('ProductsController.reset clears the snapshot via its repository',
+        () async {
       final store = InMemoryProductsSnapshotStore();
       await store.save('1', _snapshotForShop1);
       final container = ProviderContainer(overrides: [
         productsSnapshotStoreProvider.overrideWithValue(store),
+        // reset() must reach the store THROUGH the repository that owns it.
+        inventoryRepositoryProvider.overrideWithValue(
+          ApiInventoryRepository(ApiClient(dio: Dio()), snapshotStore: store),
+        ),
       ]);
       addTearDown(container.dispose);
 

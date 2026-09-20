@@ -992,6 +992,13 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     return InventoryOverview(items: items, summary: summary);
   }
 
+  int clearSnapshotCalls = 0;
+
+  @override
+  Future<void> clearOfflineSnapshot() async {
+    clearSnapshotCalls++;
+  }
+
   @override
   Future<ShopProductItem> createProduct(
     int shopId,

@@ -42,6 +42,14 @@ abstract class InventoryRepository {
   /// (`GET /shops/{shopId}/products/{productId}/stock-adjustments`).
   Future<StockAdjustmentHistory> fetchStockAdjustments(
       int shopId, int productId, String token);
+
+  /// Drops the device's offline inventory snapshot.
+  ///
+  /// Called on account switch/logout: cached stock belongs to the account
+  /// that synced it and must never survive into the next session. This
+  /// repository is the snapshot's only writer AND clearer — callers never
+  /// touch the store directly.
+  Future<void> clearOfflineSnapshot();
 }
 
 class ApiInventoryRepository implements InventoryRepository {
@@ -127,6 +135,12 @@ class ApiInventoryRepository implements InventoryRepository {
       token: token,
     ) as Map<String, dynamic>;
     return StockAdjustmentHistory.fromJson(data);
+  }
+
+  @override
+  Future<void> clearOfflineSnapshot() async {
+    // Store is optional (null in tests that never exercise offline mode).
+    await _snapshots?.clearAll();
   }
 }
 

@@ -7,7 +7,6 @@ import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../inventory/data/inventory_repository.dart';
 import '../../data/product_repository.dart';
-import '../../data/products_snapshot_store.dart';
 import '../../domain/product_models.dart';
 
 enum ProductsStatus { loading, ready, accessDenied, error }
@@ -107,10 +106,11 @@ class ProductsController extends Notifier<ProductsState> {
 
   /// Clears ALL cached inventory data (called on logout) so the previous
   /// account's products never survive into the next session — the in-memory
-  /// state AND the device's offline snapshot store.
+  /// state AND the device's offline snapshot store (cleared through the
+  /// repository that owns it).
   void reset() {
     state = ProductsState.loading();
-    unawaited(ref.read(productsSnapshotStoreProvider).clearAll());
+    unawaited(_inventoryRepo.clearOfflineSnapshot());
   }
 
   Future<bool> setAvailability(int productId, bool available) async {
