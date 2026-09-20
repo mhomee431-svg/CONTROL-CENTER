@@ -59,7 +59,7 @@ void main() {
       verifyNoMoreInteractions(mockProductDetailsRepository);
     });
 
-        test('productDetailsProvider error', () async {
+    test('productDetailsProvider error', () async {
       final exception = Exception('Failed to fetch');
       when(mockProductDetailsRepository.getProductDetails(productId))
           .thenThrow(exception);
