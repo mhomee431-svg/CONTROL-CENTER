@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/performance/debouncer.dart';
+import 'package:hyperlocal_app/core/performance/debouncer.dart';
 
 void main() {
   test('Debouncer cancels rapid consecutive triggers and executes only once', () async {

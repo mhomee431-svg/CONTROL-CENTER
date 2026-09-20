@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/features/search/domain/models/search_models.dart';
+import 'package:hyperlocal_app/features/search/domain/models/search_models.dart';
 
 void main() {
   group('ShopProductResult derived properties', () {

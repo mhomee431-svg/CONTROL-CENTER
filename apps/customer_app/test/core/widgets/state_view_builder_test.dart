@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/network/api_error_handler.dart';
-import 'package:hyperlocal_customer_app/core/widgets/state_view_builder.dart';
+import 'package:hyperlocal_app/core/network/api_error_handler.dart';
+import 'package:hyperlocal_app/core/widgets/state_view_builder.dart';
 
 void main() {
   Widget buildTestWidget({

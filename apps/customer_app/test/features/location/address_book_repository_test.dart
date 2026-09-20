@@ -1,8 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/address_book_repository.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/user_location.dart';
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart';
+import 'package:hyperlocal_app/features/location/domain/address_book_repository.dart';
+import 'package:hyperlocal_app/features/location/domain/models/user_location.dart';
 
 /// In-memory stand-in for [SecureStorageService] so the local repository
 /// can be tested without platform channels.

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/security/input_validator.dart';
+import 'package:hyperlocal_app/core/security/input_validator.dart';
 
 void main() {
   group('Input Validation Tests', () {

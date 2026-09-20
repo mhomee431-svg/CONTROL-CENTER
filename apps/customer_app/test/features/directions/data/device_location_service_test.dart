@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/features/directions/data/device_location_service.dart';
-import 'package:hyperlocal_customer_app/features/directions/domain/models/location_models.dart';
+import 'package:hyperlocal_app/features/directions/data/device_location_service.dart';
+import 'package:hyperlocal_app/features/directions/domain/models/location_models.dart';
 
 void main() {
   group('DeviceLocationService.calculateDistance', () {

@@ -5,13 +5,13 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i5;
 
-import 'package:hyperlocal_customer_app/features/directions/domain/location_service.dart'
+import 'package:hyperlocal_app/features/directions/domain/location_service.dart'
     as _i4;
-import 'package:hyperlocal_customer_app/features/directions/domain/models/location_models.dart'
+import 'package:hyperlocal_app/features/directions/domain/models/location_models.dart'
     as _i2;
-import 'package:hyperlocal_customer_app/features/shop_details/domain/models/shop_details_models.dart'
+import 'package:hyperlocal_app/features/shop_details/domain/models/shop_details_models.dart'
     as _i3;
-import 'package:hyperlocal_customer_app/features/shop_details/domain/shop_details_repository.dart'
+import 'package:hyperlocal_app/features/shop_details/domain/shop_details_repository.dart'
     as _i6;
 import 'package:mockito/mockito.dart' as _i1;
 

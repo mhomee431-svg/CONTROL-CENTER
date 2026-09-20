@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/cache/local_cache_service.dart';
-import 'package:hyperlocal_customer_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/core/cache/local_cache_service.dart';
+import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
 
 void main() {
   group('LocalCacheService - offline / stale-while-revalidate (Phase 28)', () {

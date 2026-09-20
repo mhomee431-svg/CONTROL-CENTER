@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hyperlocal_customer_app/core/storage/local_storage_driver.dart';
-import 'package:hyperlocal_customer_app/features/search/presentation/screens/search_screen.dart';
-import 'package:hyperlocal_customer_app/features/home/domain/home_repository.dart';
-import 'package:hyperlocal_customer_app/features/home/domain/models/home_data.dart';
-import 'package:hyperlocal_customer_app/features/home/data/mock_home_repository.dart';
-import 'package:hyperlocal_customer_app/features/home/presentation/screens/home_screen.dart';
-import 'package:hyperlocal_customer_app/features/home/presentation/widgets/home_search_bar.dart';
-import 'package:hyperlocal_customer_app/features/home/presentation/widgets/home_skeleton_loader.dart';
-import 'package:hyperlocal_customer_app/features/home/presentation/widgets/promotion_banner.dart';
-import 'package:hyperlocal_customer_app/features/home/presentation/widgets/category_section.dart';
-import 'package:hyperlocal_customer_app/features/home/presentation/widgets/recent_searches_section.dart';
+import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/search/presentation/screens/search_screen.dart';
+import 'package:hyperlocal_app/features/home/domain/home_repository.dart';
+import 'package:hyperlocal_app/features/home/domain/models/home_data.dart';
+import 'package:hyperlocal_app/features/home/data/mock_home_repository.dart';
+import 'package:hyperlocal_app/features/home/presentation/screens/home_screen.dart';
+import 'package:hyperlocal_app/features/home/presentation/widgets/home_search_bar.dart';
+import 'package:hyperlocal_app/features/home/presentation/widgets/home_skeleton_loader.dart';
+import 'package:hyperlocal_app/features/home/presentation/widgets/promotion_banner.dart';
+import 'package:hyperlocal_app/features/home/presentation/widgets/category_section.dart';
+import 'package:hyperlocal_app/features/home/presentation/widgets/recent_searches_section.dart';
 
 void main() {
   testWidgets('HomeScreen shows loading skeleton initially, then renders data', (tester) async {

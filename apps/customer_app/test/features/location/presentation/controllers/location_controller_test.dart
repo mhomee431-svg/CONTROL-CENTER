@@ -2,13 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/location_repository.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/location_exception.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/location_permission_status.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/saved_address.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/user_location.dart';
-import 'package:hyperlocal_customer_app/features/location/presentation/controllers/location_controller.dart';
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart';
+import 'package:hyperlocal_app/features/location/domain/location_repository.dart';
+import 'package:hyperlocal_app/features/location/domain/models/location_exception.dart';
+import 'package:hyperlocal_app/features/location/domain/models/location_permission_status.dart';
+import 'package:hyperlocal_app/features/location/domain/models/saved_address.dart';
+import 'package:hyperlocal_app/features/location/domain/models/user_location.dart';
+import 'package:hyperlocal_app/features/location/presentation/controllers/location_controller.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 

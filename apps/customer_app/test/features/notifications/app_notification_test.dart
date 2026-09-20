@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/features/notifications/domain/models/app_notification.dart';
+import 'package:hyperlocal_app/features/notifications/domain/models/app_notification.dart';
 
 void main() {
   group('NotificationType', () {

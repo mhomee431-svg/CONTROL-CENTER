@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/storage/local_storage_driver.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/data/local_saved_and_history_repository.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/domain/models/storage_models.dart';
+import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/saved_and_history/data/local_saved_and_history_repository.dart';
+import 'package:hyperlocal_app/features/saved_and_history/domain/models/storage_models.dart';
 
 void main() {
   late InMemoryStorageDriver driver;

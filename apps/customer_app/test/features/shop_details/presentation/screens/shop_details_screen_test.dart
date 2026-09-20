@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hyperlocal_customer_app/features/shop_details/data/mock_shop_details_repository.dart';
-import 'package:hyperlocal_customer_app/features/shop_details/domain/shop_details_repository.dart';
-import 'package:hyperlocal_customer_app/features/shop_details/presentation/screens/shop_details_screen.dart';
+import 'package:hyperlocal_app/features/shop_details/data/mock_shop_details_repository.dart';
+import 'package:hyperlocal_app/features/shop_details/domain/shop_details_repository.dart';
+import 'package:hyperlocal_app/features/shop_details/presentation/screens/shop_details_screen.dart';
 
 void main() {
   testWidgets('ShopDetailsScreen renders full shop profile with new fields',

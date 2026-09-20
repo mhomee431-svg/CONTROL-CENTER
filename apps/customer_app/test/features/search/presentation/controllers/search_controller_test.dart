@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hyperlocal_customer_app/core/performance/debouncer.dart';
-import 'package:hyperlocal_customer_app/features/search/data/mock_search_repository.dart';
-import 'package:hyperlocal_customer_app/features/search/domain/models/search_models.dart';
-import 'package:hyperlocal_customer_app/features/search/domain/search_event_tracker.dart';
-import 'package:hyperlocal_customer_app/features/search/domain/search_repository.dart';
-import 'package:hyperlocal_customer_app/features/search/domain/search_state.dart';
-import 'package:hyperlocal_customer_app/features/search/presentation/controllers/search_controller.dart';
+import 'package:hyperlocal_app/core/performance/debouncer.dart';
+import 'package:hyperlocal_app/features/search/data/mock_search_repository.dart';
+import 'package:hyperlocal_app/features/search/domain/models/search_models.dart';
+import 'package:hyperlocal_app/features/search/domain/search_event_tracker.dart';
+import 'package:hyperlocal_app/features/search/domain/search_repository.dart';
+import 'package:hyperlocal_app/features/search/domain/search_state.dart';
+import 'package:hyperlocal_app/features/search/presentation/controllers/search_controller.dart';
 
 void main() {
   group('Debouncer', () {

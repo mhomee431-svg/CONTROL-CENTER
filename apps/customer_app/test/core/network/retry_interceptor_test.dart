@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/network/retry_interceptor.dart';
+import 'package:hyperlocal_app/core/network/retry_interceptor.dart';
 
 void main() {
   group('ExponentialRetryInterceptor', () {

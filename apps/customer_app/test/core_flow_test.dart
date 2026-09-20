@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hyperlocal_customer_app/app.dart';
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart';
-import 'package:hyperlocal_customer_app/features/home/data/mock_home_repository.dart';
-import 'package:hyperlocal_customer_app/features/home/domain/home_repository.dart';
+import 'package:hyperlocal_app/app.dart';
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart';
+import 'package:hyperlocal_app/features/home/data/mock_home_repository.dart';
+import 'package:hyperlocal_app/features/home/domain/home_repository.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 

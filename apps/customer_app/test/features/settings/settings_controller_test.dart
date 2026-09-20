@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hyperlocal_customer_app/core/storage/local_storage_driver.dart';
-import 'package:hyperlocal_customer_app/features/settings/domain/models/app_settings.dart';
-import 'package:hyperlocal_customer_app/features/settings/presentation/controllers/settings_controller.dart';
+import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/settings/domain/models/app_settings.dart';
+import 'package:hyperlocal_app/features/settings/presentation/controllers/settings_controller.dart';
 
 void main() {
   group('SettingsController', () {

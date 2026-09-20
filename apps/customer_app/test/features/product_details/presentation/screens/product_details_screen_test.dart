@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hyperlocal_customer_app/features/product_details/data/mock_product_details_repository.dart';
-import 'package:hyperlocal_customer_app/features/product_details/domain/product_details_repository.dart';
-import 'package:hyperlocal_customer_app/features/product_details/presentation/screens/product_details_screen.dart';
+import 'package:hyperlocal_app/features/product_details/data/mock_product_details_repository.dart';
+import 'package:hyperlocal_app/features/product_details/domain/product_details_repository.dart';
+import 'package:hyperlocal_app/features/product_details/presentation/screens/product_details_screen.dart';
 
 void main() {
   testWidgets('ProductDetailsScreen renders product info and price comparison offers', (WidgetTester tester) async {

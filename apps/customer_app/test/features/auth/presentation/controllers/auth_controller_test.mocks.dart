@@ -5,9 +5,9 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i3;
 
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart'
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart'
     as _i4;
-import 'package:hyperlocal_customer_app/features/auth/domain/auth_repository.dart'
+import 'package:hyperlocal_app/features/auth/domain/auth_repository.dart'
     as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 

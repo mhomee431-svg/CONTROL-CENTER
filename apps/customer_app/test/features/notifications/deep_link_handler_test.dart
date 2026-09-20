@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/features/notifications/domain/models/app_notification.dart';
-import 'package:hyperlocal_customer_app/features/notifications/presentation/controllers/deep_link_handler.dart';
+import 'package:hyperlocal_app/features/notifications/domain/models/app_notification.dart';
+import 'package:hyperlocal_app/features/notifications/presentation/controllers/deep_link_handler.dart';
 
 AppNotification _withLink(NotificationDeepLink link) => AppNotification(
       id: 'x',

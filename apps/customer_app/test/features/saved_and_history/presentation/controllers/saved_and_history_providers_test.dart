@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/network/api_client.dart';
-import 'package:hyperlocal_customer_app/core/storage/local_storage_driver.dart';
-import 'package:hyperlocal_customer_app/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/data/api_saved_and_history_repository.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/data/local_saved_and_history_repository.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/domain/models/storage_models.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/domain/saved_and_history_repository.dart';
-import 'package:hyperlocal_customer_app/features/saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
+import 'package:hyperlocal_app/core/network/api_client.dart';
+import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:hyperlocal_app/features/saved_and_history/data/api_saved_and_history_repository.dart';
+import 'package:hyperlocal_app/features/saved_and_history/data/local_saved_and_history_repository.dart';
+import 'package:hyperlocal_app/features/saved_and_history/domain/models/storage_models.dart';
+import 'package:hyperlocal_app/features/saved_and_history/domain/saved_and_history_repository.dart';
+import 'package:hyperlocal_app/features/saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/security/secure_storage_driver.dart';
+import 'package:hyperlocal_app/core/security/secure_storage_driver.dart';
 
 void main() {
   group('InMemorySecureStorageDriver', () {

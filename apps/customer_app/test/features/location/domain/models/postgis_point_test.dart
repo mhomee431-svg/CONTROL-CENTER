@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/postgis_point.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/user_location.dart';
+import 'package:hyperlocal_app/features/location/domain/models/postgis_point.dart';
+import 'package:hyperlocal_app/features/location/domain/models/user_location.dart';
 
 void main() {
   group('PostGisPoint', () {

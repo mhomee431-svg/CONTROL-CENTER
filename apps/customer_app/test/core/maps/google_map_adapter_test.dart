@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/maps/google_map_adapter.dart';
-import 'package:hyperlocal_customer_app/core/maps/map_adapter.dart';
+import 'package:hyperlocal_app/core/maps/google_map_adapter.dart';
+import 'package:hyperlocal_app/core/maps/map_adapter.dart';
 
 void main() {
   group('GoogleMapScene.forRoute', () {

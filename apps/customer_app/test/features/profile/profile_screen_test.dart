@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hyperlocal_customer_app/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:hyperlocal_customer_app/features/profile/data/mock_profile_repository.dart';
-import 'package:hyperlocal_customer_app/features/profile/presentation/controllers/profile_controller.dart';
-import 'package:hyperlocal_customer_app/features/profile/presentation/screens/edit_profile_screen.dart';
-import 'package:hyperlocal_customer_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:hyperlocal_app/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:hyperlocal_app/features/profile/data/mock_profile_repository.dart';
+import 'package:hyperlocal_app/features/profile/presentation/controllers/profile_controller.dart';
+import 'package:hyperlocal_app/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:hyperlocal_app/features/profile/presentation/screens/profile_screen.dart';
 
 class _StubAuthController extends AuthController {
   final AuthStatus initialStatus;

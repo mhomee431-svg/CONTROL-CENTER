@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/cache/local_cache_service.dart';
-import 'package:hyperlocal_customer_app/core/storage/local_storage_driver.dart';
-import 'package:hyperlocal_customer_app/features/directions/data/device_location_service.dart';
-import 'package:hyperlocal_customer_app/features/directions/domain/models/location_models.dart';
+import 'package:hyperlocal_app/core/cache/local_cache_service.dart';
+import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/directions/data/device_location_service.dart';
+import 'package:hyperlocal_app/features/directions/domain/models/location_models.dart';
 
 /// Phase 28 — real-device E2E (network / GPS / permission matrix).
 ///

@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/maps/map_adapter.dart';
+import 'package:hyperlocal_app/core/maps/map_adapter.dart';
 
 /// Minimal single-destination adapter to verify the default `buildShopsMap`
 /// implementation delegates to `buildMap` using the first shop.

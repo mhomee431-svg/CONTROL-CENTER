@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/performance/paginated_state.dart';
+import 'package:hyperlocal_app/core/performance/paginated_state.dart';
 
 void main() {
   group('PaginatedState', () {

@@ -2,11 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:hyperlocal_customer_app/features/directions/domain/location_service.dart';
-import 'package:hyperlocal_customer_app/features/directions/domain/models/location_models.dart';
-import 'package:hyperlocal_customer_app/features/directions/presentation/controllers/directions_controller.dart';
-import 'package:hyperlocal_customer_app/features/shop_details/domain/shop_details_repository.dart';
-import 'package:hyperlocal_customer_app/features/shop_details/domain/models/shop_details_models.dart';
+import 'package:hyperlocal_app/features/directions/domain/location_service.dart';
+import 'package:hyperlocal_app/features/directions/domain/models/location_models.dart';
+import 'package:hyperlocal_app/features/directions/presentation/controllers/directions_controller.dart';
+import 'package:hyperlocal_app/features/shop_details/domain/shop_details_repository.dart';
+import 'package:hyperlocal_app/features/shop_details/domain/models/shop_details_models.dart';
 
 import 'directions_controller_test.mocks.dart';
 

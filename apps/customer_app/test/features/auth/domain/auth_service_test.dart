@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/error/failures.dart';
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart';
-import 'package:hyperlocal_customer_app/features/auth/domain/auth_repository.dart';
-import 'package:hyperlocal_customer_app/features/auth/domain/auth_service.dart';
+import 'package:hyperlocal_app/core/error/failures.dart';
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart';
+import 'package:hyperlocal_app/features/auth/domain/auth_repository.dart';
+import 'package:hyperlocal_app/features/auth/domain/auth_service.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 

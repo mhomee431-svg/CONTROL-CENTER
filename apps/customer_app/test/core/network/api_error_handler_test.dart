@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/network/api_error_handler.dart';
+import 'package:hyperlocal_app/core/network/api_error_handler.dart';
 
 void main() {
   group('ApiException from DioException', () {

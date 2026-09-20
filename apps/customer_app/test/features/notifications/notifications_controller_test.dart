@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/features/notifications/data/mock_notification_repository.dart';
-import 'package:hyperlocal_customer_app/features/notifications/domain/models/app_notification.dart';
-import 'package:hyperlocal_customer_app/features/notifications/presentation/controllers/notifications_controller.dart';
+import 'package:hyperlocal_app/features/notifications/data/mock_notification_repository.dart';
+import 'package:hyperlocal_app/features/notifications/domain/models/app_notification.dart';
+import 'package:hyperlocal_app/features/notifications/presentation/controllers/notifications_controller.dart';
 
 void main() {
   group('NotificationsController', () {

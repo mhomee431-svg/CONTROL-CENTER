@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart';
-import 'package:hyperlocal_customer_app/features/location/domain/models/user_location.dart';
-import 'package:hyperlocal_customer_app/features/location/presentation/controllers/location_controller.dart';
-import 'package:hyperlocal_customer_app/features/profile/presentation/controllers/addresses_controller.dart';
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart';
+import 'package:hyperlocal_app/features/location/domain/models/user_location.dart';
+import 'package:hyperlocal_app/features/location/presentation/controllers/location_controller.dart';
+import 'package:hyperlocal_app/features/profile/presentation/controllers/addresses_controller.dart';
 
 /// In-memory stand-in for [SecureStorageService] shared by the address
 /// book and the location controller (which it syncs with).

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/network/api_endpoints.dart';
+import 'package:hyperlocal_app/core/network/api_endpoints.dart';
 
 void main() {
   group('ApiEndpoints.apiVersionPrefix', () {

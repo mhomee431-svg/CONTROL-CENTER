@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:hyperlocal_customer_app/features/product_details/domain/product_details_repository.dart';
-import 'package:hyperlocal_customer_app/features/product_details/domain/models/product_details_models.dart';
-import 'package:hyperlocal_customer_app/features/product_details/presentation/controllers/product_details_controller.dart';
-import 'package:hyperlocal_customer_app/features/product_details/presentation/providers/product_details_providers.dart';
+import 'package:hyperlocal_app/features/product_details/domain/product_details_repository.dart';
+import 'package:hyperlocal_app/features/product_details/domain/models/product_details_models.dart';
+import 'package:hyperlocal_app/features/product_details/presentation/controllers/product_details_controller.dart';
+import 'package:hyperlocal_app/features/product_details/presentation/providers/product_details_providers.dart';
 
 import 'product_details_controller_test.mocks.dart';
 

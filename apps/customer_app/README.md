@@ -6,7 +6,8 @@ environment, builds, testing, backend integration and release readiness
 (validated   in Phase 12).
 
 - Flutter 3.47 / Dart 3.13 · Riverpod 3 · go_router 17 · Dio 5
-- Android applicationId: `com.hyperlocal.hyperlocal_customer_app`
+- Dart package / repo: `hyperlocal_app`
+- Android applicationId: `com.hyperlocal.app`
 - iOS bundle identifier: `com.hyperlocal.hyperlocalCustomerApp`
 
 ---
@@ -230,7 +231,7 @@ happens in Phase 21.
 Phase 27 — Production Flutter Build: COMPLETE ✅
 
 - [x] Signed Android release APK (`app-release.apk`, ~56 MB universal build; per-ABI splits available via `--split-per-abi`)
-- [x] Package ID: `com.hyperlocal.hyperlocal_customer_app`
+- [x] Package ID: `com.hyperlocal.app` (Android) / `com.hyperlocal.hyperlocalCustomerApp` (iOS)
 - [x] App name: `Hyperlocal Customer App` (all locales)
 - [x] App icon: mipmap-*/adaptive icon (ic_stat, ic_foreground)
 - [x] Splash screen: `launch_background` theme + `drawable/splash.xml`

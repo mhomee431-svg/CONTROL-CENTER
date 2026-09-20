@@ -5,13 +5,13 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 
-import 'package:hyperlocal_customer_app/core/storage/secure_storage_service.dart'
+import 'package:hyperlocal_app/core/storage/secure_storage_service.dart'
     as _i6;
-import 'package:hyperlocal_customer_app/features/location/domain/location_repository.dart'
+import 'package:hyperlocal_app/features/location/domain/location_repository.dart'
     as _i3;
-import 'package:hyperlocal_customer_app/features/location/domain/models/location_permission_status.dart'
+import 'package:hyperlocal_app/features/location/domain/models/location_permission_status.dart'
     as _i5;
-import 'package:hyperlocal_customer_app/features/location/domain/models/user_location.dart'
+import 'package:hyperlocal_app/features/location/domain/models/user_location.dart'
     as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 

@@ -1,6 +1,6 @@
 {
-    "name": "hyperlocal_customer_app",
-    "short_name": "hyperlocal_customer_app",
+    "name": "Hyperlocal Customer App",
+    "short_name": "Hyperlocal",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

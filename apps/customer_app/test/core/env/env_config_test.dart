@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hyperlocal_customer_app/core/env/env_config.dart';
+import 'package:hyperlocal_app/core/env/env_config.dart';
 
 void main() {
   group('EnvConfig defaults', () {
