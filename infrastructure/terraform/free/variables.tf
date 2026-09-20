@@ -31,7 +31,7 @@ variable "root_volume_gb" {
 variable "github_repo" {
   description = "Repository cloned onto the instance at boot."
   type        = string
-  default     = "https://github.com/Akasharyan47/hyperlocal_customer_app.git"
+  default     = "https://github.com/Akasharyan47/hyperlocal_app.git"
 }
 
 variable "github_branch" {

@@ -10,7 +10,7 @@
 # This script moves the import to the top of the RELATIVE block and is
 # idempotent. Line endings are preserved per file.
 $ErrorActionPreference = 'Stop'
-$base = 'c:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps\shopkeeper_app\'
+$base = 'c:\Users\akash\OneDrive\Documents\hyperlocal_app\apps\shopkeeper_app\'
 
 $files = @(
   'lib\features\account\presentation\screens\account_screen.dart',

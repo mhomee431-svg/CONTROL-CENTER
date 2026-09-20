@@ -1,7 +1,7 @@
 import json, collections
 
 rows = []
-with open(r"C:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\IN_extract\IN.txt", encoding="utf-8") as f:
+with open(r"C:\Users\akash\OneDrive\Documents\hyperlocal_app\IN_extract\IN.txt", encoding="utf-8") as f:
     for line in f:
         parts = line.rstrip("\n").split("\t")
         if len(parts) < 5:
@@ -23,7 +23,7 @@ for pin, counter in by_pin.items():
     (place, state), _ = counter.most_common(1)[0]
     data[pin] = {"c": place, "s": state}
 
-out = r"C:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps/shopkeeper_app\assets\pincodes.json"
+out = r"C:\Users\akash\OneDrive\Documents\hyperlocal_app\apps/shopkeeper_app\assets\pincodes.json"
 import os
 os.makedirs(os.path.dirname(out), exist_ok=True)
 with open(out, "w", encoding="utf-8") as f:

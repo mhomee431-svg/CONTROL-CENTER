@@ -36,7 +36,7 @@ $map = @{
 $drillDownOld = "'/insights/drill-down/\$" + "{metric.routeSegment}'"
 $drillDownNew = 'Routes.insightsDrillDown(metric.routeSegment)'
 
-$root = 'C:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps\shopkeeper_app'
+$root = 'C:\Users\akash\OneDrive\Documents\hyperlocal_app\apps\shopkeeper_app'
 foreach ($rel in $Files) {
   $full = Join-Path $root $rel
   if (-not (Test-Path $full)) { Write-Output "SKIP (not found): $rel"; continue }

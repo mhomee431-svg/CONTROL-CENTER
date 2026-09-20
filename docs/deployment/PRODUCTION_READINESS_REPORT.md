@@ -62,7 +62,7 @@ public AWS deployment.
 Monorepo with four deliverables plus infrastructure:
 
 ```
-hyperlocal_customer_app/
+hyperlocal_app/
 ├─ backend/          FastAPI monolith (Python 3.14), async SQLAlchemy
 │  ├─ app/api/routes/     21 routers (customer, shopkeeper, admin, analytics, POS, subscription)
 │  ├─ app/core/           config, security, storage, cache, celery, rate-limit, middleware,

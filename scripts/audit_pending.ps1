@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$root = 'c:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps\shopkeeper_app'
+$root = 'c:\Users\akash\OneDrive\Documents\hyperlocal_app\apps\shopkeeper_app'
 Set-Location $root
 $all = Get-ChildItem -Recurse -File -Filter *.dart lib,test
 

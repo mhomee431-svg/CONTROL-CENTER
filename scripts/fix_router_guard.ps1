@@ -4,7 +4,7 @@ params(
 )
 
 $ErrorActionPreference = 'Stop'
-Set-Location 'C:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps\shopkeeper_app'
+Set-Location 'C:\Users\akash\OneDrive\Documents\hyperlocal_app\apps\shopkeeper_app'
 
 $content = Get-Content -Encoding UTF8 $Path -Raw
 

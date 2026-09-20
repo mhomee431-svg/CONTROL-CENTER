@@ -69,7 +69,7 @@ mkdir -p "$APP_DIR"
 if [ ! -d "$APP_DIR/backend" ]; then
   TOKEN="$(aws ssm get-parameter --name /$PROJECT/$ENVIRONMENT/github_token --with-decryption --region "$REGION" --query Parameter.Value --output text)"
   if [ -n "$TOKEN" ] && [ "$TOKEN" != "PLACEHOLDER_REPLACE_WITH_GITHUB_PAT" ]; then
-    git clone --branch "$BRANCH" "https://x-access-token:$TOKEN@github.com/Akasharyan47/hyperlocal_customer_app.git" "$APP_DIR"
+    git clone --branch "$BRANCH" "https://x-access-token:$TOKEN@github.com/Akasharyan47/hyperlocal_app.git" "$APP_DIR"
   else
     git clone --branch "$BRANCH" "$REPO" "$APP_DIR" # public repo: no PAT needed
   fi

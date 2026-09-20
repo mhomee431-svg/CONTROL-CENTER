@@ -9,7 +9,7 @@ project_name = "hyperlocal"
 
 # GitHub Actions OIDC (used to scope the CI/CD role). No static keys.
 github_org  = "Akasharyan47"
-github_repo = "hyperlocal_customer_app"
+github_repo = "hyperlocal_app"
 # github_allowed_subjects = null          # defaults:
 #   ["repo:org/repo:ref:refs/heads/main", "repo:org/repo:environment:production"]
 

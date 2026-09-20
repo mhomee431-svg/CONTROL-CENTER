@@ -29,7 +29,7 @@ variable "tags" {
   description = "Common tags applied to every resource."
   type        = map(string)
   default = {
-    Project   = "hyperlocal_customer_app"
+    Project   = "hyperlocal_app"
     Owner     = "your-email@example.com"
     ManagedBy = "terraform"
   }

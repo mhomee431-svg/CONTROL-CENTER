@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 # Excluded on purpose:
 #   route_names.dart  -> holds the canonical literals (self-reference corruption)
 #   app_router.dart   -> already migrated; its `path:` values ARE the definitions
-$app     = 'c:\Users\akash\OneDrive\Documents\hyperlocal_customer_app\apps\shopkeeper_app'
+$app     = 'c:\Users\akash\OneDrive\Documents\hyperlocal_app\apps\shopkeeper_app'
 $libRoot = (Join-Path $app 'lib') + '\'
 $q       = [char]39   # single quote
 $d       = [char]36   # dollar

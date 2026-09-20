@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Iterable
 
 # -- Paths ----------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[1]          # hyperlocal_customer_app/
+PROJECT_ROOT = Path(__file__).resolve().parents[1]          # hyperlocal_app/
 BACKEND_DIR = PROJECT_ROOT / "backend"
 SEED_DIR = Path(__file__).resolve().parent
 

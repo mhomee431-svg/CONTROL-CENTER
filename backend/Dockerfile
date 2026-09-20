@@ -22,7 +22,7 @@ FROM python:3.14-slim AS runtime
 
 LABEL org.opencontainers.image.title="hyperlocal-backend" \
       org.opencontainers.image.description="Hyperlocal Customer API — production runtime" \
-      org.opencontainers.image.source="https://github.com/Akasharyan47/hyperlocal_customer_app"
+      org.opencontainers.image.source="https://github.com/Akasharyan47/hyperlocal_app"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
