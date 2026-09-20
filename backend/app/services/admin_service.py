@@ -1655,7 +1655,6 @@ def send_admin_notification(
     target_role: str | None = None,
 ) -> dict:
     """Create notifications for targeted users, a role, or everyone."""
-    from app.models.notification import Notification
     from app.models.role import Role
 
     if notification_type == "TARGETED":
@@ -1672,14 +1671,43 @@ def send_admin_notification(
             .all()
         )
 
-    now = _utcnow()
-    created = []
+    # Route through the typed notification pipeline: an admin broadcast must
+    # land as a registered SYSTEM notification (with the correct audience,
+    # dedupe key and delivery bookkeeping) instead of a bare type="admin" row
+    # that nothing downstream groups or routes on.
+    from app.services import notification_service
+
+    created: list[int] = []
     for u in users:
-        n = Notification(user_id=u.id, title=title, body=body, type="admin")
-        n.sent_at = now
-        db.add(n)
-        created.append(u.id)
+        result = notification_service.create_notification(
+            db,
+            user_id=u.id,
+            notification_type=notification_service.NotificationType.SYSTEM,
+            title=title,
+            body=body,
+            deep_link="hyperlocal://home",
+            payload={"broadcast": True, "target": notification_type},
+            audience=notification_service.Audience.ADMIN,
+            # A broadcast enqueues ONE batch job, not one task per row —
+            # the designed contract for fan-outs (see deliver_batch_task).
+            enqueue=False,
+        )
+        if result.created and result.notification is not None:
+            created.append(u.id)
     db.flush()
+
+    if created:
+        try:
+            from app.services.notification_tasks import deliver_batch_task
+
+            deliver_batch_task.delay(created)
+        except Exception:  # noqa: BLE001 — dispatch is a side-effect
+            logger.warning(
+                "Admin broadcast dispatch failed; the periodic retry sweep "
+                "will deliver the %s pending notification(s)",
+                len(created),
+                exc_info=True,
+            )
 
     record_audit_log(
         db, user_id=admin_user.id, action="CREATE", entity_type="NOTIFICATION",

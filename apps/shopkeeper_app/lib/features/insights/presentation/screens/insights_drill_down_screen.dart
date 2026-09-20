@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/insights_models.dart';
 import '../controllers/insights_controller.dart';
@@ -382,7 +383,7 @@ class _RankBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: rank <= 3 ? Colors.white : scheme.onSurfaceVariant,
+          color: rank <= 3 ? AppColors.white : scheme.onSurfaceVariant,
         ),
       ),
     );

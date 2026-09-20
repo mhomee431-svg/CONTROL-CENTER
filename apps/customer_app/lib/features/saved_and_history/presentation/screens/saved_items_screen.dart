@@ -170,7 +170,29 @@ class _SavedShopsTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-      error: (err, _) => Center(child: Text('Error loading saved shops: $err')),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textMuted),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                friendlyErrorMessage(err),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(savedShopsNotifierProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -227,7 +249,29 @@ class _RecentSearchesTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-      error: (err, _) => Center(child: Text('Error loading recent searches: $err')),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textMuted),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                friendlyErrorMessage(err),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(recentSearchesNotifierProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -295,7 +339,29 @@ class _RecentlyViewedTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-      error: (err, _) => Center(child: Text('Error loading recently viewed: $err')),
+      error: (err, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textMuted),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                friendlyErrorMessage(err),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(recentlyViewedNotifierProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

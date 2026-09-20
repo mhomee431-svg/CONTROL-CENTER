@@ -34,6 +34,7 @@ abstract final class Routes {
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
   static const resetPassword = '/reset-password';
+  static const phoneOtp = '/phone-otp';
   static String resetPasswordWithToken(String token) =>
       Uri(path: '/reset-password', queryParameters: {'token': token}).toString();
 
@@ -75,6 +76,7 @@ abstract final class Routes {
   static const inventoryList = '/inventory-list';
   static const lowStock = '/low-stock';
   static const outOfStock = '/out-of-stock';
+  static const discontinuedStock = '/discontinued-stock';
   static const inventoryFreshness = '/inventory-freshness';
   static const inventorySyncStatus = '/inventory-sync-status';
   static const updateStock = '/update-stock';
@@ -123,7 +125,10 @@ abstract final class Routes {
   // ── Settings module ───────────────────────────────────────────────────────
   static const accountSettings = '/account-settings';
   static const security = '/security';
+  static const sessions = '/sessions';
   static const appSettings = '/app-settings';
+  static const language = '/language';
+  static const dataStorage = '/data-storage';
   static const notificationSettings = '/notification-settings';
   static const privacy = '/privacy';
   static const terms = '/terms';

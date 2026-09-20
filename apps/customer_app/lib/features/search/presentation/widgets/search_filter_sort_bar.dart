@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/search_models.dart';
 import '../controllers/search_controller.dart';
+import '../../../../core/catalog/approved_categories.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Filter + sort action bar shown above search results.
@@ -236,7 +237,7 @@ class _CategoryChips extends StatelessWidget {
   final ValueChanged<String?> onSelected;
   const _CategoryChips({this.selected, required this.onSelected});
 
-  static const _categories = ['Groceries', 'Electronics', 'Pharmacy', 'Household'];
+  static const _categories = ApprovedCategories.names;
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +266,7 @@ class _BrandChips extends StatelessWidget {
   final ValueChanged<String?> onSelected;
   const _BrandChips({this.selected, required this.onSelected});
 
-  static const _brands = ['Aashirvaad', 'Samsung', 'Dettol', 'Parachute', 'Bajaj'];
+  static const _brands = ['Dettol', 'Nivea', 'Bosch', 'Colgate', 'Bajaj'];
 
   @override
   Widget build(BuildContext context) {

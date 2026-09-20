@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/product_models.dart';
 import '../controllers/products_controller.dart';
 import 'product_sheets.dart';
@@ -75,7 +76,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                 title: 'Inventory',
                 rows: [
                   ('Quantity', '${current.quantity}'),
-                  ('Stock status', _stockStatusLabel(current.stockStatus)),
+                  ('Stock status', current.stockState.label),
                   ('Last updated', _lastUpdatedLabel(current.lastUpdated)),
                   ('Updated by', current.updatedBy ?? 'Not recorded'),
                   ('Source', _sourceLabel(current.source)),
@@ -157,18 +158,6 @@ int? _discountPercent(ShopProductItem item) {
   return (((mrp - item.price) / mrp) * 100).round();
 }
 
-/// Human-readable stock tier. The server owns the vocabulary; an unknown
-/// status falls through as-is rather than showing a guessed label.
-String _stockStatusLabel(String status) => switch (status) {
-      'IN_STOCK' => 'In stock',
-      'LOW_STOCK' => 'Low stock',
-      'LIMITED_STOCK' => 'Limited stock',
-      'OUT_OF_STOCK' => 'Out of stock',
-      'PRE_ORDER' => 'Pre-order',
-      'BACK_ORDER' => 'Back order',
-      _ => status.isEmpty ? 'Unknown' : status,
-    };
-
 /// Inventory source reported by the backend (MANUAL / BARCODE_SCAN / ...).
 String _sourceLabel(String? source) => switch (source) {
       'MANUAL' => 'Manual entry',
@@ -219,6 +208,8 @@ class _DetailsHeader extends StatelessWidget {
             child: hasImage
                 ? Image.network(
                     item.imageUrl!,
+                    // Decorative — the product name sits right next to it.
+                    excludeFromSemantics: true,
                     fit: BoxFit.cover,
                     cacheWidth: 144,
                     loadingBuilder: (context, child, progress) =>
@@ -301,7 +292,7 @@ class _ImagePlaceholder extends StatelessWidget {
       children: [
         Icon(Icons.image_not_supported_outlined, size: 20, color: color),
         const SizedBox(height: 2),
-        Text(label, style: TextStyle(fontSize: 9, color: color)),
+        Text(label, style: AppTypography.caption.copyWith(color: color)),
       ],
     );
   }

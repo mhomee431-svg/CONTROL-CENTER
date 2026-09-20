@@ -1,12 +1,17 @@
 """FastAPI dependencies — authentication, authorization (RBAC), shop-scoped access, and DI."""
 
+import logging
 from typing import Optional
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.exceptions import (
+    ForbiddenError,
+    ServiceUnavailableError,
+    UnauthorizedError,
+)
 from app.core.observability.metrics import record_auth_result
 from app.core.security import (
     get_token_claims,
@@ -25,6 +30,8 @@ from app.services.firebase_verification import (
     FirebaseVerificationError,
     verify_firebase_id_token,
 )
+
+logger = logging.getLogger("app.core.dependencies")
 
 security = HTTPBearer(auto_error=False)
 
@@ -62,8 +69,18 @@ def get_current_user(
             record_auth_result("firebase_token", True, "success")
             return user
     except FirebaseVerificationError:
-        # Not a valid Firebase token, fall through to legacy JWT validation
+        # Not a valid Firebase token — fall through to legacy JWT validation.
         pass
+    except (RuntimeError, ValueError) as exc:
+        # Firebase Admin itself is unavailable (credentials not configured,
+        # SDK failed to initialise). That is an infrastructure condition, not
+        # an auth verdict: the legacy JWT path below is cryptographically
+        # validated on its own, so a provider outage must never turn every
+        # request into a 500.
+        logger.warning(
+            "Firebase verification unavailable (%s); falling back to legacy JWT",
+            exc,
+        )
 
     # Legacy JWT validation (backward compatibility)
     if not validate_token_type(token, TokenPurpose.ACCESS):
@@ -159,6 +176,14 @@ def get_current_user_firebase(
         raise UnauthorizedError(
             message=exc.message,
             error_code=exc.error_code,
+        ) from exc
+    except (RuntimeError, ValueError) as exc:
+        # Firebase Admin is not configured / failed to initialise — an
+        # infrastructure problem that must surface as 503, not a raw 500.
+        logger.warning("Firebase auth provider unavailable: %s", exc)
+        record_auth_result("firebase_token", False, "provider_unavailable")
+        raise ServiceUnavailableError(
+            "Authentication provider is temporarily unavailable"
         ) from exc
 
     user = get_user_by_firebase_uid(db, firebase_uid)

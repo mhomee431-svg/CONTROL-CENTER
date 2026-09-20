@@ -24,6 +24,7 @@ class ShopProductItem {
     this.lastUpdated,
     this.source,
     this.updatedBy,
+    this.lowStockThreshold,
   });
 
   final int id;
@@ -65,8 +66,28 @@ class ShopProductItem {
   /// Display name of whoever last updated the inventory (server-resolved).
   final String? updatedBy;
 
+  /// Per-listing low-stock threshold the server reported (`null` when the
+  /// backend did not send one; callers fall back to the platform default of 5
+  /// — the same default the backend applies on create).
+  final int? lowStockThreshold;
+
   bool get isOutOfStock => stockStatus == 'OUT_OF_STOCK';
   bool get isLowStock => stockStatus == 'LOW_STOCK';
+
+  /// True when the shopkeeper (or the platform) discontinued this listing.
+  ///
+  /// `DISCONTINUED` is a `ShopProduct.status`, NOT a `stock_status` — the
+  /// backend's stock enum has no such member, so reading only [stockStatus]
+  /// would render a discontinued listing as "In stock".
+  bool get isDiscontinued => status == 'DISCONTINUED';
+
+  /// The ONE stock state every screen renders.
+  ///
+  /// A discontinued listing deliberately outranks its remaining stock count:
+  /// the shopkeeper needs to see "Discontinued", not a stale "In stock" chip.
+  StockStateView get stockState => isDiscontinued
+      ? StockStateView.discontinued
+      : StockStateView.of(stockStatus);
 
   bool get isStale => freshnessStatus == 'STALE';
   bool get isFresh => freshnessStatus == 'RECENTLY_UPDATED';
@@ -113,6 +134,7 @@ class ShopProductItem {
             _parseDate(json['last_updated'] ?? json['last_inventory_update']),
         source: json['source'] as String?,
         updatedBy: json['updated_by'] as String?,
+        lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),
       );
 
   ShopProductItem copyWith({
@@ -167,10 +189,19 @@ InventorySummary inventorySummaryFromJson(Map<String, dynamic> json) => (
     );
 
 class InventoryOverview {
-  const InventoryOverview({required this.items, required this.summary});
+  const InventoryOverview({
+    required this.items,
+    required this.summary,
+    this.fromCache = false,
+  });
 
   final List<ShopProductItem> items;
   final InventorySummary summary;
+
+  /// True when this overview was rebuilt from the device's offline snapshot
+  /// instead of a live response. The backend NEVER sends this key; it exists
+  /// purely so the UI and tests can distinguish "fresh" from "last synced".
+  final bool fromCache;
 
   factory InventoryOverview.fromJson(Map<String, dynamic> json) {
     // Summary carries extra keys beyond the record fields.
@@ -184,20 +215,43 @@ class InventoryOverview {
       summary: inventorySummaryFromJson(raw),
     );
   }
+
+  /// Rebuilds an overview from the offline snapshot — always [fromCache].
+  factory InventoryOverview.fromSnapshot(Map<String, dynamic> json) {
+    final live = InventoryOverview.fromJson(json);
+    return InventoryOverview(
+      items: live.items,
+      summary: live.summary,
+      fromCache: true,
+    );
+  }
 }
 /// Server-authoritative inventory stock state (req 21/25).
 ///
-/// The backend owns the vocabulary and sends it verbatim
-/// (`IN_STOCK` / `LOW_STOCK` / `OUT_OF_STOCK` / `UNKNOWN` /
-/// `DISCONTINUOUS`). The client NEVER re-declares its own enum duplicate —
-/// it only maps the received value to one shared display label, so a brand
-/// new server state still renders (humanised) instead of throwing on an
-/// unknown enum constant. Every screen reads stock state through this one
-/// helper, so the mapping can never drift between features.
+/// The backend owns the vocabulary and sends it verbatim. Two server enums
+/// feed this one view, because a listing can be discontinued independently of
+/// how much stock is left on the shelf:
+///
+///   - `Inventory.stock_status` → IN_STOCK / LOW_STOCK / LIMITED_STOCK /
+///     OUT_OF_STOCK / UNKNOWN / PRE_ORDER / BACK_ORDER
+///   - `ShopProduct.status`     → ACTIVE / INACTIVE / DISCONTINUED / …
+///
+/// [ShopProductItem.stockState] is the single place that decides how the two
+/// combine, so a discontinued listing can never render as "In stock".
+///
+/// The client NEVER re-declares its own enum duplicate — it only maps the
+/// received value to one shared display label, so a brand new server state
+/// still renders (humanised) instead of throwing on an unknown enum constant.
+/// Every screen reads stock state through this one helper, so the mapping can
+/// never drift between features.
 class StockStateView {
   const StockStateView._(this.value, this.label);
 
-  /// Raw server value this view was derived from.
+  /// Canonical server value this view maps onto.
+  ///
+  /// Aliases collapse onto one canonical state so counts and filters stay
+  /// consistent (e.g. `LIMITED_STOCK` and `BACK_ORDER` both report
+  /// `LOW_STOCK`), which means this is NOT always the raw value received.
   final String value;
 
   /// Shopkeeper-facing label.
@@ -208,7 +262,7 @@ class StockStateView {
   static const outOfStock = StockStateView._('OUT_OF_STOCK', 'Out of stock');
   static const unknown = StockStateView._('UNKNOWN', 'Unknown');
   static const discontinued =
-      StockStateView._('DISCONTINUOUS', 'Discontinued');
+      StockStateView._('DISCONTINUED', 'Discontinued');
 
   /// Values the server is known to emit → canonical view. Aliases resolve to
   /// the same canonical state so counts and filters stay consistent.
@@ -220,8 +274,9 @@ class StockStateView {
     'BACK_ORDER': lowStock,
     'OUT_OF_STOCK': outOfStock,
     'UNKNOWN': unknown,
-    'DISCONTINUOUS': discontinued,
     'DISCONTINUED': discontinued,
+    // Legacy misspelling kept as an alias so an older payload still renders.
+    'DISCONTINUOUS': discontinued,
   };
 
   /// Resolves any server value (never throws).
@@ -243,7 +298,7 @@ class StockStateView {
   bool get isOutOfStock => value == 'OUT_OF_STOCK';
   bool get isLowStock => value == 'LOW_STOCK';
   bool get isInStock => value == 'IN_STOCK';
-  bool get isDiscontinued => value == 'DISCONTINUOUS';
+  bool get isDiscontinued => value == 'DISCONTINUED';
   bool get isUnknown => value == 'UNKNOWN';
 }
 /// Result of `POST …/products/{id}/stock-adjustments` — the server-computed
@@ -312,6 +367,8 @@ class ProductHistoryEntry {
     this.oldMrp,
     this.newMrp,
     this.changeSource,
+    this.actor,
+    this.actorId,
   });
 
   /// `movement` | `adjustment` | `price_change`.
@@ -338,6 +395,23 @@ class ProductHistoryEntry {
   final double? newMrp;
   final String? changeSource;
 
+  /// Who performed the change, as reported by the backend
+  /// (`movement.created_by` / `adjustment.approved_by` /
+  /// `price_history.changed_by`, resolved to the user's name).
+  ///
+  /// Null means the change was automated — an import, a POS sync or a
+  /// scheduled job. It is NEVER back-filled with the current user, because
+  /// that would misattribute an automated change to whoever is reading it.
+  final String? actor;
+
+  /// Raw user id behind [actor]; null for automated changes.
+  final int? actorId;
+
+  /// `By <name>` when a user is known, `Automated` when the server reported
+  /// no actor — never a guessed name.
+  String get actorLabel =>
+      (actor != null && actor!.trim().isNotEmpty) ? 'By ${actor!.trim()}' : 'Automated';
+
   /// Signed delta this entry applied to stock (null for price changes).
   int? get stockDelta => quantityChange ??
       quantityAdjustment ??
@@ -361,28 +435,175 @@ class ProductHistoryEntry {
         oldMrp: (json['old_mrp'] as num?)?.toDouble(),
         newMrp: (json['new_mrp'] as num?)?.toDouble(),
         changeSource: json['change_source'] as String?,
+        actor: json['actor'] as String?,
+        actorId: (json['actor_id'] as num?)?.toInt(),
       );
 }
 
+/// One stock adjustment in a product's adjustment-only audit trail.
+///
+/// Adjustments are the operator corrections (RESTOCK / DAMAGE / EXPIRY /
+/// STOCK_COUNT / CORRECTION …) that move stock by a delta. The server owns the
+/// `adjustment_type` vocabulary — this class never enumerates it, so a new
+/// server-side type still renders (humanised by the presentation layer).
+class StockAdjustmentEntry {
+  const StockAdjustmentEntry({
+    required this.id,
+    required this.quantityAdjustment,
+    this.adjustmentType,
+    this.reason,
+    this.approvedBy,
+    this.approvedAt,
+    this.createdAt,
+  });
+
+  final int id;
+
+  /// Signed delta applied to stock (negative for damage/expiry write-offs).
+  final int quantityAdjustment;
+
+  /// Server adjustment type string (RESTOCK, DAMAGE, …).
+  final String? adjustmentType;
+  final String? reason;
+  final int? approvedBy;
+  final DateTime? approvedAt;
+  final DateTime? createdAt;
+
+  /// When the adjustment was recorded (approval time, else creation time).
+  DateTime? get occurredAt => approvedAt ?? createdAt;
+
+  factory StockAdjustmentEntry.fromJson(Map<String, dynamic> json) =>
+      StockAdjustmentEntry(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        quantityAdjustment:
+            (json['quantity_adjustment'] as num?)?.toInt() ?? 0,
+        adjustmentType: json['adjustment_type'] as String?,
+        reason: json['reason'] as String?,
+        approvedBy: (json['approved_by'] as num?)?.toInt(),
+        approvedAt: ShopProductItem._parseDate(json['approved_at']),
+        createdAt: ShopProductItem._parseDate(json['created_at']),
+      );
+}
+
+/// Adjustment-only audit trail for one shop product (newest first).
+class StockAdjustmentHistory {
+  const StockAdjustmentHistory({
+    required this.shopProductId,
+    required this.adjustments,
+  });
+
+  final int shopProductId;
+  final List<StockAdjustmentEntry> adjustments;
+
+  bool get isEmpty => adjustments.isEmpty;
+
+  factory StockAdjustmentHistory.fromJson(Map<String, dynamic> json) =>
+      StockAdjustmentHistory(
+        shopProductId: (json['shop_product_id'] as num?)?.toInt() ?? 0,
+        adjustments: ((json['adjustments'] as List<dynamic>?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(StockAdjustmentEntry.fromJson)
+            .toList(growable: false),
+      );
+}
+
+/// Result of changing a listing's low-stock threshold.
+///
+/// The threshold is what converts a quantity into LOW_STOCK, so the server
+/// re-derives and returns the new stock state — the client must never compute
+/// it locally (that is how a client enum duplicate starts).
+class LowStockThresholdResult {
+  const LowStockThresholdResult({
+    required this.shopProductId,
+    required this.previousLowStockThreshold,
+    required this.lowStockThreshold,
+    required this.quantity,
+    required this.stockStatus,
+    this.lastInventoryUpdate,
+  });
+
+  final int shopProductId;
+  final int previousLowStockThreshold;
+  final int lowStockThreshold;
+  final int quantity;
+
+  /// Server stock state string after the change.
+  final String stockStatus;
+  final DateTime? lastInventoryUpdate;
+
+  StockStateView get stockState => StockStateView.of(stockStatus);
+
+  factory LowStockThresholdResult.fromJson(Map<String, dynamic> json) =>
+      LowStockThresholdResult(
+        shopProductId: (json['shop_product_id'] as num?)?.toInt() ?? 0,
+        previousLowStockThreshold:
+            (json['previous_low_stock_threshold'] as num?)?.toInt() ?? 0,
+        lowStockThreshold:
+            (json['low_stock_threshold'] as num?)?.toInt() ?? 0,
+        quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+        stockStatus: json['stock_status'] as String? ?? 'UNKNOWN',
+        lastInventoryUpdate:
+            ShopProductItem._parseDate(json['last_inventory_update']),
+      );
+}
 /// Combined audit trail for one shop product (newest first, server-sorted).
 class ProductHistoryResult {
   const ProductHistoryResult({
     required this.shopProductId,
     required this.entries,
+    this.total,
+    this.offset = 0,
+    this.limit = 0,
+    this.hasMore = false,
+    this.currentQuantity,
+    this.stockStatus,
   });
 
   final int shopProductId;
   final List<ProductHistoryEntry> entries;
 
+  /// Total entries the server holds for this product (across all pages).
+  final int? total;
+
+  /// Index of the first entry in this page.
+  final int offset;
+
+  /// Page size requested for this fetch.
+  final int limit;
+
+  /// True when the server holds further entries beyond this page.
+  final bool hasMore;
+
+  /// Net stock the server reports for this product right now — the number the
+  /// history summary tile shows. Null when the server did not send it (older
+  /// backend), in which case the tile is hidden rather than guessed.
+  final int? currentQuantity;
+
+  /// Server stock state string for the summary tile (never a client enum).
+  final String? stockStatus;
+
   /// Parsed entry count.
   int get count => entries.length;
 
-  factory ProductHistoryResult.fromJson(Map<String, dynamic> json) =>
-      ProductHistoryResult(
-        shopProductId: (json['shop_product_id'] as num?)?.toInt() ?? 0,
-        entries: ((json['entries'] as List<dynamic>?) ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(ProductHistoryEntry.fromJson)
-            .toList(growable: false),
-      );
+  factory ProductHistoryResult.fromJson(Map<String, dynamic> json) {
+    final entries = ((json['entries'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ProductHistoryEntry.fromJson)
+        .toList(growable: false);
+    final total = (json['total'] as num?)?.toInt();
+    final offset = (json['offset'] as num?)?.toInt() ?? 0;
+    return ProductHistoryResult(
+      shopProductId: (json['shop_product_id'] as num?)?.toInt() ?? 0,
+      entries: entries,
+      total: total,
+      offset: offset,
+      limit: (json['limit'] as num?)?.toInt() ?? entries.length,
+      // Trust the server's flag when present; otherwise derive it so an older
+      // payload still reports pagination honestly.
+      hasMore: json['has_more'] as bool? ??
+          (total != null && offset + entries.length < total),
+      currentQuantity: (json['current_quantity'] as num?)?.toInt(),
+      stockStatus: json['stock_status'] as String?,
+    );
+  }
 }

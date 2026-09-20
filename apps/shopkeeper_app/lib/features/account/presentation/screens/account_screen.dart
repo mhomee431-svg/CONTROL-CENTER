@@ -84,9 +84,9 @@ class AccountScreen extends ConsumerWidget {
                 ListTile(
                   key: const Key('account_settings_tile'),
                   leading: const Icon(Icons.settings_outlined),
-                  title: const Text('Account settings'),
+                  title: const Text('Settings'),
                   subtitle: const Text(
-                    'Profile, security, legal and support',
+                    'Account, security, app, legal and support',
                     style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right),

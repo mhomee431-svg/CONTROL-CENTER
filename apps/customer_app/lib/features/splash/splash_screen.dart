@@ -25,7 +25,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+             body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -35,7 +35,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) => const Text(
                 'Hyperlocal',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Always render the brand name so the app is identifiable even
+            // when the logo asset has loaded (or is absent in some builds).
+            Text(
+              'Hyperlocal',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ],

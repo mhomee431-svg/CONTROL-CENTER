@@ -5,12 +5,26 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/app_notification.dart';
 import '../controllers/deep_link_handler.dart';
 import '../controllers/notifications_controller.dart';
+import '../widgets/notification_filter_bar.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  /// Active category filter; [NotificationFilter.all] means "no filter".
+  ///
+  /// Kept in the screen (not the controller) because it is pure view state —
+  /// the loaded list stays the same, only the visible slice changes. Filtering
+  /// client-side keeps switching instant and never refetches.
+  NotificationFilter _filter = NotificationFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
     final notificationsAsync = ref.watch(notificationsControllerProvider);
     final unreadCount = ref.watch(unreadCountProvider);
     final tapHandler = ref.read(notificationTapHandlerProvider);
@@ -52,20 +66,37 @@ class NotificationsScreen extends ConsumerWidget {
           if (notifications.isEmpty) {
             return const EmptyNotificationsView();
           }
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(notificationsControllerProvider.notifier).refresh(),
-            child: ListView.separated(
-              itemCount: notifications.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final item = notifications[index];
-                return _NotificationTile(
-                  notification: item,
-                  onTap: () => tapHandler.handleTap(context, item),
-                );
-              },
-            ),
+          final visible = notifications
+              .where(_filter.matches)
+              .toList(growable: false);
+          return Column(
+            children: [
+              NotificationFilterBar(
+                selected: _filter,
+                onSelect: (filter) => setState(() => _filter = filter),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: visible.isEmpty
+                    ? _FilteredEmptyView(filter: _filter)
+                    : RefreshIndicator(
+                        onRefresh: () => ref
+                            .read(notificationsControllerProvider.notifier)
+                            .refresh(),
+                        child: ListView.separated(
+                          itemCount: visible.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final item = visible[index];
+                            return _NotificationTile(
+                              notification: item,
+                              onTap: () => tapHandler.handleTap(context, item),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
           );
         },
       ),
@@ -159,6 +190,43 @@ class EmptyNotificationsView extends StatelessWidget {
               'We will notify you about price drops, offers and shop updates.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the list has rows but none belong to the selected filter.
+///
+/// The copy names the active filter so the empty screen explains itself and
+/// never looks like a broken inbox.
+class _FilteredEmptyView extends StatelessWidget {
+  const _FilteredEmptyView({required this.filter});
+
+  final NotificationFilter filter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(filter.icon, size: 64, color: AppColors.textMuted),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'No ${filter.label} notifications',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'New ${filter.label.toLowerCase()} updates will appear here.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted),
             ),
           ],
         ),

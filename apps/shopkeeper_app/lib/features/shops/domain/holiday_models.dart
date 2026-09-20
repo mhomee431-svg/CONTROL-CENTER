@@ -10,13 +10,40 @@ class ShopHoliday {
     this.isRecurringYearly = false,
   });
 
-  factory ShopHoliday.fromJson(Map<String, dynamic> json) {
+  /// Parses one backend holiday row, or `null` when the row cannot be
+  /// represented.
+  ///
+  /// A row is dropped — never patched up — when it carries no usable `id` or no
+  /// parseable `holiday_date`, because:
+  ///   * `id` is what the delete call and the widget keys are built from, so a
+  ///     missing id is an unactionable row;
+  ///   * `holiday_date` drives `isUpcoming` / `isPast` / `dateLabel`, so a
+  ///     missing date cannot be displayed.
+  /// Inventing either value would fabricate data, so the row is skipped
+  /// instead. Skipping happens per-row (see the repository), so one malformed
+  /// entry can never blank the whole Holidays screen.
+  static ShopHoliday? tryParse(Map<String, dynamic> json) {
+    final id = (json['id'] as num?)?.toInt();
+    final date = _parseDate(json['holiday_date']);
+    if (id == null || date == null) return null;
     return ShopHoliday(
-      id: (json['id'] as num).toInt(),
-      date: DateTime.parse(json['holiday_date'] as String),
+      id: id,
+      date: date,
+      // Nullable and optional by contract (`reason` may be absent entirely).
       reason: json['reason'] as String?,
+      // Enum-like addition tolerance: an unknown/absent flag means "not
+      // yearly", never an exception.
       isRecurringYearly: (json['is_recurring_yearly'] as bool?) ?? false,
     );
+  }
+
+  /// Tolerant ISO-8601 date parse: `null` for absent, empty or malformed
+  /// input instead of throwing. Accepts both `YYYY-MM-DD` (the contract) and a
+  /// full timestamp, since `str(date)` on the server side may include time.
+  static DateTime? _parseDate(Object? raw) {
+    if (raw is DateTime) return raw;
+    if (raw is! String || raw.trim().isEmpty) return null;
+    return DateTime.tryParse(raw.trim());
   }
 
   final int id;

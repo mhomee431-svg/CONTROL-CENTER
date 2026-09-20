@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/domain/product_search.dart';
@@ -92,6 +93,15 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
                 // lists — a keystroke re-filters the catalog, only the rows
                 // near the viewport rebuild.
                 itemCount: visible.length,
+                // Provenance first: a stale cached PRICE that looks live is
+                // the most dangerous case of all, so it is labelled loudly.
+                header: [
+                  if (state.fromCache)
+                    const CachedDataNotice(
+                      message: 'Showing your last synced prices — these may '
+                          'have changed. Reconnect to refresh.',
+                    ),
+                ],
                 separatorBuilder: (_, _) =>
                     const Divider(height: 1, indent: 16),
                 itemBuilder: (context, i) => _PriceRow(

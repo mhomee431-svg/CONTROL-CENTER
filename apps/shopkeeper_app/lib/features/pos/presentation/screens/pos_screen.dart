@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
 import '../widgets/pos_shared.dart';
+import 'pos_hub_sheets.dart';
 
 /// POS (Point of Sale) integration — connect a vendor connector, trigger
 /// syncs, and watch the real job history. All state comes from
@@ -171,7 +172,8 @@ class _ConnectView extends StatelessWidget {
         const SizedBox(height: 24),
         if (providers.isEmpty)
           Text(
-            'No POS connectors are available right now.',
+            'POS integration is not configured for your account.',
+            key: const Key('pos-not-configured'),
             textAlign: TextAlign.center,
             style: TextStyle(color: scheme.outline),
           )
@@ -215,20 +217,24 @@ class _ConnectedView extends StatelessWidget {
   final VoidCallback onDisconnect;
 
   String get _statusLabel {
+    // Error outranks syncing: a failed connector must never read as "Syncing".
+    if (integration.hasError) return 'Error';
+    if (integration.isSyncing) return 'Syncing';
     if (integration.isConnected) return 'Connected';
-    if (integration.hasError) return 'Connection error';
-    return 'Disconnected';
+    return 'Not Connected';
   }
 
   IconData get _statusIcon {
-    if (integration.isConnected) return Icons.check_circle;
     if (integration.hasError) return Icons.error_outline;
+    if (integration.isSyncing) return Icons.sync;
+    if (integration.isConnected) return Icons.check_circle;
     return Icons.cloud_off;
   }
 
   Color _statusColor(ColorScheme scheme) {
-    if (integration.isConnected) return AppTheme.verifiedGreen;
     if (integration.hasError) return scheme.error;
+    if (integration.isSyncing) return AppTheme.pendingAmber;
+    if (integration.isConnected) return AppTheme.verifiedGreen;
     return scheme.outline;
   }
 
@@ -305,7 +311,7 @@ class _ConnectedView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _section(context, 'Manage', _manageTiles(integration)),
+          _section(context, 'Manage', _manageTiles(context, integration)),
           const SizedBox(height: 16),
           Text('Sync history', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
@@ -348,7 +354,11 @@ class _ConnectedView extends StatelessWidget {
 
   /// The module's own destinations. "Sync now" above is the one-tap full sync;
   /// the Sync tile opens the screen where the scope is chosen.
-  static List<PosHubTile> _manageTiles(PosIntegration integration) => [
+  static List<PosHubTile> _manageTiles(
+    BuildContext context,
+    PosIntegration integration,
+  ) =>
+      [
     PosHubTile(
       const Key('pos-tile-sync'),
       Icons.sync_outlined,
@@ -369,6 +379,24 @@ class _ConnectedView extends StatelessWidget {
       'Connection setup',
       'Vendor, connection type and credentials',
       Routes.posConnectionSetup,
+    ),
+    PosHubTile(
+      const Key('pos-tile-terminals'),
+      Icons.point_of_sale_outlined,
+      'Terminals',
+      integration.deviceCount == 0
+          ? 'Map a till or scanner to this connector'
+          : '${integration.deviceCount} mapped — view or add another',
+      '',
+      onTap: () => showPosTerminalsSheet(context),
+    ),
+    PosHubTile(
+      const Key('pos-tile-settings'),
+      Icons.tune_outlined,
+      'Sync settings',
+      'Background sync cadence, pause/resume and who wins a conflict',
+      '',
+      onTap: () => showPosSyncSettingsSheet(context),
     ),
     PosHubTile(
       const Key('pos-tile-error'),
@@ -406,7 +434,9 @@ class _ConnectedView extends StatelessWidget {
                     style: const TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push(tiles[i].route),
+                  // Sheet-backed tiles (Terminals, Sync settings) open a
+                  // dialog; every other tile is a routed destination.
+                  onTap: tiles[i].onTap ?? () => context.push(tiles[i].route),
                 ),
               ],
             ],

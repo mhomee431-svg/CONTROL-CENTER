@@ -3,14 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../controllers/auth_controller.dart';
 import '../../data/phone_utils.dart';
 
 /// Business-account registration: name + phone number + password.
 ///
-/// Firebase phone-OTP verification is currently disabled, so registration
-/// creates the account directly with the chosen password. The OTP flow is
-/// restored when Firebase is re-enabled (see TODO(Firebase) markers).
+/// Registration creates the account with the chosen password — it does NOT
+/// depend on SMS. Phone-OTP sign-in is a separate method (`/phone-otp`) for
+/// accounts that would rather not keep a password.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -122,6 +124,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 autofillHints: const [AutofillHints.telephoneNumber],
+                // Digits plus the separators a pasted number may carry; the
+                // validator below still normalises before the API call.
+                inputFormatters: NumericInput.phone(),
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Business phone number',
                   hintText: '9999999999',
@@ -140,6 +146,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 decoration: InputDecoration(
                   labelText: 'Password',
                   suffixIcon: IconButton(
+                    // Tooltips are the accessible name for icon-only actions;
+                    // they also describe the password field's current state.
+                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                     icon: Icon(_obscurePassword
                         ? Icons.visibility_off
                         : Icons.visibility),
@@ -160,6 +169,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirm password',
                   suffixIcon: IconButton(
+                    // Accessible name for the visibility toggle.
+                    tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
                     icon: Icon(_obscureConfirm
                         ? Icons.visibility_off
                         : Icons.visibility),
@@ -191,7 +202,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Expanded(child: Divider()),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or', style: TextStyle(color: Colors.grey)),
+                    child: Text('or', style: TextStyle(color: AppColors.textMuted)),
                   ),
                   Expanded(child: Divider()),
                 ],

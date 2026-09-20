@@ -2,194 +2,217 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
+import '../../domain/auth_methods.dart';
+import '../../domain/auth_models.dart';
 import '../controllers/auth_controller.dart';
+import '../widgets/auth_widgets.dart';
 
-/// Sign-in fallback - Google is the only auth method in this MVP so this
-/// screen offers Google Sign-In with a back arrow to the welcome screen.
-class LoginScreen extends ConsumerWidget {
+/// Sign-in screen: phone/email + password, with Google and Phone OTP offered
+/// as the alternative methods this build enables.
+///
+/// The router guard owns what happens after success — the controller reports
+/// `authenticated` and the redirect takes over — so this screen never
+/// navigates manually after a successful sign-in.
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
-  Future<void> _signInWithGoogle(BuildContext context, WidgetRef ref) async {
-    debugPrint('[LOGIN] Google Sign-In tapped');
-    try {
-      final ok =
-          await ref.read(authControllerProvider.notifier).signInWithGoogle();
-      debugPrint('[LOGIN] signInWithGoogle() -> $ok');
-      if (!context.mounted) return;
-      if (!ok) {
-        final msg = ref.read(authControllerProvider).errorMessage ??
-            'Google sign-in failed. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } catch (e) {
-      debugPrint('[LOGIN] unexpected: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Login failed. Please try again.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+  static const identifierFieldKey = Key('login-identifier-field');
+  static const passwordFieldKey = Key('login-password-field');
+  static const submitKey = Key('login-submit');
+  static const errorKey = Key('login-error');
+  static const forgotKey = Key('login-forgot');
+  static const googleKey = Key('login-google');
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _error = null);
+    final ok = await ref.read(authControllerProvider.notifier).loginWithPassword(
+          _identifierController.text.trim(),
+          _passwordController.text,
+        );
+    if (!mounted || ok) return; // authenticated → the router redirects
+    setState(() {
+      _error = ref.read(authControllerProvider).errorMessage ??
+          'Sign-in failed. Please check your details and try again.';
+    });
+  }
+
+  /// The backend resolves phone OR email, so the identifier is passed through
+  /// as typed — rewriting it client-side would only break one of the two.
+  String? _validateIdentifier(String? value) {
+    final text = (value ?? '').trim();
+    if (text.isEmpty) return 'Enter your phone number or email';
+    if (text.contains('@')) {
+      return text.contains('.') ? null : 'Enter a valid email address';
     }
+    final digits = text.replaceAll(RegExp(r'\D'), '');
+    return digits.length >= 10 ? null : 'Enter a valid phone number or email';
+  }
+
+  /// Google is an alternative METHOD for the same session, so its failure is
+  /// reported in the same inline banner as a password failure — never a
+  /// SnackBar that disappears with the reason.
+  Future<void> _signInWithGoogle() async {
+    setState(() => _error = null);
+    final ok =
+        await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    if (!mounted || ok) return;
+    setState(() {
+      _error = ref.read(authControllerProvider).errorMessage ??
+          'Google sign-in failed. Please try again.';
+    });
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLoading =
         ref.watch(authControllerProvider.select((s) => s.isLoading));
+    final googleEnabled =
+        ref.watch(isAuthMethodEnabledProvider(AuthMethod.googleFirebase));
+    final phoneEnabled =
+        ref.watch(isAuthMethodEnabledProvider(AuthMethod.phoneOtp)) &&
+            ref.read(authControllerProvider.notifier).isPhoneOtpSupported;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sign in'),
         leading: IconButton(
+          // Icon-only buttons carry no text, so `tooltip` supplies the
+          // accessible name a screen reader announces.
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.welcome),
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 32),
-              Text('Welcome back',
-                  style: theme.textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text('Sign in with Google to manage your shop.',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.outline)),
-              const Spacer(),
-              _GoogleSignInButton(
-                isLoading: isLoading,
-                onPressed: isLoading
-                    ? null
-                    : () => _signInWithGoogle(context, ref),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.pop(),
-                child: const Text('Back'),
-              ),
-              const SizedBox(height: 24),
-            ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Welcome back',
+                    style: theme.textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Text('Sign in with the phone number or email you registered.',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.outline)),
+                const SizedBox(height: 24),
+                TextFormField(
+                  key: LoginScreen.identifierFieldKey,
+                  controller: _identifierController,
+                  enabled: !isLoading,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.username],
+                  decoration: const InputDecoration(
+                    labelText: 'Phone number or email',
+                  ),
+                  validator: _validateIdentifier,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  key: LoginScreen.passwordFieldKey,
+                  controller: _passwordController,
+                  enabled: !isLoading,
+                  obscureText: _obscure,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    suffixIcon: IconButton(
+                      // Accessible name for the visibility toggle; it also
+                      // states what the tap will do.
+                      tooltip: _obscure ? 'Show password' : 'Hide password',
+                      icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Password is required' : null,
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  AuthErrorBanner(
+                    key: LoginScreen.errorKey,
+                    message: _error!,
+                  ),
+                ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  key: LoginScreen.submitKey,
+                  onPressed: isLoading ? null : _submit,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Sign in'),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    key: LoginScreen.forgotKey,
+                    onPressed: isLoading
+                        ? null
+                        : () => context.push(Routes.forgotPassword),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                if (googleEnabled || phoneEnabled) ...[
+                  const SizedBox(height: 4),
+                  const AuthMethodDivider(),
+                  const SizedBox(height: 16),
+                ],
+                if (googleEnabled)
+                  GoogleSignInButton(
+                    key: LoginScreen.googleKey,
+                    isLoading: isLoading,
+                    onPressed: isLoading ? null : _signInWithGoogle,
+                  ),
+                if (phoneEnabled) ...[
+                  const SizedBox(height: 12),
+                  PhoneSignInButton(
+                    onPressed: isLoading
+                        ? null
+                        : () => context.push(Routes.phoneOtp),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed:
+                      isLoading ? null : () => context.push(Routes.register),
+                  child: const Text('New here? Create an account'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton({required this.isLoading, this.onPressed});
-
-  final bool isLoading;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF1F1F1F),
-          side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 1,
-          shadowColor: Colors.black26,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const _GoogleLogo(size: 20),
-                  const SizedBox(width: 12),
-                  Text('Continue with Google',
-                      style:
-                          Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: const Color(0xFF1F1F1F),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              )),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _GoogleLogo extends StatelessWidget {
-  const _GoogleLogo({this.size = 20});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    const blue = Color(0xFF4285F4);
-    const red = Color(0xFFEA4335);
-    const yellow = Color(0xFFFBBC05);
-    const green = Color(0xFF34A853);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _GoogleGPainter(blue, red, yellow, green),
-      ),
-    );
-  }
-}
-
-class _GoogleGPainter extends CustomPainter {
-  _GoogleGPainter(this.blue, this.red, this.yellow, this.green);
-
-  final Color blue, red, yellow, green;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final stroke = w * 0.16;
-    final bluePaint = Paint()
-      ..color = blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawLine(Offset(w * 0.06, h * 0.5), Offset(w * 0.30, h * 0.5), bluePaint);
-    final redPaint = Paint()
-      ..color = red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    final rect = Rect.fromLTWH(w * 0.06, h * 0.06, w * 0.88, h * 0.88);
-    canvas.drawArc(rect, -0.9, 1.2, false, redPaint);
-    final yellowPaint = Paint()
-      ..color = yellow
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, 0.9, 1.2, false, yellowPaint);
-    final greenPaint = Paint()
-      ..color = green
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(w * 0.50, h * 0.50), Offset(w * 0.94, h * 0.50), greenPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _GoogleGPainter oldDelegate) => false;
 }

@@ -395,14 +395,32 @@ class _SetupErrorCard extends StatelessWidget {
   }
 }
 
-/// Success panel: the connector is live.
-class _SetupSuccessView extends StatelessWidget {
+/// Success panel: the connector is live, and the shopkeeper can start the
+/// first product sync from here instead of hunting for it on the POS screen.
+class _SetupSuccessView extends ConsumerWidget {
   const _SetupSuccessView({required this.integration});
 
   final PosIntegration integration;
 
+  /// Queues the initial sync and reports the outcome; the POS screen is where
+  /// the queued job and its progress are shown.
+  Future<void> _syncNow(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final sync = await ref.read(posControllerProvider.notifier).syncNow();
+    if (!context.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          sync == null
+              ? 'Sync could not be started — open the POS screen to retry.'
+              : 'Initial sync started. Open the POS screen for progress.',
+        ),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final status = integration.status;
     return Center(
@@ -439,6 +457,16 @@ class _SetupSuccessView extends StatelessWidget {
               icon: posStatusIcon(status),
             ),
             const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const Key('pos-setup-sync-now'),
+                onPressed: () => _syncNow(context, ref),
+                icon: const Icon(Icons.sync_outlined),
+                label: const Text('Sync now'),
+              ),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(

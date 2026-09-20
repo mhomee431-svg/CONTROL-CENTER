@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../data/location_accuracy_config.dart';
 import '../../domain/location_capture_state.dart';
 import '../controllers/location_capture_controller.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// "Add Your Shop" location capture — mobile-first, ride-app style.
 ///
@@ -159,7 +160,8 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
           ),
         LocationCaptureStatus.error => _BlockedView(
             icon: Icons.error_outline,
-            message: state.errorMessage ?? 'Something went wrong.',
+            message: 'Unable to get location.\n'
+                '${state.errorMessage ?? 'Check your GPS signal and connection, then try again.'}',
             onRetry: () =>
                 ref.read(locationCaptureControllerProvider.notifier).acquire(),
             retryLabel: 'Try Again',
@@ -214,14 +216,14 @@ class _AcquiringView extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 improving
-                    ? 'Improving location accuracy…'
-                    : 'Fetching your location…',
+                    ? 'Getting location... Improving accuracy'
+                    : 'Getting location...',
                 style: theme.textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Getting your precise location…',
+                'GPS accuracy is an estimate, not a guarantee.',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),
@@ -344,12 +346,12 @@ class _AccuracyChip extends StatelessWidget {
   final AccuracyTier tier;
 
   Color get _color => switch (tier) {
-        AccuracyTier.excellent => Colors.green,
-        AccuracyTier.good => Colors.lightGreen,
-        AccuracyTier.acceptable => Colors.orange,
-        AccuracyTier.weak => Colors.deepOrange,
-        AccuracyTier.poor => Colors.red,
-        AccuracyTier.unknown => Colors.blueGrey,
+        AccuracyTier.excellent => AppColors.qualityBest,
+        AccuracyTier.good => AppColors.qualityGood,
+        AccuracyTier.acceptable => AppColors.qualityFair,
+        AccuracyTier.weak => AppColors.qualityPoor,
+        AccuracyTier.poor => AppColors.qualityBad,
+        AccuracyTier.unknown => AppColors.qualityUnknown,
       };
 
   @override
@@ -425,6 +427,27 @@ class _MapConfirmView extends StatelessWidget {
     return SafeArea(
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: Row(
+              children: [
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    'Location found',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Location accuracy — '
+                  '${LocationAccuracyConfig.accuracyLabel(state.accuracyMeters)}',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: Stack(
               children: [
@@ -518,14 +541,14 @@ class _BottomPanel extends ConsumerWidget {
           children: [
             if (poor) ...[
               Card(
-                color: Colors.red.withValues(alpha: 0.08),
+                color: AppColors.error.withValues(alpha: 0.08),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
                     'Your location is not accurate enough. '
                     'Move closer to your shop for better accuracy.',
                     style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: Colors.red.shade700),
+                        ?.copyWith(color: AppColors.error),
                   ),
                 ),
               ),

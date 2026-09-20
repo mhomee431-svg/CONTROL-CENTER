@@ -149,6 +149,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   onTap: () => context.push(
                     '/product/${result.productId}',
                   ),
+                  onShopTap: () => context.push('/shop/${result.shopId}'),
                   onShare: () => shareProduct(
                     context,
                     productName: result.productName,

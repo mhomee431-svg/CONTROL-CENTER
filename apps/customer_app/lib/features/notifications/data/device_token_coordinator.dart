@@ -9,18 +9,16 @@ import '../presentation/controllers/notifications_controller.dart'
     show notificationsRepositoryProvider;
 import 'fcm_notification_service.dart';
 
-/// Coordinates device push-token registration with the future backend
-/// notification service.
+/// Coordinates device push-token registration with the backend notification
+/// service.
 ///
 /// Responsibilities (all best-effort, never blocking the UI):
 ///  - obtain the platform token from [PushNotificationService]
 ///  - register it with the backend once per token change
 ///  - unregister it on logout
 ///
-/// This is *preparation* only: until FCM is wired into the build the
-/// service returns a mock token, and every failure is swallowed so the
-/// customer experience never depends on delivery infrastructure.
-/// No notification delivery logic lives here — only registration.
+/// When Firebase is not initialized (mock/dev), [MockFcmNotificationService]
+/// supplies a local token so registration stays exercisable in tests.
 class DeviceTokenCoordinator {
   static const lastRegisteredTokenKey = 'registered_device_token';
 

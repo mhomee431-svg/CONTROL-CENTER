@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -58,11 +59,11 @@ IconData inventorySourceIcon(String? source) {
 Color inventorySourceColor(String? source) {
   final key = (source ?? '').trim().toUpperCase();
   return switch (key) {
-    'BARCODE_SCAN' => const Color(0xFF1A73E8),
-    'POS_INTEGRATION' => const Color(0xFF7B1FA2),
-    'EXCEL_UPLOAD' => const Color(0xFF0B5D3B),
-    'SYSTEM' => AppTheme.suspendedGrey,
-    _ => const Color(0xFF5F6368),
+    'BARCODE_SCAN' => AppColors.primary,
+    'POS_INTEGRATION' => AppColors.orange,
+    'EXCEL_UPLOAD' => AppColors.deepGreen,
+    'SYSTEM' => AppColors.suspendedGrey,
+    _ => AppColors.suspendedGrey,
   };
 }
 
@@ -288,7 +289,7 @@ class ProductPickerListView extends StatelessWidget {
           title: Text(item.name),
           subtitle: Text(
             subtitle?.call(item) ??
-                '${StockStateView.of(item.stockStatus).label} · ${item.quantity} units',
+                '${item.stockState.label} · ${item.quantity} units',
             style: const TextStyle(fontSize: 12),
           ),
           trailing: const Icon(Icons.chevron_right),
@@ -302,9 +303,79 @@ class ProductPickerListView extends StatelessWidget {
 // ── Stock chip ──────────────────────────────────────────────────────────────
 
 /// Color for a [StockStateView] label chip.
+///
+/// A discontinued listing gets the muted grey: it is deliberately out of play,
+/// so it must not borrow the "in stock" green just because units remain.
 Color stockStateColor(StockStateView state) {
+  if (state.isDiscontinued) return AppTheme.suspendedGrey;
   if (state.isOutOfStock) return AppTheme.rejectedRed;
   if (state.isLowStock) return AppTheme.pendingAmber;
   if (state.isInStock) return AppTheme.verifiedGreen;
   return AppTheme.suspendedGrey;
+}
+// ── History summary ─────────────────────────────────────────────────────────
+
+/// Net-stock summary tile for the inventory history views.
+///
+/// Shows the CURRENT stock the server reports, its server-declared stock
+/// state, and how many audit entries the trail holds — so the shopkeeper can
+/// check the newest movement against the live quantity without leaving the
+/// history view.
+///
+/// Renders nothing when the backend did not send `current_quantity`: a hidden
+/// tile is honest, an invented stock number is not.
+class StockHistorySummary extends StatelessWidget {
+  const StockHistorySummary({
+    super.key,
+    required this.history,
+    this.title = 'Current stock',
+  });
+
+  final ProductHistoryResult history;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final quantity = history.currentQuantity;
+    if (quantity == null) return const SizedBox.shrink();
+
+    final outline = Theme.of(context).colorScheme.outline;
+    // Server vocabulary only — never a client-side enum duplicate.
+    final state = StockStateView.of(history.stockStatus);
+    final color = stockStateColor(state);
+    final total = history.total ?? history.entries.length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 18, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 12, color: outline)),
+                Text(
+                  '$quantity units · ${state.label}',
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700, color: color),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '$total entr${total == 1 ? 'y' : 'ies'}',
+            style: TextStyle(fontSize: 11, color: outline),
+          ),
+        ],
+      ),
+    );
+  }
 }

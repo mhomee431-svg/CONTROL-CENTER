@@ -5,6 +5,7 @@ run their entire business from the app.
 """
 
 from datetime import date as ddate, time as dtime
+import json
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -304,6 +305,12 @@ async def get_shop_notifications(
                 "type": n.type,
                 "is_read": n.is_read,
                 "created_at": n.created_at.isoformat(),
+                # The app routes a tap from these: without the deep link the
+                # client can only fall back to the notification type, and
+                # without the payload it can never validate an id before
+                # navigating on it.
+                "deep_link": n.deep_link,
+                "payload": json.loads(n.payload) if n.payload else None,
             }
             for n in notifications
         ],
@@ -325,3 +332,16 @@ async def mark_notification_read(
     notif.is_read = True
     db.commit()
     return success_response(message="Marked as read")
+
+
+@router.put("/notifications/read-all")
+async def mark_all_notifications_read(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark every notification owned by the current user as read."""
+    db.query(Notification).filter(Notification.user_id == current_user.id).update(
+        {"is_read": True}, synchronize_session=False
+    )
+    db.commit()
+    return success_response(message="All notifications marked as read")

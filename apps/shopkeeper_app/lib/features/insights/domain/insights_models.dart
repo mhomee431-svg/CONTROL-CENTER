@@ -44,6 +44,20 @@ const int kInsightsDefaultRange = 30;
 /// backend default of 10; the backend caps `limit` at 50).
 const int kInsightsMaxTopProducts = 50;
 
+/// Focused views of the existing analytics payload (not sales transactions).
+enum FocusedReport {
+  sales,
+  products,
+  inventory;
+
+  String get title => switch (this) {
+    sales => 'Sales report',
+    products => 'Product report',
+    inventory => 'Inventory report',
+  };
+}
+
+
 /// KPI cards on the Reports screen that support a drill-down detail view.
 ///
 /// Each metric owns its own granular endpoints and a wider parameter space

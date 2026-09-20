@@ -69,8 +69,14 @@ class ShopDetailsScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.store_outlined, size: 64, color: AppColors.textMuted),
               const SizedBox(height: AppSpacing.md),
-              Text('Unable to load shop\n$err', textAlign: TextAlign.center),
-              TextButton(onPressed: () => ref.refresh(shopDetailsProvider(shopId)), child: const Text('Retry'))
+              const Text(
+                'Unable to load shop\nPlease try again.',
+                textAlign: TextAlign.center,
+              ),
+              TextButton(
+                onPressed: () => ref.refresh(shopDetailsProvider(shopId)),
+                child: const Text('Retry'),
+              )
             ],
           ),
         ),

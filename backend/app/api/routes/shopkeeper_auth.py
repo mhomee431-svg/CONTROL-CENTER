@@ -69,10 +69,12 @@ from app.models.shop import ShopOwner
 from app.services import shopkeeper_service
 from app.services.shopkeeper_service import MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY
 from app.services.auth_service import (
+    get_active_sessions,
     is_account_allowed,
     issue_tokens,
     logout_session,
     refresh_session,
+    revoke_session_by_id,
 )
 from app.services.firebase_auth_service import authenticate_with_firebase
 from app.services.firebase_verification import (
@@ -911,6 +913,45 @@ async def logout(
 
 
 
+# ── Session / device management ─────────────────────────────────────────
+# These reuse the SAME service functions as the shared `/auth` module, but are
+# exposed under the shopkeeper namespace so the shopkeeper app keeps its
+# documented rule of talking only to `/shopkeeper/*` routes.
+@router.get("/sessions")
+async def list_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Active sign-in sessions (devices) for the current shopkeeper.
+
+    Most recent activity first; each row carries the device/platform metadata
+    that Settings → Security renders. Read-only — revoking is a separate call,
+    so a failed list can never look like a revoked device.
+    """
+    sessions = get_active_sessions(db, current_user.id)
+    return success_response(data={"sessions": sessions})
+
+
+@router.delete("/sessions/{session_id}")
+async def revoke_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revoke one session (device) belonging to the current shopkeeper.
+
+    Scoped to ``current_user.id`` inside the service, so a caller can never
+    revoke somebody else's session by guessing an id.
+    """
+    revoked = revoke_session_by_id(db, current_user.id, session_id)
+    if not revoked:
+        return error_response(
+            message="Session not found",
+            error_code="SESSION_NOT_FOUND",
+            status_code=404,
+        )
+    db.commit()
+    return success_response(data={"revoked": True}, message="Session revoked")
 @router.get("/profile")
 async def get_shopkeeper_profile(
     current_user: User = Depends(require_role("shopkeeper")),

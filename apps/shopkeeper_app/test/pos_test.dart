@@ -259,5 +259,64 @@ void main() {
 
       expect(find.text('No shop selected'), findsOneWidget);
     });
+
+    testWidgets('empty provider catalogue reads as not configured',
+        (tester) async {
+      // No providers registered for this deployment → the spec's exact copy,
+      // never a generic "nothing available" or a fake connect form.
+      final repo = FakePosRepo(providers: []);
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('POS integration is not configured for your account.'),
+        findsOneWidget,
+      );
+      expect(find.text('Connect POS'), findsNothing);
+    });
+
+    testWidgets('a queued job renders the Syncing status, not Connected',
+        (tester) async {
+      final repo = FakePosRepo(
+        integrations: [
+          posIntegration(
+            latestJob: posJob(status: 'QUEUED', itemsSucceeded: 0),
+          ),
+        ],
+        jobs: [posJob(status: 'QUEUED', itemsSucceeded: 0)],
+      );
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Syncing'), findsOneWidget);
+      expect(find.text('Connected'), findsNothing);
+    });
+
+    testWidgets('an errored connector never reads as Syncing', (tester) async {
+      final repo = FakePosRepo(
+        integrations: [
+          posIntegration(
+            status: 'ERROR',
+            latestJob: posJob(status: 'RUNNING', itemsSucceeded: 0),
+          ),
+        ],
+      );
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Error'), findsOneWidget);
+      expect(find.text('Syncing'), findsNothing);
+    });
+
+    testWidgets('a disconnected connector reads Not Connected', (tester) async {
+      final repo = FakePosRepo(
+        integrations: [posIntegration(status: 'DISCONNECTED')],
+      );
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not Connected'), findsOneWidget);
+      expect(find.text('Connected'), findsNothing);
+    });
   });
 }

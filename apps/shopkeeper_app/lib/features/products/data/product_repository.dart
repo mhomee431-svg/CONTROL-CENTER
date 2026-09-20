@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_providers.dart';
+import '../../../core/state/system_state.dart';
 import '../domain/product_models.dart';
+import 'products_snapshot_store.dart';
 
 /// Product & inventory management contract for one authorized shop.
 abstract class ProductRepository {
@@ -22,35 +24,63 @@ abstract class ProductRepository {
   /// first (`GET /shops/{shopId}/products/{productId}/history`).
   Future<ProductHistoryResult> fetchProductHistory(
       int shopId, int productId, String token);
+
+  /// Change the quantity at which a listing is flagged LOW_STOCK
+  /// (`PATCH /shops/{shopId}/products/{productId}/low-stock-threshold`).
+  ///
+  /// Returns the SERVER-derived stock state: the threshold decides whether the
+  /// current quantity counts as LOW_STOCK, so the new status is computed
+  /// server-side and must never be guessed here.
+  Future<LowStockThresholdResult> updateLowStockThreshold(
+      int shopId, int productId, int threshold, String token);
+
+  /// Adjustment-only audit trail for one product
+  /// (`GET /shops/{shopId}/products/{productId}/stock-adjustments`).
+  Future<StockAdjustmentHistory> fetchStockAdjustments(
+      int shopId, int productId, String token);
 }
 
 class ApiProductRepository implements ProductRepository {
-  ApiProductRepository(this._api);
+  ApiProductRepository(this._api, {ProductsSnapshotStore? snapshotStore})
+      : _snapshots = snapshotStore;
 
   final ApiClient _api;
+
+  /// Offline read-only fallback (null in tests that don't exercise it).
+  final ProductsSnapshotStore? _snapshots;
 
   @override
   Future<InventoryOverview> fetchInventoryOverview(
       int shopId, String token) async {
     // `view=list` returns every item with last_updated + freshness_status +
-    // source, which is what the Products screen renders; the overview shape
-    // is preserved via _inventoryOverviewFromData so callers stay unchanged.
-    final data = await _api.get(
-      ApiEndpoints.inventory('$shopId'),
-      query: const {'view': 'list'},
-      token: token,
-    ) as Map<String, dynamic>;
-    return _inventoryOverviewFromData({
-      'summary': {
-        'total': 0,
-        'active': 0,
-        'in_stock': 0,
-        'low_stock': 0,
-        'out_of_stock': 0,
-        'total_units': 0,
-      },
-      'items': data['items'] ?? const [],
-    });
+    // source — plus the server's OWN summary counts. Reading those counts
+    // instead of re-deriving them is what keeps a single source of truth for
+    // the stock vocabulary; the app never keeps a second copy of it.
+    try {
+      final data = await _api.get(
+        ApiEndpoints.inventory('$shopId'),
+        query: const {'view': 'list'},
+        token: token,
+      ) as Map<String, dynamic>;
+      // Best-effort offline snapshot: a REAL response is the only thing ever
+      // stored, and storing must never break the live path.
+      await _snapshots?.save('$shopId', data);
+      if (data['summary'] != null) return InventoryOverview.fromJson(data);
+      // Backend without a server summary: derive counts locally so the
+      // dashboard still renders.
+      return _inventoryOverviewFromData({
+        'items': data['items'] ?? const [],
+      });
+    } on ApiException catch (e) {
+      // Read-only offline access: when the last synced list is on the device,
+      // serve it clearly marked instead of an empty error screen. Any other
+      // failure (server error, permission…) is NOT cacheable — rethrow.
+      if (e.systemState == SystemState.offline) {
+        final snapshot = await _snapshots?.read('$shopId');
+        if (snapshot != null) return InventoryOverview.fromSnapshot(snapshot);
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -95,10 +125,35 @@ class ApiProductRepository implements ProductRepository {
     ) as Map<String, dynamic>;
     return ProductHistoryResult.fromJson(data);
   }
+
+  @override
+  Future<LowStockThresholdResult> updateLowStockThreshold(
+      int shopId, int productId, int threshold, String token) async {
+    final data = await _api.patch(
+      ApiEndpoints.lowStockThreshold('$shopId', '$productId'),
+      body: {'low_stock_threshold': threshold},
+      token: token,
+    ) as Map<String, dynamic>;
+    return LowStockThresholdResult.fromJson(data);
+  }
+
+  @override
+  Future<StockAdjustmentHistory> fetchStockAdjustments(
+      int shopId, int productId, String token) async {
+    final data = await _api.get(
+      ApiEndpoints.stockAdjustmentHistory('$shopId', '$productId'),
+      token: token,
+    ) as Map<String, dynamic>;
+    return StockAdjustmentHistory.fromJson(data);
+  }
 }
 
-/// Builds an [InventoryOverview] from a `view=list` response, deriving the
-/// summary counts client-side so the whole app shares one data contract.
+/// Builds an [InventoryOverview] from a `view=list` response body that carries
+/// no server summary.
+///
+/// This is the fallback path only. Classification goes through
+/// [StockStateView] — the app's ONE stock-state mapping — so even a derived
+/// count cannot drift from the vocabulary the rest of the app renders.
 InventoryOverview _inventoryOverviewFromData(Map<String, dynamic> json) {
   final items = ((json['items'] as List<dynamic>?) ?? const [])
       .whereType<Map<String, dynamic>>()
@@ -107,14 +162,12 @@ InventoryOverview _inventoryOverviewFromData(Map<String, dynamic> json) {
   var inStock = 0, lowStock = 0, outOfStock = 0, totalUnits = 0;
   for (final item in items) {
     totalUnits += item.quantity;
-    if (item.stockStatus == 'OUT_OF_STOCK') {
+    final state = item.stockState;
+    if (state.isOutOfStock) {
       outOfStock += 1;
-    } else if (item.stockStatus == 'LOW_STOCK' ||
-        item.stockStatus == 'LIMITED_STOCK') {
+    } else if (state.isLowStock) {
       lowStock += 1;
-    } else if (item.stockStatus == 'IN_STOCK' ||
-        item.stockStatus == 'PRE_ORDER' ||
-        item.stockStatus == 'BACK_ORDER') {
+    } else if (state.isInStock) {
       inStock += 1;
     }
   }
@@ -130,5 +183,8 @@ InventoryOverview _inventoryOverviewFromData(Map<String, dynamic> json) {
 }
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
-  return ApiProductRepository(ref.watch(apiClientProvider));
+  return ApiProductRepository(
+    ref.watch(apiClientProvider),
+    snapshotStore: ref.watch(productsSnapshotStoreProvider),
+  );
 });

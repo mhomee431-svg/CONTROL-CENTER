@@ -101,6 +101,7 @@ class NotificationsController extends Notifier<NotificationsState> {
             isRead: true,
             createdAt: n.createdAt,
             deepLink: n.deepLink,
+            payload: n.payload,
           )
         else
           n,
@@ -142,21 +143,18 @@ class NotificationsController extends Notifier<NotificationsState> {
             isRead: true,
             createdAt: n.createdAt,
             deepLink: n.deepLink,
+            payload: n.payload,
           ),
       ],
       unreadCount: 0,
     );
 
-    var failed = false;
-    for (final n in unread) {
-      try {
-        await _repo.markAsRead(n.id, token);
-      } on ApiException {
-        failed = true;
-        break;
-      }
+    try {
+      // Single round trip — the backend marks every owned row read at once.
+      await _repo.markAllAsRead(token);
+    } on ApiException {
+      await load(); // restore the real state from the backend
     }
-    if (failed) await load(); // restore the real state from the backend
   }
 
   /// Clears ALL cached notifications (called on logout) so nothing from the

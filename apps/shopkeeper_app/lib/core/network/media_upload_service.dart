@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api_client.dart';
@@ -200,9 +201,17 @@ class MediaObject {
 
 /// Injectable service wired to the shared network layer. The S3 `dio` here is
 /// a bare instance (no auth headers) exactly as [MediaUploadService] requires.
+/// Timeouts match the shared client so a stalled object-store upload can
+/// never hang the UI longer than any other request.
 final mediaUploadServiceProvider = Provider<MediaUploadService>((ref) {
+  final s3Dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+    responseType: ResponseType.json,
+  ));
+  if (kDebugMode) s3Dio.interceptors.add(DebugApiLogInterceptor());
   return MediaUploadService(
     apiClient: ref.watch(apiClientProvider),
-    dio: Dio(),
+    dio: s3Dio,
   );
 });

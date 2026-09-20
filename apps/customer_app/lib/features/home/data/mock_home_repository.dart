@@ -1,34 +1,50 @@
 import '../domain/home_repository.dart';
 import '../domain/models/home_data.dart';
+import '../../../core/catalog/approved_categories.dart';
 
 class MockHomeRepository implements HomeRepository {
-  @override
   @override
   Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
     // Simulate network latency
     await Future.delayed(const Duration(seconds: 2));
 
-    return const HomeData(
+    return HomeData(
       categories: [
-        Category(id: '1', name: 'Electronics', iconUrl: 'https://via.placeholder.com/150'),
-        Category(id: '2', name: 'Groceries', iconUrl: 'https://via.placeholder.com/150'),
-        Category(id: '3', name: 'Medicines', iconUrl: 'https://via.placeholder.com/150'),
-        Category(id: '4', name: 'Hardware', iconUrl: 'https://via.placeholder.com/150'),
+        Category(
+          id: '1',
+          name: ApprovedCategories.names[0],
+          iconUrl: 'https://via.placeholder.com/150',
+        ),
+        Category(
+          id: '2',
+          name: ApprovedCategories.names[1],
+          iconUrl: 'https://via.placeholder.com/150',
+        ),
+        Category(
+          id: '3',
+          name: ApprovedCategories.names[3],
+          iconUrl: 'https://via.placeholder.com/150',
+        ),
+        Category(
+          id: '4',
+          name: ApprovedCategories.names[7],
+          iconUrl: 'https://via.placeholder.com/150',
+        ),
       ],
-      popularProducts: [
+      popularProducts: const [
         Product(
           id: 'p1',
-          name: 'Samsung Galaxy S24',
-          brand: 'Samsung',
+          name: 'Bosch Impact Drill 13mm',
+          brand: 'Bosch',
           imageUrl: 'https://via.placeholder.com/300',
-          priceRange: '₹75,000 - ₹80,000',
+          priceRange: '₹2,400 - ₹3,200',
         ),
         Product(
           id: 'p2',
-          name: 'Aashirvaad Atta 5kg',
-          brand: 'Aashirvaad',
+          name: 'Crocin 650mg',
+          brand: 'GSK',
           imageUrl: 'https://via.placeholder.com/300',
-          priceRange: '₹220 - ₹240',
+          priceRange: '₹18 - ₹35',
         ),
         Product(
           id: 'p3',
@@ -45,7 +61,7 @@ class MockHomeRepository implements HomeRepository {
           priceRange: '₹1,800 - ₹2,200',
         ),
       ],
-      nearbyShops: [
+      nearbyShops: const [
         Shop(
           id: 's1',
           name: 'Gupta Electronics',
@@ -56,7 +72,7 @@ class MockHomeRepository implements HomeRepository {
         ),
         Shop(
           id: 's2',
-          name: 'Sharma General Store',
+          name: 'Sharma Hardware',
           imageUrl: 'https://via.placeholder.com/300',
           distance: 0.8,
           rating: 4.2,
@@ -71,8 +87,8 @@ class MockHomeRepository implements HomeRepository {
           isVerified: true,
         ),
       ],
-      recentSearches: ['Paracetamol 500mg', 'Amul Butter', 'Ceiling Fan'],
-      recentlyViewed: [
+      recentSearches: const ['Paracetamol 500mg', 'Bosch Drill', 'Ceiling Fan'],
+      recentlyViewed: const [
         Product(
           id: 'rv1',
           name: 'Colgate MaxFresh',
@@ -82,13 +98,13 @@ class MockHomeRepository implements HomeRepository {
         ),
         Product(
           id: 'rv2',
-          name: 'Tata Salt 1kg',
-          brand: 'Tata',
+          name: 'NCERT Class 10 Book',
+          brand: 'NCERT',
           imageUrl: 'https://via.placeholder.com/300',
-          priceRange: '₹25 - ₹30',
+          priceRange: '₹120 - ₹160',
         ),
       ],
-      recommendedProducts: [
+      recommendedProducts: const [
         Product(
           id: 'r1',
           name: 'Nivea Body Lotion',
@@ -98,25 +114,25 @@ class MockHomeRepository implements HomeRepository {
         ),
         Product(
           id: 'r2',
-          name: 'Fortune Sunflower Oil',
-          brand: 'Fortune',
+          name: 'Yoga Mat',
+          brand: 'Strauss',
           imageUrl: 'https://via.placeholder.com/300',
-          priceRange: '₹140 - ₹160',
+          priceRange: '₹499 - ₹799',
         ),
       ],
-      promotions: [
+      promotions: const [
         Promotion(
           id: 'promo1',
           title: 'Monsoon Mega Sale',
-          subtitle: 'Up to 40% off on electronics & appliances',
+          subtitle: 'Up to 40% off on hardware & appliances',
           imageUrl: 'https://via.placeholder.com/600x200',
           ctaLabel: 'Shop Now',
           ctaTarget: '/search',
         ),
         Promotion(
           id: 'promo2',
-          title: 'Fresh Groceries',
-          subtitle: 'Daily essentials delivered from nearby stores',
+          title: 'Beauty & Personal Care',
+          subtitle: 'Find nearby shops stocking everyday care brands',
           imageUrl: 'https://via.placeholder.com/600x200',
           ctaLabel: 'Explore',
           ctaTarget: '/search',

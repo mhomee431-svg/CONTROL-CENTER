@@ -26,7 +26,7 @@ class MockShopDetailsRepository implements ShopDetailsRepository {
         activeOffers: [],
         availableProducts: [],
         isSaved: false,
-        categories: const ['Grocery', 'Stationery'],
+        categories: const ['Household Goods', 'Books, Media & Stationery'],
         isVerified: true,
         latitude: 28.7150,
         longitude: 77.1150,
@@ -80,7 +80,7 @@ class MockShopDetailsRepository implements ShopDetailsRepository {
         price: 15000.0 + (i * 5000),
         isAvailable: i % 5 != 0, // 1 in 5 out of stock
       )),
-      categories: const ['Electronics', 'Mobile Phones', 'Accessories'],
+      categories: const ['Hardware', 'Household Goods', 'Automotive Parts & Tools'],
       isVerified: true,
       latitude: 28.7150,
       longitude: 77.1150,

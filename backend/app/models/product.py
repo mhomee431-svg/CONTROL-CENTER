@@ -66,6 +66,7 @@ class OfferStatus(str, enum.Enum):
     PAUSED = "PAUSED"
     EXPIRED = "EXPIRED"
     CANCELLED = "CANCELLED"
+    DISABLED = "DISABLED"
 
 
 class OfferType(str, enum.Enum):
@@ -74,6 +75,7 @@ class OfferType(str, enum.Enum):
     BUY_X_GET_Y = "BUY_X_GET_Y"
     BUNDLE = "BUNDLE"
     FREE_SHIPPING = "FREE_SHIPPING"
+    PROMOTIONAL_PRICE = "PROMOTIONAL_PRICE"
 
 
 class Category(Base, TimestampMixin, SoftDeleteMixin):
@@ -436,6 +438,7 @@ class Offer(Base, TimestampMixin, SoftDeleteMixin):
     )
     discount_value: Mapped[float | None] = mapped_column(Numeric(12, 2))
     discount_percentage: Mapped[float | None] = mapped_column(Float)
+    promotional_price: Mapped[float | None] = mapped_column(Numeric(12, 2))
     min_purchase_amount: Mapped[float | None] = mapped_column(Numeric(12, 2))
     max_discount_amount: Mapped[float | None] = mapped_column(Numeric(12, 2))
     buy_quantity: Mapped[int | None] = mapped_column(Integer)

@@ -18,6 +18,8 @@ import 'package:hyperlocal_shopkeeper_app/features/inventory_import/data/import_
 import 'package:hyperlocal_shopkeeper_app/features/inventory_import/domain/import_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/pos/data/pos_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/data/category_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/products_controller.dart';
@@ -238,22 +240,33 @@ void main() {
   });
 
   group('ProductAddMethodSheet (req 24)', () {
-    testWidgets('offers manual / barcode / excel and keeps POS disabled',
+    testWidgets('offers manual / barcode / excel and gates POS on the backend',
         (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: ElevatedButton(
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  builder: (_) => const ProductAddMethodSheet(),
+      // No provider is published, so POS is genuinely unavailable here.
+      final posRepo = FakePosRepo(providers: const []);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          posRepositoryProvider.overrideWithValue(posRepo),
+          tokenStoreProvider.overrideWithValue(
+              InMemoryTokenStore(accessToken: 'test-access-token')),
+          selectedShopProvider
+              .overrideWith(() => SelectedShopOverride(ownerShop(id: 10))),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    builder: (_) => const ProductAddMethodSheet(),
+                  ),
+                  child: const Text('open'),
                 ),
-                child: const Text('open'),
               ),
             ),
           ),
@@ -266,7 +279,7 @@ void main() {
       expect(find.text('Enter manually'), findsOneWidget);
       expect(find.text('Scan barcode'), findsOneWidget);
       expect(find.text('Bulk Excel import'), findsOneWidget);
-      // POS stays visible but unusable until POS integration ships.
+      // POS stays visible but unusable until the backend offers a provider.
       final posTile =
           tester.widget<ListTile>(find.widgetWithText(ListTile, 'POS sync'));
       expect(posTile.enabled, isFalse);
@@ -279,6 +292,15 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(ProviderScope(
+        overrides: [
+          // Opening the manual form resolves the taxonomy on init — override
+          // it so this test never attempts a real network call.
+          categoryRepositoryProvider.overrideWithValue(FakeCategoryRepo()),
+          tokenStoreProvider.overrideWithValue(
+              InMemoryTokenStore(accessToken: 'test-access-token')),
+          selectedShopProvider
+              .overrideWith(() => SelectedShopOverride(ownerShop(id: 10))),
+        ],
         child: MaterialApp(
           home: Builder(
             builder: (context) => Scaffold(

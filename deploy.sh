@@ -2,7 +2,7 @@
 set -x
 
 echo "=== Step 1: Find Backend directory ==="
-cd /home/ubuntu/hyperlocal_customer_app/backend 2>/dev/null || cd /home/ec2-user/hyperlocal_customer_app/backend 2>/dev/null || cd /app/backend 2>/dev/null || { echo "ERROR: Backend directory not found"; ls /home/ubuntu /home/ec2-user /app 2>/dev/null; exit 1; }
+cd /home/ubuntu/hyperlocal_app/backend 2>/dev/null || cd /home/ec2-user/hyperlocal_app/backend 2>/dev/null || cd /home/ubuntu/hyperlocal_customer_app/backend 2>/dev/null || cd /home/ec2-user/hyperlocal_customer_app/backend 2>/dev/null || cd /app/backend 2>/dev/null || { echo "ERROR: Backend directory not found"; ls /home/ubuntu /home/ec2-user /app 2>/dev/null; exit 1; }
 echo "Backend dir: $(pwd)"
 
 echo "=== Step 2: Fetch DATABASE_URL from SSM ==="

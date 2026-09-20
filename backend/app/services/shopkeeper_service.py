@@ -36,6 +36,8 @@ from app.core.shopkeeper_permissions import (
     sync_owner_role,
 )
 from app.models.product import (
+    Category,
+    IdentifierType,
     Inventory,
     InventoryAdjustment,
     InventoryMovement,
@@ -45,6 +47,7 @@ from app.models.product import (
     OfferStatus,
     OfferType,
     PriceHistory,
+    ProductIdentifier,
     ProductImage,
     ProductMaster,
     ProductStatus,
@@ -53,6 +56,7 @@ from app.models.product import (
 from app.services.inventory_service import compute_freshness
 from app.models.shop import (
     Shop,
+    ShopAddress,
     ShopManager,
     ShopOwner,
     ShopStatus,
@@ -517,6 +521,16 @@ def shop_detail_payload(access: ShopAccess, db: Session) -> dict[str, Any]:
             "delivery_radius_km": float(shop.delivery_radius_km or 0),
             "delivery_fee": float(shop.delivery_fee or 0),
             "free_delivery_above": float(shop.free_delivery_above or 0),
+            # Business Profile facts: business type, registered address and
+            # the location-capture metadata the app's profile screen shows.
+            "business_type": shop.business_type,
+            "address": _primary_address_payload(db, shop),
+            "accuracy_meters": shop.accuracy_meters,
+            "location_source": shop.location_source,
+            "location_type": shop.location_type,
+            "location_status": shop.location_status,
+            "location_verified": bool(shop.location_verified),
+            "location_captured_at": _iso(shop.location_captured_at),
             "verification": verification_payload(db, shop),
             "subscription": subscription_payload(db, shop),
             "rating": shop.rating,
@@ -525,6 +539,32 @@ def shop_detail_payload(access: ShopAccess, db: Session) -> dict[str, Any]:
         }
     )
     return payload
+
+
+def _primary_address_payload(db: Session, shop: Shop) -> dict[str, Any] | None:
+    """The shop's primary registered address, or None when none is stored.
+
+    The registration flow writes one `ShopAddress` per shop; the profile screen
+    renders it verbatim — a missing row is absent from the payload rather than
+    fabricated as empty strings.
+    """
+    addr = (
+        db.query(ShopAddress)
+        .filter(ShopAddress.shop_id == shop.id, ShopAddress.deleted_at.is_(None))
+        .order_by(ShopAddress.is_primary.desc(), ShopAddress.id.asc())
+        .first()
+    )
+    if addr is None:
+        return None
+    return {
+        "address_line1": addr.address_line1,
+        "address_line2": addr.address_line2,
+        "landmark": addr.landmark,
+        "city": addr.city,
+        "state": addr.state,
+        "pincode": addr.pincode,
+        "country": addr.country,
+    }
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────
@@ -552,14 +592,27 @@ def _display_name(sp: ShopProduct) -> str:
     return f"Product #{sp.product_master_id}"
 
 
+def _shop_product_status_value(sp: ShopProduct) -> str:
+    """``ShopProduct.status`` as a plain string (defaults to ACTIVE when unset)."""
+    return str(getattr(sp.status, "value", sp.status) or "ACTIVE").upper()
+
+
+def is_discontinued(sp: ShopProduct) -> bool:
+    """True when the shopkeeper stopped selling this listing.
+
+    ``DISCONTINUED`` lives on ``ShopProduct.status`` — the stock enum has no
+    such member — so every count and filter that wants to treat a withdrawn
+    listing specially must ask here instead of comparing ``stock_status``.
+    """
+    return _shop_product_status_value(sp) == "DISCONTINUED"
+
+
 def _product_counts(
     products: list[ShopProduct], inventories: dict[int, Inventory]
 ) -> dict[str, Any]:
     total = len(products)
-    active = sum(1 for p in products if p.is_active and p.is_available)
-    inactive = total - active
-
-    in_stock = low_stock = out_of_stock = unknown = 0
+    active = 0
+    in_stock = low_stock = out_of_stock = unknown = discontinued = 0
     units = 0
     needs_attention: list[dict[str, Any]] = []
     for p in products:
@@ -576,6 +629,14 @@ def _product_counts(
             else None
         )
         status = raw_status or _derive_stock_status(qty, threshold)
+        units += qty
+        # A withdrawn listing is not "in stock" however many units remain: it
+        # is counted once, in its own bucket, and never becomes a restock task.
+        if is_discontinued(p):
+            discontinued += 1
+            continue
+        if p.is_active and p.is_available:
+            active += 1
         if status in ("IN_STOCK", "PRE_ORDER", "BACK_ORDER"):
             in_stock += 1
         elif status in ("LOW_STOCK", "LIMITED_STOCK"):
@@ -584,7 +645,6 @@ def _product_counts(
             out_of_stock += 1
         else:
             unknown += 1
-        units += qty
         if status in ("LOW_STOCK", "LIMITED_STOCK", "OUT_OF_STOCK") and p.is_active:
             needs_attention.append(
                 {
@@ -595,10 +655,12 @@ def _product_counts(
                 }
             )
 
+    inactive = total - active - discontinued
     return {
         "total": total,
         "active": active,
         "inactive": inactive,
+        "discontinued": discontinued,
         "in_stock": in_stock,
         "low_stock": low_stock,
         "out_of_stock": out_of_stock,
@@ -841,7 +903,7 @@ def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
         "variant": _variant_label(sp),
         "brand": getattr(brand, "name", None) if brand is not None else None,
         "category": getattr(category, "name", None) if category is not None else None,
-        "status": getattr(sp.status, "value", str(sp.status)),
+        "status": _shop_product_status_value(sp),
         "image_url": _primary_image_url(master),
         "price": float(sp.price or 0),
         "mrp": float(sp.mrp) if sp.mrp is not None else None,
@@ -984,6 +1046,174 @@ class _ShopIdStub:
         self.id = shop_id
 
 
+# ── Taxonomy + barcode helpers (manual product create) ───────────────────
+#
+# The models have always carried `category_id` / `subcategory_id` and a
+# `product_identifiers` table; the manual-create path simply never used them.
+# These helpers close that gap. The parsing/validation rules are pure so they
+# can be tested without a database.
+
+# Retail symbology lengths → the identifier type they imply. A length that is
+# not listed falls back to CUSTOM: we never guess an EAN out of a 7-digit code.
+_BARCODE_TYPE_BY_LENGTH: dict[int, IdentifierType] = {
+    8: IdentifierType.EAN,
+    12: IdentifierType.UPC,
+    13: IdentifierType.EAN,
+    14: IdentifierType.GTIN,
+}
+
+
+def normalize_barcode(raw: str | None) -> str:
+    """Drop the spaces/dashes a paste or a scanner can introduce."""
+    return re.sub(r"[\s\-]", "", raw or "").strip()
+
+
+def detect_identifier_type(barcode: str) -> IdentifierType:
+    """Infer the symbology from the barcode LENGTH (pure).
+
+    An unlisted length becomes CUSTOM rather than a wrong guess — the value is
+    still stored and matchable.
+    """
+    return _BARCODE_TYPE_BY_LENGTH.get(len(barcode), IdentifierType.CUSTOM)
+
+
+def resolve_identifier_type(barcode: str, explicit: str | None) -> IdentifierType:
+    """Honour an explicit type when it names a real enum member, else infer."""
+    if explicit:
+        candidate = explicit.strip().upper()
+        if candidate in IdentifierType.__members__:
+            return IdentifierType[candidate]
+    return detect_identifier_type(barcode)
+
+
+def validate_taxonomy(
+    category: Category | None,
+    subcategory: Category | None,
+    category_id: int | None,
+    subcategory_id: int | None,
+) -> None:
+    """Pure taxonomy guards — every message names what to fix (pure)."""
+    if category_id is not None and category is None:
+        raise ValidationError("Selected category was not found")
+    if category is not None and not category.is_active:
+        raise ValidationError("Selected category is no longer available")
+    if subcategory_id is None:
+        return
+    if subcategory is None:
+        raise ValidationError("Selected subcategory was not found")
+    if not subcategory.is_active:
+        raise ValidationError("Selected subcategory is no longer available")
+    if category is not None and subcategory.parent_id != category.id:
+        raise ValidationError(
+            "Selected subcategory does not belong to the selected category",
+            data={"reason_code": "SUBCATEGORY_MISMATCH"},
+        )
+
+
+def _load_taxonomy(
+    db: Session, category_id: int | None, subcategory_id: int | None
+) -> tuple[Category | None, Category | None]:
+    """Fetch + validate both optional taxonomy rows in one query."""
+    ids = {i for i in (category_id, subcategory_id) if i is not None}
+    if not ids:
+        return None, None
+    rows = db.query(Category).filter(Category.id.in_(ids)).all()
+    by_id = {row.id: row for row in rows}
+    category = by_id.get(category_id) if category_id is not None else None
+    subcategory = by_id.get(subcategory_id) if subcategory_id is not None else None
+    validate_taxonomy(category, subcategory, category_id, subcategory_id)
+    return category, subcategory
+
+
+def attach_identifier(
+    db: Session, master: ProductMaster, barcode: str | None, explicit_type: str | None
+) -> None:
+    """Claim [barcode] for [master], or keep an existing own claim.
+
+    `product_identifiers` carries a UNIQUE(type, value) constraint, so a
+    barcode can only ever resolve to ONE product. Re-submitting your own
+    barcode is idempotent; someone else's is a conflict worth reporting.
+    """
+    value = normalize_barcode(barcode)
+    if not value:
+        return
+    id_type = resolve_identifier_type(value, explicit_type)
+    existing = (
+        db.query(ProductIdentifier)
+        .filter(
+            ProductIdentifier.identifier_type == id_type,
+            ProductIdentifier.identifier_value == value,
+        )
+        .first()
+    )
+    if existing is not None:
+        if existing.product_master_id == master.id:
+            return  # already ours — nothing to claim
+        raise ConflictError(
+            "This barcode is already linked to another product in the catalog"
+        )
+    db.add(
+        ProductIdentifier(
+            product_master_id=master.id,
+            identifier_type=id_type,
+            identifier_value=value,
+            is_primary=True,
+            is_active=True,
+        )
+    )
+    db.flush()
+
+
+# ── Notification fan-out (best-effort) ───────────────────────────────────────
+
+def _notification_recipient_id(
+    db: Session, access: ShopAccess, user: User | None = None
+) -> int | None:
+    """Who a shop-facing notification goes to.
+
+    The acting user when known; otherwise the shop's primary active owner (the
+    profile/settings updates have no acting user in scope). Returns ``None``
+    when neither resolves — the emitters treat that as a no-op.
+    """
+    if user is not None and getattr(user, "id", None) is not None:
+        return int(user.id)
+    owner = (
+        db.query(ShopOwner)
+        .filter(
+            ShopOwner.shop_id == access.shop.id,
+            ShopOwner.is_active == True,  # noqa: E712
+        )
+        .order_by(ShopOwner.is_primary.desc(), ShopOwner.id.asc())
+        .first()
+    )
+    return int(owner.user_id) if owner is not None else None
+
+
+def _notify(
+    db: Session,
+    access: ShopAccess,
+    user: User | None,
+    emitter: str,
+    **kwargs: Any,
+) -> None:
+    """Emit one shopkeeper-category notification, never raising.
+
+    A notification is a side-effect of the operation that caused it: losing the
+    broker or the push provider must not roll back the product / price / stock
+    write, so any failure is logged and swallowed.
+    """
+    try:
+        from app.services import notification_service as notification_service
+
+        getattr(notification_service, emitter)(
+            db,
+            shopkeeper_user_id=_notification_recipient_id(db, access, user),
+            **kwargs,
+        )
+    except Exception:  # noqa: BLE001 — side-effect isolation
+        logger.warning("Notification dispatch failed (%s)", emitter, exc_info=True)
+
+
 def create_product(
     access: ShopAccess, db: Session, user: User, data: dict
 ) -> dict[str, Any]:
@@ -1003,6 +1233,12 @@ def create_product(
     mrp = float(data["mrp"]) if data.get("mrp") is not None else None
     if mrp is not None and mrp < price:
         raise ValidationError("MRP cannot be lower than selling price")
+
+    # Taxonomy is optional, but when supplied it must be coherent: the
+    # subcategory has to be a child of the chosen category.
+    category, subcategory = _load_taxonomy(
+        db, data.get("category_id"), data.get("subcategory_id")
+    )
 
     publish = bool(data.get("publish"))
     quantity = int(data.get("quantity", 0))
@@ -1027,17 +1263,28 @@ def create_product(
                 "This product already exists in your inventory — update it instead"
             )
         master = matched
+        # Non-destructive enrichment: fill in taxonomy the catalog is missing,
+        # but never overwrite a classification another shopkeeper already set.
+        if master.category_id is None and category is not None:
+            master.category_id = category.id
+        if master.subcategory_id is None and subcategory is not None:
+            master.subcategory_id = subcategory.id
     else:
         master = ProductMaster(
             name=data["name"].strip(),
             slug=_unique_master_slug(db, data["name"]),
             description=data.get("description"),
             base_unit=data.get("unit"),
+            category_id=category.id if category is not None else None,
+            subcategory_id=subcategory.id if subcategory is not None else None,
             status=ProductStatus.APPROVED if publish else ProductStatus.DRAFT,
             is_active=publish,
         )
         db.add(master)
         db.flush()
+
+    # Barcode → the product's primary identifier, so a later scan resolves it.
+    attach_identifier(db, master, data.get("barcode"), data.get("barcode_type"))
 
     sp = ShopProduct(
         shop_id=access.shop.id,
@@ -1079,7 +1326,15 @@ def create_product(
         "Product created: shop=%s shop_product=%s by user=%s",
         access.shop.id, sp.id, user.id,
     )
-    return serialize_product(sp, inv)
+    payload = serialize_product(sp, inv)
+    _notify(
+        db, access, user,
+        "notify_shop_product_event",
+        shop_product_id=sp.id,
+        event="ADDED",
+        product_name=str(payload.get("name") or ""),
+    )
+    return payload
 
 
 def update_product(
@@ -1231,7 +1486,26 @@ def update_product(
         "Product updated: shop=%s shop_product=%s by user=%s",
         access.shop.id, sp.id, user.id,
     )
-    return serialize_product(sp, inv)
+    payload = serialize_product(sp, inv)
+    name = str(payload.get("name") or "")
+    if touched_price:
+        _notify(
+            db, access, user,
+            "notify_price_change",
+            shop_product_id=sp.id,
+            old_price=old_price,
+            new_price=float(sp.price or 0),
+            product_name=name,
+        )
+    else:
+        _notify(
+            db, access, user,
+            "notify_shop_product_event",
+            shop_product_id=sp.id,
+            event="UPDATED",
+            product_name=name,
+        )
+    return payload
 
 
 # ── Phase 23 — Inventory management workflow ─────────────────────────────
@@ -1515,6 +1789,19 @@ def adjust_stock(
         "Stock adjusted: shop=%s shop_product=%s delta=%s by user=%s",
         access.shop.id, sp.id, delta, user.id,
     )
+    status_value = inv.stock_status.value
+    if status_value in ("LOW_STOCK", "LIMITED_STOCK", "OUT_OF_STOCK"):
+        _notify(
+            db, access, user,
+            "notify_inventory_update",
+            shop_product_id=sp.id,
+            message=(
+                f"{_display_name(sp)} is out of stock."
+                if status_value == "OUT_OF_STOCK"
+                else f"{_display_name(sp)} is low on stock — "
+                     f"{updated_quantity} left."
+            ),
+        )
     return {
         "shop_product_id": sp.id,
         "previous_quantity": previous_quantity,
@@ -1586,6 +1873,13 @@ def remove_product(
         "Product removed: shop=%s shop_product=%s by user=%s",
         access.shop.id, sp.id, user.id,
     )
+    _notify(
+        db, access, user,
+        "notify_shop_product_event",
+        shop_product_id=sp.id,
+        event="REMOVED",
+        product_name=_display_name(sp),
+    )
     return {
         "shop_product_id": sp.id,
         "status": getattr(sp.status, "value", str(sp.status)),
@@ -1601,12 +1895,16 @@ def list_inventory(
     stock_filter: str | None = None,
     availability_filter: bool | None = None,
     active_filter: bool | None = None,
+    low_below_threshold: bool | None = None,
     sort_by: str = "updated_at",
     sort_order: str = "desc",
 ) -> dict[str, Any]:
     """View / search / filter / sort the shop inventory.
 
     Every item carries its last-updated time and inventory source.
+    ``low_below_threshold`` selects listings whose current stock has reached
+    their own low-stock threshold (``quantity <= low_stock_threshold``) — the
+    authoritative restock list, straight from the two numbers that define it.
     """
     access.require("inventory", "read")
     sort_field = sort_by if sort_by in INVENTORY_SORT_FIELDS else "updated_at"
@@ -1621,9 +1919,12 @@ def list_inventory(
     # can show "Updated by <name>" without N+1 user lookups.
     updater_ids: set[int] = set()
     per_product_inv: dict[int, Inventory | None] = {}
+    discontinued_ids: set[int] = set()
     for sp in products:
         inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
         per_product_inv[sp.id] = inv
+        if is_discontinued(sp):
+            discontinued_ids.add(sp.id)
         updater = getattr(inv, "last_updated_by", None) if inv is not None else None
         if updater:
             updater_ids.add(int(updater))
@@ -1671,12 +1972,26 @@ def list_inventory(
     for stamp, item in entries:
         if needle and needle not in _normalize(item["name"]) and needle not in _normalize(item.get("sku") or ""):
             continue
-        if stock_filter and item["stock_status"] != str(stock_filter).upper():
-            continue
+        if stock_filter:
+            wanted = str(stock_filter).upper()
+            # DISCONTINUED is a product status, never a stock status, so an
+            # equality test against stock_status could never match it.
+            if wanted == "DISCONTINUED":
+                if item["id"] not in discontinued_ids:
+                    continue
+            elif item["stock_status"] != wanted:
+                continue
         if availability_filter is not None and item["is_available"] != bool(availability_filter):
             continue
         if active_filter is not None and item["is_active"] != bool(active_filter):
             continue
+        if low_below_threshold:
+            # The restock rule: a listing needs restocking when its current
+            # stock has reached the threshold the shopkeeper set for it.
+            # `quantity <= 0` is already OUT_OF_STOCK, which is a subset of
+            # "needs restocking", so it is included on purpose.
+            if int(item["quantity"] or 0) > int(item["low_stock_threshold"] or 0):
+                continue
         filtered.append((stamp, item))
 
     def _sort_key(pair: tuple[datetime, dict[str, Any]]):
@@ -1692,8 +2007,138 @@ def list_inventory(
 
     filtered.sort(key=_sort_key, reverse=descending)
     items = [item for _, item in filtered]
-    return {"items": items, "count": len(items)}
+    # Ship the server's own counts alongside the list so no client has to
+    # re-derive them and drift from the platform's stock vocabulary.
+    return {
+        "items": items,
+        "count": len(items),
+        "summary": _product_counts(products, per_product_inv),
+    }
 
+def update_low_stock_threshold(
+    access: ShopAccess, db: Session, user: User, shop_product_id: int, threshold: int
+) -> dict[str, Any]:
+    """Set the per-listing low-stock threshold and re-derive the stock state.
+
+    The threshold is what turns a quantity into LOW_STOCK, so changing it can
+    change the reported stock state without any units moving. The derived
+    status is therefore recomputed here and written back to both the
+    ``Inventory`` row and the ``ShopProduct`` projection, and the change is
+    stamped as a MANUAL inventory update so freshness stays truthful.
+    """
+    access.require("inventory", "update")
+
+    if int(threshold) < 0:
+        raise ValidationError("Low stock threshold cannot be negative")
+
+    sp: ShopProduct | None = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.id == shop_product_id,
+            ShopProduct.shop_id == access.shop.id,
+        )
+        .first()
+    )
+    if sp is None:
+        raise NotFoundError("Product not found in this shop")
+
+    inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+    if inv is None:
+        raise ValidationError("No inventory record exists for this product")
+
+    previous = int(inv.low_stock_threshold) if inv.low_stock_threshold else 5
+    wanted = int(threshold)
+    now = datetime.now(timezone.utc)
+    qty = int(inv.quantity or 0)
+
+    inv.low_stock_threshold = wanted
+    inv.stock_status = _enum_from_name("StockStatus", _derive_stock_status(qty, wanted))
+    inv.last_updated_by = user.id
+    inv.last_updated_source = InventorySource.MANUAL
+    inv.freshness_status = compute_freshness(now, InventorySource.MANUAL)
+    inv.freshness_checked_at = now
+
+    sp.stock_status = inv.stock_status
+    sp.last_inventory_update = now
+    sp.source = InventorySource.MANUAL
+    sp.freshness_status = inv.freshness_status
+
+    logger.info(
+        "Low stock threshold updated: shop=%s shop_product=%s %s->%s by user=%s",
+        access.shop.id, sp.id, previous, wanted, user.id,
+    )
+    status_value = inv.stock_status.value
+    if status_value in ("LOW_STOCK", "LIMITED_STOCK", "OUT_OF_STOCK"):
+        _notify(
+            db, access, user,
+            "notify_inventory_update",
+            shop_product_id=sp.id,
+            message=(
+                f"{_display_name(sp)} is out of stock."
+                if status_value == "OUT_OF_STOCK"
+                else f"{_display_name(sp)} is low on stock — {qty} left."
+            ),
+        )
+    return {
+        "shop_product_id": sp.id,
+        "previous_low_stock_threshold": previous,
+        "low_stock_threshold": wanted,
+        "quantity": qty,
+        "stock_status": inv.stock_status.value,
+        "last_inventory_update": _iso(now),
+    }
+
+
+def list_stock_adjustments(
+    access: ShopAccess, db: Session, shop_product_id: int, limit: int = 50
+) -> dict[str, Any]:
+    """Adjustment-only audit trail for one shop product, newest first.
+
+    ``product_history`` interleaves movements, adjustments and price changes;
+    this returns just the operator corrections (damage, expiry, stock count…)
+    so a dedicated screen can render them without filtering client-side.
+    """
+    access.require("inventory", "read")
+
+    sp: ShopProduct | None = (
+        db.query(ShopProduct)
+        .filter(
+            ShopProduct.id == shop_product_id,
+            ShopProduct.shop_id == access.shop.id,
+        )
+        .first()
+    )
+    if sp is None:
+        raise NotFoundError("Product not found in this shop")
+
+    inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+    if inv is None:
+        return {"shop_product_id": sp.id, "adjustments": [], "count": 0}
+
+    rows = (
+        db.query(InventoryAdjustment)
+        .filter(InventoryAdjustment.inventory_id == inv.id)
+        .order_by(InventoryAdjustment.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    adjustments = [
+        {
+            "id": row.id,
+            "adjustment_type": row.adjustment_type,
+            "quantity_adjustment": int(row.quantity_adjustment or 0),
+            "reason": row.reason,
+            "approved_by": row.approved_by,
+            "approved_at": _iso(row.approved_at),
+            "created_at": _iso(getattr(row, "created_at", None)),
+        }
+        for row in rows
+    ]
+    return {
+        "shop_product_id": sp.id,
+        "adjustments": adjustments,
+        "count": len(adjustments),
+    }
 
 def product_history(
     access: ShopAccess,
@@ -1701,9 +2146,15 @@ def product_history(
     user: User,
     shop_product_id: int,
     limit: int = 50,
+    offset: int = 0,
 ) -> dict[str, Any]:
     """Combined audit trail for one shop product: movements, adjustments
-    and price changes — newest first."""
+    and price changes — newest first, paginated.
+
+    Every returned entry answers the four audit questions the shopkeeper
+    needs: *what* changed (delta + before → after), *why* (movement /
+    adjustment type + source), *when* (``occurred_at``) and *who*
+    (``actor`` — null when the change was automated)."""
     access.require("inventory", "read")
     sp: ShopProduct | None = (
         db.query(ShopProduct)
@@ -1734,6 +2185,7 @@ def product_history(
                     "quantity_after": mv.quantity_after,
                     "source": mv.source.value if hasattr(mv.source, "value") else str(mv.source),
                     "notes": mv.notes,
+                    "actor_id": mv.created_by,
                 }
             )
         for adj in (
@@ -1748,6 +2200,7 @@ def product_history(
                     "adjustment_type": adj.adjustment_type,
                     "quantity_adjustment": adj.quantity_adjustment,
                     "reason": adj.reason,
+                    "actor_id": adj.approved_by,
                 }
             )
     for ph in (
@@ -1766,6 +2219,7 @@ def product_history(
                     if hasattr(ph.change_source, "value")
                     else str(ph.change_source)
                 ),
+                "actor_id": ph.changed_by,
             }
         )
 
@@ -1784,8 +2238,61 @@ def product_history(
         return epoch
 
     entries.sort(key=_stamp, reverse=True)
-    entries = entries[: max(int(limit), 1)]
-    return {"shop_product_id": sp.id, "count": len(entries), "entries": entries}
+
+    # ── Actor resolution ─────────────────────────────────────────────────
+    # Every audit row stores WHO changed the stock (movement.created_by /
+    # adjustment.approved_by / price_history.changed_by). Resolve them all in
+    # ONE query instead of per-row so a long trail stays a single round trip.
+    # A null actor is reported as null — never back-filled with the current
+    # user, which would misattribute an automated import or POS sync.
+    actor_ids = {
+        entry["actor_id"] for entry in entries if entry.get("actor_id") is not None
+    }
+    actor_names: dict[int, str | None] = {}
+    if actor_ids:
+        # Single-model query (not a two-column tuple) so it works with both
+        # SQLAlchemy and the service's test doubles.
+        actor_names = {
+            actor.id: actor.name
+            for actor in db.query(User).filter(User.id.in_(actor_ids)).all()
+        }
+    for entry in entries:
+        actor_id = entry.get("actor_id")
+        entry["actor"] = actor_names.get(actor_id) if actor_id is not None else None
+
+    # ── Pagination ───────────────────────────────────────────────────────
+    page_size = max(int(limit), 1)
+    start = max(int(offset), 0)
+    total = len(entries)
+    page = entries[start : start + page_size]
+
+    # Net current stock for the history summary tile. Read from the same
+    # Inventory row the trail belongs to, so the header can never disagree
+    # with the latest movement.
+    current_quantity = int(inv.quantity or 0) if inv is not None else 0
+    # Stock state is the server's word: prefer the listing's own column, fall
+    # back to the inventory row it is denormalised from, and only then admit
+    # UNKNOWN — never guess a state the backend did not declare.
+    status_source = sp.stock_status
+    if status_source is None and inv is not None:
+        status_source = inv.stock_status
+    stock_status = (
+        status_source.value
+        if hasattr(status_source, "value")
+        else (str(status_source) if status_source else "UNKNOWN")
+    )
+
+    return {
+        "shop_product_id": sp.id,
+        "count": len(page),
+        "total": total,
+        "offset": start,
+        "limit": page_size,
+        "has_more": start + len(page) < total,
+        "current_quantity": current_quantity,
+        "stock_status": stock_status,
+        "entries": page,
+    }
 
 
 def bulk_operation(access: ShopAccess, db: Session, user: User, data: dict) -> dict[str, Any]:
@@ -1858,10 +2365,24 @@ def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dic
 
     discount_value = data.get("discount_value")
     discount_percentage = data.get("discount_percentage")
+    promotional_price = data.get("promotional_price")
     if offer_enum == OfferType.PERCENTAGE_DISCOUNT and not discount_percentage:
         raise ValidationError("Percentage offers require discount_percentage")
     if offer_enum == OfferType.FLAT_DISCOUNT and discount_value in (None, 0):
         raise ValidationError("Flat-discount offers require discount_value")
+    if offer_enum == OfferType.PROMOTIONAL_PRICE and promotional_price in (None, 0):
+        raise ValidationError("Promotional-price offers require promotional_price")
+
+    # Absent status keeps the historical default — a newly assigned offer goes
+    # live immediately, which is what the customer search flow expects. DRAFT
+    # and DISABLED are opt-in so the app can park an offer before publishing it.
+    requested_status = str(data.get("status") or "").strip().upper()
+    if requested_status in ("", "ACTIVE"):
+        initial_status = OfferStatus.ACTIVE
+    elif requested_status in ("DRAFT", "DISABLED"):
+        initial_status = OfferStatus[requested_status]
+    else:
+        raise ValidationError(f"Invalid offer status: {data.get('status')}")
 
     product_ids: list[int] = []
     for sid in data.get("shop_product_ids") or []:
@@ -1885,9 +2406,10 @@ def assign_offer(access: ShopAccess, db: Session, user: User, data: dict) -> dic
         offer_type=offer_enum,
         discount_value=discount_value,
         discount_percentage=discount_percentage,
+        promotional_price=promotional_price,
         start_date=start_date,
         end_date=end_date,
-        status=OfferStatus.ACTIVE,
+        status=initial_status,
         terms_conditions=data.get("terms_conditions"),
     )
     db.add(offer)
@@ -1934,16 +2456,20 @@ def _offer_display_status(offer: Offer, now: datetime) -> str:
     date window. The shopkeeper app's Active / Scheduled / Expired tabs read
     this field rather than re-deriving dates on the client.
     """
+    stored = offer.status if isinstance(offer.status, OfferStatus) else OfferStatus(offer.status)
+    if stored in (OfferStatus.DRAFT, OfferStatus.DISABLED):
+        return stored.value
     if offer.status == OfferStatus.ACTIVE:
         if offer.start_date is not None and _to_utc(offer.start_date) > now:
             return "SCHEDULED"
         if offer.end_date is not None and _to_utc(offer.end_date) < now:
             return "EXPIRED"
-    return offer.status.value
+    return offer.status.value if isinstance(offer.status, OfferStatus) else str(offer.status)
 
 
 def _offer_summary(offer: Offer, product_count: int, now: datetime) -> dict[str, Any]:
     """Wire shape for one offer row (list + detail views share it)."""
+    status_value = offer.status.value if isinstance(offer.status, OfferStatus) else str(offer.status)
     return {
         "id": offer.id,
         "title": offer.title,
@@ -1957,7 +2483,12 @@ def _offer_summary(offer: Offer, product_count: int, now: datetime) -> dict[str,
             if offer.discount_percentage is not None
             else None
         ),
-        "status": offer.status.value,
+        "promotional_price": (
+            float(offer.promotional_price)
+            if offer.promotional_price is not None
+            else None
+        ),
+        "status": status_value,
         "display_status": _offer_display_status(offer, now),
         "start_date": _iso(offer.start_date),
         "end_date": _iso(offer.end_date),
@@ -1992,6 +2523,8 @@ def list_shop_offers(
     bucket = (status_filter or "").strip().lower()
     if bucket == "draft":
         query = query.filter(Offer.status == OfferStatus.DRAFT)
+    elif bucket == "disabled":
+        query = query.filter(Offer.status == OfferStatus.DISABLED)
     elif bucket == "expired":
         query = query.filter(
             or_(Offer.status == OfferStatus.EXPIRED, Offer.end_date < now)
@@ -2022,6 +2555,78 @@ def list_shop_offers(
 
     items = [_offer_summary(o, counts.get(o.id, 0), now) for o in offers]
     return {"items": items, "count": len(items)}
+
+
+_OFFER_STATUS_TRANSITIONS: dict[OfferStatus, set[OfferStatus]] = {
+    OfferStatus.DRAFT: {OfferStatus.ACTIVE, OfferStatus.DISABLED},
+    OfferStatus.ACTIVE: {
+        OfferStatus.PAUSED,
+        OfferStatus.DISABLED,
+        OfferStatus.CANCELLED,
+        OfferStatus.EXPIRED,
+    },
+    OfferStatus.PAUSED: {OfferStatus.ACTIVE, OfferStatus.DISABLED, OfferStatus.CANCELLED},
+    OfferStatus.DISABLED: {OfferStatus.DRAFT, OfferStatus.ACTIVE},
+}
+
+
+def update_shop_offer_status(
+    access: ShopAccess, db: Session, user: User, offer_id: int, status: str
+) -> dict[str, Any]:
+    """Change one shop-owned offer's lifecycle state.
+
+    Draft offers may be activated directly (scheduled when the window starts in
+    the future). Active offers may be paused, disabled or cancelled; disabled
+    offers may return to draft or go active again. Expired/cancelled offers are
+    terminal and can never be re-activated. Expired offers can never be
+    re-activated.
+    """
+    access.require("offer", "update")
+
+    offer = (
+        db.query(Offer)
+        .filter(
+            Offer.id == offer_id,
+            Offer.shop_id == access.shop.id,
+            Offer.is_deleted == False,  # noqa: E712
+        )
+        .first()
+    )
+    if offer is None:
+        raise NotFoundError("Offer not found in this shop")
+
+    try:
+        target = OfferStatus(str(status).strip().upper())
+    except ValueError as exc:
+        raise ValidationError(f"Invalid offer status: {status}") from exc
+
+    current = offer.status if isinstance(offer.status, OfferStatus) else OfferStatus(offer.status)
+    if current in (OfferStatus.EXPIRED, OfferStatus.CANCELLED):
+        raise ValidationError(f"Cannot move an offer from {current.value}")
+    allowed = _OFFER_STATUS_TRANSITIONS.get(current, set())
+    if target not in allowed:
+        raise ValidationError(f"Cannot move an offer from {current.value} to {target.value}")
+
+    offer.status = target
+    db.flush()
+    logger.info(
+        "Offer status changed: shop=%s offer=%s %s->%s by user=%s",
+        access.shop.id, offer.id, current.value, target.value, user.id,
+    )
+    product_count = (
+        db.query(func.count(OfferProduct.id))
+        .filter(OfferProduct.offer_id == offer.id)
+        .scalar()
+    )
+    summary = _offer_summary(offer, int(product_count or 0), datetime.now(timezone.utc))
+    _notify(
+        db, access, user,
+        "notify_shop_offer_event",
+        offer_id=offer.id,
+        event=target.value,
+        offer_title=str(offer.title or ""),
+    )
+    return summary
 
 
 # ── Profile / settings updates ───────────────────────────────────────────
@@ -2058,6 +2663,13 @@ def update_shop_profile(access: ShopAccess, db: Session, data: dict) -> dict[str
     updated = shop_service.update_shop(db, access.shop.id, updates)
     if updated is None:
         raise NotFoundError("Shop not found")
+    if updates:
+        _notify(
+            db, access, None,
+            "notify_account_event",
+            event="PROFILE_UPDATED",
+            message="Your shop profile was updated successfully.",
+        )
     return {"updated_fields": sorted(updates.keys())}
 
 
@@ -2072,5 +2684,12 @@ def update_shop_settings(access: ShopAccess, db: Session, data: dict) -> dict[st
         "Shop settings updated: shop=%s fields=%s",
         access.shop.id, sorted(updates.keys()),
     )
+    if updates:
+        _notify(
+            db, access, None,
+            "notify_account_event",
+            event="SETTINGS_UPDATED",
+            message="Your shop settings were updated successfully.",
+        )
     return {"updated_fields": sorted(updates.keys())}
 

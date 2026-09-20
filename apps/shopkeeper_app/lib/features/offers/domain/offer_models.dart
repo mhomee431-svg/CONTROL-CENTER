@@ -9,6 +9,7 @@ library;
 enum ShopkeeperOfferType {
   percentageDiscount('PERCENTAGE_DISCOUNT', '% off'),
   flatDiscount('FLAT_DISCOUNT', '₹ off'),
+  promotionalPrice('PROMOTIONAL_PRICE', 'Promo price'),
   buyXGetY('BUY_X_GET_Y', 'Buy X Get Y'),
   bundle('BUNDLE', 'Bundle'),
   freeShipping('FREE_SHIPPING', 'Free shipping');
@@ -22,10 +23,13 @@ enum ShopkeeperOfferType {
   final String label;
 
   /// PERCENTAGE requires [OfferAssignRequest.discountPercentage];
-  /// FLAT requires [OfferAssignRequest.discountValue]; the rest need neither.
+  /// FLAT requires [OfferAssignRequest.discountValue]; PROMO requires
+  /// [OfferAssignRequest.promotionalPrice]; the rest need neither.
   bool get requiresPercentage => this == percentageDiscount;
 
   bool get requiresFlatValue => this == flatDiscount;
+
+  bool get requiresPromotionalPrice => this == promotionalPrice;
 }
 
 /// Atomic create+link payload for one offer.
@@ -36,19 +40,27 @@ class OfferAssignRequest {
     required this.startDate,
     required this.endDate,
     required this.shopProductIds,
+    this.status,
     this.discountValue,
     this.discountPercentage,
+    this.promotionalPrice,
     this.termsConditions,
   });
 
   final String title;
   final ShopkeeperOfferType offerType;
 
+  /// New offers start as drafts unless activated explicitly.
+  final String? status;
+
   /// ₹ amount off (FLAT_DISCOUNT only).
   final double? discountValue;
 
   /// Percent off, 0 < value <= 100 (PERCENTAGE_DISCOUNT only).
   final double? discountPercentage;
+
+  /// Fixed sale price (PROMOTIONAL_PRICE only).
+  final double? promotionalPrice;
   final DateTime startDate;
   final DateTime endDate;
 
@@ -62,8 +74,10 @@ class OfferAssignRequest {
     'start_date': startDate.toUtc().toIso8601String(),
     'end_date': endDate.toUtc().toIso8601String(),
     'shop_product_ids': shopProductIds,
+    if (status != null) 'status': status,
     if (discountValue != null) 'discount_value': discountValue,
     if (discountPercentage != null) 'discount_percentage': discountPercentage,
+    if (promotionalPrice != null) 'promotional_price': promotionalPrice,
     if (termsConditions != null && termsConditions!.trim().isNotEmpty)
       'terms_conditions': termsConditions!.trim(),
   };
@@ -112,6 +126,7 @@ class OfferSummary {
     this.description,
     this.discountValue,
     this.discountPercentage,
+    this.promotionalPrice,
     this.startDate,
     this.endDate,
     this.isVisible = true,
@@ -125,10 +140,10 @@ class OfferSummary {
   /// Raw backend enum, e.g. `PERCENTAGE_DISCOUNT`.
   final String offerType;
 
-  /// Stored status: `ACTIVE` | `DRAFT` | `EXPIRED` (may be PAUSED etc.).
+  /// Stored status: `ACTIVE` | `DRAFT` | `DISABLED` | `EXPIRED` (may be PAUSED etc.).
   final String status;
 
-  /// Shopkeeper-facing bucket: `ACTIVE` | `SCHEDULED` | `EXPIRED` | `DRAFT`.
+  /// Shopkeeper-facing bucket: `ACTIVE` | `SCHEDULED` | `EXPIRED` | `DRAFT` | `DISABLED`.
   final String displayStatus;
 
   /// ₹ amount off (FLAT_DISCOUNT).
@@ -136,6 +151,9 @@ class OfferSummary {
 
   /// Percent off (PERCENTAGE_DISCOUNT).
   final double? discountPercentage;
+
+  /// Fixed sale price (PROMOTIONAL_PRICE).
+  final double? promotionalPrice;
 
   final DateTime? startDate;
   final DateTime? endDate;
@@ -157,6 +175,35 @@ class OfferSummary {
   /// True when the offer is still a draft and not published.
   bool get isDraft => displayStatus == 'DRAFT';
 
+  /// True while the offer is disabled and hidden from customers.
+  bool get isDisabled => displayStatus == 'DISABLED';
+
+  /// Lifecycle moves the backend accepts, mirroring
+  /// `_OFFER_STATUS_TRANSITIONS` in `shopkeeper_service.py`.
+  ///
+  /// Keyed by the **stored** [status] (not [displayStatus]) because that is
+  /// exactly what the server inspects before allowing a move. EXPIRED and
+  /// CANCELLED are absent on purpose: they are terminal, so no move is legal.
+  /// This only hides buttons the server would reject — the backend still
+  /// re-validates every transition.
+  static const Map<String, Set<String>> _allowedMoves = {
+    'DRAFT': {'ACTIVE', 'DISABLED'},
+    'ACTIVE': {'PAUSED', 'DISABLED', 'CANCELLED', 'EXPIRED'},
+    'PAUSED': {'ACTIVE', 'DISABLED', 'CANCELLED'},
+    'DISABLED': {'DRAFT', 'ACTIVE'},
+  };
+
+  /// True when the backend would accept moving this offer to [target]
+  /// (a raw `OfferStatus` value such as `ACTIVE` or `DISABLED`).
+  bool canTransitionTo(String target) =>
+      _allowedMoves[status]?.contains(target) ?? false;
+
+  /// True when the offer can be activated right now.
+  bool get canActivate => canTransitionTo('ACTIVE');
+
+  /// True when the offer can be deactivated (disabled) right now.
+  bool get canDisable => canTransitionTo('DISABLED');
+
   /// Friendly name for the backend `offer_type` enum.
   String get offerTypeLabel {
     for (final type in ShopkeeperOfferType.values) {
@@ -169,6 +216,9 @@ class OfferSummary {
   String get discountLabel {
     if (discountPercentage != null && discountPercentage! > 0) {
       return '${_trimNumber(discountPercentage!)}% off';
+    }
+    if (promotionalPrice != null && promotionalPrice! > 0) {
+      return 'Promo ₹${_trimNumber(promotionalPrice!)}';
     }
     if (discountValue != null && discountValue! > 0) {
       return '₹${_trimNumber(discountValue!)} off';
@@ -194,6 +244,7 @@ class OfferSummary {
             json['display_status'] as String? ?? json['status'] as String? ?? 'DRAFT',
         discountValue: (json['discount_value'] as num?)?.toDouble(),
         discountPercentage: (json['discount_percentage'] as num?)?.toDouble(),
+        promotionalPrice: (json['promotional_price'] as num?)?.toDouble(),
         startDate: _parseDate(json['start_date']),
         endDate: _parseDate(json['end_date']),
         isVisible: json['is_visible'] as bool? ?? true,
@@ -263,6 +314,7 @@ class OfferValidators {
     ShopkeeperOfferType type,
     String? rawPercentage,
     String? rawValue,
+    [String? rawPromo]
   ) {
     if (type.requiresPercentage) {
       final pct = double.tryParse((rawPercentage ?? '').trim());
@@ -274,6 +326,11 @@ class OfferValidators {
       final value = double.tryParse((rawValue ?? '').trim());
       if (value == null || value <= 0) return 'Discount amount is required';
       if (value < 0) return 'Cannot be negative';
+      return null;
+    }
+    if (type.requiresPromotionalPrice) {
+      final promo = double.tryParse(((rawPromo ?? rawValue ?? '')).trim());
+      if (promo == null || promo <= 0) return 'Promotional price is required';
       return null;
     }
     return null;

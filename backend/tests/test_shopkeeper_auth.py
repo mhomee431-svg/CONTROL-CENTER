@@ -691,3 +691,155 @@ class TestLogoutRevocation:
             after = client.get("/api/v1/shopkeeper/auth/me", headers=headers)
 
         assert after.status_code == 401
+
+
+# ── Session / device endpoints (Settings → Security) ─────────────────────────
+class TestSessionDeviceEndpoints:
+    """`GET/DELETE /shopkeeper/auth/sessions` — the device/session information
+
+    the shopkeeper app's Security screen renders. These reuse the shared
+    session service but live under the shopkeeper namespace, so the app never
+    has to call the generic `/auth/*` module.
+    """
+
+    _legacy_jwt_only = staticmethod(TestLogoutRevocation._legacy_jwt_only)
+
+    @staticmethod
+    def _device(device_id: str) -> dict:
+        return {"device_id": device_id, "device_name": device_id}
+
+    def test_sessions_are_listed_and_revocable(self, client, db, active_user):
+        from app.services.auth_service import issue_tokens
+
+        first = issue_tokens(active_user, db, device_id="phone")
+        second = issue_tokens(active_user, db, device_id="counter-tablet")
+        db.commit()
+
+        headers = {"Authorization": f"Bearer {first['access_token']}"}
+        with self._legacy_jwt_only():
+            listed = client.get("/api/v1/shopkeeper/auth/sessions", headers=headers)
+
+        assert listed.status_code == 200, listed.text
+        sessions = listed.json()["data"]["sessions"]
+        assert {row["session_id"] for row in sessions} == {
+            first["session_id"],
+            second["session_id"],
+        }
+        # The metadata the app renders must actually be present.
+        for row in sessions:
+            for key in (
+                "session_id",
+                "device_name",
+                "device_type",
+                "platform",
+                "app_version",
+                "ip_address",
+                "last_activity_at",
+            ):
+                assert key in row
+
+        with self._legacy_jwt_only():
+            revoked = client.delete(
+                f"/api/v1/shopkeeper/auth/sessions/{second['session_id']}",
+                headers=headers,
+            )
+        assert revoked.status_code == 200, revoked.text
+        assert revoked.json()["data"]["revoked"] is True
+
+        # The list is server truth: the revoked device disappears.
+        with self._legacy_jwt_only():
+            after = client.get("/api/v1/shopkeeper/auth/sessions", headers=headers)
+        remaining = after.json()["data"]["sessions"]
+        assert [row["session_id"] for row in remaining] == [first["session_id"]]
+
+    def test_revoking_a_session_kills_that_devices_token(self, client, db, active_user):
+        from app.services.auth_service import issue_tokens
+
+        phone = issue_tokens(active_user, db, device_id="phone")
+        tablet = issue_tokens(active_user, db, device_id="counter-tablet")
+        db.commit()
+        phone_headers = {"Authorization": f"Bearer {phone['access_token']}"}
+        tablet_headers = {"Authorization": f"Bearer {tablet['access_token']}"}
+
+        with self._legacy_jwt_only():
+            assert (
+                client.get(
+                    "/api/v1/shopkeeper/auth/sessions", headers=tablet_headers
+                ).status_code
+                == 200
+            )
+            client.delete(
+                f"/api/v1/shopkeeper/auth/sessions/{tablet['session_id']}",
+                headers=phone_headers,
+            )
+            # The revoked device can no longer authenticate...
+            rejected = client.get(
+                "/api/v1/shopkeeper/auth/me", headers=tablet_headers
+            )
+            # ...while the device that did the revoking keeps working.
+            survivor = client.get("/api/v1/shopkeeper/auth/me", headers=phone_headers)
+
+        assert rejected.status_code == 401
+        assert survivor.status_code == 200
+
+    def test_unknown_session_id_is_a_404_not_a_silent_success(
+        self, client, db, active_user
+    ):
+        from app.services.auth_service import issue_tokens
+
+        tokens = issue_tokens(active_user, db, device_id="phone")
+        db.commit()
+        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+        with self._legacy_jwt_only():
+            response = client.delete(
+                "/api/v1/shopkeeper/auth/sessions/does-not-exist",
+                headers=headers,
+            )
+
+        assert response.status_code == 404
+        assert response.json()["error_code"] == "SESSION_NOT_FOUND"
+
+    def test_a_user_cannot_revoke_another_users_session(
+        self, client, db, active_user, shopkeeper_role
+    ):
+        """The DELETE is scoped to the caller inside the service."""
+        from app.models.user import User, UserStatus
+        from app.services.auth_service import issue_tokens, revoke_session_by_id
+
+        other = User(
+            phone_number="+916666666666",
+            name="Other Shopkeeper",
+            email="other@shopkeeper.com",
+            password_hash=hash_password("Password123"),
+            role_id=shopkeeper_role.id,
+            status=UserStatus.ACTIVE,
+            is_active=True,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        db.add(other)
+        db.commit()
+        db.refresh(other)
+
+        theirs = issue_tokens(other, db, device_id="their-phone")
+        mine = issue_tokens(active_user, db, device_id="my-phone")
+        db.commit()
+
+        headers = {"Authorization": f"Bearer {mine['access_token']}"}
+        with self._legacy_jwt_only():
+            response = client.delete(
+                f"/api/v1/shopkeeper/auth/sessions/{theirs['session_id']}",
+                headers=headers,
+            )
+
+        # Not found *for this caller* — and the other user's session is intact.
+        assert response.status_code == 404
+        assert (
+            revoke_session_by_id(db, user_id=other.id, session_id=theirs["session_id"])
+            is True
+        )
+        assert (
+            revoke_session_by_id(db, user_id=active_user.id, session_id=theirs["session_id"])
+            is False
+        )

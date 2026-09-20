@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/ui/connectivity_banner.dart';
+
 /// Responsive navigation shell:
 ///  - narrow (phones): Material 3 bottom NavigationBar
 ///  - wide (tablets/landscape/desktop): NavigationRail (extended ≥1200px)
@@ -29,42 +31,57 @@ class ShopkeeperShell extends StatelessWidget {
         if (width >= 900) {
           final extended = width >= 1280;
           return Scaffold(
-            body: Row(
+            body: Column(
               children: [
-                NavigationRail(
-                  selectedIndex: navigationShell.currentIndex,
-                  onDestinationSelected: _goBranch,
-                  extended: extended,
-                  labelType: extended
-                      ? NavigationRailLabelType.none
-                      : NavigationRailLabelType.all,
-                  leading: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primaryContainer,
-                      child: Icon(Icons.storefront,
-                          color: Theme.of(context).colorScheme.primary),
-                    ),
-                  ),
-                  destinations: [
-                    for (final item in _items)
-                      NavigationRailDestination(
-                        icon: Icon(item.icon),
-                        selectedIcon: Icon(item.activeIcon),
-                        label: Text(item.label),
+                const ConnectivityBanner(),
+                Expanded(
+                  child: Row(
+                    children: [
+                      NavigationRail(
+                        selectedIndex: navigationShell.currentIndex,
+                        onDestinationSelected: _goBranch,
+                        extended: extended,
+                        labelType: extended
+                            ? NavigationRailLabelType.none
+                            : NavigationRailLabelType.all,
+                        leading: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .primaryContainer,
+                            child: Icon(Icons.storefront,
+                                color: Theme.of(context).colorScheme.primary),
+                          ),
+                        ),
+                        destinations: [
+                          for (final item in _items)
+                            NavigationRailDestination(
+                              icon: Icon(item.icon),
+                              selectedIcon: Icon(item.activeIcon),
+                              label: Text(item.label),
+                            ),
+                        ],
                       ),
-                  ],
+                      const VerticalDivider(width: 1, thickness: 1),
+                      Expanded(child: navigationShell),
+                    ],
+                  ),
                 ),
-                const VerticalDivider(width: 1, thickness: 1),
-                Expanded(child: navigationShell),
               ],
             ),
           );
         }
         return Scaffold(
-          body: navigationShell,
+          // The connectivity bar sits above every tab so Offline/Reconnecting
+          // is app-wide knowledge, not per-screen.
+          body: Column(
+            children: [
+              const ConnectivityBanner(),
+              Expanded(child: navigationShell),
+            ],
+          ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: navigationShell.currentIndex,
             onDestinationSelected: _goBranch,

@@ -4,6 +4,7 @@ import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/mock_auth_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_methods.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
@@ -30,11 +31,39 @@ void main() {
     return container;
   }
 
-  group('AuthMethod decision (MVP = Google Sign-In + Firebase only)', () {
-    test('Google + Firebase is the only MVP-active method', () {
-      expect(AuthMethod.googleFirebase.isActiveInMvp, isTrue);
-      expect(AuthMethod.phoneOtp.isActiveInMvp, isFalse);
-      expect(AuthMethod.password.isActiveInMvp, isFalse);
+  group('AuthMethod decision (single source of truth: kEnabledAuthMethods)',
+      () {
+    test('Google, Phone OTP and password are all enabled and labelled', () {
+      expect(kEnabledAuthMethods, contains(AuthMethod.googleFirebase));
+      expect(kEnabledAuthMethods, contains(AuthMethod.phoneOtp));
+      expect(kEnabledAuthMethods, contains(AuthMethod.password));
+
+      // Every enabled method must carry a shopkeeper-facing action label, or a
+      // screen would render a button with nothing on it.
+      for (final method in kEnabledAuthMethods) {
+        expect(method.actionLabel.trim(), isNotEmpty);
+      }
+    });
+
+    test('the enable switch is the only thing that decides visibility', () {
+      final container = ProviderContainer(overrides: [
+        enabledAuthMethodsProvider
+            .overrideWithValue(const [AuthMethod.googleFirebase]),
+      ]);
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(isAuthMethodEnabledProvider(AuthMethod.googleFirebase)),
+        isTrue,
+      );
+      expect(
+        container.read(isAuthMethodEnabledProvider(AuthMethod.phoneOtp)),
+        isFalse,
+      );
+      expect(
+        container.read(isAuthMethodEnabledProvider(AuthMethod.password)),
+        isFalse,
+      );
     });
   });
 

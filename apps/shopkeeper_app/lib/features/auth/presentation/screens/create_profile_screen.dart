@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
-import '../../../../core/network/api_providers.dart';
-import '../../../../core/network/token_store.dart';
-import '../../../shops/domain/shop_models.dart';
+import '../../../../core/ui/app_section_header.dart';
+import '../../../../core/ui/numeric_input.dart';
+import '../../../auth/data/auth_repository.dart';
+import '../../../shops/presentation/controllers/shops_controller.dart';
 import '../controllers/auth_controller.dart';
 
 /// First-time Shopkeeper profile creation — shown after the very first Google
@@ -92,19 +91,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     });
 
     try {
-      final tokens = ref.read(tokenStoreProvider);
-      final token = await tokens.readAccessToken();
-      if (token == null || token.isEmpty) {
-        setState(() {
-          _submitting = false;
-          _error = 'Session expired. Please sign in again.';
-        });
-        return;
-      }
-
-      final api = ref.read(apiClientProvider);
-
-      // 1) Create the shop (location/address are optional at this stage).
+      // 1) Create the shop THROUGH the shops layer (location/address are
+      //    optional at this stage). The controller owns the POST contract,
+      //    refreshes the authorized-shops list and selects the new business.
       final shopPayload = <String, dynamic>{
         'name': _shopName.text.trim(),
         'category': _category,
@@ -116,20 +105,29 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
         if (_tagline.text.trim().isNotEmpty) 'tagline': _tagline.text.trim(),
       };
 
-      final shopData = await api.post(ApiEndpoints.shops,
-          body: shopPayload, token: token) as Map<String, dynamic>;
-      final shop = ShopDetail.fromJson(shopData);
+      final shop =
+          await ref.read(shopsControllerProvider.notifier).registerShop(
+                shopPayload,
+              );
+      if (shop == null) {
+        // The controller already carries the backend's own message.
+        if (!mounted) return;
+        setState(() {
+          _submitting = false;
+          _error = ref.read(shopsControllerProvider).errorMessage ??
+              'Could not create your shop. Please retry.';
+        });
+        return;
+      }
 
-      // 2) Update user profile with full name / contact (if provided).
-      if (_fullName.text.trim().isNotEmpty || _contactNumber.text.trim().isNotEmpty) {
+      // 2) Update user profile with the full name (best-effort — shop creation
+      //    already succeeded, so this must never block onboarding).
+      final fullName = _fullName.text.trim();
+      if (fullName.isNotEmpty) {
         try {
-          final profilePayload = <String, dynamic>{
-            if (_fullName.text.trim().isNotEmpty) 'name': _fullName.text.trim(),
-          };
-          if (profilePayload.isNotEmpty) {
-            await api.put(ApiEndpoints.profile,
-                body: profilePayload, token: token);
-          }
+          await ref
+              .read(authRepositoryProvider)
+              .updateProfile(name: fullName);
         } catch (_) {
           // Profile update is best-effort; shop creation already succeeded.
         }
@@ -142,27 +140,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
       if (!mounted) return;
       context.go(Routes.dashboard);
-    } on ApiException catch (e) {
-      // Surface the backend's EXACT validation/error message so the user (and
-      // logs) see the real reason — not a generic "try again". Distinguish the
-      // common failure modes for a precise, actionable message.
-      debugPrint('[PROFILE] ApiException: status=${e.statusCode} '
-          'code=${e.errorCode} msg=${e.message}');
-      if (mounted) {
-        final message = switch (e.statusCode) {
-          422 => e.message, // backend validation — show verbatim
-          400 => e.message, // bad request — show verbatim
-          401 => 'Session expired. Please sign in again.',
-          403 => 'You are not allowed to create a shop.',
-          409 => e.message, // conflict (e.g. duplicate) — show verbatim
-          500 => 'Server error. Please try again later.',
-          _ => e.message, // any other API error — show backend message
-        };
-        setState(() {
-          _submitting = false;
-          _error = message;
-        });
-      }
     } catch (e) {
       // Non-API failures: network timeout, DNS, parsing, etc.
       debugPrint('[PROFILE] create failed (non-API): $e');
@@ -257,6 +234,8 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         TextFormField(
                           controller: _contactNumber,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: NumericInput.phone(),
+                          textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
                             labelText: 'Contact Number (optional)',
                             hintText: '99999 99999',
@@ -357,30 +336,31 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                   border: Border(
                       top: BorderSide(color: theme.dividerColor)),
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: FilledButton(
-                    onPressed: _submitting ? null : _submit,
-                    child: _submitting
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                height: 20,
-                                width: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                              SizedBox(width: 12),
-                              Text('Creating Profile...',
-                                  style: TextStyle(fontSize: 16)),
-                            ],
-                          )
-                        : const Text('Create Profile',
-                            style: TextStyle(fontSize: 16)),
+                // Height is a *minimum*, so the label can grow with the
+                // system font scale instead of clipping (see TextScalePolicy).
+                child: FilledButton(
+                  onPressed: _submitting ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
                   ),
+                  child: _submitting
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 20,
+                              width: 20,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 12),
+                            Text('Creating Profile...',
+                                style: TextStyle(fontSize: 16)),
+                          ],
+                        )
+                      : const Text('Create Profile',
+                          style: TextStyle(fontSize: 16)),
                 ),
               ),
             ],
@@ -396,13 +376,11 @@ class _SectionLabel extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // Shared section-title type so this screen's sections look like every
+    // other screen's; only the surrounding gap is local.
+    return AppSectionHeader(
+      title: text,
       padding: const EdgeInsets.only(bottom: 10, top: 4),
-      child: Text(text,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.primary,
-              )),
     );
   }
 }

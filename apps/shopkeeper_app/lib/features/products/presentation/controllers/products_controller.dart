@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/product_repository.dart';
+import '../../data/products_snapshot_store.dart';
 import '../../domain/product_models.dart';
 
 enum ProductsStatus { loading, ready, accessDenied, error }
@@ -14,6 +17,7 @@ class ProductsState {
     this.items = const [],
     this.summary,
     this.message,
+    this.fromCache = false,
   });
 
   final ProductsStatus status;
@@ -21,10 +25,15 @@ class ProductsState {
   final InventorySummary? summary;
   final String? message;
 
+  /// True when [items] were rebuilt from the device's offline snapshot rather
+  /// than a live response (see `ProductsSnapshotStore`).
+  final bool fromCache;
+
   factory ProductsState.loading({ProductsState? from}) => ProductsState(
         status: ProductsStatus.loading,
         items: from?.items ?? const [],
         summary: from?.summary,
+        fromCache: from?.fromCache ?? false,
       );
 }
 
@@ -76,6 +85,7 @@ class ProductsController extends Notifier<ProductsState> {
         status: ProductsStatus.ready,
         items: overview.items,
         summary: overview.summary,
+        fromCache: overview.fromCache,
       );
     } on ApiException catch (e) {
       state = ProductsState(
@@ -90,8 +100,12 @@ class ProductsController extends Notifier<ProductsState> {
   }
 
   /// Clears ALL cached inventory data (called on logout) so the previous
-  /// account's products never survive into the next session.
-  void reset() => state = ProductsState.loading();
+  /// account's products never survive into the next session — the in-memory
+  /// state AND the device's offline snapshot store.
+  void reset() {
+    state = ProductsState.loading();
+    unawaited(ref.read(productsSnapshotStoreProvider).clearAll());
+  }
 
   Future<bool> setAvailability(int productId, bool available) async {
     final updated = await _patch(productId, {'is_available': available});
@@ -285,6 +299,9 @@ class ProductsController extends Notifier<ProductsState> {
     int quantity = 0,
     int lowStockThreshold = 5,
     required bool publish,
+    int? categoryId,
+    int? subcategoryId,
+    String? barcode,
   }) async {
     final shopId = _shopId;
     if (shopId == null) return false;
@@ -292,8 +309,9 @@ class ProductsController extends Notifier<ProductsState> {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
       // Payload mirrors the backend ShopkeeperProductCreate schema exactly.
-      // There is intentionally NO barcode field — barcodes only enter the
-      // system through the scanner flow (POST /scan-barcode).
+      // The MANUAL barcode here becomes the master's primary identifier; the
+      // scanner flow (POST /scan-barcode) stays the resolution path at scan
+      // time — one catalog fact, two ways to reach it.
       final created = await _repo.createProduct(shopId, {
         'name': name,
         'price': price,
@@ -308,6 +326,9 @@ class ProductsController extends Notifier<ProductsState> {
         'quantity': quantity,
         'low_stock_threshold': lowStockThreshold,
         'publish': publish,
+        'category_id': ?categoryId,
+        'subcategory_id': ?subcategoryId,
+        if (barcode != null && barcode.isNotEmpty) 'barcode': barcode,
       }, token);
       state = ProductsState(
         status: ProductsStatus.ready,

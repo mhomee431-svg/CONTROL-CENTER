@@ -13,6 +13,10 @@ abstract class NotificationsRepository {
 
   /// Marks a single notification as read (idempotent on the backend).
   Future<void> markAsRead(int notificationId, String token);
+
+  /// Marks every notification for this shopkeeper as read (single round
+  /// trip; idempotent on the backend).
+  Future<void> markAllAsRead(String token);
 }
 
 class ApiNotificationsRepository implements NotificationsRepository {
@@ -38,6 +42,15 @@ class ApiNotificationsRepository implements NotificationsRepository {
   Future<void> markAsRead(int notificationId, String token) async {
     await _api.put(
       ApiEndpoints.notificationRead(notificationId),
+      token: token,
+      body: const <String, dynamic>{},
+    );
+  }
+
+  @override
+  Future<void> markAllAsRead(String token) async {
+    await _api.put(
+      ApiEndpoints.notificationsReadAll,
       token: token,
       body: const <String, dynamic>{},
     );

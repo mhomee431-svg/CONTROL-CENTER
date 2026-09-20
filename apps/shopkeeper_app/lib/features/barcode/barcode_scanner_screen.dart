@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../products/presentation/controllers/products_controller.dart';
 import '../products/presentation/widgets/product_sheets.dart';
 import 'domain/barcode_models.dart';
@@ -422,19 +423,19 @@ class _ScannerErrorView extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: Colors.black,
+      color: AppColors.overlayBackdrop,
       padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(icon, color: Colors.white, size: 48),
+          Icon(icon, color: AppColors.onOverlay, size: 48),
           const SizedBox(height: 16),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.onOverlay,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -443,7 +444,7 @@ class _ScannerErrorView extends StatelessWidget {
           Text(
             detail,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
+            style: const TextStyle(color: AppColors.onOverlayMuted, fontSize: 13),
           ),
           const SizedBox(height: 24),
           // Retry is pointless when the device simply cannot scan.

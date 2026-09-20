@@ -20,6 +20,12 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  /// Active category filter; `null` means "All".
+  ///
+  /// Kept in the screen (not the controller) because it is pure view state —
+  /// the loaded page stays the same, only the visible slice changes.
+  NotificationCategory? _categoryFilter;
+
   @override
   void initState() {
     super.initState();
@@ -68,22 +74,54 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               onRetry: () =>
                   ref.read(notificationsControllerProvider.notifier).load(),
             ),
-          NotificationsStatus.ready => state.items.isEmpty
+          NotificationsStatus.ready => _readyBody(state),
+        },
+      ),
+    );
+  }
+
+  /// Ready body: category filter bar above the (filtered) list.
+  ///
+  /// Filtering is client-side over the already-loaded page, so switching
+  /// category is instant and never refetches.
+  Widget _readyBody(NotificationsState state) {
+    final theme = Theme.of(context);
+    final filter = _categoryFilter;
+    final visible = filter == null
+        ? state.items
+        : state.items
+            .where((n) => filter.matches(n.type))
+            .toList(growable: false);
+
+    return Column(
+      children: [
+        _CategoryFilterBar(
+          selected: filter,
+          onSelect: (category) => setState(() => _categoryFilter = category),
+        ),
+        Divider(height: 1, color: theme.dividerColor),
+        Expanded(
+          child: visible.isEmpty
               ? SystemStateView.empty(
-                  title: 'No notifications yet',
-                  message: 'Inventory alerts and updates will appear here',
-                  icon: Icons.notifications_none,
+                  title: filter == null
+                      ? 'No notifications yet'
+                      : 'No ${filter.label} notifications',
+                  message: filter == null
+                      ? 'Inventory alerts and updates will appear here'
+                      : 'New ${filter.label.toLowerCase()} updates will '
+                          'appear here',
+                  icon: filter?.icon ?? Icons.notifications_none,
                 )
               : RefreshIndicator(
                   onRefresh: () => ref
                       .read(notificationsControllerProvider.notifier)
                       .load(),
                   child: ListView.separated(
-                    itemCount: state.items.length,
+                    itemCount: visible.length,
                     separatorBuilder: (_, _) => Divider(
-                        height: 1, color: Theme.of(context).dividerColor),
+                        height: 1, color: theme.dividerColor),
                     itemBuilder: (context, index) {
-                      final notification = state.items[index];
+                      final notification = visible[index];
                       return _NotificationTile(
                         notification: notification,
                         onTap: () => _onTap(notification),
@@ -91,8 +129,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     },
                   ),
                 ),
-        },
-      ),
+        ),
+      ],
     );
   }
 
@@ -102,30 +140,18 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         .read(notificationsControllerProvider.notifier)
         .markAsRead(notification.id);
 
-    // Deep links follow the shopkeeper section of the app only.
-    final link = notification.deepLink;
-    if (link != null && link.startsWith('hyperlocal://shopkeeper/')) {
-      final target = link.substring('hyperlocal://shopkeeper/'.length);
-      if (target.startsWith('inventory')) {
-        context.go(Routes.products);
-        return;
-      }
-      if (target.startsWith('dashboard')) {
-        context.go(Routes.dashboard);
-        return;
-      }
+    // Where to go is a single, unit-tested decision (notificationRouteTarget):
+    // deep-link section or type, refined by the validated payload — never a
+    // bare id, because the item screens need a whole object, not an id.
+    final target = notificationRouteTarget(notification);
+    if (target == Routes.notificationDetail) {
+      context.push(target, extra: notification);
+      return;
     }
-    switch (notification.type) {
-      case 'INVENTORY_LOW' || 'STOCK_UPDATE' || 'PRICE_UPDATE':
-        context.go(Routes.products);
-      case 'SHOP_VERIFICATION':
-        context.go(Routes.shopProfile);
-      case 'SUBSCRIPTION':
-        context.go(Routes.account);
-      default:
-        // Anything else opens its own detail view, so tapping a row is never a
-        // dead end.
-        context.push(Routes.notificationDetail, extra: notification);
+    if (kNotificationTabTargets.contains(target)) {
+      context.go(target);
+    } else {
+      context.push(target);
     }
   }
 }
@@ -191,3 +217,70 @@ class _NotificationTile extends StatelessWidget {
 }
 
 
+/// Horizontal category filter for the Alerts tab.
+///
+/// "All" plus one chip per [NotificationCategory]. Every category is always
+/// listed — even when it currently has no rows — so the bar does not shift
+/// around as notifications arrive.
+class _CategoryFilterBar extends StatelessWidget {
+  const _CategoryFilterBar({required this.selected, required this.onSelect});
+
+  final NotificationCategory? selected;
+  final ValueChanged<NotificationCategory?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        children: [
+          _CategoryChip(
+            key: const Key('notification-filter-all'),
+            label: 'All',
+            icon: Icons.all_inbox_outlined,
+            selected: selected == null,
+            onTap: () => onSelect(null),
+          ),
+          for (final category in NotificationCategory.values)
+            _CategoryChip(
+              key: Key('notification-filter-${category.name}'),
+              label: category.label,
+              icon: category.icon,
+              selected: selected == category,
+              onTap: () => onSelect(category),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        selected: selected,
+        onSelected: (_) => onTap(),
+        avatar: Icon(icon, size: 16),
+        label: Text(label),
+      ),
+    );
+  }
+}

@@ -609,8 +609,18 @@ void main() {
 
       expect(
           find.byKey(const Key('import-tile-download-sample')), findsOneWidget);
-      expect(find.byKey(const Key('import-tile-start')), findsOneWidget);
-      expect(find.byKey(const Key('import-tile-history')), findsOneWidget);
+      // Excel path + history entry, keyed by the current hub design.
+      expect(find.byKey(const Key('method-excel-csv')), findsOneWidget);
+      expect(find.byKey(const Key('summary-last-import')), findsOneWidget);
+
+      // Recent imports sit below the fold on the default 600px test viewport
+      // (the ListView builds lazily), so scroll the row-count line into view.
+      await tester.scrollUntilVisible(
+        find.textContaining('5 valid, 0 errors'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Recent imports'), findsOneWidget);
       expect(find.text('last.xlsx'), findsOneWidget);
       expect(find.textContaining('5 valid, 0 errors'), findsOneWidget);
     });
@@ -721,7 +731,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('import-result-success')), findsOneWidget);
-      expect(find.text('8 products imported.'), findsOneWidget);
+      expect(find.text('8 rows processed — all successful.'), findsOneWidget);
+      expect(find.byKey(const Key('import-result-view-results')), findsOneWidget);
     });
 
     testWidgets('partial success reports processed and failed counts',
@@ -754,9 +765,16 @@ void main() {
 
       expect(find.byKey(const Key('import-result-partial')), findsOneWidget);
       expect(
-        find.text('6 products imported, 2 could not be applied.'),
+        find.text('8 rows processed — 6 successful, 2 failed.'),
         findsOneWidget,
       );
+      // Partial results expose both drill-downs plus Done.
+      expect(
+        find.byKey(const Key('import-result-view-results')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('import-result-view-errors')), findsOneWidget);
+      expect(find.byKey(const Key('import-result-done')), findsOneWidget);
     });
 
     testWidgets('queued imports point at the history', (tester) async {
@@ -808,6 +826,10 @@ void main() {
               totalRows: 10,
               validRows: 8,
               errorRows: 2,
+              // A PARTIAL job has been applied, so the tile reports the
+              // processing outcome rather than the validation counters.
+              processedRows: 8,
+              failedRows: 2,
             ),
           ],
           onUpload: ImportPreview(
@@ -818,6 +840,8 @@ void main() {
               totalRows: 10,
               validRows: 8,
               errorRows: 2,
+              processedRows: 8,
+              failedRows: 2,
             ),
             rows: const [
               ImportRow(rowNumber: 1, status: 'VALID', productName: 'Rice'),
@@ -836,7 +860,8 @@ void main() {
       await pumpScreen(tester, container, const ImportHistoryScreen());
 
       expect(find.text('march.xlsx'), findsOneWidget);
-      expect(find.textContaining('PARTIAL'), findsOneWidget);
+      // Status is rendered as shopkeeper copy, not the raw server enum.
+      expect(find.text('Partial Success'), findsOneWidget);
 
       // Open the report sheet.
       await tester.tap(find.text('march.xlsx'));

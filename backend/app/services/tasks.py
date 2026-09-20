@@ -1,5 +1,7 @@
 """Service-layer background tasks — domain-specific job orchestration."""
 
+import asyncio
+import html as _html
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -10,47 +12,110 @@ from app.search.engine import aggregate_popular_searches
 
 logger = logging.getLogger("app.services.tasks")
 
+# SMS segments are 160 chars (GSM-7); stay within three segments.
+_SMS_MAX_CHARS = 320
 
-@celery_app.task(name="app.services.tasks.dispatch_email")
-def dispatch_email(to_email: str, subject: str, template_name: str, context: dict) -> dict:
+
+def _render_template(template_name: str, context: dict) -> tuple[str, str]:
+    """Flatten ``context`` into readable (html, plain-text) bodies.
+
+    There is deliberately no template-engine dependency here: transactional
+    notifications carry small structured payloads (OTP codes, import counts,
+    order totals) that render perfectly as a key/value table. A branded
+    template pack (Jinja2 + HTML) can replace this one function later without
+    touching a single caller — the task signature stays identical.
+    """
+    entries = [(str(k), str(v)) for k, v in (context or {}).items()]
+    plain = "\n".join(f"{key}: {value}" for key, value in entries)
+    rows = "".join(
+        "<tr>"
+        f"<td><strong>{_html.escape(key)}</strong></td>"
+        f"<td>{_html.escape(value)}</td>"
+        "</tr>"
+        for key, value in entries
+    )
+    title = _html.escape(template_name.replace("_", " ").title())
+    html_body = (
+        "<html><body style=\"font-family:sans-serif\">"
+        f"<h2>{title}</h2>"
+        f"<table cellpadding=\"6\" style=\"border-collapse:collapse\">{rows}</table>"
+        "</body></html>"
+    )
+    return html_body, plain
+
+
+def _render_sms_text(template_name: str, context: dict) -> str:
+    """Compact single-line SMS body (``Template — key: value | key: value``)."""
+    entries = " | ".join(f"{k}: {v}" for k, v in (context or {}).items())
+    title = template_name.replace("_", " ").title()
+    text = f"{title} — {entries}" if entries else title
+    if len(text) > _SMS_MAX_CHARS:
+        text = text[: _SMS_MAX_CHARS - 1] + "…"
+    return text
+
+
+@celery_app.task(
+    name="app.services.tasks.dispatch_email",
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=30,       # 30s → 60s → 120s
+    retry_jitter=True,
+)
+def dispatch_email(self, to_email: str, subject: str, template_name: str, context: dict) -> dict:
     """Dispatch an email via the configured email provider.
 
     The actual delivery is delegated to the email abstraction so the provider
-    can be swapped (SMTP / SendGrid / AWS SES) without touching this task.
+    can be swapped (mock / SMTP / SendGrid / AWS SES) without touching this
+    task. Transient provider failures are retried with exponential backoff.
     """
-    logger.info(
-        "dispatch_email to=%s subject=%s template=%s",
-        to_email,
-        subject,
-        template_name,
+    from app.services.email_service import EmailMessage, get_email_service
+
+    html_body, text_body = _render_template(template_name, context)
+    delivered = asyncio.run(
+        get_email_service().send(
+            EmailMessage(
+                to_emails=[to_email],
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+            )
+        )
     )
-    # TODO: import EmailService and call send here.
+    logger.info("dispatch_email to=%s subject=%s delivered=%s", to_email, subject, delivered)
     return {
-        "status": "queued",
+        "status": "sent" if delivered else "failed",
         "to_email": to_email,
         "template": template_name,
-        "queued_at": datetime.now(timezone.utc).isoformat(),
+        "executed_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
-@celery_app.task(name="app.services.tasks.dispatch_sms")
-def dispatch_sms(phone_number: str, template_name: str, context: dict) -> dict:
+@celery_app.task(
+    name="app.services.tasks.dispatch_sms",
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=30,       # 30s → 60s → 120s
+    retry_jitter=True,
+)
+def dispatch_sms(self, phone_number: str, template_name: str, context: dict) -> dict:
     """Dispatch an SMS via the configured SMS provider.
 
     The actual delivery is delegated to the SMS abstraction so the provider
-    can be swapped (Mock / Twilio / AWS SNS) without touching this task.
+    can be swapped (mock / Twilio / AWS SNS) without touching this task.
+    Transient provider failures are retried with exponential backoff.
     """
-    logger.info(
-        "dispatch_sms to=%s template=%s",
-        phone_number,
-        template_name,
-    )
-    # TODO: import SmsService and call send here.
+    from app.services.sms_service import get_sms_service
+
+    message = _render_sms_text(template_name, context)
+    delivered = asyncio.run(get_sms_service().send(phone_number, message))
+    logger.info("dispatch_sms to=%s template=%s delivered=%s", phone_number, template_name, delivered)
     return {
-        "status": "queued",
+        "status": "sent" if delivered else "failed",
         "phone_number": phone_number,
         "template": template_name,
-        "queued_at": datetime.now(timezone.utc).isoformat(),
+        "executed_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

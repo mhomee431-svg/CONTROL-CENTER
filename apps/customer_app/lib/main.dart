@@ -6,14 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/env/env_config.dart';
 import 'core/security/safe_logger.dart';
+import 'features/notifications/data/fcm_notification_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase must be ready before any auth call. In mock mode (no API base URL
-  // configured) auth uses FakePhoneAuthService, so we skip initialization.
+  // Firebase must be ready before any auth or FCM call. In mock mode (no API
+  // base URL configured) auth uses FakePhoneAuthService, so we skip init.
   if (EnvConfig.hasApiBaseUrl) {
-    Firebase.initializeApp();
+    await Firebase.initializeApp();
+    registerFcmBackgroundHandler();
   }
 
   // ── Phase 14: production API guard ─────────────────────────────────────

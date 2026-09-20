@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../offers/domain/offer_models.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
@@ -90,8 +91,9 @@ class _OfferTile extends StatelessWidget {
 
   (Color, String) get _statusView => switch (offer.displayStatus) {
         'ACTIVE' => (AppTheme.verifiedGreen, 'Active'),
-        'SCHEDULED' => (const Color(0xFF1A73E8), 'Scheduled'),
+        'SCHEDULED' => (AppColors.primary, 'Scheduled'),
         'DRAFT' => (AppTheme.suspendedGrey, 'Draft'),
+        'DISABLED' => (AppTheme.suspendedGrey, 'Disabled'),
         _ => (AppTheme.rejectedRed, 'Expired'),
       };
 

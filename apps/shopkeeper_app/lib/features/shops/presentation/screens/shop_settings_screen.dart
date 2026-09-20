@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/token_store.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
@@ -124,7 +125,12 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Shop settings'), actions: [
-        IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        IconButton(
+          // Accessible name for the icon-only refresh action.
+          tooltip: 'Refresh',
+          onPressed: _load,
+          icon: const Icon(Icons.refresh),
+        ),
       ]),
       body: SafeArea(
         child: _loading
@@ -187,6 +193,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                             controller: _minOrder,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: NumericInput.decimal(),
+                            textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                                 labelText: 'Min order amount'),
                           ),
@@ -197,6 +205,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                             controller: _radius,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: NumericInput.decimal(),
+                            textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                                 labelText: 'Delivery radius (km)'),
                           ),
@@ -209,6 +219,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                             controller: _fee,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: NumericInput.decimal(),
+                            textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                                 labelText: 'Delivery fee'),
                           ),
@@ -219,6 +231,10 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                             controller: _freeAbove,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: NumericInput.decimal(),
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) =>
+                                FocusScope.of(context).unfocus(),
                             decoration: const InputDecoration(
                                 labelText: 'Free delivery above'),
                           ),

@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/network/token_store.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../controllers/import_controller.dart';
+import '../widgets/import_report_sheet.dart';
+import '../../data/import_repository.dart';
 import '../../domain/import_models.dart';
 
 /// Import Processing — the confirm step: applies the staged job to inventory
@@ -104,7 +108,7 @@ class _ResultView extends ConsumerWidget {
         Icons.schedule_outlined,
         AppTheme.pendingAmber,
         'Import queued',
-        '${result.processed} products queued for background processing. '
+        '${result.processed} rows queued for background processing. '
             'Check Import history for the outcome.',
         'import-result-queued',
       );
@@ -123,8 +127,8 @@ class _ResultView extends ConsumerWidget {
         Icons.warning_amber_outlined,
         AppTheme.pendingAmber,
         'Partially imported',
-        '${result.processed} products imported, '
-            '${result.failed} could not be applied.',
+        '${result.processed + result.failed} rows processed — '
+            '${result.processed} successful, ${result.failed} failed.',
         'import-result-partial',
       );
     }
@@ -132,8 +136,61 @@ class _ResultView extends ConsumerWidget {
       Icons.check_circle_outline,
       AppTheme.verifiedGreen,
       'Import successful',
-      '${result.processed} products imported.',
+      '${result.processed} rows processed — all successful.',
       'import-result-success',
+    );
+  }
+
+  /// True when rows were applied, so a per-row report exists to open.
+  bool get _showResults => !result.queued && result.processed > 0;
+
+  /// True when rows failed and are worth inspecting.
+  bool get _showErrors => result.failed > 0;
+
+  /// Header stub for the report sheet — the confirm payload carries counts, not
+  /// the workbook name, so the sheet is titled by job id instead of guessing.
+  ImportJob get _reportJob {
+    final status = result.queued
+        ? ImportJobStatusValue.queued
+        : (result.failed > 0
+              ? ImportJobStatusValue.partial
+              : ImportJobStatusValue.completed);
+    return ImportJob(
+      id: result.jobId ?? 0,
+      filename: 'Import #${result.jobId ?? '—'}',
+      status: status,
+      totalRows: result.processed + result.failed,
+      validRows: result.processed,
+      errorRows: result.failed,
+      processedRows: result.processed,
+      failedRows: result.failed,
+    );
+  }
+
+  /// Opens this job's row-level report, optionally filtered to failures.
+  /// Does nothing when the payload carried no job id (nothing to fetch).
+  Future<void> _openReport(
+    BuildContext context,
+    WidgetRef ref, {
+    required ReportFilter filter,
+  }) async {
+    final shopId = ref.read(selectedShopProvider)?.id;
+    final jobId = result.jobId;
+    if (shopId == null || jobId == null) return;
+    final token = await ref.read(tokenStoreProvider).readAccessToken();
+    if (token == null || !context.mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => ImportReportSheet(
+        job: _reportJob,
+        future: ref
+            .read(inventoryImportRepositoryProvider)
+            .preview(shopId, jobId, token),
+        initialFilter: filter,
+      ),
     );
   }
 
@@ -167,6 +224,48 @@ class _ResultView extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+            // Partial failures are never hidden — the shopkeeper can open the
+            // applied rows and the failed rows separately from here.
+            if (_showResults) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const Key('import-result-view-results'),
+                  onPressed: () =>
+                      _openReport(context, ref, filter: ReportFilter.all),
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('View Results'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (_showErrors) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const Key('import-result-view-errors'),
+                  onPressed: () =>
+                      _openReport(context, ref, filter: ReportFilter.errors),
+                  icon: const Icon(Icons.error_outline),
+                  label: Text('View Errors (${result.failed})'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (result.queued) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  key: const Key('import-result-history'),
+                  onPressed: () {
+                    ref.read(importControllerProvider.notifier).resetFlow();
+                    context.go(Routes.importHistory);
+                  },
+                  child: const Text('View import history'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -176,18 +275,6 @@ class _ResultView extends ConsumerWidget {
                   context.go(Routes.importCenter);
                 },
                 child: const Text('Done'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                key: const Key('import-result-history'),
-                onPressed: () {
-                  ref.read(importControllerProvider.notifier).resetFlow();
-                  context.go(Routes.importHistory);
-                },
-                child: const Text('View import history'),
               ),
             ),
           ],

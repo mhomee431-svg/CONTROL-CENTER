@@ -36,7 +36,7 @@ class ApiSearchRepository implements SearchRepository {
     } catch (_) {
       // Fall through to the static starter list.
     }
-    return ['Samsung Galaxy', 'Aashirvaad Atta', 'Dettol', 'Bajaj'];
+    return ['Bosch Drill', 'Nivea', 'Dettol', 'Bajaj'];
   }
 
   @override

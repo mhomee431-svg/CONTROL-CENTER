@@ -411,6 +411,12 @@ def _serialize_job(job: InventoryImportJob) -> dict[str, Any]:
         "processed_rows": int(job.processed_rows or 0),
         "failed_rows": int(job.failed_rows or 0),
         "error_message": job.error_message,
+        # created_at (TimestampMixin) is the upload instant. It is always set,
+        # unlike started_at which stays null until row processing begins — the
+        # Import history list needs a date for unconfirmed uploads too.
+        "created_at": (
+            job.created_at.isoformat() if job.created_at else None
+        ),
         "started_at": job.started_at.isoformat() if job.started_at else None,
         "completed_at": job.completed_at.isoformat() if job.completed_at else None,
     }
@@ -728,6 +734,26 @@ def process_import_job(
         "Excel import processed: shop=%s job=%s processed=%s failed=%s",
         job.shop_id, job.id, processed, failed,
     )
+    # Import receipt — a completion/partial/failure notice for the shopkeeper
+    # who uploaded the file. Side-effect only: never blocks the import result.
+    try:
+        from app.services import notification_service as notification_service
+
+        notification_service.notify_import_event(
+            db,
+            shopkeeper_user_id=job.uploaded_by,
+            job_id=job.id,
+            status=(
+                job.status.value
+                if hasattr(job.status, "value")
+                else str(job.status)
+            ),
+            filename=job.filename,
+            processed_rows=processed,
+            failed_rows=failed,
+        )
+    except Exception:  # noqa: BLE001 — side-effect isolation
+        logger.warning("Import notification failed", exc_info=True)
     return {
         **_serialize_job(job),
         "processed_this_run": processed,

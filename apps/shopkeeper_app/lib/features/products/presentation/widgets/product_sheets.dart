@@ -6,11 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/media_upload_service.dart';
 import '../../../../core/network/token_store.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../pos/presentation/controllers/pos_controller.dart';
+import '../../domain/category_taxonomy.dart';
+import '../../domain/product_form_rules.dart';
 import '../../domain/product_models.dart';
+import '../controllers/category_controller.dart';
 import '../controllers/products_controller.dart';
 
 /// Shared product-image picker + uploader (used by the create and edit
@@ -97,6 +103,13 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
 
+  /// Readable reason the last save was REJECTED (offline, server, validation).
+  ///
+  /// Rendered inline so the sheet stays OPEN and every typed value survives:
+  /// a rejected save must never close the sheet and destroy the shopkeeper's
+  /// work (see `update_price_screen.dart`, which follows the same rule).
+  String? _error;
+
   /// Newly picked replacement image (sent as `image_key` on save).
   MediaObject? _image;
   String? _imagePath;
@@ -130,7 +143,10 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     final ok = await ref.read(productsControllerProvider.notifier).saveEdits(
           productId: widget.item.id,
           price: double.tryParse(_price.text.trim()),
@@ -139,11 +155,23 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
           imageKey: _image?.key,
         );
     if (!mounted) return;
+    if (!ok) {
+      // A rejected write (offline / server / validation) must NOT close the
+      // sheet: the typed price, MRP, quantity and picked photo ARE the work.
+      // Stay open, report the backend's readable reason inline, and let the
+      // shopkeeper retry the exact same values.
+      setState(() {
+        _saving = false;
+        _error = ref.read(productsControllerProvider).message ??
+            'Could not update the product. Retry.';
+      });
+      return;
+    }
     setState(() => _saving = false);
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok ? 'Product updated' : 'Update failed'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Product updated')),
+    );
   }
 
   @override
@@ -169,6 +197,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                     style: Theme.of(context).textTheme.titleMedium),
               ),
               IconButton(
+                  tooltip: 'Close',
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close)),
             ]),
@@ -177,6 +206,8 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
               controller: _price,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: NumericInput.decimal(),
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(labelText: 'Selling price'),
               validator: (v) =>
                   double.tryParse((v ?? '').trim()) == null ? 'Required' : null,
@@ -186,6 +217,8 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
               controller: _mrp,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: NumericInput.decimal(),
+              textInputAction: TextInputAction.next,
               decoration:
                   const InputDecoration(labelText: 'MRP (optional)'),
             ),
@@ -193,6 +226,9 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
             TextFormField(
               controller: _quantity,
               keyboardType: TextInputType.number,
+              inputFormatters: NumericInput.whole(),
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
               decoration:
                   const InputDecoration(labelText: 'Stock quantity'),
               validator: (v) =>
@@ -208,6 +244,9 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                     borderRadius: BorderRadius.circular(8),
                     child: Image.file(
                       File(_imagePath!),
+                      // This preview IS the content (the photo the shopkeeper
+                      // just picked), so it needs a name of its own.
+                      semanticLabel: 'Selected product image',
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
@@ -234,6 +273,14 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                     : 'Photo ready — replace again'),
               ),
             ]),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                key: const Key('product-edit-error'),
+                style: TextStyle(color: scheme.error, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _saving ? null : _save,
@@ -279,14 +326,39 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
   final _unit = TextEditingController();
   final _sku = TextEditingController();
   final _description = TextEditingController();
+
+  /// Optional identifier — normalised before it is sent (the same strip the
+  /// backend applies), so ` 890-1234 5678 ` becomes `89012345678`.
+  final _barcode = TextEditingController();
   bool _publish = true;
   bool _isAvailable = true;
   bool _saving = false;
   bool _uploadingImage = false;
 
+  /// Readable reason the last create was REJECTED (offline, server,
+  /// validation). Rendered inline so the sheet stays OPEN and every typed
+  /// field survives a rejected write.
+  String? _error;
+
   /// Confirmed product image (its server-minted key goes into `image_key`).
   MediaObject? _image;
   String? _imagePath;
+
+  /// Taxonomy selection — both levels are optional by contract, which is why
+  /// the dropdowns never block a save.
+  int? _categoryId;
+  int? _subcategoryId;
+
+  @override
+  void initState() {
+    super.initState();
+    // The taxonomy is cached for the whole session: the first sheet-open
+    // fetches it, every later one renders instantly from memory. A failure
+    // leaves the form fully usable with a retry beside the dropdowns.
+    Future.microtask(
+      () => ref.read(categoryControllerProvider.notifier).ensureLoaded(),
+    );
+  }
 
   @override
   void dispose() {
@@ -298,6 +370,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
     _unit.dispose();
     _sku.dispose();
     _description.dispose();
+    _barcode.dispose();
     super.dispose();
   }
 
@@ -327,9 +400,93 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
     });
   }
 
+  /// Category + subcategory pickers, driven by the cached taxonomy.
+  ///
+  /// Both levels are OPTIONAL by backend contract, so this section can never
+  /// block a save: a fetch that fails shows a retry and the form carries on, a
+  /// leaf-only category hides the second dropdown instead of offering an empty
+  /// list, and nothing is rendered at all until the taxonomy is resolved.
+  Widget _taxonomyFields(BuildContext context) {
+    final theme = Theme.of(context);
+    final categories = ref.watch(categoryControllerProvider);
+
+    if (categories.status == CategoryLoadStatus.error) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              categories.message ?? 'Could not load categories',
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+            ),
+          ),
+          TextButton(
+            key: const Key('create-category-retry'),
+            onPressed: () =>
+                ref.read(categoryControllerProvider.notifier).ensureLoaded(),
+            child: const Text('Retry'),
+          ),
+        ],
+      );
+    }
+
+    final taxonomy = categories.taxonomy;
+    if (taxonomy == null || taxonomy.topLevel.isEmpty) {
+      // Loading (or genuinely empty) — the optional fields simply wait.
+      return const SizedBox.shrink();
+    }
+
+    final children = _categoryId == null
+        ? const <CategoryOption>[]
+        : taxonomy.childrenOf(_categoryId!);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<int>(
+          key: const Key('create-category'),
+          initialValue: _categoryId,
+          decoration: const InputDecoration(labelText: 'Category (optional)'),
+          items: [
+            for (final category in taxonomy.topLevel)
+              DropdownMenuItem<int>(
+                value: category.id,
+                child: Text(category.name),
+              ),
+          ],
+          onChanged: (value) => setState(() {
+            _categoryId = value;
+            // A new parent invalidates the previously chosen child.
+            _subcategoryId = null;
+          }),
+        ),
+        // Only shown once the chosen category actually has subcategories.
+        if (children.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            key: const Key('create-subcategory'),
+            initialValue: _subcategoryId,
+            decoration:
+                const InputDecoration(labelText: 'Subcategory (optional)'),
+            items: [
+              for (final child in children)
+                DropdownMenuItem<int>(
+                  value: child.id,
+                  child: Text(child.name),
+                ),
+            ],
+            onChanged: (value) => setState(() => _subcategoryId = value),
+          ),
+        ],
+      ],
+    );
+  }
+
   Future<void> _create() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     final ok = await ref.read(productsControllerProvider.notifier).createProduct(
           name: _name.text.trim(),
           price: double.parse(_price.text.trim()),
@@ -342,14 +499,29 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
           isAvailable: _isAvailable,
           quantity: int.tryParse(_quantity.text.trim()) ?? 0,
           publish: _publish,
+          categoryId: _categoryId,
+          subcategoryId: _subcategoryId,
+          barcode: ProductFormRules.normalizeBarcode(_barcode.text),
         );
     if (!mounted) return;
+    if (!ok) {
+      // A rejected write (offline / server / validation) must NOT close the
+      // sheet: the whole form — name, prices, stock, brand, image, taxonomy —
+      // is unsaved work. Stay open, report the readable reason inline, and let
+      // the shopkeeper retry without retyping anything.
+      setState(() {
+        _saving = false;
+        _error = ref.read(productsControllerProvider).message ??
+            'Could not create the product. Retry.';
+      });
+      return;
+    }
     setState(() => _saving = false);
     Navigator.pop(context);
     widget.onCreated?.call();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok ? 'Product created' : 'Could not create product'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Product created')),
+    );
   }
 
   @override
@@ -379,6 +551,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   IconButton(
+                      tooltip: 'Close',
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close)),
                 ]),
@@ -386,10 +559,12 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                 TextFormField(
                   controller: _name,
                   textCapitalization: TextCapitalization.words,
-                  decoration:
-                      const InputDecoration(labelText: 'Product name *'),
-                  validator: (v) =>
-                      (v ?? '').trim().isEmpty ? 'Name is required' : null,
+                  maxLength: ProductFormRules.nameMaxLength,
+                  decoration: const InputDecoration(
+                    labelText: 'Product name *',
+                    counterText: '',
+                  ),
+                  validator: ProductFormRules.name,
                 ),
                 const SizedBox(height: 12),
                 Row(children: [
@@ -398,11 +573,13 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       controller: _price,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      // Signed so the field can hold `-5` and the validator
+                      // below can explain why it is rejected.
+                      inputFormatters: NumericInput.decimal(allowSign: true),
+                      textInputAction: TextInputAction.next,
                       decoration:
                           const InputDecoration(labelText: 'Selling price *'),
-                      validator: (v) => double.tryParse((v ?? '').trim()) == null
-                          ? 'Required'
-                          : null,
+                      validator: ProductFormRules.price,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -411,7 +588,13 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       controller: _mrp,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: NumericInput.decimal(allowSign: true),
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(labelText: 'MRP'),
+                      // Optional, but must not undercut the price: the backend
+                      // rejects that combination.
+                      validator: (v) =>
+                          ProductFormRules.mrp(v, priceText: _price.text),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -419,27 +602,44 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                     child: TextFormField(
                       controller: _quantity,
                       keyboardType: TextInputType.number,
+                      inputFormatters: NumericInput.whole(),
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) =>
+                          FocusScope.of(context).unfocus(),
                       decoration: const InputDecoration(
                           labelText: 'Quantity (initial stock)'),
+                      validator: ProductFormRules.quantity,
                     ),
                   ),
                 ]),
+                const SizedBox(height: 12),
+                _taxonomyFields(context),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(
                     child: TextFormField(
                       controller: _brand,
                       textCapitalization: TextCapitalization.words,
-                      decoration:
-                          const InputDecoration(labelText: 'Brand (optional)'),
+                      maxLength: ProductFormRules.brandMaxLength,
+                      decoration: const InputDecoration(
+                        labelText: 'Brand (optional)',
+                        counterText: '',
+                      ),
+                      validator: (v) => ProductFormRules.optionalMax(
+                          v, ProductFormRules.brandMaxLength),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
                       controller: _unit,
+                      maxLength: ProductFormRules.unitMaxLength,
                       decoration: const InputDecoration(
-                          labelText: 'Unit / size (e.g. 1 kg)'),
+                        labelText: 'Unit / size (e.g. 1 kg)',
+                        counterText: '',
+                      ),
+                      validator: (v) => ProductFormRules.optionalMax(
+                          v, ProductFormRules.unitMaxLength),
                     ),
                   ),
                 ]),
@@ -447,7 +647,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                 // (name + price) remain front and center.
                 Theme(
                   data: Theme.of(context)
-                      .copyWith(dividerColor: Colors.transparent),
+                      .copyWith(dividerColor: AppColors.transparent),
                   child: ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     childrenPadding: const EdgeInsets.only(bottom: 8),
@@ -455,8 +655,26 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                     children: [
                       TextFormField(
                         controller: _sku,
+                        maxLength: ProductFormRules.skuMaxLength,
                         decoration: const InputDecoration(
-                            labelText: 'SKU (optional)'),
+                          labelText: 'SKU (optional)',
+                          counterText: '',
+                        ),
+                        validator: (v) => ProductFormRules.optionalMax(
+                            v, ProductFormRules.skuMaxLength),
+                      ),
+                      const SizedBox(height: 12),
+                      // The manual identifier becomes the product's primary
+                      // barcode; separators are stripped on submit, so what the
+                      // shopkeeper typed here matches the scanner's value.
+                      TextFormField(
+                        controller: _barcode,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Barcode (optional)',
+                          hintText: 'Type or paste the code on the pack',
+                        ),
+                        validator: ProductFormRules.barcode,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -485,6 +703,9 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                               borderRadius: BorderRadius.circular(8),
                               child: Image.file(
                                 File(_imagePath!),
+                                // Same as the edit sheet: the picked photo is
+                                // content, so give it an accessible name.
+                                semanticLabel: 'Selected product image',
                                 width: 56,
                                 height: 56,
                                 fit: BoxFit.cover,
@@ -534,6 +755,14 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                   value: _publish,
                   onChanged: (v) => setState(() => _publish = v),
                 ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    key: const Key('product-create-error'),
+                    style: TextStyle(color: scheme.error, fontSize: 13),
+                  ),
+                ],
                 FilledButton.icon(
                   onPressed: _saving ? null : _create,
                   icon: _saving
@@ -557,14 +786,34 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
 
 /// Req 24: the single "Add product" entry point. The FAB (and every other
 /// add affordance) opens this chooser first so the shopkeeper picks the
-/// method explicitly: manual entry, barcode scan, bulk Excel — POS sync
-/// stays visible-but-disabled until POS integration ships.
-class ProductAddMethodSheet extends StatelessWidget {
+/// method explicitly: manual entry, barcode scan, bulk Excel — and POS sync,
+/// which lights up only when the backend actually offers POS.
+class ProductAddMethodSheet extends ConsumerStatefulWidget {
   const ProductAddMethodSheet({super.key});
+
+  @override
+  ConsumerState<ProductAddMethodSheet> createState() =>
+      _ProductAddMethodSheetState();
+}
+
+class _ProductAddMethodSheetState extends ConsumerState<ProductAddMethodSheet> {
+  @override
+  void initState() {
+    super.initState();
+    // The POS entry is driven by the real connector catalogue — never by a
+    // hard-coded label. One fetch on open, so the tile reflects what the
+    // backend actually offers right now.
+    Future.microtask(() => ref.read(posControllerProvider.notifier).load());
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pos = ref.watch(posControllerProvider);
+    // Either a published provider (nothing connected yet) or an existing
+    // connector makes POS usable; anything else keeps the entry visible but
+    // inert rather than hiding it.
+    final posReady = pos.integration != null || pos.providers.isNotEmpty;
     return SafeArea(
       // Scrollable so larger accessibility font scales / short screens can
       // never overflow the sheet (content is compact but not fixed-height).
@@ -617,10 +866,21 @@ class ProductAddMethodSheet extends StatelessWidget {
               },
             ),
             ListTile(
-              enabled: false,
+              key: const Key('add-product-pos'),
+              enabled: posReady,
               leading: const Icon(Icons.point_of_sale_outlined),
               title: const Text('POS sync'),
-              subtitle: const Text('Available after POS integration'),
+              subtitle: Text(
+                posReady
+                    ? 'Import products from your connected POS'
+                    : 'Available after POS integration',
+              ),
+              onTap: posReady
+                  ? () {
+                      Navigator.pop(context);
+                      context.push(Routes.pos);
+                    }
+                  : null,
             ),
             const SizedBox(height: 8),
           ],

@@ -25,7 +25,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     Future.microtask(
         () => ref.read(offersListControllerProvider.notifier).load());
   }
@@ -71,6 +71,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
           tabs: const [
             Tab(text: 'Active'),
             Tab(text: 'Expired'),
+            Tab(text: 'Disabled'),
           ],
         ),
         actions: [
@@ -88,13 +89,27 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
             _OffersTab(
               offers: state.openOffers,
               state: state,
+              emptyTitle: 'No active offers',
+              emptyMessage: 'Create an offer to attract more customers',
+              emptyIcon: Icons.local_offer_outlined,
               showCreateCta: true,
               onCreate: _openCreateSheet,
             ),
             _OffersTab(
               offers: state.expiredOffers,
               state: state,
-              showCreateCta: false,
+              emptyTitle: 'No expired offers',
+              emptyMessage: 'Expired offers will appear here',
+              emptyIcon: Icons.history_outlined,
+              onCreate: _openCreateSheet,
+            ),
+            _OffersTab(
+              offers: state.disabledOffers,
+              state: state,
+              emptyTitle: 'No disabled offers',
+              emptyMessage:
+                  'Offers you disable appear here and can be re-activated',
+              emptyIcon: Icons.visibility_off_outlined,
               onCreate: _openCreateSheet,
             ),
           ],
@@ -110,14 +125,24 @@ class _OffersTab extends ConsumerWidget {
   const _OffersTab({
     required this.offers,
     required this.state,
-    required this.showCreateCta,
+    required this.emptyTitle,
+    required this.emptyMessage,
+    required this.emptyIcon,
     required this.onCreate,
+    this.showCreateCta = false,
   });
 
   final List<OfferSummary> offers;
   final OffersListState state;
-  final bool showCreateCta;
+
+  /// Empty-list copy — each tab owns its own wording.
+  final String emptyTitle;
+  final String emptyMessage;
+  final IconData emptyIcon;
   final VoidCallback onCreate;
+
+  /// When true the empty state also shows the "Create offer" call to action.
+  final bool showCreateCta;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -141,13 +166,9 @@ class _OffersTab extends ConsumerWidget {
         ),
       OffersListStatus.ready => offers.isEmpty
           ? SystemStateView.empty(
-              title: showCreateCta ? 'No active offers' : 'No expired offers',
-              message: showCreateCta
-                  ? 'Create an offer to attract more customers'
-                  : 'Expired offers will appear here',
-              icon: showCreateCta
-                  ? Icons.local_offer_outlined
-                  : Icons.history_outlined,
+              title: emptyTitle,
+              message: emptyMessage,
+              icon: emptyIcon,
               action: showCreateCta
                   ? FilledButton.icon(
                       onPressed: onCreate,
@@ -186,12 +207,14 @@ class _OfferTile extends StatelessWidget {
     if (offer.isLive) return 'Live';
     if (offer.isScheduled) return 'Scheduled';
     if (offer.isDraft) return 'Draft';
+    if (offer.isDisabled) return 'Disabled';
     return 'Expired';
   }
 
   Color _statusColor(ColorScheme scheme) {
     if (offer.isLive) return AppTheme.verifiedGreen;
     if (offer.isScheduled) return AppTheme.pendingAmber;
+    if (offer.isDisabled) return AppTheme.suspendedGrey;
     return scheme.outline;
   }
 
@@ -212,7 +235,9 @@ class _OfferTile extends StatelessWidget {
               ? Icons.local_offer
               : offer.isScheduled
                   ? Icons.schedule
-                  : Icons.history,
+                  : offer.isDisabled
+                      ? Icons.visibility_off_outlined
+                      : Icons.history,
           size: 20,
           color: scheme.primary,
         ),

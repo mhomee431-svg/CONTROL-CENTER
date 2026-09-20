@@ -30,7 +30,10 @@ class ApiHolidayRepository implements HolidayRepository {
     ) as Map<String, dynamic>;
     return ((data['holidays'] as List<dynamic>?) ?? const [])
         .whereType<Map<String, dynamic>>()
-        .map(ShopHoliday.fromJson)
+        // Per-row tolerance: a row the backend sends in a shape we cannot
+        // represent is skipped, so one bad entry cannot blank the screen.
+        .map(ShopHoliday.tryParse)
+        .whereType<ShopHoliday>()
         .toList(growable: false);
   }
 

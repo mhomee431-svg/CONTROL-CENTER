@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
 import '../widgets/pos_shared.dart';
@@ -239,28 +240,75 @@ class _JobTile extends ConsumerWidget {
         style: TextStyle(fontSize: 11, color: scheme.outline),
       ),
       trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () => _showDetail(context),
+      onTap: () => _showDetail(context, ref),
     );
   }
 
-  void _showDetail(BuildContext context) {
-    showModalBottomSheet<void>(
+  Future<void> _showDetail(BuildContext context, WidgetRef ref) async {
+    // Diagnostics live on their own endpoint: fetch them when the sheet opens,
+    // never speculatively for every row in the list.
+    final controller = ref.read(posControllerProvider.notifier);
+    final detail = await controller.jobDetail(job.id);
+    if (!context.mounted) return;
+    if (detail == null) {
+      final message = ref.read(posControllerProvider).message ??
+          'Could not load the job details.';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+    await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => _JobDetailSheet(job: job),
+      isScrollControlled: true,
+      builder: (sheetContext) => _JobDetailSheet(
+        job: job,
+        detail: detail,
+        // Only a FAILED job can be retried — the backend refuses the rest.
+        onRetry: job.isFailed
+            ? () async {
+                final retried = await controller.retryFailedJob(job.id);
+                if (retried != null && sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop();
+                }
+              }
+            : null,
+      ),
     );
+    // The sheet may have retried the job: refresh the history either way, so
+    // the row the shopkeeper came from can never show a stale status.
+    if (job.isFailed && context.mounted) {
+      await ref.read(posControllerProvider.notifier).refreshJobs();
+    }
   }
 }
 
-/// Everything the server reported about one job.
+/// Everything the server reported about one job: the payload rows the history
+/// list already shows, PLUS the diagnostics only the job-detail endpoint
+/// carries (per-item logs and every recorded mapping conflict), and the retry
+/// action for a job that failed.
 class _JobDetailSheet extends StatelessWidget {
-  const _JobDetailSheet({required this.job});
+  const _JobDetailSheet({
+    required this.job,
+    this.detail,
+    this.onRetry,
+  });
 
   final PosSyncJob job;
+
+  /// `GET /shopkeeper/pos/jobs/{id}` payload — null when the diagnostics call
+  /// failed, in which case the sheet still renders the payload rows.
+  final PosJobDetail? detail;
+
+  /// Set only for a FAILED job: closing the sheet runs the retry.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // A local copy so the diagnostics blocks can null-check it: `detail` is a
+    // field, and Dart does not promote fields.
+    final PosJobDetail? d = detail;
     final duration = posJobDuration(job);
     final rows = <(String, String)>[
       ('Job', '#${job.id}'),
@@ -326,6 +374,69 @@ class _JobDetailSheet extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ],
+            if (d != null && d.logs.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Log', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 6),
+              for (final log in d.logs)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        log.isError
+                            ? Icons.error_outline
+                            : log.isWarning
+                                ? Icons.warning_amber_outlined
+                                : Icons.check_circle_outline,
+                        size: 16,
+                        color: log.isError
+                            ? scheme.error
+                            : log.isWarning
+                                ? AppColors.warning
+                                : scheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          log.itemReference == null
+                              ? log.message
+                              : '${log.itemReference}: ${log.message}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            if (d != null && d.conflicts.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Conflicts', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 6),
+              for (final conflict in d.conflicts)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    [
+                      if (conflict.posProductCode.isNotEmpty)
+                        conflict.posProductCode,
+                      if (conflict.field.isNotEmpty) conflict.field,
+                      if (conflict.detail.isNotEmpty) conflict.detail,
+                    ].join(' - '),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                key: const Key('pos-history-retry'),
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry this sync'),
               ),
             ],
           ],

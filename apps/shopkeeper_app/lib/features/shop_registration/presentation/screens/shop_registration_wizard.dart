@@ -4,10 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_shadows.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../controllers/shop_registration_controller.dart';
 import '../../data/document_picker_service.dart';
 import '../../domain/shop_registration_state.dart';
 import '../widgets/registration_widgets.dart';
+import '../widgets/shop_location_details.dart';
 
 /// The complete "Register Your Shop" wizard — a single screen that hosts all
 /// five steps with animated transitions. Back navigation and entered data are
@@ -283,6 +287,9 @@ class _HeroIllustration extends StatelessWidget {
     // as a fallback if the asset is missing.
     return Image.asset(
       'assets/images/passly_biz_named.png',
+      // Brand mark only — this step's own heading carries the meaning, so the
+      // logo stays out of the screen-reader order instead of adding noise.
+      excludeFromSemantics: true,
       height: 150,
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) => Container(
@@ -301,12 +308,10 @@ class _HeroIllustration extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 6),
+                boxShadow: const [
+                  BoxShadow(color: AppShadows.inkAmbient, blurRadius: 6),
                 ],
               ),
               child:
@@ -337,12 +342,10 @@ class _BenefitCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(RegistrationSpacing.cardRadius),
         border: Border.all(color: RegistrationColors.border),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
-        ],
+        boxShadow: AppShadows.soft,
       ),
       child: Row(
         children: [
@@ -566,7 +569,7 @@ class _CategoryField extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius:
                     BorderRadius.circular(RegistrationSpacing.fieldRadius),
                 border: Border.all(
@@ -628,7 +631,7 @@ class _BusinessTypeField extends StatelessWidget {
         labelText: 'Business Type',
         prefixIcon: const Icon(Icons.business_center_outlined, size: 20),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.white,
         contentPadding: const EdgeInsets.symmetric(
             horizontal: 16, vertical: RegistrationSpacing.fieldGap),
         border: OutlineInputBorder(
@@ -723,6 +726,13 @@ class _LocationStep extends StatelessWidget {
                                   markerId: const MarkerId('shop_pin'),
                                   position: state.pin!,
                                   draggable: true,
+                                  onDragEnd: (position) =>
+                                      ProviderScope.containerOf(
+                                              context, listen: false)
+                                          .read(
+                                              shopRegistrationControllerProvider
+                                                  .notifier)
+                                          .movePin(position),
                                 ),
                               },
                         onTap: (latLng) => ProviderScope.containerOf(
@@ -737,7 +747,9 @@ class _LocationStep extends StatelessWidget {
                         top: 10,
                         left: 10,
                         child: RegistrationAccuracyChip(
-                            accuracyMeters: state.accuracyMeters),
+                            accuracyMeters: state.pinAdjusted
+                                ? null
+                                : state.accuracyMeters),
                       ),
                       Positioned(
                         bottom: 12,
@@ -754,6 +766,18 @@ class _LocationStep extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              ShopLocationDetails(
+                state: state,
+                onAdjust: (position) => ProviderScope.containerOf(
+                        context, listen: false)
+                    .read(shopRegistrationControllerProvider.notifier)
+                    .movePin(position),
+                onConfirmDrift: () => ProviderScope.containerOf(
+                        context, listen: false)
+                    .read(shopRegistrationControllerProvider.notifier)
+                    .confirmPinDrift(),
               ),
               const SizedBox(height: 12),
               _LocationActions(
@@ -801,6 +825,9 @@ class _LocationStep extends StatelessWidget {
                       placeholder: '6-digit pincode',
                       icon: Icons.pin_drop_outlined,
                       keyboardType: TextInputType.number,
+                      // Indian pincodes are exactly six digits — letters and
+                      // a seventh digit are blocked at the keystroke.
+                      inputFormatters: NumericInput.whole(maxLength: 6),
                       maxLength: 6,
                       validator: ShopRegistrationValidators.pincode,
                     ),
@@ -844,7 +871,8 @@ class _LocationActions extends StatelessWidget {
     final notifier = ProviderScope.containerOf(context, listen: false)
         .read(shopRegistrationControllerProvider.notifier);
     if (locationStatus == RegistrationLocationStatus.requestingPermission ||
-        locationStatus == RegistrationLocationStatus.locating) {
+        locationStatus == RegistrationLocationStatus.locating ||
+        locationStatus == RegistrationLocationStatus.adjustingAccuracy) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: Row(
@@ -863,7 +891,8 @@ class _LocationActions extends StatelessWidget {
     if (locationStatus == RegistrationLocationStatus.permissionDenied) {
       return RegistrationErrorCard(
         icon: Icons.lock_outline,
-        message: 'Location permission is required to accurately add your shop.',
+        message: 'Permission denied. Allow location access in app settings, '
+            'then retry, or select your shop manually.',
         onRetry: () => notifier.acquireLocation(),
       );
     }
@@ -1093,7 +1122,7 @@ class _TimeField extends StatelessWidget {
           height: RegistrationSpacing.fieldHeight,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.white,
             borderRadius:
                 BorderRadius.circular(RegistrationSpacing.fieldRadius),
             border: Border.all(color: RegistrationColors.border),
@@ -1170,7 +1199,12 @@ class _ReviewStep extends StatelessWidget {
       padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
       children: [
         Row(children: [
-          IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back)),
+          IconButton(
+            // Accessible name for the icon-only back control.
+            tooltip: 'Back',
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back),
+          ),
           Expanded(
             child: Text('Review your details',
                 style: Theme.of(context)
@@ -1234,6 +1268,8 @@ class _ReviewStep extends StatelessWidget {
               title: Text(state.submitError!,
                   style: TextStyle(color: scheme.onErrorContainer)),
               trailing: IconButton(
+                // Accessible name for the icon-only dismiss control.
+                tooltip: 'Dismiss',
                 icon: const Icon(Icons.close),
                 onPressed: onDismissError,
               ),
@@ -1379,7 +1415,7 @@ class _ReviewDocuments extends StatelessWidget {
                         : Icons.radio_button_off),
                 size: 20,
                 color:
-                    slot.isUploaded ? Colors.green : scheme.onSurfaceVariant,
+                    slot.isUploaded ? AppColors.success : scheme.onSurfaceVariant,
               ),
               title: Text(slot.requirement.label,
                   style: const TextStyle(fontSize: 14)),
@@ -1395,7 +1431,7 @@ class _ReviewDocuments extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 12,
                     color: slot.isUploaded
-                        ? Colors.green
+                        ? AppColors.success
                         : scheme.onSurfaceVariant),
               ),
             ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../controllers/settings_controller.dart';
 import '../widgets/settings_widgets.dart';
 
@@ -17,77 +18,54 @@ class AppSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final current = ref.watch(settingsControllerProvider).themeMode;
     final controller = ref.read(settingsControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('App settings')),
+      appBar: AppBar(title: Text(l10n.appSettingsTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            const SettingsIntro(
+            SettingsIntro(
               icon: Icons.palette_outlined,
-              title: 'Appearance',
-              subtitle: 'Applies to this device only',
+              title: l10n.appSettingsIntroTitle,
+              subtitle: l10n.appSettingsIntroSubtitle,
             ),
             SettingsSection(
-              title: 'Theme',
-              footnote: 'Kept on this device and left unchanged when you log out.',
+              title: l10n.appSettingsGroupTheme,
+              footnote: l10n.appSettingsThemeFootnote,
               children: [
-                _ThemeOption(
-                  mode: ThemeMode.system,
-                  icon: Icons.brightness_auto_outlined,
-                  label: 'Follow device',
-                  description: 'Switch with your phone\'s light / dark setting',
-                  selected: current == ThemeMode.system,
-                  onSelect: () => controller.setThemeMode(ThemeMode.system),
-                ),
-                _ThemeOption(
-                  mode: ThemeMode.light,
-                  icon: Icons.light_mode_outlined,
-                  label: 'Light',
-                  description: 'Always use the light theme',
-                  selected: current == ThemeMode.light,
-                  onSelect: () => controller.setThemeMode(ThemeMode.light),
-                ),
-                _ThemeOption(
-                  mode: ThemeMode.dark,
-                  icon: Icons.dark_mode_outlined,
-                  label: 'Dark',
-                  description: 'Always use the dark theme',
-                  selected: current == ThemeMode.dark,
-                  onSelect: () => controller.setThemeMode(ThemeMode.dark),
-                ),
+                for (final mode in ThemeMode.values)
+                  SettingsChoiceTile(
+                    key: Key('theme_option_${mode.name}'),
+                    icon: _themeIcon(mode),
+                    label: themeModeLabel(l10n, mode),
+                    description: _themeDescription(l10n, mode),
+                    selected: current == mode,
+                    onSelect: () => controller.setThemeMode(mode),
+                  ),
               ],
             ),
-            SettingsSection(
-              title: 'Related settings',
-              children: [
-                SettingsTile(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notification settings',
-                  subtitle: 'Alert delivery and permissions',
-                  onTap: () => context.push(Routes.notificationSettings),
-                ),
-                SettingsTile(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy policy',
-                  onTap: () => context.push(Routes.privacy),
-                ),
-                SettingsTile(
-                  icon: Icons.info_outline,
-                  title: 'About this app',
-                  onTap: () => context.push(Routes.about),
-                ),
-              ],
-            ),
+            // Notifications / Privacy policy / About are NOT repeated here:
+            // they are rows on the Settings hub (this screen's parent), so a
+            // destination lives in exactly one place.
             const SizedBox(height: 24),
-            const SettingsNotice(
-              icon: Icons.language_outlined,
-              title: 'Language',
-              message: 'The shopkeeper app ships in English only for now. '
-                  'More languages will be added in a future release.',
+            SettingsSection(
+              title: l10n.appSettingsGroupLanguage,
+              children: [
+                SettingsTile(
+                  key: const Key('app_settings_language'),
+                  icon: Icons.language_outlined,
+                  title: l10n.appSettingsLanguageLink,
+                  // The current choice, straight from the shared controller —
+                  // the Language screen owns the explanation of what is
+                  // available, so the two never state it differently.
+                  subtitle: ref.watch(settingsControllerProvider).language.label,
+                  onTap: () => context.push(Routes.language),
+                ),
+              ],
             ),
           ],
         ),
@@ -96,37 +74,17 @@ class AppSettingsScreen extends ConsumerWidget {
   }
 }
 
-/// One selectable theme row.
-class _ThemeOption extends StatelessWidget {
-  const _ThemeOption({
-    required this.mode,
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.selected,
-    required this.onSelect,
-  });
+IconData _themeIcon(ThemeMode mode) => switch (mode) {
+      ThemeMode.system => Icons.brightness_auto_outlined,
+      ThemeMode.light => Icons.light_mode_outlined,
+      ThemeMode.dark => Icons.dark_mode_outlined,
+    };
 
-  final ThemeMode mode;
-  final IconData icon;
-  final String label;
-  final String description;
-  final bool selected;
-  final VoidCallback onSelect;
+String _themeDescription(AppLocalizations l10n, ThemeMode mode) => switch (mode) {
+      ThemeMode.system => l10n.themeFollowDeviceDescription,
+      ThemeMode.light => l10n.themeLightDescription,
+      ThemeMode.dark => l10n.themeDarkDescription,
+    };
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      key: Key('theme_option_${mode.name}'),
-      leading: Icon(icon),
-      title: Text(label, style: const TextStyle(fontSize: 14)),
-      subtitle: Text(description, style: const TextStyle(fontSize: 12)),
-      trailing: Icon(
-        selected ? Icons.check_circle : Icons.circle_outlined,
-        color: selected ? scheme.primary : scheme.outline,
-      ),
-      onTap: onSelect,
-    );
-  }
-}
+// The selectable rows are [SettingsChoiceTile] (settings_widgets.dart) — the
+// same widget the Language picker uses, so a "selected" state cannot drift.

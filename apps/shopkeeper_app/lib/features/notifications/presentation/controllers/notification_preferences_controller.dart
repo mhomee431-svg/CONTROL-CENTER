@@ -102,6 +102,23 @@ class NotificationPreferencesController
     }
   }
 
+  /// Deletes this user's saved preferences and returns the screen to defaults.
+  ///
+  /// Used by *Data & storage*. Unlike [reset] (which only drops the in-memory
+  /// cache on logout), this removes the value from device storage, so "using
+  /// the defaults" survives an app restart. `false` means the delete failed.
+  Future<bool> clearSaved() async {
+    try {
+      await _store.clear(_userKey);
+    } catch (_) {
+      return false;
+    }
+    state = const NotificationPreferencesState(
+      status: NotificationPreferencesStatus.ready,
+    );
+    return true;
+  }
+
   /// Clears cached preferences and unsaved edits (called on logout) so nothing
   /// from the previous account survives into the next session.
   void reset() => state = const NotificationPreferencesState();

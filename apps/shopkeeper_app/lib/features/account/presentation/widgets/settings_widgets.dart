@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_shadows.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../l10n/app_localizations.dart';
+
 /// Shared building blocks for the Account / Settings screens.
 ///
 /// WHY SHARED: nine screens (`AccountSettingsScreen`, `SecurityScreen`,
@@ -9,7 +15,6 @@ import 'package:flutter/material.dart';
 /// explanatory notice. Declaring them once means every settings surface has
 /// identical spacing, radii and tap targets, which is exactly the kind of thing
 /// that drifts when each screen rolls its own `ListTile`.
-
 
 /// A titled group of setting rows.
 ///
@@ -36,11 +41,15 @@ class SettingsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.xl,
+            AppSpacing.xs,
+            AppSpacing.sm,
+          ),
           child: Text(
             title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
+            style: AppTypography.caption.copyWith(
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
               color: scheme.outline,
@@ -61,10 +70,15 @@ class SettingsSection extends StatelessWidget {
         ),
         if (footnote != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xs,
+              AppSpacing.xs,
+              AppSpacing.xs,
+              0,
+            ),
             child: Text(
               footnote!,
-              style: TextStyle(fontSize: 11, color: scheme.outline),
+              style: AppTypography.caption,
             ),
           ),
       ],
@@ -110,17 +124,20 @@ class SettingsTile extends StatelessWidget {
       ),
       subtitle: subtitle == null
           ? null
-          : Text(subtitle!, style: const TextStyle(fontSize: 12)),
+          : Text(subtitle!, style: AppTypography.bodySmall),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (trailingLabel != null)
             Text(
               trailingLabel!,
-              style: TextStyle(fontSize: 12, color: scheme.primary),
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.primary,
+              ),
             ),
           if (onTap != null) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             const Icon(Icons.chevron_right),
           ],
         ],
@@ -168,16 +185,15 @@ class SettingsSwitchTile extends StatelessWidget {
       ),
       subtitle: subtitle == null
           ? null
-          : Text(subtitle!, style: const TextStyle(fontSize: 12)),
+          : Text(subtitle!, style: AppTypography.bodySmall),
       value: value,
       onChanged: enabled ? onChanged : null,
     );
   }
 }
 
-/// Explanatory card for a setting that needs context — why it exists, or what is
-/// deliberately not wired yet. Copy like this lives in the page (never in a
-/// tooltip) so the shopkeeper can actually read it.
+/// Explanatory card for a setting that needs context — why it exists, or what
+/// is deliberately not wired yet.
 class SettingsNotice extends StatelessWidget {
   const SettingsNotice({
     super.key,
@@ -199,31 +215,28 @@ class SettingsNotice extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       color: accent.withValues(alpha: 0.08),
-      elevation: 0,
+      elevation: AppShadows.elevationNone,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 20, color: accent),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                    style: AppTypography.labelMedium.copyWith(
                       color: accent,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     message,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppTypography.bodySmall.copyWith(
                       height: 1.4,
                       color: scheme.onSurface.withValues(alpha: 0.8),
                     ),
@@ -260,31 +273,77 @@ class SettingsIntro extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: scheme.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppRadius.mdBorder,
           ),
           child: Icon(icon, color: scheme.primary),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTypography.labelLarge,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: scheme.outline),
+                style: AppTypography.caption.copyWith(
+                  color: scheme.outline,
+                ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Human label for a theme choice.
+///
+/// Shared by *App settings* and *Data & storage* so the same choice can never
+/// be described two different ways. Localized here rather than in the controller
+/// because it is presentation copy, not app state.
+String themeModeLabel(AppLocalizations l10n, ThemeMode mode) => switch (mode) {
+      ThemeMode.system => l10n.themeFollowDevice,
+      ThemeMode.light => l10n.themeLight,
+      ThemeMode.dark => l10n.themeDark,
+    };
+
+/// One selectable row in a single-choice settings list (theme, language).
+///
+/// Renders the check/empty circle both pickers share, so a "selected" state
+/// looks identical everywhere instead of drifting per screen.
+class SettingsChoiceTile extends StatelessWidget {
+  const SettingsChoiceTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final IconData icon;
+  final String label;
+  final String description;
+  final bool selected;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label, style: AppTypography.bodyLarge),
+      subtitle: Text(description, style: AppTypography.bodySmall),
+      trailing: Icon(
+        selected ? Icons.check_circle : Icons.circle_outlined,
+        color: selected ? scheme.primary : scheme.outline,
+      ),
+      onTap: onSelect,
     );
   }
 }
@@ -304,18 +363,19 @@ class LegalSection extends StatelessWidget {
       children: [
         Text(
           heading,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          style: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           body,
-          style: TextStyle(
-            fontSize: 13,
+          style: AppTypography.bodyMedium.copyWith(
             height: 1.5,
             color: scheme.onSurface.withValues(alpha: 0.85),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.lg),
       ],
     );
   }

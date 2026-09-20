@@ -528,6 +528,13 @@ def create_offer(db: Session, data: dict) -> Offer:
     """Create a new offer with product mappings and conditions."""
     if data["end_date"] <= data["start_date"]:
         raise ValueError("end_date must be after start_date")
+    _offer_type_value = data["offer_type"].value if hasattr(data["offer_type"], "value") else str(data["offer_type"])
+    if _offer_type_value == "PERCENTAGE_DISCOUNT" and not data.get("discount_percentage"):
+        raise ValueError("Percentage offers require discount_percentage")
+    if _offer_type_value == "FLAT_DISCOUNT" and data.get("discount_value") in (None, 0):
+        raise ValueError("Flat-discount offers require discount_value")
+    if _offer_type_value == "PROMOTIONAL_PRICE" and data.get("promotional_price") in (None, 0):
+        raise ValueError("Promotional-price offers require promotional_price")
 
     offer = Offer(
         shop_id=data["shop_id"],
@@ -536,6 +543,7 @@ def create_offer(db: Session, data: dict) -> Offer:
         offer_type=data["offer_type"],
         discount_value=data.get("discount_value"),
         discount_percentage=data.get("discount_percentage"),
+        promotional_price=data.get("promotional_price"),
         min_purchase_amount=data.get("min_purchase_amount"),
         max_discount_amount=data.get("max_discount_amount"),
         buy_quantity=data.get("buy_quantity"),

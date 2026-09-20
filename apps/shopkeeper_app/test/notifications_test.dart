@@ -123,6 +123,25 @@ void main() {
       expect(state.items.every((n) => n.isRead), isTrue);
       expect(state.unreadCount, 0);
       expect(fake.markedRead, containsAll([1, 2]));
+      // One bulk call — never one request per row.
+      expect(fake.markAllAsReadCalls, 1);
+    });
+
+    test('markAllAsRead with nothing unread never calls the API', () async {
+      final page = NotificationsPage(
+        items: [_notification(id: 1, isRead: true)],
+        unreadCount: 0,
+      );
+      final fake = FakeNotificationsRepo(page: page);
+      final container = makeContainer(fake, shopId: 10);
+      await container.read(notificationsControllerProvider.notifier).load();
+
+      await container
+          .read(notificationsControllerProvider.notifier)
+          .markAllAsRead();
+
+      expect(fake.markAllAsReadCalls, 0);
+      expect(fake.markedRead, isEmpty);
     });
   });
 

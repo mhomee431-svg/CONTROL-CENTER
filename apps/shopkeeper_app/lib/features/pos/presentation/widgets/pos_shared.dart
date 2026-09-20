@@ -292,12 +292,18 @@ class PosHubTile {
     this.icon,
     this.title,
     this.subtitle,
-    this.route,
-  );
+    this.route, {
+    this.onTap,
+  });
 
   final Key tileKey;
   final IconData icon;
   final String title;
   final String subtitle;
   final String route;
+
+  /// When set, the tile opens a sheet/flow instead of navigating to [route]
+  /// (used by the Terminals and Sync-settings tiles, which are dialogs on the
+  /// hub rather than destinations).
+  final VoidCallback? onTap;
 }

@@ -1,35 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_shadows.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/ui/app_section_header.dart';
 import '../../data/document_picker_service.dart';
 import '../../domain/shop_registration_state.dart';
 import '../../../shops/domain/shop_models.dart';
 
-// ── Design tokens (centralized — never hardcode in sub-widgets) ──────────────
+// ── Design tokens (aliases into the app-wide palette) ────────────────────────
+//
+// These names predate `lib/core/theme/` and are kept so the wizard's widgets
+// read unchanged — but every VALUE now comes from the centralized palette, so
+// the wizard can no longer drift away from the rest of the app.
 
 /// Page background / section backgrounds / borders for the wizard.
 class RegistrationColors {
   RegistrationColors._();
 
-  static const Color pageBg = Color(0xFFFFFFFF);
-  static const Color surface = Color(0xFFF6F7F9);
-  static const Color border = Color(0xFFE5E7EB);
-  static const Color textPrimary = Color(0xFF111827);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color progressUpcoming = Color(0xFFE5E7EB);
-  static const Color success = Color(0xFF16A34A);
-  static const Color successSoft = Color(0xFFEAF7EF);
+  static const Color pageBg = AppColors.white;
+  static const Color surface = AppColors.lighterGray;
+  static const Color border = AppColors.borderGray;
+  static const Color textPrimary = AppColors.darkText;
+  static const Color textSecondary = AppColors.textMuted;
+  static const Color progressUpcoming = AppColors.borderGray;
+  static const Color success = AppColors.success;
+  static const Color successSoft = AppColors.greenLight;
 }
 
 /// Shared spacing scale (generous, mobile-first).
+///
+/// The step sizes come from [AppSpacing] / [AppRadius]; only the wizard's
+/// deliberate mobile-first dimensions (a 20dp gutter and 52dp controls) are
+/// defined here.
 class RegistrationSpacing {
   RegistrationSpacing._();
 
   static const double screenPadding = 20;
-  static const double sectionGap = 24;
-  static const double fieldGap = 14;
-  static const double cardRadius = 16;
-  static const double fieldRadius = 12;
+  static const double sectionGap = AppSpacing.lg;
+  static const double fieldGap = AppSpacing.listItemVertical;
+  static const double cardRadius = AppRadius.lg;
+  static const double fieldRadius = AppRadius.md;
   static const double buttonHeight = 52;
   static const double fieldHeight = 52;
 }
@@ -64,7 +78,7 @@ class PrimaryButton extends StatelessWidget {
         onPressed: (onPressed == null || loading) ? null : onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: scheme.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.white,
           disabledBackgroundColor: scheme.primary.withValues(alpha: 0.45),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
@@ -82,7 +96,7 @@ class PrimaryButton extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.4,
-                      color: Colors.white,
+                      color: AppColors.white,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -227,14 +241,18 @@ class _StepDot extends StatelessWidget {
             ),
             child: Center(
               child: state == _StepState.completed
-                  ? const Icon(Icons.check, size: 17, color: Colors.white)
+                  ? const Icon(
+                      Icons.check,
+                      size: 17,
+                      color: AppColors.white,
+                    )
                   : Text(
                       '${index + 1}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: state == _StepState.active
-                            ? Colors.white
+                            ? AppColors.white
                             : RegistrationColors.textSecondary,
                       ),
                     ),
@@ -340,6 +358,10 @@ class RegisterStepHeader extends StatelessWidget {
 
 // ── SectionHeader ─────────────────────────────────────────────────────────────
 
+/// The wizard's section title. Kept as a named entry point so wizard call
+/// sites read unchanged, but the type now comes from the app-wide
+/// [AppSectionHeader] so section titles look the same everywhere.
+/// Padding is left to the caller, exactly as before.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({super.key, required this.title, this.action});
 
@@ -348,22 +370,10 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final action = this.action;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16.5,
-              fontWeight: FontWeight.w800,
-              color: RegistrationColors.textPrimary,
-            ),
-          ),
-        ),
-        // ignore: use_null_aware_elements
-        if (action case final widget?) widget,
-      ],
+    return AppSectionHeader(
+      title: title,
+      action: action,
+      padding: EdgeInsets.zero,
     );
   }
 }
@@ -388,6 +398,7 @@ class FormFieldCard extends StatelessWidget {
     this.onChanged,
     this.onFieldSubmitted,
     this.focusNode,
+    this.inputFormatters,
   });
 
   final TextEditingController controller;
@@ -404,6 +415,9 @@ class FormFieldCard extends StatelessWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final FocusNode? focusNode;
 
+  /// Keyboard-level guards for numeric fields (see `core/ui/numeric_input.dart`).
+  final List<TextInputFormatter>? inputFormatters;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -415,6 +429,7 @@ class FormFieldCard extends StatelessWidget {
       onChanged: onChanged,
       onFieldSubmitted: onFieldSubmitted,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       textCapitalization: textCapitalization,
       maxLength: maxLength,
       validator: validator,
@@ -431,7 +446,7 @@ class FormFieldCard extends StatelessWidget {
             ? null
             : Icon(icon, size: 20, color: RegistrationColors.textSecondary),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.white,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: RegistrationSpacing.fieldGap,
@@ -505,16 +520,23 @@ class RegistrationErrorCard extends StatelessWidget {
           ),
           if (onRetry != null) ...[
             const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onRetry,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  'Retry',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: scheme.primary,
+            // Link-styled, but still an action: it needs a button role and a
+            // 44dp touch target (previously ~20dp of bare text).
+            Semantics(
+              button: true,
+              child: GestureDetector(
+                onTap: onRetry,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.primary,
+                    ),
                   ),
                 ),
               ),
@@ -535,10 +557,10 @@ class RegistrationAccuracyChip extends StatelessWidget {
   final double? accuracyMeters;
 
   Color get _color => switch (accuracyMeters) {
-    null => Colors.blueGrey,
+    null => AppColors.qualityUnknown,
     final a when a <= 10 => RegistrationColors.success,
-    final a when a <= 25 => Colors.orange,
-    _ => Colors.deepOrange,
+    final a when a <= 25 => AppColors.qualityFair,
+    _ => AppColors.qualityPoor,
   };
 
   @override
@@ -720,16 +742,14 @@ class _DocumentUploadCardState extends ConsumerState<DocumentUploadCard> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(RegistrationSpacing.cardRadius),
         border: Border.all(
           color: slot.status == DocumentUploadStatus.error
               ? scheme.error.withValues(alpha: 0.5)
               : RegistrationColors.border,
         ),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
-        ],
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

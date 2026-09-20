@@ -40,11 +40,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- Google Maps API key — replace with your real key for map tiles.
-             Location detection works without it; map markers still render. -->
+        <!-- Google Maps SDK — Phase 15 (mirrors the customer app).
+             The ${MAPS_API_KEY} placeholder is resolved by Gradle at build time
+             from the MAPS_API_KEY environment variable or android/local.properties
+             (both gitignored). No key is ever committed to the repository.
+             Without a key GPS capture and the coordinate fields still work, but
+             the map surface renders blank. -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" />
+            android:value="${MAPS_API_KEY}" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

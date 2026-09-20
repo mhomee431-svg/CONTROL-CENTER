@@ -1,0 +1,7 @@
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+
+# `AppLocalizations.of(context)` stays non-nullable: every screen in this app is
+# inside MaterialApp, so a nullable getter would only invite `!` everywhere.
+nullable-getter: false

@@ -9,7 +9,6 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/media_upload_service.dart';
 import '../../../core/network/token_store.dart';
 import '../../auth/presentation/controllers/selected_shop.dart';
-import '../../shops/data/location_accuracy_config.dart';
 import '../../shops/data/shop_repository.dart';
 import '../../shops/domain/location_capture_state.dart';
 import '../../shops/domain/shop_models.dart';
@@ -29,6 +28,11 @@ class ShopRegistrationController
     extends Notifier<ShopRegistrationState> {
   @override
   ShopRegistrationState build() {
+    // Keep the wizard view-model in sync with the existing capture state
+    // machine (drift, accuracy, pin) so the UI has ONE render source.
+    ref.listen(locationCaptureControllerProvider, (_, next) {
+      _syncLocationIntoWizard();
+    });
     Future.microtask(loadCategories);
     return const ShopRegistrationState();
   }
@@ -190,6 +194,11 @@ class ShopRegistrationController
     if (stateError != null) return stateError;
     final pincodeError = ShopRegistrationValidators.pincode(state.pincode);
     if (pincodeError != null) return pincodeError;
+    // A pin moved far from the GPS fix must be explicitly confirmed first.
+    if (state.needsPinDriftConfirmation) {
+      return 'This pin is far from your GPS location. '
+          'Confirm it is your shop entrance to continue.';
+    }
     state = state.copyWith(
       step: RegistrationStep.documents,
       attempted: false,
@@ -251,20 +260,28 @@ class ShopRegistrationController
     await _syncLocationIntoWizard();
   }
 
-  Future<void> retryLocation() async {
-    state = state.copyWith(clearLocationError: true);
-    await _location.acquire();
-    await _syncLocationIntoWizard();
-  }
+  /// Retry after a failed acquisition — re-runs the full pre-flight so a
+  /// revoked permission or a disabled GPS service is reported honestly.
+  Future<void> retryLocation() => acquireLocation();
 
-  /// Manual pin adjustment (drag on the map).
+  /// Manual pin adjustment (map tap, marker drag or manual coordinates).
+  /// The wizard pin updates immediately so the map, the coordinate fields and
+  /// the confirmation card can never disagree.
   void movePin(LatLng position) {
     _location.moveShopPin(position);
-    state = state.copyWith(pinAdjusted: true);
+    state = state.copyWith(
+      pin: position,
+      pinAdjusted: true,
+      locationStatus: RegistrationLocationStatus.ready,
+      clearLocationError: true,
+    );
   }
 
   /// Re-confirms after the shopkeeper moved the pin far from the GPS fix.
-  void confirmPinDrift() => _location.confirmPinDrift();
+  void confirmPinDrift() {
+    _location.confirmPinDrift();
+    state = state.copyWith(pinDriftConfirmed: true);
+  }
 
   /// Reverse-geocode AFTER the final pin selection, then prefill the address
   /// fields. Editing the address text never moves the pin.
@@ -285,6 +302,8 @@ class ShopRegistrationController
       reading: capture.deviceReading,
       accuracyMeters: capture.accuracyMeters,
       pinAdjusted: capture.pinIsAdjusted,
+      pinDriftMeters: capture.pinDriftMeters,
+      pinDriftConfirmed: capture.pinDriftConfirmed,
       detectedAddress: detected,
       locationError: capture.status == LocationCaptureStatus.error
           ? (capture.errorMessage ?? 'Could not get your location')
@@ -332,10 +351,7 @@ class ShopRegistrationController
   }
 
   /// GPS drift warning threshold (mirrors the existing capture flow).
-  bool get needsDriftConfirmation =>
-      (_locationState.pinDriftMeters ?? 0) >
-          LocationAccuracyConfig.pinDriftWarningMeters &&
-      !_locationState.pinDriftConfirmed;
+  bool get needsDriftConfirmation => state.needsPinDriftConfirmation;
 
   // ── Documents ────────────────────────────────────────────────────────────
 

@@ -152,6 +152,7 @@ class OfferCreate(BaseModel):
     offer_type: OfferType
     discount_value: Optional[float] = Field(None, ge=0)
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
+    promotional_price: Optional[float] = Field(None, ge=0)
     min_purchase_amount: Optional[float] = Field(None, ge=0)
     max_discount_amount: Optional[float] = Field(None, ge=0)
     buy_quantity: Optional[int] = Field(None, ge=1)
@@ -170,6 +171,7 @@ class OfferUpdate(BaseModel):
     offer_type: Optional[OfferType] = None
     discount_value: Optional[float] = Field(None, ge=0)
     discount_percentage: Optional[float] = Field(None, ge=0, le=100)
+    promotional_price: Optional[float] = Field(None, ge=0)
     min_purchase_amount: Optional[float] = Field(None, ge=0)
     max_discount_amount: Optional[float] = Field(None, ge=0)
     buy_quantity: Optional[int] = Field(None, ge=1)
@@ -210,6 +212,7 @@ class OfferResponse(BaseModel):
     offer_type: OfferType
     discount_value: Optional[float] = None
     discount_percentage: Optional[float] = None
+    promotional_price: Optional[float] = None
     min_purchase_amount: Optional[float] = None
     max_discount_amount: Optional[float] = None
     buy_quantity: Optional[int] = None

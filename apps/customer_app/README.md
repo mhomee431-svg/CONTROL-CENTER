@@ -10,6 +10,14 @@ environment, builds, testing, backend integration and release readiness
 - Android applicationId: `com.hyperlocal.app`
 - iOS bundle identifier: `com.hyperlocal.hyperlocalCustomerApp`
 
+> **Known issue (blocks shipping both apps together):** the shopkeeper app
+> (`apps/shopkeeper_app`) uses the *same* Android `applicationId`
+> (`com.hyperlocal.app`) and the same Firebase Android app registration
+> (project `local-pier-506805-g5`). Two apps cannot be published under one
+> applicationId, so the shopkeeper needs its own Firebase Android app **before**
+> its id can change. The exact ordered steps are written next to the code in
+> `apps/shopkeeper_app/android/app/build.gradle.kts`.
+
 ---
 
 ## 1. Architecture

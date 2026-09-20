@@ -22,7 +22,7 @@ void main() {
       when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
       when(mockStorage.read(key: 'user_saved_location')).thenAnswer((_) async => null);
 
-      await tester.pumpWidget(
+            await tester.pumpWidget(
         ProviderScope(
           overrides: [
             secureStorageProvider.overrideWithValue(mockStorage),
@@ -33,6 +33,12 @@ void main() {
           child: const HyperlocalApp(),
         ),
       );
+
+      // The splash Image.asset fires its errorBuilder asynchronously — a
+      // microtask pump is enough to flush the load failure and render the
+      // "Hyperlocal" fallback text.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 10));
 
       // Verify Splash Screen
       expect(find.text('Hyperlocal'), findsOneWidget);

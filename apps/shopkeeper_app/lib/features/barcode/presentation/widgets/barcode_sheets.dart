@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../data/barcode_repository.dart';
 import '../../domain/barcode_models.dart';
 import '../controllers/barcode_controller.dart';
@@ -163,6 +164,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                     child: ClipOval(
                       child: Image.network(
                         match.imageUrl!,
+                        // Decorative — the result row already names the product.
+                        excludeFromSemantics: true,
                         width: 44,
                         height: 44,
                         fit: BoxFit.cover,
@@ -198,6 +201,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                 ),
               ),
               IconButton(
+                // Accessible name for the icon-only dismiss control.
+                tooltip: 'Close',
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
@@ -260,6 +265,9 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                   controller: _price,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  // Signed so the validator can explain a negative amount.
+                  inputFormatters: NumericInput.decimal(allowSign: true),
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                       labelText: 'Selling price *', prefixText: '₹ '),
                   validator: (v) {
@@ -276,6 +284,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                   controller: _mrp,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: NumericInput.decimal(allowSign: true),
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                       labelText: 'MRP (optional)', prefixText: '₹ '),
                   validator: (v) {
@@ -290,6 +300,9 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                 child: TextFormField(
                   controller: _quantity,
                   keyboardType: TextInputType.number,
+                  inputFormatters: NumericInput.whole(),
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
                   decoration:
                       const InputDecoration(labelText: 'Quantity'),
                   validator: (v) {
@@ -396,7 +409,9 @@ class _BarcodeManualEntrySheetState
               controller: _controller,
               autofocus: true,
               keyboardType: TextInputType.number,
-              maxLength: 20, // 14 digits + the separators _normalize strips
+              inputFormatters: NumericInput.barcode(),
+              textInputAction: TextInputAction.done,
+              maxLength: 20, // 14 digits + the separators the formatter strips
               decoration: const InputDecoration(
                 labelText: 'Barcode',
                 hintText: 'e.g. 8901234567890',

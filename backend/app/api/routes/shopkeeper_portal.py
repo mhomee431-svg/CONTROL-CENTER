@@ -16,7 +16,9 @@ from app.models.user import User
 from app.schemas.shopkeeper import (
     ShopkeeperAddFromMaster,
     ShopkeeperBulkOperation,
+    ShopkeeperLowStockThresholdUpdate,
     ShopkeeperOfferAssign,
+    ShopkeeperOfferStatusUpdate,
     ShopkeeperProductCreate,
     ShopkeeperProductUpdate,
     ShopkeeperProfileUpdate,
@@ -223,6 +225,7 @@ async def get_inventory(
     stock_status: str | None = Query(None, max_length=30),
     availability: bool | None = Query(None),
     is_active: bool | None = Query(None),
+    low_below_threshold: bool | None = Query(None),
     sort_by: str = Query("updated_at", max_length=30),
     sort_order: str = Query("desc", max_length=4),
     view: str = Query("overview", max_length=20),
@@ -230,7 +233,15 @@ async def get_inventory(
     db: Session = Depends(get_db),
 ):
     """Inventory overview (default) or a filterable/sortable/searchable list
-    (``view=list``) — items include last-updated time and inventory source."""
+    (``view=list``) — items include last-updated time and inventory source.
+
+    ``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns
+    only listings whose **current stock is at or below their own per-listing
+    low-stock threshold** (``quantity <= low_stock_threshold``). This is
+    stricter than ``stock_status=LOW_STOCK`` — that filter reports the server's
+    derived state, while this one answers the operational question "what must
+    be restocked now" directly from the two numbers that decide it.
+    """
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     if str(view).lower() == "list":
         access.require("inventory", "read")
@@ -241,6 +252,7 @@ async def get_inventory(
             stock_filter=stock_status,
             availability_filter=availability,
             active_filter=is_active,
+            low_below_threshold=low_below_threshold,
             sort_by=sort_by,
             sort_order=sort_order,
         )
@@ -386,6 +398,57 @@ async def create_stock_adjustment(
     return success_response(data=result, message="Stock adjusted")
 
 
+@router.patch("/shops/{shop_id}/products/{shop_product_id}/low-stock-threshold")
+async def update_low_stock_threshold(
+    shop_id: int,
+    shop_product_id: int,
+    payload: ShopkeeperLowStockThresholdUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Change the quantity at which a listing is flagged LOW_STOCK.
+
+    The stock state is re-derived server-side (no units move), so the client
+    never has to guess the new status.
+    """
+    from app.core.exceptions import AppError
+    from app.core.responses import error_response
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.update_low_stock_threshold(
+            access, db, current_user, shop_product_id,
+            payload.low_stock_threshold,
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=result, message="Low stock threshold updated")
+
+
+@router.get("/shops/{shop_id}/products/{shop_product_id}/stock-adjustments")
+async def list_stock_adjustments(
+    shop_id: int,
+    shop_product_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Adjustment-only audit trail for one product (damage / expiry /
+    stock count / correction), newest first."""
+    from app.core.exceptions import AppError
+    from app.core.responses import error_response
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.list_stock_adjustments(
+            access, db, shop_product_id, limit=limit
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    return success_response(data=result)
+
+
 @router.delete("/shops/{shop_id}/products/{shop_product_id}")
 async def remove_product(
     shop_id: int,
@@ -411,17 +474,19 @@ async def get_product_history(
     shop_id: int,
     shop_product_id: int,
     limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Inventory history for one product: movements, adjustments and price changes."""
+    """Inventory history for one product: movements, adjustments and price
+    changes, newest first, paginated (`limit` + `offset`)."""
     from app.core.exceptions import AppError
     from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
         result = shopkeeper_service.product_history(
-            access, db, current_user, shop_product_id, limit=limit
+            access, db, current_user, shop_product_id, limit=limit, offset=offset
         )
     except AppError as exc:
         return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
@@ -477,7 +542,7 @@ async def list_shop_offers(
     shop_id: int,
     status: str | None = Query(
         None,
-        description="Bucket filter: active | scheduled | expired | draft. "
+        description="Bucket filter: active | scheduled | expired | draft | disabled. "
         "Omit for every offer.",
     ),
     current_user: User = Depends(get_current_user),
@@ -497,6 +562,32 @@ async def list_shop_offers(
     except AppError as exc:
         return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
     return success_response(data=result)
+
+
+@router.patch("/shops/{shop_id}/offers/{offer_id}/status")
+async def update_shop_offer_status(
+    shop_id: int,
+    offer_id: int,
+    payload: ShopkeeperOfferStatusUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Activate / pause / disable / cancel one shop-owned offer.
+
+    Expired and cancelled offers are terminal and can never be re-activated.
+    """
+    from app.core.exceptions import AppError
+    from app.core.responses import error_response
+
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    try:
+        result = shopkeeper_service.update_shop_offer_status(
+            access, db, current_user, offer_id, payload.status
+        )
+    except AppError as exc:
+        return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
+    db.commit()
+    return success_response(data=result, message="Offer status updated")
 
 
 @router.get("/leads")

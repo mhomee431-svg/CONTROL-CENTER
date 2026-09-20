@@ -15,6 +15,8 @@ class PosState {
     this.integration,
     this.jobs = const [],
     this.providers = const [],
+    this.devices = const [],
+    this.devicesLoading = false,
     this.message,
   });
 
@@ -26,6 +28,11 @@ class PosState {
 
   /// Vendor catalogue, populated when no connector exists (connect UI).
   final List<PosProviderInfo> providers;
+
+  /// Terminals mapped to the connector (`GET .../devices`), loaded lazily by
+  /// the Terminals sheet — never fetched just to render the status card.
+  final List<PosDevice> devices;
+  final bool devicesLoading;
 
   /// Error copy when [status] is [PosStatus.error].
   final String? message;
@@ -181,6 +188,182 @@ class PosController extends Notifier<PosState> {
       integration: results[0] as PosIntegration,
       jobs: results[1] as List<PosSyncJob>,
     );
+  }
+
+  /// ── Terminals, schedule, settings, diagnostics ──────────────────────────
+  ///
+  /// Everything the connector API offers beyond load/connect/sync.
+
+  /// Rebuilds state preserving everything that did NOT change, so a secondary
+  /// action (devices, settings, retry) can never blank the loaded screen.
+  PosState _patch({
+    List<PosDevice>? devices,
+    bool? devicesLoading,
+    PosIntegration? integration,
+    String? message,
+  }) {
+    final current = state;
+    return PosState(
+      status: PosStatus.ready,
+      integration: integration ?? current.integration,
+      jobs: current.jobs,
+      providers: current.providers,
+      devices: devices ?? current.devices,
+      devicesLoading: devicesLoading ?? current.devicesLoading,
+      message: message,
+    );
+  }
+
+  /// Loads the terminals mapped to the connector (`GET .../devices`).
+  ///
+  /// Devices are a secondary view, so a failure reports itself without tearing
+  /// down the connector card.
+  Future<void> loadDevices() async {
+    final integration = state.integration;
+    if (integration == null) return;
+    state = _patch(devicesLoading: true);
+    try {
+      final token = await _token();
+      final devices = await _repo.listDevices(integration.id, token);
+      state = _patch(devices: devices, devicesLoading: false);
+    } on ApiException catch (e) {
+      state = _patch(devicesLoading: false, message: friendlyPosError(e));
+    } catch (_) {
+      state = _patch(
+        devicesLoading: false,
+        message: 'Could not load the POS terminals.',
+      );
+    }
+  }
+
+  /// Maps a terminal to the connector, then reloads the list and the status
+  /// card so the device count is always the server's number, never a guess.
+  Future<bool> registerTerminal({
+    required String deviceIdentifier,
+    String? deviceName,
+    String? deviceType,
+  }) async {
+    final integration = state.integration;
+    if (integration == null) return false;
+    try {
+      final token = await _token();
+      await _repo.registerDevice(
+        integration.id,
+        token,
+        deviceIdentifier: deviceIdentifier,
+        deviceName: deviceName,
+        deviceType: deviceType,
+      );
+      final results = await Future.wait<dynamic>([
+        _repo.listDevices(integration.id, token),
+        _repo.status(integration.id, token),
+      ]);
+      state = _patch(
+        devices: results[0] as List<PosDevice>,
+        integration: results[1] as PosIntegration,
+      );
+      return true;
+    } on ApiException catch (e) {
+      state = _patch(
+        message: friendlyPosError(
+          e,
+          forbidden: 'Only shop owners can manage POS terminals.',
+        ),
+      );
+      return false;
+    } catch (_) {
+      state = _patch(message: 'Could not add the terminal. Please retry.');
+      return false;
+    }
+  }
+
+  /// Pauses/resumes background sync or changes its cadence
+  /// (`PUT .../schedule`). Null fields are left untouched server-side.
+  Future<bool> updateSchedule({bool? syncEnabled, int? intervalMinutes}) async {
+    final integration = state.integration;
+    if (integration == null) return false;
+    try {
+      final token = await _token();
+      final fresh = await _repo.updateSchedule(
+        integration.id,
+        token,
+        syncEnabled: syncEnabled,
+        syncIntervalMinutes: intervalMinutes,
+      );
+      state = _patch(integration: fresh);
+      return true;
+    } on ApiException catch (e) {
+      state = _patch(
+        message: friendlyPosError(
+          e,
+          forbidden: 'Only shop owners can change the sync schedule.',
+        ),
+      );
+      return false;
+    } catch (_) {
+      state = _patch(
+        message: 'Could not save the sync schedule. Please retry.',
+      );
+      return false;
+    }
+  }
+
+  /// Merges the vendor-neutral sync settings (`PUT .../config`).
+  Future<bool> updateSyncSettings(PosSyncSettings settings) async {
+    final integration = state.integration;
+    if (integration == null) return false;
+    try {
+      final token = await _token();
+      final fresh =
+          await _repo.updateSyncConfig(integration.id, token, settings);
+      state = _patch(integration: fresh);
+      return true;
+    } on ApiException catch (e) {
+      state = _patch(
+        message: friendlyPosError(
+          e,
+          forbidden: 'Only shop owners can change the sync settings.',
+        ),
+      );
+      return false;
+    } catch (_) {
+      state = _patch(message: 'Could not save the sync settings. Please retry.');
+      return false;
+    }
+  }
+
+  /// One job WITH its diagnostics (`GET /shopkeeper/pos/jobs/{id}`).
+  /// Returns null on failure — [PosState.message] then carries why.
+  Future<PosJobDetail?> jobDetail(int jobId) async {
+    try {
+      final token = await _token();
+      return await _repo.jobDetail(jobId, token);
+    } on ApiException catch (e) {
+      state = _patch(message: friendlyPosError(e));
+      return null;
+    } catch (_) {
+      state = _patch(message: 'Could not load the job details.');
+      return null;
+    }
+  }
+
+  /// Re-runs a FAILED job and refreshes status + history so the retry shows up.
+  /// Returns the retried job, or null when the backend refused (409).
+  Future<PosSyncJob?> retryFailedJob(int jobId) async {
+    final integration = state.integration;
+    if (integration == null) return null;
+    try {
+      final token = await _token();
+      final job = await _repo.retryJob(jobId, token);
+      await _refreshActive(integration.id, token);
+      return job;
+    } on ApiException catch (e) {
+      state = _patch(message: friendlyPosError(e));
+      return null;
+    } catch (_) {
+      state = _patch(message: 'Could not retry the sync. Please retry.');
+      return null;
+    }
   }
 
   /// Refreshes ONLY the sync-job history, keeping the loaded connector in

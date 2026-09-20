@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/numeric_input.dart';
+import '../../../inventory/presentation/widgets/inventory_shared.dart';
 import '../../domain/product_models.dart';
 import '../controllers/products_controller.dart';
 
@@ -141,7 +142,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
     final error = _error ?? _validationError;
     final delta = _delta;
     final canSave = !_saving && error == null && delta != null && delta != 0;
-    final stock = StockStateView.of(widget.item.stockStatus);
+    final stock = widget.item.stockState;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -216,11 +217,11 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
                   controller: _input,
                   enabled: !_saving,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    // Digits only — blocks invalid numbers at the source.
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(7),
-                  ],
+                  inputFormatters: NumericInput.whole(),
+                  // The sheet's own max-quantity guard rejects above
+                  // _maxQuantity, so the cap here only stops absurd input.
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
                   decoration: InputDecoration(
                     labelText: 'New quantity',
                     isDense: true,
@@ -334,7 +335,7 @@ class _ProductHistorySheetState extends ConsumerState<ProductHistorySheet> {
                           child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   : (_load?.ok ?? false)
-                      ? _HistoryList(history: _load!.history!)
+                      ? _HistoryList(history: _load!.history!, onRefresh: _fetch)
                       : Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Column(
@@ -360,29 +361,43 @@ class _ProductHistorySheetState extends ConsumerState<ProductHistorySheet> {
 
 
 class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.history});
+  const _HistoryList({required this.history, required this.onRefresh});
 
   final ProductHistoryResult history;
+
+  /// Re-fetches the trail (pull-to-refresh). Owned by the sheet so the summary
+  /// tile and the entries always come from the same fetch.
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (history.entries.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text('No history recorded yet.',
-              style: TextStyle(color: theme.colorScheme.outline)),
-        ),
-      );
-    }
-    return ListView.builder(
-      shrinkWrap: true,
-      padding: EdgeInsets.zero,
-      itemCount: history.entries.length,
-      itemBuilder: (context, index) => _HistoryTile(
-        entry: history.entries[index],
-        isLast: index == history.entries.length - 1,
+    // Always scrollable so pull-to-refresh works even with an empty trail.
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        shrinkWrap: true,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        children: [
+          // Net current stock the server reports, so the newest movement can
+          // be checked against the live quantity at a glance.
+          StockHistorySummary(history: history),
+          if (history.entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text('No history recorded yet.',
+                    style: TextStyle(color: theme.colorScheme.outline)),
+              ),
+            )
+          else
+            for (var i = 0; i < history.entries.length; i++)
+              _HistoryTile(
+                entry: history.entries[i],
+                isLast: i == history.entries.length - 1,
+              ),
+        ],
       ),
     );
   }
@@ -472,7 +487,8 @@ class _HistoryTile extends StatelessWidget {
                         style: TextStyle(fontSize: 12, color: scheme.outline)),
                   Text(
                     '${_relativeTime(entry.occurredAt)}'
-                    '${entry.source != null ? ' · ${sourceLabel(entry.source)}' : ''}',
+                    '${entry.source != null ? ' · ${sourceLabel(entry.source)}' : ''}'
+                    ' · ${entry.actorLabel}',
                     style: TextStyle(fontSize: 11, color: scheme.outline),
                   ),
                 ],

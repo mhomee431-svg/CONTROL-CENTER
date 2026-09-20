@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/auth_controller.dart';
 
@@ -47,8 +48,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // HyperLocal logo + wordmark.
+              // The logo is the only content on this screen, so it carries the
+              // accessible name rather than being skipped by a screen reader.
               Image.asset(
                 'assets/images/passly_biz_named.png',
+                semanticLabel: 'Hyperlocal Shopkeeper',
                 width: 160,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => Column(
@@ -58,7 +62,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       radius: 36,
                       backgroundColor: AppTheme.brandSeed,
                       child: const Icon(Icons.storefront,
-                          color: Colors.white, size: 36),
+                          color: AppColors.white, size: 36),
                     ),
                     const SizedBox(height: 16),
                     Text('Hyperlocal Shopkeeper',

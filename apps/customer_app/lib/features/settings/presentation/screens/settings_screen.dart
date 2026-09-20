@@ -161,6 +161,13 @@ class SettingsScreen extends ConsumerWidget {
 
           // ── About ───────────────────────────────────────────────────
           ListTile(
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Help & Support'),
+            subtitle: const Text('FAQ, contact us, report an issue'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/help'),
+          ),
+          ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(strings.get('about')),
             subtitle: const Text('Version 1.0.0'),

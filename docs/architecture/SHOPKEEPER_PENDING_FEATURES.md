@@ -239,17 +239,46 @@ server's integration payload and job history.
 ### E1 — Phone OTP
 `features/auth/domain/phone_otp.dart` (156 lines) and
 `features/auth/data/firebase_phone_otp_service.dart` (214 lines) implement the
-whole OTP flow; `auth_methods.dart` holds `kEnabledAuthMethods` (Google only).
+whole OTP flow. `auth_methods.dart` holds `kEnabledAuthMethods`
+(`googleFirebase`, `phoneOtp`, `password`) and is **wired**: the Welcome and
+Sign-in screens gate their buttons on `isAuthMethodEnabledProvider` (3 lib
+importers, 6 call sites), so removing a method from the list removes its entry
+points without deleting the flow.
 
-⚠️ **One genuine inconsistency:** `auth_methods.dart` is **orphaned** — no file
-imports it — and `isAuthMethodEnabledProvider` has **zero** call sites. Its
-own doc comment and those in `phone_otp.dart` / `firebase_phone_otp_service.dart`
-claim that enabling the method makes the UI "simply become visible". **That is
-currently untrue:** the login screen never consults the provider, so adding
-`AuthMethod.phoneOtp` to the list today would surface no UI. Either wire the
-login screen to the provider, or correct the three comments.
+> **RESOLVED (audited).** An earlier note here said the file was "orphaned" and
+> that the login screen "never consults the provider". That was true when
+> written and is no longer: `login_screen.dart`, `welcome_screen.dart` and
+> `auth_widgets.dart` all import it and consult the provider, and
+> `auth_extensibility_test.dart` / `phone_otp_login_test.dart` pin the
+> behaviour. Enabling a method genuinely is a one-line change now.
+
+**Backend note — deliberate, do not "fix" casually.** Phone-OTP *login* is
+verified server-side (`/shopkeeper/auth/firebase-login` calls
+`verify_firebase_id_token_claims`), but `/shopkeeper/auth/register` — the
+password path — intentionally does not: `shopkeeper_auth.py` carries a
+commented `TODO(Firebase)` block plus a docstring stating that registration
+takes `phone_number + password` directly for the interim simple-login phase.
+Client-supplied `firebase_uid` is never trusted there (the field is defaulted
+to `None` and only ever set from a *verified* token), so no identity can be
+spoofed. Re-enabling the commented block as-is would break password
+registration (the client sends no Firebase token on that path), so it stays
+preserved until the OTP-first flow is switched on.
 
 ### E2 — Document picker
+> **RESOLVED (this session).** The stated blocker ("requires compileSdk 36
+> plugin fixes") no longer applies — `compileSdk = 36` is already in place — so
+> `image_picker` was enabled in `pubspec.yaml` and `PlatformDocumentPicker`
+> really picks now: camera/gallery through `image_picker` (downscaled to
+> `maxWidth: 2000` / quality 85 so a 12 MP photo stays inside the 5 MB image
+> cap) and PDF through the system file browser (`file_picker`, already a
+> dependency for Excel imports, filtered by the upload API's allowed
+> extensions). A cancelled or unsupported selection simply leaves the slot
+> empty, and `DocumentPreflight.validate` still guards every pick before the
+> network. Covered by `test/document_picker_service_test.dart` (10 tests:
+> extension→mime mapping, null-selection handling, the camera/gallery guard for
+> PDF-only slots, and the pre-flight accept/reject matrix). The finding below is
+> kept for history.
+
 `features/shop_registration/data/document_picker_service.dart` exists for
 verification-document upload.
 
@@ -366,6 +395,7 @@ pytest = **70 passed**.
 | B1 Insights drill-downs | ✅ Built — Views / Clicks / Top products / Hourly |
 | C location orphans | ✅ Resolved — wired stack cleaned, dead screens deleted |
 | E1 OTP claim | ✅ Doc comments corrected (tri-state `auth_methods`) |
+| E2 Document picker | ✅ Built — real camera/gallery (`image_picker`) + PDF (`file_picker`) picking, preflight-filtered |
 | **Navigation architecture** | ✅ `route_names.dart` + all call sites migrated + **SHOPKEEPER access gate** |
 
 **Navigation architecture — final state:**
@@ -546,7 +576,8 @@ Design notes:
 | Out of Stock | `InventoryScope.outOfStock` (`OUT_OF_STOCK`) |
 | Inventory Freshness | `InventoryScope.freshness` — stale listings with a "Needs update" label |
 | Update Stock | `update_stock_screen.dart` — **delta** adjustments via `POST /shops/{id}/products/{pid}/stock-adjustments`; +1/+5/+10/-1/-5/-10 bump chips, adjustment type (`CORRECTION` / `RESTOCK` / `RETURN` / `DAMAGE` / `SPOILAGE`) and an optional note; the confirmation panel renders the **server's** before → after quantity |
-| Stock History | `stock_history_screen.dart` — `GET .../products/{pid}/history`, rendering movements, adjustments and price changes from one audit trail |
+| Stock History | `stock_history_screen.dart` — `GET .../products/{pid}/history?limit=&offset=`, rendering movements, adjustments and price changes from one audit trail; each row names **who** acted (`actor`, `Automated` for imports/POS sync), the **delta**, the `before → after` transition, the source and the timestamp; a summary tile shows the server's **current stock** + stock state; pull-to-refresh + Retry on every state |
+| Product History sheet | `stock_sheets.dart` → `ProductHistorySheet` — the same trail inside the product details sheet: colour-coded delta badges, `before → after`, source tag, actor line, current-stock summary tile and pull-to-refresh |
 | Inventory Sync Status | `inventory_sync_status_screen.dart` — products grouped by the server `source` (`Excel import`, `Barcode scan`, `POS sync`, `Updated in app`, …) with last-update stamps |
 
 ### PRICING
@@ -627,3 +658,63 @@ Design notes:
 
 **Verification:** `flutter analyze` = **No issues found** · `flutter test` =
 **270 passed, 0 failed** (single run).
+
+## 12. SETTINGS (this session)
+
+The account hub is now **SETTINGS** (`/account-settings`, AppBar *Settings*),
+organised into the five logical groups the product spec names. Every row pushes
+a real route; nothing is a placeholder, and no destination is listed twice
+(shop-data settings stay on the Account tab, which the footer note points at).
+
+| Group | Rows (spec label → destination) |
+|---|---|
+| **Account** | My Profile → `/profile-edit` · Shop Profile → `/shop-profile` · Logout → `/logout-confirmation` |
+| **Security** | Authentication → `/security` · Sessions & devices → `/sessions` (NEW) |
+| **App** | Notifications → `/notification-settings` · Theme → `/app-settings` · Language → `/language` (NEW) · Data & storage → `/data-storage` (NEW) · About → `/about` |
+| **Legal** | Privacy Policy → `/privacy` · Terms & Conditions → `/terms` |
+| **Support** | Help Center → `/support` · FAQs → `/faq` · Contact Support → `/contact-support` · Report Issue → `/report-issue` |
+
+### Sessions & devices (`/sessions`) — real backend data
+
+`GET /api/v1/shopkeeper/auth/sessions` and
+`DELETE /api/v1/shopkeeper/auth/sessions/{id}` were added to
+`shopkeeper_auth.py`, reusing the same `get_active_sessions` /
+`revoke_session_by_id` service the shared `/auth` module uses. They live in the
+shopkeeper namespace so the app keeps its documented rule of talking only to
+`/shopkeeper/*` routes.
+
+* `account/domain/device_session.dart` — one row per sign-in; every field
+  optional, falls back name → type → platform → shortened id so a device is
+  always identifiable, and rows without an id are dropped (a device the app
+  cannot revoke must not be shown).
+* `account/data/sessions_repository.dart` + `sessions_controller.dart` — the
+  list is **always re-read from the server after a revoke**, so the screen
+  never shows a device that is in fact still signed in.
+* Screen: "This device" is marked from `TokenStore.readSessionId()` (never
+  guessed from list position) and carries **no** revoke button — ending this
+  session belongs to *Logout*, which also erases the local tokens. Other
+  devices revoke behind a confirmation dialog. Empty list is explained honestly
+  (a Google/Firebase sign-in has no server-side session row) instead of
+  implying a fault.
+
+### Language (`/language`) and Data & storage (`/data-storage`)
+
+* **Language** — only English is bundled, so only English is selectable;
+  planned languages are listed as "Coming soon" rows with no tap target rather
+  than a switch that would keep rendering English. `AppLanguage` +
+  `SettingsController.setLanguage` refuse unbundled languages.
+* **Data & storage** — states what the app actually stores (secure tokens,
+  delivery preferences, appearance/language) and offers the one genuinely local
+  reset: `NotificationPreferencesStore.clear()` +
+  `NotificationPreferencesController.clearSaved()` delete the saved preferences
+  for the signed-in user. No "Clear cache" button exists because the app keeps
+  no offline copy that could go stale.
+* App settings no longer carries a Language *notice*; it links to the Language
+  screen and shows the live choice. Theme rows moved onto the shared
+  `SettingsChoiceTile` (same keys: `theme_option_*`), which the Language picker
+  also uses, so a "selected" state cannot drift between screens.
+
+**Verification:** `flutter analyze` = **No issues found** · `flutter test` =
+**571 passed, 0 failed** · backend `pytest tests/test_shopkeeper_auth.py` =
+**27 passed** (4 new: list+revoke round trip, revoked device loses access,
+unknown id → 404 `SESSION_NOT_FOUND`, cross-user revoke refused).

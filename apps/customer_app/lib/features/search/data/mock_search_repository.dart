@@ -4,14 +4,14 @@ import '../domain/models/search_models.dart';
 class MockSearchRepository implements SearchRepository {
   static const List<String> _recentSearches = [
     'Paracetamol 500mg',
-    'Amul Butter',
+    'Bosch Drill',
     'Ceiling Fan',
     'Dettol Handwash',
   ];
 
   static const List<String> _popularSearches = [
-    'Samsung Galaxy',
-    'Aashirvaad Atta',
+    'Bosch Drill',
+    'Nivea',
     'Dettol',
     'Bajaj',
   ];
@@ -35,7 +35,7 @@ class MockSearchRepository implements SearchRepository {
 
     return [
       SearchSuggestion(text: '$query 500mg'),
-      SearchSuggestion(text: '$query in Electronics', isCategory: true),
+      SearchSuggestion(text: '$query in Hardware', isCategory: true),
       SearchSuggestion(text: 'Samsung $query', isBrand: true),
       SearchSuggestion(text: '$query - Premium', isBrand: true),
     ];
@@ -101,8 +101,8 @@ class MockSearchRepository implements SearchRepository {
         shopAddress: 'Address ${index + 1}, Near Main Road',
         shopLatitude: 25.594 + (index * 0.001),
         shopLongitude: 85.137 - (index * 0.001),
-        category: 'Groceries',
-        brand: index % 3 == 0 ? 'Aashirvaad' : 'Local',
+        category: 'Household Goods',
+        brand: index % 3 == 0 ? 'Dettol' : 'Local',
         reviewCount: 10 + index * 5,
         availability: availability,
         freshness: _deriveFreshness(lastUpdated, now),

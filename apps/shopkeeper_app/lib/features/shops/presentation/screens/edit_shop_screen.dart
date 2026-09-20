@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/ui/numeric_input.dart';
 import '../../domain/shop_models.dart';
 import '../controllers/shop_profile_controller.dart';
 import '../widgets/shop_profile_shared.dart';
@@ -172,6 +173,9 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     controller: _c[3],
                     enabled: canEdit,
                     keyboardType: TextInputType.phone,
+                    // Stored numbers keep their shape (`+91 98765 43210`) —
+                    // only letters and over-long input are blocked.
+                    inputFormatters: NumericInput.phone(),
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Phone',
@@ -184,6 +188,7 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     controller: _c[4],
                     enabled: canEdit,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: NumericInput.phone(),
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Alternate phone',
@@ -195,6 +200,7 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     controller: _c[5],
                     enabled: canEdit,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: NumericInput.phone(),
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'WhatsApp number',

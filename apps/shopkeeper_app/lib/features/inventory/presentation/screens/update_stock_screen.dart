@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../widgets/inventory_shared.dart';
@@ -130,7 +131,7 @@ class _UpdateStockScreenState extends ConsumerState<UpdateStockScreen> {
     }
 
     final product = _product;
-    final stock = StockStateView.of(product.stockStatus);
+    final stock = product.stockState;
 
     return Scaffold(
       appBar: AppBar(
@@ -278,6 +279,11 @@ class _Form extends StatelessWidget {
               controller: deltaController,
               keyboardType:
                   const TextInputType.numberWithOptions(signed: true),
+              // Deltas are whole numbers that may be negative (`-3` removes
+              // stock); the minus is only accepted in the leading position.
+              inputFormatters: NumericInput.signedWhole(),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => FocusScope.of(context).unfocus(),
               decoration: const InputDecoration(
                 hintText: 'e.g. 24 to add stock, -3 to remove',
               ),

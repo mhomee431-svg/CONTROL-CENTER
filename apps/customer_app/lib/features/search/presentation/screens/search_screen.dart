@@ -42,12 +42,8 @@ class SearchScreen extends ConsumerWidget {
                 );
               }
             },
-            onBarcodeTap: () {
-              // Barcode scanner foundation (Phase 20+).
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Barcode scanner coming soon')),
-              );
-            },
+            // Barcode scan is hidden until the backend lookup endpoint exists.
+            // Passing null keeps the scanner icon off (spec: disable gracefully).
           ),
         ),
         actions: [

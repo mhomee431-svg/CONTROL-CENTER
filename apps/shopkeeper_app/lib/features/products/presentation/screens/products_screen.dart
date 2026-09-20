@@ -6,7 +6,9 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/lazy_list.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../offers/presentation/widgets/offer_create_sheet.dart';
@@ -115,7 +117,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           builder: (_) => RefreshIndicator(
             onRefresh: () =>
                 ref.read(productsControllerProvider.notifier).load(),
-            child: _ReadyBody(allItems: state.items, summary: state.summary),
+            child: _ReadyBody(
+              allItems: state.items,
+              summary: state.summary,
+              fromCache: state.fromCache,
+            ),
           ),
         ),
       ),
@@ -180,10 +186,18 @@ class ProductFilterApplied {
 
 
 class _ReadyBody extends ConsumerStatefulWidget {
-  const _ReadyBody({required this.allItems, required this.summary});
+  const _ReadyBody({
+    required this.allItems,
+    required this.summary,
+    this.fromCache = false,
+  });
 
   final List<ShopProductItem> allItems;
   final InventorySummary? summary;
+
+  /// True when these items came from the device's offline snapshot rather
+  /// than a live response — the list must then say so.
+  final bool fromCache;
 
   @override
   ConsumerState<_ReadyBody> createState() => _ReadyBodyState();
@@ -358,6 +372,8 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
       // fixed handful of widgets, so they live outside the lazy row builder and
       // stay usable while the list below them is empty.
       header: [
+        // Provenance first: a cached list that looks live is worse than none.
+        if (widget.fromCache) const CachedDataNotice(),
         if (widget.summary != null) _SummaryChips(summary: widget.summary!),
         const SizedBox(height: 12),
         TextField(
@@ -371,6 +387,8 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
             suffixIcon: _filter.search.isEmpty
                 ? null
                 : IconButton(
+                    // Accessible name for the icon-only clear action.
+                    tooltip: 'Clear search',
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
                       _search.clear();
@@ -621,8 +639,12 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('price-filter-min'),
                     controller: _minController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: NumericInput.decimal(),
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                         labelText: 'Min', isDense: true),
                   ),
@@ -633,8 +655,13 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                 ),
                 Expanded(
                   child: TextField(
+                    key: const Key('price-filter-max'),
                     controller: _maxController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: NumericInput.decimal(),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => FocusScope.of(context).unfocus(),
                     decoration: const InputDecoration(
                         labelText: 'Max', isDense: true),
                   ),
@@ -801,6 +828,10 @@ class _ProductTile extends StatelessWidget {
               color: scheme.surfaceContainerHighest,
               child: hasImage
                   ? Image.network(item.imageUrl!,
+                      // The tile's title already names the product, so the
+                      // thumbnail is decorative — announcing "image" here only
+                      // adds noise.
+                      excludeFromSemantics: true,
                       fit: BoxFit.cover,
                       // Decode at roughly 2x the 48px box instead of the
                       // source resolution: a thumbnail never needs the bytes.
@@ -1085,22 +1116,30 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: selected ? scheme.primary : scheme.outlineVariant),
+    // `selected` is exposed to assistive tech so the active filter is not
+    // communicated by colour alone, and the vertical padding lifts the chip to
+    // a 44dp touch target (it was ~33dp).
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: selected ? scheme.primary : scheme.outlineVariant),
         ),
-        child: Text(label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              color: selected ? scheme.onPrimary : scheme.onSurface,
-            )),
+          child: Text(label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? scheme.onPrimary : scheme.onSurface,
+              )),
+        ),
       ),
     );
   }

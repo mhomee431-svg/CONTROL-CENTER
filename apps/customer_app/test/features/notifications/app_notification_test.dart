@@ -39,6 +39,64 @@ void main() {
       expect(link.isValid(), isTrue);
     });
 
+    test('validates the backend product_master_id (never duplicates a master)',
+        () {
+      // PRICE_DROP / PRODUCT_AVAILABLE fan-outs carry `product_master_id` —
+      // the link must expose it so the product screen opens the EXISTING
+      // master rather than inventing one client-side.
+      final link = NotificationDeepLink.fromPayload({
+        'product_master_id': 42,
+        'old_price': 199,
+        'new_price': 149,
+      });
+      expect(link.targetType, DeepLinkTargetType.product);
+      expect(link.targetId, '42');
+      expect(link.productMasterId, 42);
+      expect(link.productRef?.isValid, isTrue);
+      expect(link.isValid(), isTrue);
+    });
+
+    test('falls back to the backend deep_link URI when payload has no ids',
+        () {
+      // The real PRICE_DROP row ships BOTH a payload with `product_master_id`
+      // and a `deep_link` URI; the URI alone must still resolve.
+      final link = NotificationDeepLink.fromPayload(
+        {'old_price': 199},
+        deepLink: 'hyperlocal://product/42',
+      );
+      expect(link.targetType, DeepLinkTargetType.product);
+      expect(link.targetId, '42');
+      expect(link.productMasterId, 42);
+      expect(link.isValid(), isTrue);
+    });
+
+    test('rejects unvalidated ids — no hardcoded navigation without payload',
+        () {
+      // A hostile `deep_link` URI must never produce a route: the id has to
+      // be route-safe AND the section has to be recognised.
+      expect(
+        NotificationDeepLink.fromPayload(
+          {'unrelated': 'x'},
+          deepLink: 'hyperlocal://product/../../admin',
+        ).isValid(),
+        isFalse,
+      );
+      expect(
+        NotificationDeepLink.fromPayload(
+          null,
+          deepLink: 'https://evil.example/p/1',
+        ).targetType,
+        DeepLinkTargetType.none,
+      );
+      // Non-numeric master ids never validate — the screen cannot fabricate
+      // a master from them.
+      expect(
+        NotificationDeepLink.fromPayload({'product_master_id': 'abc'})
+            .productMasterId,
+        isNull,
+      );
+    });
+
     test('parses map payload with shop id', () {
       final link = NotificationDeepLink.fromPayload({'shop_id': 'shop_abc'});
       expect(link.targetType, DeepLinkTargetType.shop);
@@ -150,6 +208,29 @@ void main() {
       expect(n.isRead, isFalse);
       expect(n.deepLink.targetType, DeepLinkTargetType.product);
       expect(n.timestamp, DateTime.utc(2026, 8, 19, 10));
+    });
+
+    test('parses the real PRICE_DROP fan-out without duplicating a master',
+        () {
+      // The backend fan-out ships BOTH fields — the parser must combine them:
+      // the route id comes from the validated payload, confirmed against the
+      // backend `deep_link` URI, and the product screen opens that EXISTING
+      // Product Master (never a client-side duplicate).
+      final n = AppNotification.fromJson({
+        'id': 7,
+        'title': 'Price drop at Kirana Corner',
+        'body': 'Price fell from ₹199 to ₹149',
+        'type': 'price_alert',
+        'is_read': false,
+        'deep_link': 'hyperlocal://product/42',
+        'payload': '{"product_master_id": 42, "old_price": 199, "new_price": 149}',
+        'created_at': '2026-08-19T10:00:00Z',
+      });
+      expect(n.deepLink.targetType, DeepLinkTargetType.product);
+      expect(n.deepLink.targetId, '42');
+      expect(n.deepLink.productMasterId, 42);
+      expect(n.deepLink.productRef?.isValid, isTrue);
+      expect(n.deepLink.isValid(), isTrue);
     });
 
     test('tolerates missing fields', () {

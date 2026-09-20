@@ -38,7 +38,7 @@ void main() {
     expect(find.byType(HomeSkeletonLoader), findsNothing);
 
     // Popular products should be visible
-    expect(find.text('Samsung Galaxy S24'), findsOneWidget);
+    expect(find.text('Bosch Impact Drill 13mm'), findsOneWidget);
 
     // Scroll down to find the shops section
     await tester.scrollUntilVisible(
@@ -73,7 +73,7 @@ void main() {
 
     // Categories should be visible
     expect(find.byType(CategorySection), findsOneWidget);
-    expect(find.text('Electronics'), findsOneWidget);
+    expect(find.text('Pharmacy & Healthcare'), findsOneWidget);
 
     // Recent searches should be visible
     expect(find.byType(RecentSearchesSection), findsOneWidget);

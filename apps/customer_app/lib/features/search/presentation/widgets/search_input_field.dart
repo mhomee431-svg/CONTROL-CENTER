@@ -13,7 +13,7 @@ import '../controllers/search_controller.dart';
 /// - Debounced text changes
 /// - Clear / cancel behavior
 /// - Keyboard handling (escape = clear/cancel, enter = submit)
-/// - Scanner / barcode placeholder
+/// - Optional barcode action (hidden when [onBarcodeTap] is null)
 ///
 /// Note: the [FocusNode] is attached to the [TextField] ONLY. Attaching the
 /// same node to a wrapping `Focus` widget as well makes Flutter throw
@@ -129,11 +129,13 @@ class _SearchInputFieldState extends ConsumerState<SearchInputField> {
                   tooltip: 'Clear',
                   onPressed: _handleClear,
                 )
-              : IconButton(
-                  icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: 'Scan barcode',
-                  onPressed: widget.onBarcodeTap,
-                ),
+              : (widget.onBarcodeTap == null
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.qr_code_scanner),
+                      tooltip: 'Scan barcode',
+                      onPressed: widget.onBarcodeTap,
+                    )),
         ),
       ),
     );

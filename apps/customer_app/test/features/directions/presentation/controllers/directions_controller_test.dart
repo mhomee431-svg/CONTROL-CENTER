@@ -39,7 +39,7 @@ void main() {
         activeOffers: const [],
         availableProducts: const [],
         isSaved: false,
-        categories: const ['Electronics'],
+        categories: const ['Hardware'],
         isVerified: true,
         latitude: hasCoords ? shopLocation.latitude : 0,
         longitude: hasCoords ? shopLocation.longitude : 0,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/domain/product_search.dart';
@@ -15,12 +16,14 @@ enum InventoryScope {
   all,
   low,
   outOfStock,
+  discontinued,
   freshness;
 
   String get title => switch (this) {
         all => 'Inventory list',
         low => 'Low stock',
         outOfStock => 'Out of stock',
+        discontinued => 'Discontinued',
         freshness => 'Inventory freshness',
       };
 
@@ -29,6 +32,8 @@ enum InventoryScope {
           'No products yet. Add your first product or import them from Excel.',
         low => 'Nothing is running low. Every product is comfortably stocked.',
         outOfStock => 'Nothing is out of stock. Great job staying on top of it.',
+        discontinued =>
+          'No discontinued listings. Everything you stock is still active.',
         freshness =>
           'Every listing has been updated recently. Nothing needs attention.',
       };
@@ -79,6 +84,10 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
         items.where((i) => i.isLowStock && matches(i)).toList(),
       InventoryScope.outOfStock =>
         items.where((i) => i.isOutOfStock && matches(i)).toList(),
+      // Discontinued listings keep whatever units are left, so they only turn
+      // up here — never in the low/out-of-stock slices.
+      InventoryScope.discontinued =>
+        items.where((i) => i.isDiscontinued && matches(i)).toList(),
       // Freshness view: everything, stale listings first.
       InventoryScope.freshness =>
         items.where(matches).toList()
@@ -147,6 +156,11 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
               onRetry: () => ref.read(productsControllerProvider.notifier).load(),
               builder: (context) => LazyListView(
                 itemCount: visible.length,
+                // Provenance first: a cached list that looks live is worse
+                // than no list at all.
+                header: [
+                  if (state.fromCache) const CachedDataNotice(),
+                ],
                 separatorBuilder: (_, _) =>
                     const Divider(height: 1, indent: 16),
                 itemBuilder: (context, i) => _ProductRow(
@@ -222,7 +236,7 @@ class _ProductRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stock = StockStateView.of(item.stockStatus);
+    final stock = item.stockState;
     return ListTile(
       onTap: onTap,
       title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),

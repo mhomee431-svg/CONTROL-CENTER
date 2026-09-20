@@ -6,8 +6,11 @@ import 'auth_models.dart';
 ///
 /// The authentication methods THIS build surfaces in the UI.
 ///
-/// MVP: **Google Sign-In + Firebase Authentication ONLY**. No OTP, no SMS, no
-/// password, no custom JWT login is shown to the shopkeeper.
+/// MVP: **Google Sign-In + Firebase Authentication** is the primary method;
+/// Phone OTP and password login are enabled below and reachable from the
+/// Welcome / Sign-in screens. Every screen consults
+/// [isAuthMethodEnabledProvider] instead of hardcoding a button, so removing a
+/// method from this list removes its entry points without deleting the flow.
 ///
 /// Adding Phone OTP later is deliberately a ONE-LINE change here:
 ///
@@ -24,6 +27,8 @@ import 'auth_models.dart';
 /// simply becomes visible.
 const List<AuthMethod> kEnabledAuthMethods = <AuthMethod>[
   AuthMethod.googleFirebase,
+  AuthMethod.phoneOtp,
+  AuthMethod.password,
 ];
 
 /// Runtime list of the enabled auth methods.
@@ -40,3 +45,15 @@ final enabledAuthMethodsProvider = Provider<List<AuthMethod>>(
 final isAuthMethodEnabledProvider = Provider.family<bool, AuthMethod>(
   (ref, method) => ref.watch(enabledAuthMethodsProvider).contains(method),
 );
+
+/// Shopkeeper-facing label for a method's primary action.
+///
+/// Shared by the Welcome screen and the Sign-in screen so the same method can
+/// never be labelled two different ways in two places.
+extension AuthMethodActionLabel on AuthMethod {
+  String get actionLabel => switch (this) {
+        AuthMethod.googleFirebase => 'Continue with Google',
+        AuthMethod.phoneOtp => 'Continue with phone number',
+        AuthMethod.password => 'Sign in with password',
+      };
+}

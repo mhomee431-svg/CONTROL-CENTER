@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../widgets/pricing_shared.dart';
@@ -178,9 +179,9 @@ class _PriceChangeList extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           leading: const CircleAvatar(
             radius: 16,
-            backgroundColor: Color(0x1A1A73E8),
+            backgroundColor: AppColors.primarySoft,
             child: Icon(Icons.currency_rupee_outlined,
-                size: 16, color: Color(0xFF1A73E8)),
+                size: 16, color: AppColors.primary),
           ),
           title: Text(title,
               style:

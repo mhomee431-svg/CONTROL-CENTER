@@ -113,7 +113,10 @@ from app.models.product import (  # noqa: E402
     ShopProduct,
 )
 from app.models.search import SearchEvent, SearchHistory  # noqa: E402
-from app.models.notification import Notification  # noqa: E402
+from app.models.notification import (  # noqa: E402
+    Notification,
+    NotificationPreference,
+)
 from app.models.analytics import ProductClick, ProductView, ShopView  # noqa: E402
 from app.models.pos import POSSyncJob  # noqa: E402
 from app.models.inventory_import import InventoryImportJob  # noqa: E402
@@ -154,12 +157,30 @@ TABLES = [
     POSSyncJob.__table__,
     InventoryImportJob.__table__,
     Notification.__table__,
+    NotificationPreference.__table__,
     ProductView.__table__,
     ShopView.__table__,
     ProductClick.__table__,
     AuthSession.__table__,
     TokenBlacklist.__table__,
 ]
+
+
+@pytest.fixture(autouse=True)
+def no_broker(monkeypatch):
+    """Never reach a real Celery broker from these unit tests.
+
+    Admin broadcasts enqueue one batch job; the transport is asserted through
+    the service contract, not the broker connection. The repo's other
+    notification tests monkeypatch ``.delay`` the same way.
+    """
+    from app.services.notification_tasks import deliver_batch_task
+
+    dispatched: list[list[int]] = []
+    monkeypatch.setattr(
+        deliver_batch_task, "delay", lambda ids: dispatched.append(list(ids))
+    )
+    return dispatched
 
 
 @pytest.fixture()
@@ -1159,6 +1180,52 @@ class TestNotifications:
         assert result["recipient_count"] == 2
         recipients = {n.user_id for n in db.query(Notification).all()}
         assert recipients == {keeper1.id, keeper2.id}
+
+    def test_broadcast_uses_the_typed_system_category(self, db, no_broker):
+        """Admin broadcasts land in the SYSTEM category, not a bare type."""
+        admin = make_admin(db)
+        make_user(db, "shopkeeper")
+        make_user(db, "customer")
+        result = admin_service.send_admin_notification(
+            db, admin_user=admin, title="Maintenance",
+            body="tonight", notification_type="ADMIN_BROADCAST",
+        )
+        assert result["recipient_count"] == 3  # admin + keeper + customer
+        notes = db.query(Notification).all()
+        assert {n.type for n in notes} == {"SYSTEM"}
+        assert {n.audience for n in notes} == {"admin"}
+        assert all(n.delivery_status == "PENDING" for n in notes)
+        # ONE batch dispatch for the whole broadcast, not one task per row.
+        assert len(no_broker) == 1
+        assert sorted(no_broker[0]) == sorted(n.id for n in notes)
+
+    def test_targeted_broadcast_is_system_typed(self, db, no_broker):
+        admin = make_admin(db)
+        keeper = make_user(db, "shopkeeper")
+        result = admin_service.send_admin_notification(
+            db, admin_user=admin, title="POS update",
+            body="new feature", notification_type="TARGETED",
+            target_user_ids=[keeper.id],
+        )
+        assert result["recipient_count"] == 1
+        note = db.query(Notification).one()
+        assert note.type == "SYSTEM"
+        assert note.user_id == keeper.id
+        assert note.audience == "admin"
+
+    def test_role_targeting_is_system_typed(self, db, no_broker):
+        admin = make_admin(db)
+        keeper1 = make_user(db, "shopkeeper")
+        keeper2 = make_user(db, "shopkeeper")
+        make_user(db, "customer")
+        admin_service.send_admin_notification(
+            db, admin_user=admin, title="POS update",
+            body="new feature", notification_type="ADMIN_BROADCAST",
+            target_role="shopkeeper",
+        )
+        notes = db.query(Notification).all()
+        assert {n.type for n in notes} == {"SYSTEM"}
+        assert {n.user_id for n in notes} == {keeper1.id, keeper2.id}
 
 # -- System settings & feature flags --------------------------------------------
 class TestSettingsAndFlags:

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
-import '../../../auth/domain/auth_models.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
@@ -68,8 +67,14 @@ class ShopsController extends Notifier<ShopsState> {
     }
   }
 
-  /// Registers a new shop owned by the current user and selects it.
-  Future<bool> registerShop(Map<String, dynamic> payload) async {
+  /// Registers a new shop owned by the current user and returns the created
+  /// detail, or `null` on failure (with [ShopsState.errorMessage] populated
+  /// from the backend's own message).
+  ///
+  /// On success the authorized-shops list is refreshed from the backend and
+  /// the created shop is selected, so every consumer of
+  /// [selectedShopProvider] sees the new business without a second fetch.
+  Future<ShopDetail?> registerShop(Map<String, dynamic> payload) async {
     state = ShopsState.loading(shops: state.shops);
     try {
       final token = await _token();
@@ -80,7 +85,7 @@ class ShopsController extends Notifier<ShopsState> {
       if (created.isNotEmpty) {
         ref.read(selectedShopProvider.notifier).select(created.first);
       }
-      return true;
+      return detail;
     } on ApiException catch (e) {
       state = ShopsState(
         status: ShopsStatus.error,
@@ -88,14 +93,14 @@ class ShopsController extends Notifier<ShopsState> {
         errorMessage: e.message,
         fieldErrors: e.errorCode == 'VALIDATION_ERROR' ? const {} : null,
       );
-      return false;
+      return null;
     } catch (_) {
       state = ShopsState(
         status: ShopsStatus.error,
         shops: state.shops,
         errorMessage: 'Shop registration failed. Please retry.',
       );
-      return false;
+      return null;
     }
   }
 

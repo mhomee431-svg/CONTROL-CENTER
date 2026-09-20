@@ -186,7 +186,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           FlowIcon(icon: Icons.local_offer, label: 'Offers'),
           FlowIcon(icon: Icons.price_change, label: 'Price Drops'),
           FlowIcon(icon: Icons.store, label: 'Shop Updates'),
-          FlowIcon(icon: Icons.local_shipping, label: 'Order Status'),
+          FlowIcon(icon: Icons.directions, label: 'Visit Reminders'),
         ],
       ),
       OnboardingStep(

@@ -30,6 +30,8 @@ import '../../features/shop_details/presentation/screens/shop_details_screen.dar
 import '../../features/directions/presentation/screens/directions_screen.dart';
 import '../../features/customer/presentation/screens/customer_favorites_screen.dart';
 import '../../features/customer/presentation/screens/customer_recently_viewed_screen.dart';
+import '../../features/support/presentation/screens/help_support_screen.dart';
+import '../../features/auth/presentation/screens/login_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -159,6 +161,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/help',
+        builder: (context, state) => const HelpSupportScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

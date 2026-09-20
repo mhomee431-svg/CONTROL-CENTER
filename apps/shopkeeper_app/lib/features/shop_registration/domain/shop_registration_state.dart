@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../shops/data/location_accuracy_config.dart';
 import '../../shops/data/location_service.dart';
 import '../../shops/domain/shop_models.dart';
 
@@ -123,6 +124,8 @@ class ShopRegistrationState {
     this.reading,
     this.pin,
     this.pinAdjusted = false,
+    this.pinDriftMeters,
+    this.pinDriftConfirmed = false,
     this.accuracyMeters,
     this.reverseGeocoding = false,
     this.detectedAddress,
@@ -172,6 +175,12 @@ class ShopRegistrationState {
   /// The shop-entrance pin (initialised to the GPS fix, then draggable).
   final LatLng? pin;
   final bool pinAdjusted;
+
+  /// Distance between the shop pin and the device GPS fix, in meters.
+  final double? pinDriftMeters;
+
+  /// True once the shopkeeper confirmed a significant pin drift.
+  final bool pinDriftConfirmed;
   final double? accuracyMeters;
   final bool reverseGeocoding;
   final PickedLocation? detectedAddress;
@@ -207,6 +216,12 @@ class ShopRegistrationState {
   bool get hasUsableLocation =>
       hasPin && accuracyMeters != null && accuracyMeters! <= 50;
 
+  /// True when the pin was moved far from the GPS fix and the shopkeeper has
+  /// not yet confirmed it ("Are you sure this is your shop?").
+  bool get needsPinDriftConfirmation =>
+      !pinDriftConfirmed &&
+      (pinDriftMeters ?? 0) > LocationAccuracyConfig.pinDriftWarningMeters;
+
   ShopRegistrationState copyWith({
     RegistrationStep? step,
     List<MerchantCategoryOption>? categories,
@@ -235,6 +250,9 @@ class ShopRegistrationState {
     LatLng? pin,
     bool clearPin = false,
     bool? pinAdjusted,
+    double? pinDriftMeters,
+    bool clearPinDrift = false,
+    bool? pinDriftConfirmed,
     double? accuracyMeters,
     bool clearAccuracy = false,
     bool? reverseGeocoding,
@@ -281,6 +299,9 @@ class ShopRegistrationState {
       reading: reading ?? this.reading,
       pin: clearPin ? null : (pin ?? this.pin),
       pinAdjusted: pinAdjusted ?? this.pinAdjusted,
+      pinDriftMeters:
+          clearPinDrift ? null : (pinDriftMeters ?? this.pinDriftMeters),
+      pinDriftConfirmed: pinDriftConfirmed ?? this.pinDriftConfirmed,
       accuracyMeters: clearAccuracy ? null : (accuracyMeters ?? this.accuracyMeters),
       reverseGeocoding: reverseGeocoding ?? this.reverseGeocoding,
       detectedAddress:

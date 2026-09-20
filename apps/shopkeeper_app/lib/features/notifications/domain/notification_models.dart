@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/router/route_names.dart';
 
 /// Notification types that drive deep-link routing from the notification center.
 enum NotificationType {
@@ -189,6 +193,7 @@ class ShopkeeperNotification {
     required this.isRead,
     required this.createdAt,
     this.deepLink,
+    this.payload,
   });
 
   final int id;
@@ -204,7 +209,33 @@ class ShopkeeperNotification {
   /// Optional in-app deep link, e.g. `hyperlocal://shopkeeper/inventory/42`.
   final String? deepLink;
 
+  /// Structured backend payload, e.g. `{"event": "PROFILE_UPDATED"}` or
+  /// `{"shop_product_id": 42, "status": "PARTIAL"}`.
+  ///
+  /// Only ever read through the validated accessors below — a malformed
+  /// payload must never steer navigation.
+  final Map<String, dynamic>? payload;
+
   bool get isUnread => !isRead;
+
+  /// `event` from [payload], validated: only a non-empty string counts.
+  /// Anything else (missing, wrong type, blank) is treated as absent.
+  String? get payloadEvent {
+    final raw = payload?['event'];
+    if (raw is String && raw.trim().isNotEmpty) return raw.trim();
+    return null;
+  }
+
+  /// An integer id from [payload], validated before any navigation could use
+  /// it: it must be an int (or a whole number) and strictly positive.
+  /// Returns null for anything else, so a malformed payload can never send
+  /// the shopkeeper to a fabricated item.
+  int? payloadInt(String key) {
+    final raw = payload?[key];
+    if (raw is int && raw > 0) return raw;
+    if (raw is num && raw > 0 && raw == raw.round()) return raw.round();
+    return null;
+  }
 
   factory ShopkeeperNotification.fromJson(Map<String, dynamic> json) =>
       ShopkeeperNotification(
@@ -215,7 +246,26 @@ class ShopkeeperNotification {
         isRead: json['is_read'] as bool? ?? false,
         createdAt: _parseDate(json['created_at']),
         deepLink: json['deep_link'] as String?,
+        payload: _parsePayload(json['payload']),
       );
+
+  /// Accepts an object as-is or a JSON-encoded string; anything else (or an
+  /// undecodable string) becomes null instead of throwing.
+  static Map<String, dynamic>? _parsePayload(Object? raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return raw.map((k, v) => MapEntry(k.toString(), v));
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          return decoded.map((k, v) => MapEntry(k.toString(), v));
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
 
   static DateTime _parseDate(Object? raw) {
     if (raw is DateTime) return raw;
@@ -249,15 +299,78 @@ class NotificationsPage {
 }
 
 /// Material icon for a backend notification type.
-IconData notificationIcon(String type) => switch (type) {
-      'INVENTORY_LOW' || 'STOCK_UPDATE' => Icons.inventory_2_outlined,
+///
+/// The type is a raw server string — new backend types fall through to a
+/// neutral bell instead of throwing, so an unknown category still renders.
+IconData notificationIcon(String type) => switch (type.toUpperCase()) {
+      'INVENTORY_LOW' ||
+      'STOCK_UPDATE' ||
+      'INVENTORY_UPDATE' =>
+        Icons.inventory_2_outlined,
+      'PRODUCT' => Icons.inventory_outlined,
+      'PRICING' || 'PRICE_UPDATE' => Icons.price_change_outlined,
+      'IMPORT' => Icons.upload_file_outlined,
+      'OFFER' || 'SHOP_OFFER' => Icons.local_offer_outlined,
       'ORDER' || 'ORDER_NEW' => Icons.shopping_bag_outlined,
       'SUBSCRIPTION' => Icons.card_membership_outlined,
+      'PAYMENT' => Icons.receipt_long_outlined,
       'POS_SYNC' => Icons.sync_outlined,
       'SHOP_VERIFICATION' => Icons.verified_user_outlined,
-      'PRICE_UPDATE' => Icons.price_change_outlined,
+      'ACCOUNT' => Icons.manage_accounts_outlined,
+      'ADMIN' || 'SYSTEM' => Icons.campaign_outlined,
+      'SUPPORT' => Icons.support_agent_outlined,
       _ => Icons.notifications_outlined,
     };
+
+/// The merchant notification categories shown in the Alerts filter bar.
+///
+/// Each category claims the backend `type` strings that belong to it, so the
+/// app groups whatever the API returns and never invents a category of its
+/// own. A type the backend adds later simply has no category until it is
+/// registered here — it still appears under "All" and still renders its row.
+enum NotificationCategory {
+  inventory('Inventory', Icons.inventory_2_outlined, {
+    'INVENTORY_LOW',
+    'INVENTORY_UPDATE',
+    'STOCK_UPDATE',
+  }),
+  products('Products', Icons.inventory_outlined, {'PRODUCT'}),
+  pricing('Pricing', Icons.price_change_outlined, {'PRICING', 'PRICE_UPDATE'}),
+  offers('Offers', Icons.local_offer_outlined, {'OFFER', 'SHOP_OFFER'}),
+  imports('Imports', Icons.upload_file_outlined, {'IMPORT'}),
+  pos('POS', Icons.sync_outlined, {'POS_SYNC'}),
+  account('Account', Icons.manage_accounts_outlined, {
+    'ACCOUNT',
+    'SUBSCRIPTION',
+    'PAYMENT',
+    'SHOP_VERIFICATION',
+  }),
+  system('System', Icons.campaign_outlined, {'SYSTEM', 'ADMIN'}),
+  support('Support', Icons.support_agent_outlined, {'SUPPORT'});
+
+  const NotificationCategory(this.label, this.icon, this.types);
+
+  /// Human-readable chip label.
+  final String label;
+
+  /// Chip icon (row icons come from [notificationIcon]).
+  final IconData icon;
+
+  /// Raw backend `type` values that belong to this category.
+  final Set<String> types;
+
+  /// True when [rawType] belongs to this category.
+  bool matches(String rawType) => types.contains(rawType.toUpperCase());
+
+  /// Category owning [rawType], or null for a type no category claims yet.
+  static NotificationCategory? of(String rawType) {
+    final key = rawType.toUpperCase();
+    for (final category in values) {
+      if (category.types.contains(key)) return category;
+    }
+    return null;
+  }
+}
 
 /// Compact relative timestamp for one notification row:
 /// `just now` → `12m ago` → `3h ago` → `2d ago` → `4 Sep`.
@@ -277,3 +390,92 @@ String notificationTimeLabel(DateTime createdAt, {DateTime? now}) {
   return DateFormat('d MMM').format(createdAt);
 }
 
+
+
+/// Routes navigated with `go` — the shell tabs live in the indexed stack.
+/// Everything else is pushed, so Back returns to the notification center.
+const kNotificationTabTargets = <String>{
+  Routes.dashboard,
+  Routes.products,
+  Routes.notifications,
+  Routes.account,
+};
+
+const _deepLinkPrefix = 'hyperlocal://shopkeeper/';
+
+/// Resolves where a notification tap should take the shopkeeper.
+///
+/// Precedence:
+///  1. the validated notification type (+ payload event where the type alone
+///     is ambiguous). The type is the authoritative signal because the
+///     backend always sets it, while the deep link is an opaque hint whose
+///     section may point at a coarser surface (e.g. a PRICING receipt links
+///     into `products/{id}`, but the right surface is the price list).
+///  2. a `hyperlocal://shopkeeper/…` deep-link section — used only when the
+///     type is unknown (e.g. a type the backend added after this build).
+///  3. the notification detail screen, so a tap is never a dead end.
+///
+/// Identifiers inside a link or payload are deliberately NOT navigated on: the
+/// item screens take a full object through `extra`, and a bare id from a
+/// notification is not enough to build one without inventing data. Id-level
+/// navigation may only be added once the payload validates a whole object.
+String notificationRouteTarget(ShopkeeperNotification notification) {
+  final typeTarget = _routeTargetForType(notification);
+  if (typeTarget != null) return typeTarget;
+
+  // Unknown type — the deep-link section is the only remaining signal.
+  final link = notification.deepLink;
+  if (link != null && link.startsWith(_deepLinkPrefix)) {
+    final section = link.substring(_deepLinkPrefix.length);
+    if (section.startsWith('inventory')) return Routes.inventoryList;
+    if (section.startsWith('products')) return Routes.products;
+    if (section.startsWith('imports')) return Routes.importHistory;
+    if (section.startsWith('offers')) return Routes.offers;
+    if (section.startsWith('pos')) return Routes.pos;
+    if (section.startsWith('support')) return Routes.support;
+    if (section.startsWith('account')) return Routes.account;
+    if (section.startsWith('shop')) return Routes.shopProfile;
+    if (section.startsWith('dashboard')) return Routes.dashboard;
+  }
+
+  return Routes.notificationDetail;
+}
+
+/// Type-driven target, or null when the backend type is not recognised and
+/// the caller must fall back to the deep-link section.
+String? _routeTargetForType(ShopkeeperNotification notification) {
+  switch (notification.type.toUpperCase()) {
+    case 'INVENTORY_LOW':
+      // "Low Stock → Inventory" — the low-stock scope of the inventory module.
+      return Routes.lowStock;
+    case 'INVENTORY_UPDATE' || 'STOCK_UPDATE':
+      return Routes.inventoryList;
+    case 'PRICE_UPDATE' || 'PRICING':
+      // "Price Update → Product/Price" — the pricing surface, even though the
+      // receipt's deep link points at `products/{id}`.
+      return Routes.priceList;
+    case 'PRODUCT':
+      return Routes.products;
+    case 'IMPORT':
+      // Import results — including failures — are reviewed in Import history.
+      return Routes.importHistory;
+    case 'OFFER' || 'SHOP_OFFER':
+      return Routes.offers;
+    case 'POS_SYNC':
+      return Routes.pos;
+    case 'SHOP_VERIFICATION':
+      return Routes.shopProfile;
+    case 'ACCOUNT':
+      return switch (notification.payloadEvent) {
+        'PROFILE_UPDATED' => Routes.shopProfile,
+        'SETTINGS_UPDATED' => Routes.shopSettings,
+        _ => Routes.account,
+      };
+    case 'SUBSCRIPTION' || 'PAYMENT':
+      return Routes.account;
+    case 'SUPPORT':
+      return Routes.support;
+    default:
+      return null;
+  }
+}

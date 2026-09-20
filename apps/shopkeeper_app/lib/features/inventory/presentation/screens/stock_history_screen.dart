@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -101,67 +102,77 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _HistoryList(load: _load),
+          : _HistoryList(load: _load, onRefresh: _loadHistory),
     );
   }
 }
 
 class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.load});
+  const _HistoryList({required this.load, required this.onRefresh});
 
   final ProductHistoryLoad? load;
 
+  /// Re-fetches the trail (pull-to-refresh / retry). Owned by the screen so
+  /// the summary tile and the entries always come from the same fetch.
+  final Future<void> Function() onRefresh;
+
   @override
   Widget build(BuildContext context) {
-    final load = this.load;
-    if (load == null) return const SizedBox.shrink();
+    final outline = Theme.of(context).colorScheme.outline;
+    final history = load?.history;
+    final entries = history?.entries ?? const <ProductHistoryEntry>[];
 
-    if (load.error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline,
-                  size: 40, color: Theme.of(context).colorScheme.outline),
-              const SizedBox(height: 12),
-              Text(load.error!, textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final entries = load.history?.entries ?? const [];
-    if (entries.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.history_outlined,
-                size: 40, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            const Text('No history yet'),
-            const SizedBox(height: 4),
-            Text(
-              'Stock movements, adjustments and price changes will appear here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.outline,
+    // Always scrollable so pull-to-refresh works even when the trail is empty
+    // or failed — the shopkeeper is never stuck without a way to retry.
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (history != null) StockHistorySummary(history: history),
+          if (load?.error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, size: 40, color: outline),
+                  const SizedBox(height: 12),
+                  Text(load!.error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: onRefresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: entries.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, i) => _EntryTile(entry: entries[i]),
+            )
+          else if (entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  Icon(Icons.history_outlined, size: 40, color: outline),
+                  const SizedBox(height: 12),
+                  const Text('No history yet'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Stock movements, adjustments and price changes will '
+                    'appear here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: outline),
+                  ),
+                ],
+              ),
+            )
+          else
+            for (var i = 0; i < entries.length; i++) ...[
+              if (i > 0) const Divider(height: 1),
+              _EntryTile(entry: entries[i]),
+            ],
+        ],
+      ),
     );
   }
 }
@@ -196,6 +207,11 @@ class _EntryTile extends StatelessWidget {
             entry.occurredAt == null ? '—' : lastUpdatedLabel(entry.occurredAt),
             style: TextStyle(fontSize: 11, color: outline),
           ),
+          const SizedBox(height: 2),
+          Text(
+            entry.actorLabel,
+            style: TextStyle(fontSize: 11, color: outline),
+          ),
         ],
       ),
     );
@@ -218,7 +234,7 @@ class _EntryTile extends StatelessWidget {
         final detail = [mrp, source].whereType<String>().join(' · ');
         return (
           Icons.currency_rupee_outlined,
-          const Color(0xFF1A73E8),
+          AppColors.primary,
           title,
           detail.isEmpty ? null : detail,
         );

@@ -13,6 +13,11 @@ class ApiEndpoints {
   static const String refresh = '/api/v1/shopkeeper/auth/refresh';
   static const String logout = '/api/v1/shopkeeper/auth/logout';
   static const String me = '/api/v1/shopkeeper/auth/me';
+  // Session/device management stays inside the shopkeeper namespace. The
+  // backend exposes the same operations here (reusing the shared auth service)
+  // instead of making this app call the generic `/auth/*` module.
+  static const String sessions = '/api/v1/shopkeeper/auth/sessions';
+  static String session(String sessionId) => '$sessions/$sessionId';
   static const String profile = '/api/v1/profile';
   static const String profileCreate = '/api/v1/shopkeeper/auth/profile-create';
   static const String googleProfile =
@@ -37,6 +42,14 @@ class ApiEndpoints {
   static String product(String shopId, String productId) =>
       '${products(shopId)}/$productId';
 
+  /// Product taxonomy (`GET /api/v1/categories`).
+  ///
+  /// The shopkeeper app normally consumes the isolated `/shopkeeper/*`
+  /// module, but the shared product catalog is platform-wide: the same
+  /// category a customer browses is the one a shopkeeper files a product
+  /// under. Fetched ONCE and cached, so the create form never waits on it.
+  static const String productCategories = '/api/v1/categories';
+
   /// Delta stock adjustment with a backend audit trail.
   static String stockAdjustments(String shopId, String productId) =>
       '${product(shopId, productId)}/stock-adjustments';
@@ -44,6 +57,17 @@ class ApiEndpoints {
   /// Inventory history for one product (movements, adjustments, price changes).
   static String productHistory(String shopId, String productId) =>
       '${product(shopId, productId)}/history';
+
+  /// Change the quantity at which a listing becomes LOW_STOCK. The server
+  /// re-derives the stock state, so the client never guesses the new status.
+  static String lowStockThreshold(String shopId, String productId) =>
+      '${product(shopId, productId)}/low-stock-threshold';
+
+  /// Adjustment-only audit trail for one product (damage / expiry / stock
+  /// count / correction) — a filtered view of the same audit rows that
+  /// [productHistory] interleaves with movements and price changes.
+  static String stockAdjustmentHistory(String shopId, String productId) =>
+      '${product(shopId, productId)}/stock-adjustments';
 
   // ── Reports / Insights (shopkeeper analytics) ──
   // Aggregated server-side from the real analytics event stream (shop views,
@@ -105,15 +129,23 @@ class ApiEndpoints {
   static String notificationRead(int notificationId) =>
       '/api/v1/shopkeeper/notifications/$notificationId/read';
 
+  /// Bulk mark-all-read for the current shopkeeper (single round trip).
+  static const String notificationsReadAll =
+      '/api/v1/shopkeeper/notifications/read-all';
+
   // ── Offers ──
   // Atomic create+link of one offer to selected shop products.
   static String assignOffer(int shopId) =>
       '/api/v1/shopkeeper/shops/$shopId/offers/assign';
 
   /// Shopkeeper-scoped offer list, optionally filtered by status
-  /// (`active` | `expired` | `draft` | `scheduled`).
+  /// (`active` | `expired` | `draft` | `scheduled` | `disabled`).
   static String offers(int shopId) =>
       '/api/v1/shopkeeper/shops/$shopId/offers';
+
+  /// Activate / pause / disable / cancel one shop-owned offer.
+  static String offerStatus(int shopId, int offerId) =>
+      '/api/v1/shopkeeper/shops/$shopId/offers/$offerId/status';
 
   // ── Shop holidays ──
   // Date-specific closures (GET list / POST create / DELETE remove). Distinct

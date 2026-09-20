@@ -1,8 +1,10 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:hyperlocal_shopkeeper_app/core/auth/firebase_auth_service.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
+import 'package:hyperlocal_shopkeeper_app/features/account/data/sessions_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/account/domain/device_session.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/data/auth_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
@@ -20,7 +22,9 @@ import 'package:hyperlocal_shopkeeper_app/features/offers/data/offers_repository
 import 'package:hyperlocal_shopkeeper_app/features/offers/domain/offer_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pos/data/pos_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pos/domain/pos_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/data/category_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/domain/category_taxonomy.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/data/holiday_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/domain/holiday_models.dart';
@@ -610,6 +614,7 @@ ShopkeeperNotification _asReadNotification(ShopkeeperNotification n) =>
       isRead: true,
       createdAt: n.createdAt,
       deepLink: n.deepLink,
+      payload: n.payload,
     );
 
 /// In-memory notifications repository.
@@ -660,6 +665,9 @@ class FakeNotificationsRepo implements NotificationsRepository {
   final List<int> markedRead = [];
   int fetchCalls = 0;
 
+  /// Bulk mark-all-read calls (the controller must use ONE call, not a loop).
+  int markAllAsReadCalls = 0;
+
   @override
   Future<NotificationsPage> fetchNotifications(
     int shopId,
@@ -694,6 +702,15 @@ class FakeNotificationsRepo implements NotificationsRepository {
     if (markAsReadError != null) throw markAsReadError!;
     if (!markedRead.contains(notificationId)) markedRead.add(notificationId);
   }
+
+  @override
+  Future<void> markAllAsRead(String token) async {
+    if (markAsReadError != null) throw markAsReadError!;
+    for (final n in (page?.items ?? const <ShopkeeperNotification>[])) {
+      if (!markedRead.contains(n.id)) markedRead.add(n.id);
+    }
+    markAllAsReadCalls++;
+  }
 }
 
 // ---- Offers fakes -----------------------------------------------------------
@@ -708,6 +725,7 @@ OfferSummary offerSummary({
   String? displayStatus,
   double? discountPercentage = 15,
   double? discountValue,
+  double? promotionalPrice,
   int productCount = 3,
   DateTime? startDate,
   DateTime? endDate,
@@ -720,13 +738,21 @@ OfferSummary offerSummary({
       displayStatus: displayStatus ?? status,
       discountPercentage: discountPercentage,
       discountValue: discountValue,
+      promotionalPrice: promotionalPrice,
       productCount: productCount,
       startDate: startDate ?? DateTime(2026, 1, 12),
       endDate: endDate ?? DateTime(2026, 1, 20),
     );
 
 class FakeOffersRepo implements OffersRepository {
-  FakeOffersRepo({this.page, this.listError, this.assignError, this.assignResult});
+  FakeOffersRepo({
+    this.page,
+    this.listError,
+    this.assignError,
+    this.assignResult,
+    this.statusError,
+    this.statusResult,
+  });
 
   /// Page returned by [fetchOffers] on success.
   final OfferListPage? page;
@@ -740,9 +766,19 @@ class FakeOffersRepo implements OffersRepository {
   /// Result returned by [assignOffer] on success.
   final OfferAssignResult? assignResult;
 
+  /// When set, thrown by [updateOfferStatus].
+  final Object? statusError;
+
+  /// Result returned by [updateOfferStatus] on success.
+  final OfferSummary? statusResult;
+
   final List<String?> requestedStatuses = [];
+
+  /// Statuses passed to [updateOfferStatus], in call order.
+  final List<String> requestedTransitions = [];
   int fetchCalls = 0;
   int assignCalls = 0;
+  int statusCalls = 0;
 
   @override
   Future<OfferListPage> fetchOffers(
@@ -770,6 +806,20 @@ class FakeOffersRepo implements OffersRepository {
           title: 'Monsoon Sale',
           productCount: 1,
         );
+  }
+
+  @override
+  Future<OfferSummary> updateOfferStatus(
+    int shopId,
+    int offerId,
+    String status,
+    String token,
+  ) async {
+    statusCalls++;
+    requestedTransitions.add(status);
+    if (statusError != null) throw statusError!;
+    return statusResult ??
+        offerSummary(id: offerId, status: status, displayStatus: status);
   }
 }
 
@@ -893,6 +943,8 @@ class FakeProductRepo implements ProductRepository {
     this.onUpdate,
     this.onAdjustStock,
     this.onHistory,
+    this.onLowStockThreshold,
+    this.onAdjustments,
   });
 
   /// Items returned by [fetchInventoryOverview].
@@ -1021,6 +1073,66 @@ class FakeProductRepo implements ProductRepository {
     final overridden = onHistory?.call(shopId, productId, token);
     if (overridden != null) return overridden;
     return ProductHistoryResult(shopProductId: productId, entries: const []);
+  }
+
+  /// Overrides the [updateLowStockThreshold] response.
+  final LowStockThresholdResult? Function(int, int, int, String)?
+      onLowStockThreshold;
+
+  /// Overrides the [fetchStockAdjustments] response.
+  final StockAdjustmentHistory? Function(int, int, String)? onAdjustments;
+
+  int thresholdCalls = 0;
+  int adjustmentsCalls = 0;
+  int? lastThresholdId;
+  int? lastThresholdValue;
+  int? lastAdjustmentsProductId;
+
+  @override
+  Future<LowStockThresholdResult> updateLowStockThreshold(
+    int shopId,
+    int productId,
+    int threshold,
+    String token,
+  ) async {
+    thresholdCalls++;
+    lastShopId = shopId;
+    lastThresholdId = productId;
+    lastThresholdValue = threshold;
+    final overridden =
+        onLowStockThreshold?.call(shopId, productId, threshold, token);
+    if (overridden != null) return overridden;
+    final base = items.where((i) => i.id == productId).firstOrNull;
+    final quantity = base?.quantity ?? 0;
+    // Mirror the server rule: the threshold decides LOW_STOCK, so re-derive
+    // the state from the (unchanged) quantity.
+    final status = quantity <= 0
+        ? 'OUT_OF_STOCK'
+        : (quantity <= threshold ? 'LOW_STOCK' : 'IN_STOCK');
+    return LowStockThresholdResult(
+      shopProductId: productId,
+      previousLowStockThreshold: threshold,
+      lowStockThreshold: threshold,
+      quantity: quantity,
+      stockStatus: status,
+    );
+  }
+
+  @override
+  Future<StockAdjustmentHistory> fetchStockAdjustments(
+    int shopId,
+    int productId,
+    String token,
+  ) async {
+    adjustmentsCalls++;
+    lastShopId = shopId;
+    lastAdjustmentsProductId = productId;
+    final overridden = onAdjustments?.call(shopId, productId, token);
+    if (overridden != null) return overridden;
+    return StockAdjustmentHistory(
+      shopProductId: productId,
+      adjustments: const [],
+    );
   }
 }
 
@@ -1435,6 +1547,123 @@ class FakePosRepo implements PosRepository {
     jobsCalls++;
     return jobs;
   }
+
+  // ── Terminals / schedule / settings / diagnostics ────────────────────────
+  int getIntegrationCalls = 0;
+  int scheduleCalls = 0;
+  int configCalls = 0;
+  int listDevicesCalls = 0;
+  int registerDeviceCalls = 0;
+  int jobDetailCalls = 0;
+  int retryCalls = 0;
+
+  /// Terminals the fake reports; mutated by [registerDevice].
+  final List<PosDevice> devices = <PosDevice>[];
+  PosJobDetail? jobDetailResult;
+  PosSyncJob? retryResult;
+  PosSyncSettings? lastSyncSettings;
+  ({int? syncIntervalMinutes, bool? syncEnabled})? lastSchedule;
+  Object? devicesError;
+  Object? retryError;
+
+  PosIntegration _fresh(int integrationId) => PosIntegration(
+        id: integrationId,
+        shopId: 10,
+        providerCode: 'MOCK',
+        providerName: 'Mock POS (built-in)',
+        status: 'ACTIVE',
+        syncEnabled: true,
+        syncIntervalMinutes: 60,
+        mappedProducts: 0,
+        deviceCount: devices.length,
+      );
+
+  @override
+  Future<PosIntegration> getIntegration(int integrationId, String token) async {
+    getIntegrationCalls++;
+    return statusResult ?? _fresh(integrationId);
+  }
+
+  @override
+  Future<PosIntegration> updateSchedule(
+    int integrationId,
+    String token, {
+    int? syncIntervalMinutes,
+    bool? syncEnabled,
+  }) async {
+    scheduleCalls++;
+    lastSchedule =
+        (syncIntervalMinutes: syncIntervalMinutes, syncEnabled: syncEnabled);
+    return _fresh(integrationId);
+  }
+
+  @override
+  Future<PosIntegration> updateSyncConfig(
+    int integrationId,
+    String token,
+    PosSyncSettings settings,
+  ) async {
+    configCalls++;
+    lastSyncSettings = settings;
+    return _fresh(integrationId);
+  }
+
+  @override
+  Future<List<PosDevice>> listDevices(int integrationId, String token) async {
+    listDevicesCalls++;
+    if (devicesError != null) throw devicesError!;
+    return List.unmodifiable(devices);
+  }
+
+  @override
+  Future<PosDevice> registerDevice(
+    int integrationId,
+    String token, {
+    required String deviceIdentifier,
+    String? deviceName,
+    String? deviceType,
+  }) async {
+    registerDeviceCalls++;
+    if (devicesError != null) throw devicesError!;
+    final device = PosDevice(
+      id: 500 + devices.length,
+      deviceIdentifier: deviceIdentifier,
+      deviceName: deviceName,
+      deviceType: deviceType,
+      isActive: true,
+    );
+    devices.add(device);
+    return device;
+  }
+
+  @override
+  Future<PosJobDetail> jobDetail(int jobId, String token) async {
+    jobDetailCalls++;
+    return jobDetailResult ??
+        PosJobDetail(
+          job: posJob(id: jobId, status: 'FAILED', errorSummary: 'provider 500'),
+          logs: const [
+            PosJobLog(level: 'ERROR', message: 'Provider unreachable'),
+            PosJobLog(level: 'WARNING', message: '3 records skipped'),
+          ],
+          conflicts: const [
+            PosJobConflict(
+              posProductCode: 'POS-9',
+              field: 'price',
+              detail: 'Platform price kept',
+              platformValue: '120.00',
+              posValue: '99.00',
+            ),
+          ],
+        );
+  }
+
+  @override
+  Future<PosSyncJob> retryJob(int jobId, String token) async {
+    retryCalls++;
+    if (retryError != null) throw retryError!;
+    return retryResult ?? posJob(id: jobId, status: 'COMPLETED');
+  }
 }
 
 // ---- Holidays -------------------------------------------------------------
@@ -1502,6 +1731,98 @@ class FakeHolidayRepository implements HolidayRepository {
     if (removeError != null) throw removeError!;
     removedIds.add(holidayId);
     holidays.removeWhere((h) => h.id == holidayId);
+  }
+}
+
+/// Product taxonomy (`GET /api/v1/categories`).
+///
+/// Any test that opens the manual product-create sheet MUST override the
+/// category repository with this — the sheet resolves the taxonomy on open,
+/// and without an override it would attempt a real network call.
+class FakeCategoryRepo implements CategoryRepository {
+  FakeCategoryRepo({List<CategoryOption>? rows, this.error})
+      : rows = rows ??
+            const [
+              CategoryOption(id: 1, name: 'Grocery', sortOrder: 1),
+              CategoryOption(id: 11, name: 'Rice', parentId: 1, sortOrder: 2),
+              CategoryOption(id: 2, name: 'Pharmacy', sortOrder: 3),
+            ];
+
+  final List<CategoryOption> rows;
+  Object? error;
+  int calls = 0;
+
+  @override
+  Future<CategoryTaxonomy> fetchTaxonomy(String token) async {
+    calls++;
+    if (error != null) throw error!;
+    return CategoryTaxonomy(rows);
+  }
+}
+
+// ---- Sessions & devices --------------------------------------------------
+
+/// One device-session fixture.
+///
+/// [withMetadata] off models an older backend row that captured nothing but the
+/// session id — the screen must still render it.
+DeviceSession deviceSession({
+  String sessionId = 'sess-1',
+  String? deviceName = 'Ramesh Pixel',
+  String? deviceType = 'mobile',
+  String? platform = 'Android 14',
+  String? appVersion = '1.0.0',
+  String? ipAddress = '10.0.0.5',
+  DateTime? lastActivityAt,
+  DateTime? createdAt,
+  bool withMetadata = true,
+}) => DeviceSession(
+  sessionId: sessionId,
+  deviceName: withMetadata ? deviceName : null,
+  deviceType: withMetadata ? deviceType : null,
+  platform: withMetadata ? platform : null,
+  appVersion: withMetadata ? appVersion : null,
+  ipAddress: withMetadata ? ipAddress : null,
+  lastActivityAt: withMetadata
+      ? (lastActivityAt ?? DateTime(2026, 9, 18, 21, 19))
+      : null,
+  createdAt: withMetadata ? (createdAt ?? DateTime(2026, 9, 1, 9)) : null,
+);
+
+/// In-memory sessions backend.
+///
+/// Revoked rows disappear from the next [fetchSessions], exactly like the real
+/// `/shopkeeper/auth/sessions` list — so a test can prove the screen reloads
+/// from the server instead of patching the row locally.
+class FakeSessionsRepo implements SessionsRepository {
+  FakeSessionsRepo({List<DeviceSession>? sessions, this.error, this.revokeError})
+    : sessions = sessions ?? const <DeviceSession>[];
+
+  List<DeviceSession> sessions;
+
+  /// When set, thrown by [fetchSessions]. Mutable so a test can fail a load,
+  /// clear it, and prove the Retry button actually recovers.
+  Object? error;
+
+  /// When set, thrown by [revokeSession].
+  final Object? revokeError;
+
+  int fetchCalls = 0;
+  final List<String> revoked = [];
+
+  @override
+  Future<List<DeviceSession>> fetchSessions(String token) async {
+    fetchCalls++;
+    if (error != null) throw error!;
+    return sessions
+        .where((session) => !revoked.contains(session.sessionId))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> revokeSession(String sessionId, String token) async {
+    if (revokeError != null) throw revokeError!;
+    revoked.add(sessionId);
   }
 }
 

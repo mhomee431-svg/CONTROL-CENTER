@@ -104,10 +104,18 @@ class ProfileScreen extends ConsumerWidget {
             const Divider(),
             const _SectionLabel('Legal'),
             ListTile(
+              key: const Key('helpSupportTile'),
+              leading: const Icon(Icons.help_outline),
+              title: const Text('Help & Support'),
+              subtitle: const Text('FAQ, contact us, report an issue'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/help'),
+            ),
+            ListTile(
               leading: const Icon(Icons.privacy_tip_outlined),
               title: const Text('Privacy & Data'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/settings'),
+              onTap: () => context.push('/help'),
             ),
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton.icon(

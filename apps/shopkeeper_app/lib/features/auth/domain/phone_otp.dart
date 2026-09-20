@@ -1,31 +1,25 @@
-/// ── FUTURE (Phone OTP / SMS OTP) — FUNCTION SEAM ──────────────────────────
+/// SHIPPED (Phone OTP / SMS OTP) - the SMS twin of Google Sign-In.
 ///
-/// The MVP ships EXACTLY ONE sign-in method: Google Sign-In → Firebase
-/// Authentication. Phone OTP is a FUTURE addition, so this seam is wired NOW
-/// so that adding it later needs no rewrite:
+/// Both methods converge on ONE backend contract:
 ///
-///   Today (MVP)                     Future (Phone OTP)
-///   ─────────────────────────       ─────────────────────────────────────
-///   Google → Firebase  ──┐
-///                        ├──→  Firebase ID token
-///   SMS code → Firebase ─┘          →  /shopkeeper/auth/firebase-login
-///                                   →  Session (same JWT pair, same storage)
+///   Google Sign-In  ---+
+///   SMS code -> Firebase ---+-->  Firebase ID token
+///                                ->  /shopkeeper/auth/firebase-login
+///                                ->  session (same JWT pair, same storage)
 ///
 /// Firebase issues ONE ID-token shape regardless of the provider that created
-/// it, so the SMS-OTP path reuses the identical backend exchange, session
-/// models, token storage, session restore and 401 handling that Google uses
-/// today. Adding Phone OTP later therefore means:
+/// it, so this path reuses the identical backend exchange, session models,
+/// token storage, session restore and 401 handling that Google uses. The UI
+/// that drives it is `PhoneOtpScreen` (`/phone-otp`), reachable because
+/// `kEnabledAuthMethods` contains `AuthMethod.phoneOtp`.
 ///
-///   1. provide a real [PhoneOtpService] (see `FirebasePhoneOtpService`),
-///   2. enable [AuthMethod.phoneOtp] via `kEnabledAuthMethods`,
-///   3. add a Phone-OTP entry point on the Welcome screen that watches
-///      `isAuthMethodEnabledProvider(AuthMethod.phoneOtp)`.
-///   The controller methods (`AuthController.loginWithPhoneOtp` /
-///   `verifyPhoneOtp`) and the repository contract already exist and are
-///   covered by tests — only the UI screen does not exist yet.
-///
-/// Deliberately NOT in the MVP: SMS OTP, a custom OTP service, password
-/// authentication and a custom JWT login system.
+/// The pieces:
+///   1. [PhoneOtpService] - the provider contract (request / verify),
+///      implemented by `FirebasePhoneOtpService`, and by [MockPhoneOtpService]
+///      for offline builds and widget tests,
+///   2. `AuthController.requestPhoneOtp` / `verifyPhoneOtp` - the controller
+///      seam that turns a verified code into a session,
+///   3. `PhoneOtpScreen` - phone entry, code entry, resend, change-number.
 library;
 
 /// A pending SMS verification started by [PhoneOtpService.requestCode].

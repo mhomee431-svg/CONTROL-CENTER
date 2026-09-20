@@ -21,27 +21,34 @@ import 'package:flutter/material.dart';
 /// | State            | Real trigger (backend evidence)                    | Action      |
 /// |------------------|----------------------------------------------------|-------------|
 /// | offline          | `DioExceptionType.connectionError` / socket error   | Retry       |
-/// | networkError     | timeouts, DNS/TLS failures, no response at all      | Retry       |
+/// | networkError     | DNS/TLS failures, no response at all                | Retry       |
+/// | timeout          | connect/send/receive timeout                        | Retry       |
 /// | serverError      | 5xx (`INTERNAL_ERROR` and its typed 500s)           | Retry       |
 /// | permissionDenied | 403 `FORBIDDEN` / `PERMISSION_DENIED`               | Switch shop |
 /// | sessionExpired   | 401 "Invalid or expired token" / "…has been revoked"| Sign in     |
 /// | unauthorized     | 401 "Not authenticated" / "Invalid token type"      | Sign in     |
 /// | maintenance      | 503 `SERVICE_UNAVAILABLE` / `STORAGE_UNAVAILABLE`   | Retry       |
-/// | genericRetry     | 4xx the server explained (404/409/422/429)          | Retry       |
+/// | notFound         | 404                                                 | (feature)   |
+/// | conflict         | 409                                                 | Retry       |
+/// | validation       | 422                                                 | (feature)   |
+/// | genericRetry     | other 4xx the server explained (429/unknown)        | Retry       |
 /// | empty            | a successful load that legitimately has nothing     | (feature)   |
 ///
 /// Rendering lives in `system_state_view.dart`; this file stays pure Dart
 /// vocabulary + classification so it is testable without a widget tree.
 /// ─────────────────────────────────────────────────────────────────────────────
 
-/// The nine app-wide states. Every screen is in exactly one of them (or is
+/// The app-wide states. Every screen is in exactly one of them (or is
 /// loading / showing content).
 enum SystemState {
   /// The device itself has no usable network.
   offline,
 
-  /// The network exists but the request never completed (timeout, DNS, TLS).
+  /// The network exists but the request never completed (DNS, TLS).
   networkError,
+
+  /// The request was sent but the server never answered in time.
+  timeout,
 
   /// The backend answered 5xx.
   serverError,
@@ -58,7 +65,16 @@ enum SystemState {
   /// The backend is up but deliberately not serving (503).
   maintenance,
 
-  /// Anything else the server explained (404/409/422/429/unknown).
+  /// The referenced resource does not exist (404).
+  notFound,
+
+  /// The change collides with the server's current state (409).
+  conflict,
+
+  /// The payload failed server-side validation (422).
+  validation,
+
+  /// Anything else the server explained (429/unknown).
   genericRetry,
 
   /// A successful, genuinely empty result.
@@ -133,6 +149,7 @@ class SystemStateSpec {
   bool get ownsCopy => switch (state) {
     SystemState.offline ||
     SystemState.networkError ||
+    SystemState.timeout ||
     SystemState.sessionExpired ||
     SystemState.unauthorized ||
     SystemState.maintenance ||
@@ -157,6 +174,14 @@ class SystemStateSpec {
       message:
           'We could not reach the server. Check your connection and try again.',
       icon: Icons.cloud_off_outlined,
+      action: SystemAction.retry,
+    ),
+    SystemState.timeout => const SystemStateSpec(
+      state: SystemState.timeout,
+      title: 'The server took too long',
+      message:
+          'The request timed out before the server answered. Please try again.',
+      icon: Icons.hourglass_top_rounded,
       action: SystemAction.retry,
     ),
     SystemState.serverError => const SystemStateSpec(
@@ -200,6 +225,34 @@ class SystemStateSpec {
       icon: Icons.engineering_outlined,
       action: SystemAction.retry,
     ),
+    SystemState.notFound => const SystemStateSpec(
+      state: SystemState.notFound,
+      title: 'Not found',
+      message: 'We could not find that. It may have been removed.',
+      icon: Icons.search_off_rounded,
+      // Retrying an identical 404 cannot succeed — the caller decides whether
+      // its own context makes a Retry meaningful (the view still renders a
+      // caller-supplied onRetry as a fallback).
+      action: SystemAction.none,
+    ),
+    SystemState.conflict => const SystemStateSpec(
+      state: SystemState.conflict,
+      title: 'That change conflicts',
+      message:
+          'Something was already updated. Refresh the list and try again.',
+      icon: Icons.rule_rounded,
+      action: SystemAction.retry,
+    ),
+    SystemState.validation => const SystemStateSpec(
+      state: SystemState.validation,
+      title: 'Check the details',
+      message:
+          'Some of the information is not valid. Please review it and try again.',
+      icon: Icons.fact_check_outlined,
+      // Resending identical input can never pass validation — the shopkeeper
+      // has to change something first.
+      action: SystemAction.none,
+    ),
     SystemState.genericRetry => const SystemStateSpec(
       state: SystemState.genericRetry,
       title: 'Something went wrong',
@@ -216,15 +269,16 @@ class SystemStateSpec {
     ),
   };
 
-  /// Map a failure onto one of the nine states.
+  /// Map a failure onto one of the system states.
   ///
   /// Order is deliberate: with an HTTP status, the status decides (503 is the
   /// backend's fail-closed outage signal; 401 splits by the evidence in the
   /// message — `dependencies.py` returns `UNAUTHORIZED` for both "Not
   /// authenticated" and "Invalid or expired token" / "Token has been revoked";
-  /// 403 is a scope problem; any other 5xx is a server fault; every remaining
-  /// 4xx carries a server explanation the shopkeeper can retry — 404/409/422/429
-  /// all mean the request itself was the problem).
+  /// 403 is a scope problem; any other 5xx is a server fault; 404/409/422 each
+  /// name their own state because the fix differs — a different target, a
+  /// refresh first, corrected input — and only the remaining 4xx (429 and
+  /// friends) are genuinely worth a plain retry).
   ///
   /// Without a status the request never got an answer, but the evidence may
   /// still say what happened: a code or a message from the transport layer,
@@ -251,6 +305,13 @@ class SystemStateSpec {
       }
       if (statusCode == 403) return SystemState.permissionDenied;
       if (statusCode >= 500) return SystemState.serverError;
+      // The request itself was the problem, and each class has a different
+      // fix: a 404 needs a different target, a 409 needs a refresh first, a
+      // 422 needs corrected input — only 429/unknown benefit from a plain
+      // retry, so they stay genericRetry.
+      if (statusCode == 404) return SystemState.notFound;
+      if (statusCode == 409) return SystemState.conflict;
+      if (statusCode == 422) return SystemState.validation;
       return SystemState.genericRetry;
     }
 
@@ -264,7 +325,7 @@ class SystemStateSpec {
       ApiFailureKind.offline => SystemState.offline,
       ApiFailureKind.cancelled => SystemState.genericRetry,
       ApiFailureKind.badResponse => SystemState.genericRetry,
-      ApiFailureKind.timeout => SystemState.networkError,
+      ApiFailureKind.timeout => SystemState.timeout,
       _ => SystemState.networkError,
     };
   }

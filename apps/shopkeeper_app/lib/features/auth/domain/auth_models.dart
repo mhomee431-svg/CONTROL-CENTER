@@ -114,42 +114,38 @@ class AuthSession {
   final List<ShopSummary> shops;
 }
 
-/// ── AUTHENTICATION DECISION (MVP) ─────────────────────────────────────────
+/// ── AUTHENTICATION METHODS ─────────────────────────────────────────
 ///
-/// MVP ships with EXACTLY ONE sign-in method:
+/// All three shipped methods end at the SAME session, storage and guard:
 ///
 ///     Google Sign-In  →  Firebase Authentication  →  Firebase ID token
 ///       →  backend `/shopkeeper/auth/firebase-login` (Admin-SDK verified)
 ///       →  app session (backend-issued JWT pair).
 ///
-/// NOT in the MVP (repository functions exist; UI is intentionally absent):
-///   * Phone OTP / SMS OTP / custom OTP service
-///   * Password authentication
-///   * Custom JWT login system
+/// Phone OTP and password login ship alongside Google:
+///   * Phone OTP / SMS OTP - PhoneOtpService + the /phone-otp screen
+///   * Password authentication - /login, /register, /forgot-password
+///   * Custom client-side JWT signing (deliberately not used)
 ///
-/// Phone-OTP extension path (no rewrite required):
-///   Firebase issues ONE ID-token shape regardless of provider. A future
-///   Phone-OTP UI obtains the token via
+/// Why ONE token shape keeps this cheap:
+///   Firebase issues ONE ID-token shape regardless of provider, so the
+///   Phone-OTP screen obtains the token via
 ///   `FirebaseAuth.signInWithPhoneNumber` → confirmation → `getIdToken()`,
 ///   then calls [AuthRepository.loginWithPhoneOtp] — which exchanges the
 ///   token on the SAME `/firebase-login` endpoint used by Google today.
 ///   Nothing below the [AuthRepository] contract changes.
 enum AuthMethod {
-  /// MVP: Google Sign-In + Firebase Authentication (the ONLY active method).
+  /// Google Sign-In -> Firebase Authentication.
   googleFirebase,
 
-  /// FUTURE: Firebase Phone Auth (SMS OTP). Function seam already wired
-  /// through [AuthRepository.loginWithPhoneOtp]; UI comes later.
+  /// Firebase Phone Auth (SMS OTP). The verified token is exchanged on the
+  /// SAME `/firebase-login` endpoint Google uses
+  /// (`AuthRepository.loginWithPhoneOtp`); the SMS session itself is owned by
+  /// `PhoneOtpService` (`domain/phone_otp.dart`).
   phoneOtp,
 
-  /// FUTURE: password authentication (repository functions exist; the
-  /// /register, /forgot-password and /reset-password routes are NOT linked
-  /// from the Google-only flow).
+  /// Phone/email + password: `/register`, `/login`, `/forgot-password` and
+  /// `/reset-password`.
   password,
-}
-
-extension AuthMethodMvp on AuthMethod {
-  /// True only for methods active in the current MVP.
-  bool get isActiveInMvp => this == AuthMethod.googleFirebase;
 }
 

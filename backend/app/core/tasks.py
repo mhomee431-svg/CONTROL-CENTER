@@ -21,10 +21,74 @@ def sample_background_task(arg: str) -> dict:
 
 @celery_app.task(name="app.core.tasks.send_test_notification")
 def send_test_notification(user_id: int, message: str) -> dict:
-    """Placeholder for push/email notification delivery."""
-    logger.info("send_test_notification user=%s message=%s", user_id, message)
-    # TODO: Integrate with notifications service + FCM/apns provider
-    return {"user_id": user_id, "delivered": True}
+    """Deliver a test push to every active device of ``user_id``.
+
+    Uses the same delivery contract as the notification engine: the real push
+    provider (mock in dev/test, FCM in production) is invoked per device token
+    and permanently-invalid tokens are deactivated so later sweeps do not keep
+    retrying them. Users without a registered device are reported, not failed —
+    a test push must never raise.
+    """
+    from app.database.session import SessionLocal
+    from app.models.notification import DeviceToken
+    from app.services.push_service import PushMessage, get_push_service
+
+    try:
+        with SessionLocal() as db:
+            tokens = (
+                db.query(DeviceToken)
+                .filter(
+                    DeviceToken.user_id == user_id,
+                    DeviceToken.is_active == True,  # noqa: E712
+                )
+                .all()
+            )
+            if not tokens:
+                logger.info(
+                    "send_test_notification user=%s has no active devices", user_id
+                )
+                return {
+                    "user_id": user_id,
+                    "delivered": False,
+                    "reason": "no_active_devices",
+                }
+
+            provider = get_push_service()
+            results = [
+                provider.send(
+                    PushMessage(
+                        token=device_token.token,
+                        title="Test notification",
+                        body=message,
+                        deep_link="/",
+                    )
+                )
+                for device_token in tokens
+            ]
+
+            # Same deactivation contract as notification_service.deliver_notification.
+            for device_token, result in zip(tokens, results):
+                if result.permanent_failure:
+                    device_token.is_active = False
+                    device_token.failure_count = (device_token.failure_count or 0) + 1
+            db.commit()
+
+        delivered = sum(1 for result in results if result.delivered)
+        logger.info(
+            "send_test_notification user=%s delivered=%s/%s",
+            user_id,
+            delivered,
+            len(results),
+        )
+        return {
+            "user_id": user_id,
+            "delivered": delivered > 0,
+            "sent": delivered,
+            "total": len(results),
+        }
+    except Exception as exc:  # noqa: BLE001 — a test push must never crash a worker
+        logger.exception("send_test_notification failed for user %s", user_id)
+        return {"user_id": user_id, "delivered": False, "error": str(exc)}
 
 
 @celery_app.task(name="app.core.tasks.health_check_task")

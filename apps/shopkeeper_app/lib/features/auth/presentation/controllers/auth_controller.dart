@@ -10,6 +10,8 @@ import '../../../../core/network/token_store.dart';
 import '../../../../core/auth/firebase_auth_service.dart';
 import '../../../../core/state/system_state.dart';
 import '../../domain/auth_models.dart';
+import '../../domain/phone_otp.dart';
+import '../../data/firebase_phone_otp_service.dart';
 import '../../data/auth_repository.dart';
 import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -386,8 +388,9 @@ class AuthController extends Notifier<AuthState> {
 
   /// FUTURE (Phone OTP) — function seam, UI intentionally absent in the MVP.
   ///
-  /// Completes sign-in from a Firebase Phone-Auth ID token. The future OTP UI
-  /// is responsible for obtaining the token (`signInWithPhoneNumber` →
+  /// Completes sign-in from a Firebase Phone-Auth ID token. The Phone-OTP
+  /// screen obtains the token through [requestPhoneOtp] / [verifyPhoneOtp] and
+  /// then completes sign-in (`signInWithPhoneNumber` →
   /// confirmation → `getIdToken()`); this method applies the EXACT same
   /// session contract as [signInWithGoogle]: backend exchange → restriction
   /// gate → primary-shop sync → authenticated state. Because both providers
@@ -425,6 +428,57 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
   }
+
+  /// Sends (or re-sends) the SMS code for [phoneNumber] (E.164, `+91…`).
+  ///
+  /// Deliberately does NOT touch [state]: the router reads `loading` as "the
+  /// session is still unknown" and would swap the OTP screen for the splash.
+  /// The screen owns its own progress indicator, and failures arrive as a
+  /// [PhoneOtpException] whose `message` is already shopkeeper-readable.
+  ///
+  /// There is no client-side resend cooldown on purpose: SMS quotas belong to
+  /// the provider, and Firebase's `too-many-requests` is already mapped to
+  /// "Too many attempts. Please try again in a few minutes." by the service.
+  Future<PhoneOtpRequest> requestPhoneOtp(
+    String phoneNumber, {
+    int? resendToken,
+  }) {
+    return ref
+        .read(phoneOtpServiceProvider)
+        .requestCode(phoneNumber, resendToken: resendToken);
+  }
+
+  /// Verifies the typed [code] and completes the SAME sign-in Google
+  /// completes: Firebase ID token -> `/firebase-login` -> session.
+  ///
+  /// Returns `false` with [AuthState.errorMessage] set when the code is wrong
+  /// or the backend refuses the exchange, so the screen keeps the pending
+  /// verification on screen and the shopkeeper can retry without retyping
+  /// the number.
+  Future<bool> verifyPhoneOtp({
+    required String verificationId,
+    required String code,
+  }) async {
+    try {
+      final idToken = await ref.read(phoneOtpServiceProvider).verifyCode(
+            verificationId: verificationId,
+            code: code,
+          );
+      return await loginWithPhoneOtp(firebaseIdToken: idToken);
+    } on PhoneOtpException catch (e) {
+      state = AuthState.error(e.message, errorCode: e.code);
+      return false;
+    } catch (_) {
+      state = AuthState.error('Phone sign-in failed. Please try again.');
+      return false;
+    }
+  }
+
+  /// True when this platform/build can actually send SMS codes.
+  ///
+  /// The Phone-OTP screen refuses to pretend otherwise (desktop builds), and
+  /// the Welcome screen hides the entry point entirely.
+  bool get isPhoneOtpSupported => ref.read(phoneOtpServiceProvider).isSupported;
 
   /// Switches the business the app is scoped to.
   ///

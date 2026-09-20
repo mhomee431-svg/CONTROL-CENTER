@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -900,7 +901,7 @@ class _NoShopView extends StatelessWidget {
                   child: const Icon(
                     Icons.storefront,
                     size: 40,
-                    color: Color(0xFF0B5D3B),
+                    color: AppColors.deepGreen,
                   ),
                 ),
                 const SizedBox(height: 16),

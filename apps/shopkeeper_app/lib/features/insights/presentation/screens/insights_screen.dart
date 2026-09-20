@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/router/route_names.dart';
 
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/insights_models.dart';
 import '../controllers/insights_controller.dart';
@@ -17,7 +21,9 @@ import 'insights_drill_down_screen.dart';
 /// selectable trailing window. Nothing is computed or invented client-side:
 /// a shop without activity gets an honest empty state.
 class InsightsScreen extends ConsumerStatefulWidget {
-  const InsightsScreen({super.key});
+  const InsightsScreen({super.key, this.report});
+
+  final FocusedReport? report;
 
   @override
   ConsumerState<InsightsScreen> createState() => _InsightsScreenState();
@@ -46,7 +52,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reports & insights'),
+        title: Text(widget.report?.title ?? 'Reports & insights'),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -94,6 +100,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
             bundle: state.bundle!,
             rangeDays: state.rangeDays,
             shopName: shopName,
+            report: widget.report,
           ),
         );
     }
@@ -152,11 +159,13 @@ class _ReportBody extends StatelessWidget {
     required this.bundle,
     required this.rangeDays,
     this.shopName,
+    this.report,
   });
 
   final InsightsBundle bundle;
   final int rangeDays;
   final String? shopName;
+  final FocusedReport? report;
 
   @override
   Widget build(BuildContext context) {
@@ -178,26 +187,60 @@ class _ReportBody extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: scheme.outline),
         ),
         const SizedBox(height: 12),
-        _RangeSelector(selected: rangeDays),
-        const SizedBox(height: 16),
-        if (!bundle.hasActivity) _NoActivityCard(rangeDays: rangeDays),
-        if (bundle.hasActivity) ...[
+        if (report == null) ...[
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final entry in {
+                FocusedReport.sales: Routes.insightsSales,
+                FocusedReport.products: Routes.insightsProducts,
+                FocusedReport.inventory: Routes.insightsInventory,
+              }.entries)
+                ActionChip(
+                  label: Text(entry.key.title),
+                  onPressed: () => context.push(entry.value),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (report == FocusedReport.sales) ...[
+          const Text(
+            'Sales totals and revenue are not available. '
+            'The metrics below show customer engagement, not completed sales.',
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (report == FocusedReport.inventory)
+          const Text('Current inventory snapshot; freshness uses the last 24h.')
+        else ...[
+          _RangeSelector(selected: rangeDays),
+          const SizedBox(height: 16),
+          if (!bundle.hasActivity) _NoActivityCard(rangeDays: rangeDays),
+        ],
+        if ((report == null || report == FocusedReport.sales) &&
+            bundle.hasActivity) ...[
           _KpiRow(overview: bundle.overview),
           const SizedBox(height: 12),
           _WeeklyCard(overview: bundle.overview),
           const SizedBox(height: 12),
         ],
-        _TopProductsCard(products: bundle.topProducts),
-        const SizedBox(height: 12),
-        _SearchesCard(terms: bundle.topSearches),
-        const SizedBox(height: 12),
-        _InteractionsCard(interactions: bundle.interactions),
-        const SizedBox(height: 12),
-        _DevicesCard(devices: bundle.devices),
-        const SizedBox(height: 12),
-        _HourlyCard(points: bundle.hourly, peak: bundle.peakHour),
-        const SizedBox(height: 12),
-        _FreshnessCard(freshness: bundle.freshness),
+        if (report == null || report == FocusedReport.products) ...[
+          _TopProductsCard(products: bundle.topProducts),
+          const SizedBox(height: 12),
+          _SearchesCard(terms: bundle.topSearches),
+          const SizedBox(height: 12),
+        ],
+        if (report == null || report == FocusedReport.sales) ...[
+          _InteractionsCard(interactions: bundle.interactions),
+          const SizedBox(height: 12),
+          _DevicesCard(devices: bundle.devices),
+          const SizedBox(height: 12),
+          _HourlyCard(points: bundle.hourly, peak: bundle.peakHour),
+          const SizedBox(height: 12),
+        ],
+        if (report == null || report == FocusedReport.inventory)
+          _FreshnessCard(freshness: bundle.freshness),
         const SizedBox(height: 24),
         Text(
           'All metrics are computed by the backend from live customer activity.',
@@ -755,8 +798,7 @@ class _HourlyCard extends StatelessWidget {
                             point.hour % 6 == 0
                                 ? point.label.substring(0, 2)
                                 : '',
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: AppTypography.caption.copyWith(
                               color: scheme.outline,
                             ),
                           ),

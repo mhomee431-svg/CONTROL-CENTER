@@ -43,6 +43,18 @@ class NotificationType:
     POS_SYNC = "POS_SYNC"
     SYSTEM = "SYSTEM"
 
+    # ── Shopkeeper-facing operational categories ─────────────────────────────
+    # These complete the merchant category taxonomy (Products, Pricing,
+    # Imports, Offers, Account, Support) alongside the types above. They are
+    # transactional: an operator receipt must never be silently dropped by a
+    # marketing opt-out.
+    PRODUCT = "PRODUCT"
+    PRICING = "PRICING"
+    IMPORT = "IMPORT"
+    SHOP_OFFER = "SHOP_OFFER"
+    ACCOUNT = "ACCOUNT"
+    SUPPORT = "SUPPORT"
+
 
 class Audience:
     CUSTOMER = "customer"
@@ -62,6 +74,13 @@ _TYPE_REGISTRY: dict[str, tuple[str, str | None, bool]] = {
     NotificationType.POS_SYNC: (Audience.SHOPKEEPER, None, True),
     # System messages are service-critical (never gated / throttled)
     NotificationType.SYSTEM: (Audience.ADMIN, None, True),
+    # Shopkeeper operational categories — receipts, never marketing.
+    NotificationType.PRODUCT: (Audience.SHOPKEEPER, None, True),
+    NotificationType.PRICING: (Audience.SHOPKEEPER, None, True),
+    NotificationType.IMPORT: (Audience.SHOPKEEPER, None, True),
+    NotificationType.SHOP_OFFER: (Audience.SHOPKEEPER, None, True),
+    NotificationType.ACCOUNT: (Audience.SHOPKEEPER, None, True),
+    NotificationType.SUPPORT: (Audience.SHOPKEEPER, None, True),
 }
 
 DELIVERY_STATUS_PENDING = "PENDING"
@@ -502,8 +521,11 @@ def notify_product_available(db: Session, *, product_master_id: int, shop_name: 
     return created_ids
 
 
-def notify_inventory_update(db: Session, *, shopkeeper_user_id: int, shop_product_id: int,
+def notify_inventory_update(db: Session, *, shopkeeper_user_id: int | None,
+                            shop_product_id: int,
                             message: str) -> CreateResult:
+    if shopkeeper_user_id is None:
+        return _no_recipient()
     return create_notification(
         db,
         user_id=shopkeeper_user_id,
@@ -618,3 +640,179 @@ def broadcast_system_notification(db: Session, *, title: str, body: str,
         if result.created and result.notification:
             created_ids.append(result.notification.id)
     return created_ids
+
+
+
+# ── Shopkeeper category entry points ─────────────────────────────────────────
+# One emitter per merchant category so every backend service reports the same
+# way. Each takes ``shopkeeper_user_id`` and short-circuits when the recipient
+# is unknown (a shop with no resolvable owner) instead of raising.
+
+def _no_recipient() -> CreateResult:
+    return CreateResult(False, "no_recipient", None)
+
+
+def notify_shop_product_event(db: Session, *, shopkeeper_user_id: int | None,
+                             shop_product_id: int, event: str,
+                             product_name: str = "") -> CreateResult:
+    """Product added / updated / removed / discontinued."""
+    if shopkeeper_user_id is None:
+        return _no_recipient()
+    label = product_name.strip() or "Product"
+    key = event.strip().upper()
+    titles = {
+        "ADDED": "Product added",
+        "UPDATED": "Product updated",
+        "REMOVED": "Product removed",
+        "DISCONTINUED": "Product discontinued",
+    }
+    bodies = {
+        "ADDED": f"{label} is now in your catalog.",
+        "UPDATED": f"{label} was updated.",
+        "REMOVED": f"{label} was removed from your shop.",
+        "DISCONTINUED": f"{label} is no longer available in your shop.",
+    }
+    return create_notification(
+        db,
+        user_id=shopkeeper_user_id,
+        notification_type=NotificationType.PRODUCT,
+        title=titles.get(key, "Product updated"),
+        body=bodies.get(key, f"{label} was updated."),
+        deep_link=f"hyperlocal://shopkeeper/products/{shop_product_id}",
+        payload={"shop_product_id": shop_product_id, "event": key},
+        dedupe_key=f"product:{shop_product_id}:{key}",
+        audience=Audience.SHOPKEEPER,
+    )
+
+
+def notify_price_change(db: Session, *, shopkeeper_user_id: int | None,
+                        shop_product_id: int, old_price: float, new_price: float,
+                        product_name: str = "") -> CreateResult:
+    """Price (or MRP) changed on a shop listing."""
+    if shopkeeper_user_id is None:
+        return _no_recipient()
+    label = product_name.strip() or "Product"
+    return create_notification(
+        db,
+        user_id=shopkeeper_user_id,
+        notification_type=NotificationType.PRICING,
+        title="Price update successful",
+        body=f"{label}: \u20b9{old_price:.2f} \u2192 \u20b9{new_price:.2f}",
+        deep_link=f"hyperlocal://shopkeeper/products/{shop_product_id}",
+        payload={
+            "shop_product_id": shop_product_id,
+            "old_price": old_price,
+            "new_price": new_price,
+        },
+        dedupe_key=f"price:{shop_product_id}:{new_price:.2f}",
+        audience=Audience.SHOPKEEPER,
+    )
+def notify_import_event(db: Session, *, shopkeeper_user_id: int | None, job_id: int,
+                        status: str, filename: str | None = None,
+                        processed_rows: int = 0, failed_rows: int = 0) -> CreateResult:
+    """Excel/CSV import finished — completed, partial or failed."""
+    if shopkeeper_user_id is None:
+        return _no_recipient()
+    key = status.strip().upper()
+    name = (filename or "your file").strip()
+    if key == "COMPLETED":
+        title = "Import completed"
+        body = f"{name}: {processed_rows} row(s) imported."
+    elif key == "PARTIAL":
+        title = "Import partially completed"
+        body = (
+            f"{name}: {processed_rows} row(s) imported, {failed_rows} failed. "
+            "Open Import history to review the failures."
+        )
+    elif key == "FAILED":
+        title = "Import failed"
+        body = f"{name} could not be processed. Open Import history for details."
+    else:
+        title = "Import updated"
+        body = f"{name}: status is now {key}."
+    return create_notification(
+        db,
+        user_id=shopkeeper_user_id,
+        notification_type=NotificationType.IMPORT,
+        title=title,
+        body=body,
+        deep_link=f"hyperlocal://shopkeeper/imports/{job_id}",
+        payload={
+            "job_id": job_id,
+            "status": key,
+            "processed_rows": processed_rows,
+            "failed_rows": failed_rows,
+        },
+        dedupe_key=f"import:{job_id}:{key}",
+        audience=Audience.SHOPKEEPER,
+    )
+
+
+def notify_shop_offer_event(db: Session, *, shopkeeper_user_id: int | None,
+                            offer_id: int, event: str,
+                            offer_title: str = "") -> CreateResult:
+    """Shop-owned offer went live / was paused / expired / cancelled."""
+    if shopkeeper_user_id is None:
+        return _no_recipient()
+    label = offer_title.strip() or "Your offer"
+    key = event.strip().upper()
+    bodies = {
+        "ACTIVE": f"{label} is now live for customers.",
+        "SCHEDULED": f"{label} is scheduled.",
+        "PAUSED": f"{label} was paused.",
+        "DISABLED": f"{label} was disabled.",
+        "CANCELLED": f"{label} was cancelled.",
+        "EXPIRED": f"{label} has expired.",
+        "DRAFT": f"{label} was moved back to draft.",
+    }
+    return create_notification(
+        db,
+        user_id=shopkeeper_user_id,
+        notification_type=NotificationType.SHOP_OFFER,
+        title="Offer updated",
+        body=bodies.get(key, f"{label} is now {key.lower()}."),
+        deep_link=f"hyperlocal://shopkeeper/offers/{offer_id}",
+        payload={"offer_id": offer_id, "event": key},
+        dedupe_key=f"offer:{offer_id}:{key}",
+        audience=Audience.SHOPKEEPER,
+    )
+def notify_account_event(db: Session, *, shopkeeper_user_id: int | None,
+                         event: str, message: str) -> CreateResult:
+    """Account/shop settings, profile or access-state change."""
+    if shopkeeper_user_id is None:
+        return _no_recipient()
+    key = event.strip().upper()
+    status_change = "STATUS" in key or "SUSPEND" in key or "ACCESS" in key
+    return create_notification(
+        db,
+        user_id=shopkeeper_user_id,
+        notification_type=NotificationType.ACCOUNT,
+        title="Account status changed" if status_change else "Account updated",
+        body=message,
+        deep_link="hyperlocal://shopkeeper/account",
+        payload={"event": key},
+        dedupe_key=f"account:{key}",
+        audience=Audience.SHOPKEEPER,
+    )
+
+
+def notify_support_event(db: Session, *, shopkeeper_user_id: int | None, title: str,
+                         message: str, ticket_id: int | None = None) -> CreateResult:
+    """Support reply / resolution notice for a shopkeeper."""
+    if shopkeeper_user_id is None:
+        return _no_recipient()
+    return create_notification(
+        db,
+        user_id=shopkeeper_user_id,
+        notification_type=NotificationType.SUPPORT,
+        title=title,
+        body=message,
+        deep_link=(
+            f"hyperlocal://shopkeeper/support/{ticket_id}"
+            if ticket_id is not None
+            else "hyperlocal://shopkeeper/support"
+        ),
+        payload={"ticket_id": ticket_id} if ticket_id is not None else None,
+        dedupe_key=f"support:{ticket_id or 'general'}",
+        audience=Audience.SHOPKEEPER,
+    )

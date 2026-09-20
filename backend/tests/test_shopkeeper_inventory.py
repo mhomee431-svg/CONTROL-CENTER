@@ -698,6 +698,67 @@ class TestInventoryList:
         quantities = [item["quantity"] for item in asc["items"]]
         assert quantities == sorted(quantities)
 
+    # ── Low-stock restock query (quantity <= low_stock_threshold) ─────────
+
+    def test_low_below_threshold_returns_only_restock_needs(self):
+        """Rice (40/5) stays out; Dal (3/5) and an out-of-stock row come in."""
+        from app.models.product import Inventory, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        db, rice, dal = self._listing_db()
+        # An out-of-stock listing (0 <= threshold) is also a restock need.
+        empty = make_shop_product(sp_id=132, price=60.0, quantity=0)
+        db.set_all(ShopProduct, [rice, dal, empty])
+        db.queue_first(
+            Inventory, [rice.inventory, dal.inventory, empty.inventory]
+        )
+
+        result = svc.list_inventory(owner_access(), db, low_below_threshold=True)
+        names = [item["name"] for item in result["items"]]
+        assert "Toor Dal 500g" in names  # 3 <= 5
+        assert "Basmati Rice 1kg" not in names  # 40 > 5
+
+    def test_low_below_threshold_includes_boundary_quantity_equal_threshold(self):
+        """The rule is `<=`: a listing exactly at its threshold needs restocking."""
+        from app.services import shopkeeper_service as svc
+
+        # Fresh mock: the shared listing db pre-queues other inventories.
+        exact = make_shop_product(sp_id=133, price=30.0, quantity=5)
+        db = InventoryMockDB()
+        db.set_all(type(exact), [exact])
+        db.queue_first(type(exact.inventory), [exact.inventory])
+
+        result = svc.list_inventory(owner_access(), db, low_below_threshold=True)
+        assert result["count"] == 1
+        assert result["items"][0]["quantity"] == 5
+        assert result["items"][0]["low_stock_threshold"] == 5
+
+    def test_low_below_threshold_carries_the_full_restock_payload(self):
+        """Every row answers the restock card: what, how many, how low, how it looks."""
+        from app.services import shopkeeper_service as svc
+
+        db, _, _ = self._listing_db()
+        result = svc.list_inventory(owner_access(), db, low_below_threshold=True)
+        assert result["count"] >= 1
+        for item in result["items"]:
+            assert isinstance(item["id"], int)
+            assert isinstance(item["name"], str) and item["name"]
+            assert "sku" in item
+            assert "image_url" in item
+            assert isinstance(item["quantity"], int)
+            assert isinstance(item["low_stock_threshold"], int)
+            assert isinstance(item["stock_status"], str)
+
+    def test_low_below_threshold_false_returns_everything(self):
+        """Omitting / explicitly disabling the flag never filters."""
+        from app.services import shopkeeper_service as svc
+
+        db, _, _ = self._listing_db()
+        assert svc.list_inventory(owner_access(), db)["count"] == 2
+        assert svc.list_inventory(
+            owner_access(), db, low_below_threshold=False
+        )["count"] == 2
+
 
 # ── Inventory history ────────────────────────────────────────────────────
 
@@ -755,6 +816,129 @@ class TestInventoryHistory:
         db.queue_first(ShopProduct, [None])
         with pytest.raises(NotFoundError):
             svc.product_history(owner_access(), db, make_user(), 999)
+
+    # ── Audit fields: who / when / what / why ─────────────────────────────
+
+    def test_history_names_the_actor_who_changed_stock(self):
+        """A movement stores created_by; the trail must resolve it to a name."""
+        from app.models.product import Inventory, InventoryMovement, ShopProduct
+        from app.models.user import User
+        from app.services import shopkeeper_service as svc
+
+        now = datetime.now(timezone.utc)
+        sp = make_shop_product(sp_id=150)
+        inv = sp.inventory
+        inv.id = 778
+
+        mv = InventoryMovement(
+            inventory_id=778, quantity_change=5, quantity_before=10,
+            quantity_after=15, movement_type="RESTOCK",
+        )
+        mv.created_at = now
+        mv.created_by = 42
+
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [inv])
+        db.set_all(InventoryMovement, [mv])
+        db.set_all(User, [make_user(user_id=42, name="Akash")])
+
+        result = svc.product_history(owner_access(), db, make_user(), 150)
+        entry = result["entries"][0]
+        assert entry["actor"] == "Akash"
+        assert entry["actor_id"] == 42
+
+    def test_history_actor_is_null_for_automated_change(self):
+        """No created_by means an import / POS sync — never the reading user."""
+        from app.models.product import Inventory, InventoryMovement, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        now = datetime.now(timezone.utc)
+        sp = make_shop_product(sp_id=151)
+        inv = sp.inventory
+        inv.id = 779
+
+        mv = InventoryMovement(
+            inventory_id=779, quantity_change=3, quantity_before=0,
+            quantity_after=3, movement_type="RESTOCK",
+        )
+        mv.created_at = now
+        mv.created_by = None
+
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [inv])
+        db.set_all(InventoryMovement, [mv])
+
+        result = svc.product_history(owner_access(), db, make_user(), 151)
+        entry = result["entries"][0]
+        assert entry["actor"] is None
+        assert entry["actor_id"] is None
+
+    def test_history_paginates_and_reports_has_more(self):
+        """limit + offset page the trail; has_more tells the client to ask again."""
+        from app.models.product import Inventory, InventoryMovement, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        now = datetime.now(timezone.utc)
+        sp = make_shop_product(sp_id=152)
+        inv = sp.inventory
+        inv.id = 780
+
+        movements = []
+        for i in range(3):
+            mv = InventoryMovement(
+                inventory_id=780, quantity_change=1, quantity_before=i,
+                quantity_after=i + 1, movement_type="RESTOCK",
+            )
+            mv.created_at = now - timedelta(minutes=i)
+            movements.append(mv)
+
+        db = InventoryMockDB()
+        db.set_all(InventoryMovement, movements)
+
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [inv])
+        first = svc.product_history(owner_access(), db, make_user(), 152, limit=2)
+        assert first["count"] == 2
+        assert first["total"] == 3
+        assert first["offset"] == 0
+        assert first["has_more"] is True
+
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [inv])
+        last = svc.product_history(
+            owner_access(), db, make_user(), 152, limit=2, offset=2
+        )
+        assert last["count"] == 1
+        assert last["total"] == 3
+        assert last["offset"] == 2
+        assert last["has_more"] is False
+
+    def test_history_reports_current_stock_for_the_summary_tile(self):
+        """The summary tile reads live stock + the server's stock state."""
+        from app.models.product import Inventory, InventoryMovement, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        now = datetime.now(timezone.utc)
+        sp = make_shop_product(sp_id=153, quantity=25)
+        inv = sp.inventory
+        inv.id = 781
+
+        mv = InventoryMovement(
+            inventory_id=781, quantity_change=5, quantity_before=20,
+            quantity_after=25, movement_type="RESTOCK",
+        )
+        mv.created_at = now
+
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [inv])
+        db.set_all(InventoryMovement, [mv])
+
+        result = svc.product_history(owner_access(), db, make_user(), 153)
+        assert result["current_quantity"] == 25
+        assert result["stock_status"] == "IN_STOCK"
 
 
 # ── Bulk operations foundation ───────────────────────────────────────────
@@ -956,3 +1140,255 @@ class TestPlatformVisibility:
         assert entry["is_available"] is True
         assert entry["stock_status"] == "IN_STOCK"
         assert entry["source"] == "MANUAL"
+# ── Server summary + DISCONTINUED filter (list view) ─────────────────────
+
+
+class TestInventoryListSummary:
+    """The list response must carry the server's own counts so no client has
+    to re-derive them — and a withdrawn listing must be counted once, in its
+    own bucket, instead of masquerading as "in stock"."""
+
+    def _listing_db(self):
+        from app.models.product import (
+            Inventory,
+            ShopProduct,
+            ShopProductStatus,
+        )
+
+        rice = make_shop_product(
+            sp_id=130,
+            master=make_master(master_id=7, name="Basmati Rice 1kg"),
+            price=60.0,
+            quantity=40,
+        )
+        dal = make_shop_product(
+            sp_id=131,
+            master=make_master(master_id=8, name="Toor Dal 500g"),
+            price=90.0,
+            quantity=3,
+        )
+        disc = make_shop_product(
+            sp_id=132,
+            master=make_master(master_id=9, name="Old Biscuits"),
+            price=70.0,
+            quantity=11,
+        )
+        disc.status = ShopProductStatus.DISCONTINUED
+        db = InventoryMockDB()
+        db.set_all(ShopProduct, [rice, dal, disc])
+        db.queue_first(
+            Inventory, [rice.inventory, dal.inventory, disc.inventory]
+        )
+        return db, rice, dal, disc
+
+    def test_list_response_carries_the_server_summary(self):
+        from app.services import shopkeeper_service as svc
+
+        db, *_ = self._listing_db()
+        result = svc.list_inventory(owner_access(), db)
+        summary = result["summary"]
+        assert summary["total"] == 3
+        assert summary["discontinued"] == 1
+        assert (
+            summary["active"]
+            + summary["inactive"]
+            + summary["discontinued"]
+            == 3
+        )
+
+    def test_summary_never_counts_a_withdrawn_listing_as_stock(self):
+        from app.services import shopkeeper_service as svc
+
+        db, *_ = self._listing_db()
+        summary = svc.list_inventory(owner_access(), db)["summary"]
+        # 11 units remain on the discontinued listing, but it is not in stock.
+        assert summary["in_stock"] == 1  # rice only
+        assert summary["low_stock"] == 1  # dal only
+        assert (
+            summary["in_stock"]
+            + summary["low_stock"]
+            + summary["out_of_stock"]
+            + summary["unknown"]
+            == 2
+        )
+        assert summary["total_units"] == 40 + 3 + 11
+
+    def test_summary_never_flags_a_withdrawn_listing_for_restock(self):
+        from app.services import shopkeeper_service as svc
+
+        db, *_ = self._listing_db()
+        summary = svc.list_inventory(owner_access(), db)["summary"]
+        # Only the low-stock listing is a restock task: the withdrawn listing
+        # keeps its 11 units but is deliberately out of play.
+        assert [p["name"] for p in summary["needs_attention"]] == [
+            "Toor Dal 500g"
+        ]
+
+    def test_stock_filter_can_select_discontinued(self):
+        from app.services import shopkeeper_service as svc
+
+        db, *_ = self._listing_db()
+        result = svc.list_inventory(
+            owner_access(), db, stock_filter="DISCONTINUED"
+        )
+        assert result["count"] == 1
+        assert result["items"][0]["status"] == "DISCONTINUED"
+
+    def test_stock_filter_excludes_discontinued_from_other_states(self):
+        from app.services import shopkeeper_service as svc
+
+        db, *_ = self._listing_db()
+        low = svc.list_inventory(owner_access(), db, stock_filter="LOW_STOCK")
+        assert low["count"] == 1
+        assert low["items"][0]["status"] == "ACTIVE"
+
+# ── Low-stock threshold ──────────────────────────────────────────────────
+
+
+class TestLowStockThreshold:
+    def test_threshold_is_written_and_state_re_derived(self):
+        from app.models.product import Inventory, ShopProduct, StockStatus
+        from app.services import shopkeeper_service as svc
+
+        sp = make_shop_product(sp_id=150, quantity=8, threshold=5)
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [sp.inventory])
+
+        result = svc.update_low_stock_threshold(
+            owner_access(), db, make_user(), 150, 3
+        )
+        assert result["low_stock_threshold"] == 3
+        assert result["quantity"] == 8
+        assert result["stock_status"] == "IN_STOCK"
+        assert sp.inventory.low_stock_threshold == 3
+        assert sp.inventory.stock_status == StockStatus.IN_STOCK
+
+    def test_raising_threshold_flips_in_stock_to_low_stock(self):
+        from app.models.product import Inventory, ShopProduct, StockStatus
+        from app.services import shopkeeper_service as svc
+
+        sp = make_shop_product(sp_id=151, quantity=8, threshold=5)
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [sp.inventory])
+
+        result = svc.update_low_stock_threshold(
+            owner_access(), db, make_user(), 151, 10
+        )
+        assert result["stock_status"] == "LOW_STOCK"
+        assert sp.inventory.stock_status == StockStatus.LOW_STOCK
+
+    def test_negative_threshold_rejected(self):
+        from app.core.exceptions import ValidationError
+        from app.services import shopkeeper_service as svc
+
+        db = InventoryMockDB()
+        with pytest.raises(ValidationError):
+            svc.update_low_stock_threshold(
+                owner_access(), db, make_user(), 152, -1
+            )
+
+    def test_unknown_product_rejected(self):
+        from app.core.exceptions import NotFoundError
+        from app.models.product import ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [None])
+        with pytest.raises(NotFoundError):
+            svc.update_low_stock_threshold(
+                owner_access(), db, make_user(), 999, 5
+            )
+
+    def test_cross_shop_product_rejected(self):
+        from app.core.exceptions import NotFoundError
+        from app.services import shopkeeper_service as svc
+
+        db = InventoryMockDB()
+        with pytest.raises(NotFoundError):
+            svc.update_low_stock_threshold(
+                owner_access(), db, make_user(), 153, 5
+            )
+
+
+# ── Adjustment-only audit trail ──────────────────────────────────────────
+
+
+class TestStockAdjustmentHistory:
+    def _db_with_adjustments(self, sp):
+        from app.models.product import (
+            Inventory,
+            InventoryAdjustment,
+            ShopProduct,
+        )
+
+        rows = [
+            InventoryAdjustment(
+                adjustment_type="RESTOCK",
+                quantity_adjustment=10,
+                reason="Delivery received",
+            ),
+            InventoryAdjustment(
+                adjustment_type="DAMAGE",
+                quantity_adjustment=-2,
+                reason="Broken in transit",
+            ),
+        ]
+        for r in rows:
+            r.id = 900
+            r.inventory_id = 777
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [sp.inventory])
+        # The service reads adjustments with `.all()`, so they are fixed
+        # results rather than a FIFO `first()` queue.
+        db.set_all(InventoryAdjustment, rows)
+        return db, rows
+
+    def test_returns_adjustments_with_their_fields(self):
+        from app.services import shopkeeper_service as svc
+
+        sp = make_shop_product(sp_id=160, quantity=8, threshold=5)
+        db, _ = self._db_with_adjustments(sp)
+        result = svc.list_stock_adjustments(owner_access(), db, 160)
+        assert result["shop_product_id"] == 160
+        assert result["count"] == 2
+        for entry in result["adjustments"]:
+            assert set(entry) >= {
+                "id",
+                "adjustment_type",
+                "quantity_adjustment",
+                "reason",
+            }
+
+    def test_missing_inventory_returns_empty_trail(self):
+        from app.models.product import Inventory, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        sp = make_shop_product(sp_id=161, quantity=8, threshold=5)
+        sp.inventory = None
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [sp])
+        db.queue_first(Inventory, [None])
+        result = svc.list_stock_adjustments(owner_access(), db, 161)
+        assert result["count"] == 0
+        assert result["adjustments"] == []
+
+    def test_unknown_product_rejected(self):
+        from app.core.exceptions import NotFoundError
+        from app.models.product import ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        db = InventoryMockDB()
+        db.queue_first(ShopProduct, [None])
+        with pytest.raises(NotFoundError):
+            svc.list_stock_adjustments(owner_access(), db, 999)
+
+    def test_cross_shop_product_rejected(self):
+        from app.core.exceptions import NotFoundError
+        from app.services import shopkeeper_service as svc
+
+        db = InventoryMockDB()
+        with pytest.raises(NotFoundError):
+            svc.list_stock_adjustments(owner_access(), db, 162)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../products/domain/product_models.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../../domain/offer_models.dart';
 import '../controllers/offers_controller.dart';
@@ -23,9 +24,14 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
   final _title = TextEditingController();
   final _percentage = TextEditingController();
   final _flatValue = TextEditingController();
+  final _promoPrice = TextEditingController();
   final _terms = TextEditingController();
 
   ShopkeeperOfferType _type = ShopkeeperOfferType.percentageDiscount;
+
+  /// When true the offer is created as a DRAFT: the backend stores it but
+  /// customers never see it until the shopkeeper activates it.
+  bool _saveAsDraft = false;
   DateTime? _start;
   DateTime? _end;
   final Set<int> _selectedIds = {};
@@ -39,6 +45,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
     _title.dispose();
     _percentage.dispose();
     _flatValue.dispose();
+    _promoPrice.dispose();
     _terms.dispose();
     super.dispose();
   }
@@ -88,8 +95,12 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
             discountValue: _type.requiresFlatValue
                 ? double.tryParse(_flatValue.text.trim())
                 : null,
+            promotionalPrice: _type.requiresPromotionalPrice
+                ? double.tryParse(_promoPrice.text.trim())
+                : null,
             startDate: _start!,
             endDate: _end!,
+            status: _saveAsDraft ? 'DRAFT' : null,
             shopProductIds: _selectedIds.toList(growable: false),
             termsConditions: _terms.text.trim(),
           ),
@@ -121,7 +132,10 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
     );
     final theme = Theme.of(context);
 
-    return Padding(
+    // SingleChildScrollView (not Padding) so the form stays reachable on short
+    // screens and when the keyboard is open — the sheet content is taller than
+    // a small viewport once every optional field is showing.
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
@@ -143,6 +157,8 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                   ),
                 ),
                 IconButton(
+                  // Accessible name for the icon-only dismiss control.
+                  tooltip: 'Close',
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -177,6 +193,8 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                inputFormatters: NumericInput.decimal(),
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Discount % *',
                   suffixText: '%',
@@ -190,12 +208,30 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                inputFormatters: NumericInput.decimal(),
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Discount ₹ *',
                   prefixText: '₹ ',
                 ),
                 validator: (v) =>
                     OfferValidators.discount(_type, _percentage.text, v),
+              )
+            else if (_type.requiresPromotionalPrice)
+              TextFormField(
+                controller: _promoPrice,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: NumericInput.decimal(),
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Promotional price *',
+                  prefixText: '₹ ',
+                  helperText: 'Fixed sale price customers pay',
+                ),
+                validator: (v) => OfferValidators.discount(
+                    _type, _percentage.text, _flatValue.text, v),
               ),
             const SizedBox(height: 12),
             Row(
@@ -217,7 +253,18 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              key: const Key('offer-save-as-draft'),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _saveAsDraft,
+              onChanged: (v) => setState(() => _saveAsDraft = v),
+              title: const Text('Save as draft'),
+              subtitle: const Text(
+                  'Kept off customer listings until you activate it'),
+            ),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _terms,
               textCapitalization: TextCapitalization.sentences,

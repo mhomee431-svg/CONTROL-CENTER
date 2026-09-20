@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../widgets/pricing_shared.dart';
@@ -229,6 +230,8 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: NumericInput.decimal(),
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Selling price (₹)',
                     ),
@@ -240,6 +243,9 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: NumericInput.decimal(),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => FocusScope.of(context).unfocus(),
                     decoration: const InputDecoration(
                       labelText: 'MRP (₹, optional)',
                     ),

@@ -91,4 +91,8 @@ class ApiEndpoints {
   static const String customerFavoritesTypes = '/customer/favorites/types';
   static String customerProductShare(String productId) =>
       '/customer/products/$productId/share';
+
+  // --- Support ---
+  static const String supportIssue = '/support/issues';
+  static const String supportFaq = '/support/faq';
 }

@@ -5,7 +5,7 @@ import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/state/system_state.dart';
 import 'package:hyperlocal_shopkeeper_app/core/state/system_state_view.dart';
 
-/// The nine system states: classification rules and the ONE shared renderer.
+/// The system states: classification rules and the ONE shared renderer.
 ///
 /// These states are the app's whole error/empty vocabulary, so the contract is
 /// pinned here: a transport failure, a 503, a 403, a 401 and a plain 4xx each
@@ -20,7 +20,7 @@ void main() {
       );
       expect(
         SystemStateSpec.classify(failureKind: ApiFailureKind.timeout),
-        SystemState.networkError,
+        SystemState.timeout,
       );
       // No response at all from an unknown transport failure == unreachable.
       expect(
@@ -70,7 +70,7 @@ void main() {
       );
     });
 
-    test('403 → permission denied; other 4xx → generic retry', () {
+    test('403 → permission denied; 404/409/422 name their own state', () {
       expect(
         SystemStateSpec.classify(
           statusCode: 403,
@@ -81,10 +81,22 @@ void main() {
       );
       expect(
         SystemStateSpec.classify(statusCode: 404, message: 'Not found'),
-        SystemState.genericRetry,
+        SystemState.notFound,
+      );
+      expect(
+        SystemStateSpec.classify(
+          statusCode: 409,
+          message: 'Phone number already registered. Please login.',
+        ),
+        SystemState.conflict,
       );
       expect(
         SystemStateSpec.classify(statusCode: 422, message: 'Price is required'),
+        SystemState.validation,
+      );
+      // Only the remaining 4xx are genuinely worth a plain retry.
+      expect(
+        SystemStateSpec.classify(statusCode: 429, message: 'Too many requests'),
         SystemState.genericRetry,
       );
     });
@@ -127,7 +139,9 @@ void main() {
           type: DioExceptionType.receiveTimeout,
         ),
       );
-      expect(timeout.systemState, SystemState.networkError);
+      expect(timeout.systemState, SystemState.timeout);
+      // The timeout copy is app-owned, never Dio's raw text.
+      expect(timeout.message, SystemStateSpec.of(SystemState.timeout).message);
 
       // A 503 envelope's technical wording becomes the maintenance copy.
       final maintenance = ApiException.fromDioError(
@@ -150,6 +164,67 @@ void main() {
         maintenance.message,
         SystemStateSpec.of(SystemState.maintenance).message,
       );
+    });
+  });
+
+  group('SystemStateSpec — the expanded vocabulary', () {
+    test('every state has copy, an icon and an action', () {
+      for (final state in SystemState.values) {
+        final spec = SystemStateSpec.of(state);
+        expect(spec.state, state, reason: '$state spec state mismatch');
+        expect(spec.title.trim(), isNotEmpty, reason: '$state has no title');
+        expect(spec.message.trim(), isNotEmpty, reason: '$state has no copy');
+        expect(spec.action, isNotNull, reason: '$state has no action');
+      }
+    });
+
+    test('transport failures own their copy; server-explained ones do not', () {
+      for (final state in {
+        SystemState.offline,
+        SystemState.networkError,
+        SystemState.timeout,
+        SystemState.sessionExpired,
+        SystemState.unauthorized,
+        SystemState.maintenance,
+      }) {
+        expect(SystemStateSpec.of(state).ownsCopy, isTrue,
+            reason: '$state is infrastructure — its copy must be app-owned');
+      }
+      for (final state in {
+        SystemState.notFound,
+        SystemState.conflict,
+        SystemState.validation,
+        SystemState.serverError,
+        SystemState.permissionDenied,
+      }) {
+        expect(SystemStateSpec.of(state).ownsCopy, isFalse,
+            reason: '$state usually carries a server explanation worth keeping');
+      }
+    });
+
+    test('the action matches what actually fixes the failure', () {
+      // Retrying helps a timeout and a stale-conflict (after a refresh).
+      expect(SystemStateSpec.of(SystemState.timeout).action, SystemAction.retry);
+      expect(SystemStateSpec.of(SystemState.conflict).action, SystemAction.retry);
+      // Re-sending identical input can never fix these.
+      expect(
+          SystemStateSpec.of(SystemState.validation).action, SystemAction.none);
+      expect(
+          SystemStateSpec.of(SystemState.notFound).action, SystemAction.none);
+    });
+
+    test('a server-explained conflict/validation keeps the server wording',
+        () {
+      final conflict = SystemStateSpec.resolve(
+        statusCode: 409,
+        message: 'Phone number already registered. Please login.',
+      );
+      expect(conflict.state, SystemState.conflict);
+      expect(conflict.message, 'Phone number already registered. Please login.');
+
+      final unexplained = SystemStateSpec.resolve(statusCode: 422);
+      expect(unexplained.state, SystemState.validation);
+      expect(unexplained.message, SystemStateSpec.of(SystemState.validation).message);
     });
   });
 

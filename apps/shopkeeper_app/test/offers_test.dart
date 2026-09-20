@@ -8,6 +8,8 @@ import 'package:hyperlocal_shopkeeper_app/features/offers/data/offers_repository
 import 'package:hyperlocal_shopkeeper_app/features/offers/domain/offer_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/offers/presentation/controllers/offers_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/features/offers/presentation/screens/offers_screen.dart';
+import 'package:hyperlocal_shopkeeper_app/features/offers/presentation/widgets/offer_create_sheet.dart';
+import 'package:hyperlocal_shopkeeper_app/features/offers/presentation/widgets/offer_details_sheet.dart';
 
 import 'fakes.dart';
 
@@ -271,6 +273,309 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No shop selected'), findsOneWidget);
+    });
+
+    testWidgets('lists deactivated offers on the Disabled tab, not Active',
+        (tester) async {
+      final repo = FakeOffersRepo(
+        page: OfferListPage(items: [
+          offerSummary(id: 1, status: 'ACTIVE', title: 'Live deal'),
+          offerSummary(id: 2, status: 'DISABLED', title: 'Paused deal'),
+        ], count: 2),
+      );
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      // A disabled offer is NOT live stock — it must stay off the Active tab.
+      expect(find.text('Live deal'), findsOneWidget);
+      expect(find.text('Paused deal'), findsNothing);
+
+      await tester.tap(find.text('Disabled'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paused deal'), findsOneWidget);
+      // Tab label + the row's own status label — never 'Expired'.
+      expect(find.text('Disabled'), findsNWidgets(2));
+
+      // The Expired tab is untouched by a disabled offer.
+      await tester.tap(find.text('Expired'));
+      await tester.pumpAndSettle();
+      expect(find.text('No expired offers'), findsOneWidget);
+      expect(find.text('Paused deal'), findsNothing);
+    });
+
+    testWidgets('empty Disabled tab explains offers can be re-activated',
+        (tester) async {
+      final repo = FakeOffersRepo();
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Disabled'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No disabled offers'), findsOneWidget);
+    });
+  });
+
+  group('OfferSummary lifecycle rules', () {
+    test('mirrors the backend transition table', () {
+      expect(offerSummary(status: 'DRAFT').canActivate, isTrue);
+      expect(offerSummary(status: 'DRAFT').canDisable, isTrue);
+      expect(offerSummary(status: 'ACTIVE').canDisable, isTrue);
+      expect(offerSummary(status: 'ACTIVE').canActivate, isFalse);
+      expect(offerSummary(status: 'DISABLED').canActivate, isTrue);
+      expect(offerSummary(status: 'DISABLED').canDisable, isFalse);
+      expect(offerSummary(status: 'PAUSED').canActivate, isTrue);
+    });
+
+    test('expired and cancelled offers are terminal', () {
+      expect(offerSummary(status: 'EXPIRED').canTransitionTo('ACTIVE'), isFalse);
+      expect(offerSummary(status: 'EXPIRED').canDisable, isFalse);
+      expect(offerSummary(status: 'CANCELLED').canActivate, isFalse);
+    });
+
+    test('reads the STORED status, not the derived display bucket', () {
+      // A live offer whose window has already closed: the bucket says EXPIRED
+      // but the backend still stores ACTIVE, so disabling remains legal.
+      final offer = offerSummary(status: 'ACTIVE', displayStatus: 'EXPIRED');
+      expect(offer.isExpired, isTrue);
+      expect(offer.canDisable, isTrue);
+    });
+
+    test('promotional price renders as a promo label', () {
+      final offer = offerSummary(
+        offerType: 'PROMOTIONAL_PRICE',
+        discountPercentage: null,
+        promotionalPrice: 199,
+      );
+      expect(offer.discountLabel, 'Promo ₹199');
+      expect(offer.offerTypeLabel, 'Promo price');
+    });
+  });
+
+  group('OfferValidators promotional price', () {
+    test('promo price is required and must be positive', () {
+      expect(
+        OfferValidators.discount(
+            ShopkeeperOfferType.promotionalPrice, '', '', ''),
+        'Promotional price is required',
+      );
+      expect(
+        OfferValidators.discount(
+            ShopkeeperOfferType.promotionalPrice, '', '', '0'),
+        'Promotional price is required',
+      );
+      expect(
+        OfferValidators.discount(
+            ShopkeeperOfferType.promotionalPrice, '', '', '199'),
+        isNull,
+      );
+    });
+
+    test('only the promo price is sent for a promotional offer', () {
+      final json = OfferAssignRequest(
+        title: 'Festive promo',
+        offerType: ShopkeeperOfferType.promotionalPrice,
+        promotionalPrice: 199,
+        startDate: DateTime(2026, 1, 12),
+        endDate: DateTime(2026, 1, 20),
+        shopProductIds: const [1],
+      ).toJson();
+
+      expect(json['offer_type'], 'PROMOTIONAL_PRICE');
+      expect(json['promotional_price'], 199);
+      expect(json.containsKey('discount_percentage'), isFalse);
+      expect(json.containsKey('discount_value'), isFalse);
+    });
+  });
+
+  group('OfferDetailsSheet actions (widget)', () {
+    ProviderContainer makeContainer(FakeOffersRepo repo) {
+      final container = ProviderContainer(overrides: [
+        offersRepositoryProvider.overrideWithValue(repo),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
+        selectedShopProvider
+            .overrideWith(() => SelectedShopOverride(ownerShop(id: 10))),
+      ]);
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    Future<void> openSheet(
+      WidgetTester tester,
+      ProviderContainer container,
+      OfferSummary offer,
+    ) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => showOfferDetailsSheet(context, offer),
+                  child: const Text('open sheet'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open sheet'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a live offer can only be disabled', (tester) async {
+      final repo = FakeOffersRepo(
+        page: OfferListPage(
+            items: [offerSummary(id: 7, status: 'ACTIVE')], count: 1),
+      );
+      final container = makeContainer(repo);
+      await openSheet(tester, container, offerSummary(id: 7, status: 'ACTIVE'));
+
+      expect(find.text('Disable offer'), findsOneWidget);
+      expect(find.text('Activate offer'), findsNothing);
+
+      await tester.tap(find.text('Disable offer'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requestedTransitions, ['DISABLED']);
+      // Sheet closes and the list is refreshed so the tab is up to date.
+      expect(find.text('Disable offer'), findsNothing);
+      expect(repo.fetchCalls, greaterThan(0));
+      expect(find.text('Offer disabled'), findsOneWidget);
+    });
+
+    testWidgets('a disabled offer can be re-activated', (tester) async {
+      final repo = FakeOffersRepo(
+        page: OfferListPage(
+            items: [offerSummary(id: 8, status: 'DISABLED')], count: 1),
+      );
+      final container = makeContainer(repo);
+      await openSheet(
+          tester, container, offerSummary(id: 8, status: 'DISABLED'));
+
+      expect(find.text('Activate offer'), findsOneWidget);
+      expect(find.text('Disable offer'), findsNothing);
+      // Labelled Disabled, never mistaken for Expired.
+      expect(find.text('Disabled'), findsWidgets);
+      expect(find.text('Expired'), findsNothing);
+
+      await tester.tap(find.text('Activate offer'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requestedTransitions, ['ACTIVE']);
+    });
+
+    testWidgets('an expired offer shows a terminal note, not dead buttons',
+        (tester) async {
+      final repo = FakeOffersRepo();
+      final container = makeContainer(repo);
+      await openSheet(
+          tester, container, offerSummary(id: 9, status: 'EXPIRED'));
+
+      expect(find.text('Activate offer'), findsNothing);
+      expect(find.text('Disable offer'), findsNothing);
+      expect(find.textContaining('has ended'), findsOneWidget);
+      expect(repo.statusCalls, 0);
+    });
+
+    testWidgets('a rejected transition stays open and shows the server message',
+        (tester) async {
+      final repo = FakeOffersRepo(
+        statusError: const ApiException(
+          statusCode: 400,
+          message: 'Cannot move an offer from EXPIRED to ACTIVE',
+        ),
+      );
+      final container = makeContainer(repo);
+      await openSheet(tester, container, offerSummary(id: 7, status: 'ACTIVE'));
+
+      await tester.tap(find.text('Disable offer'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requestedTransitions, ['DISABLED']);
+      // Still open for a retry, showing the backend's own wording.
+      expect(find.text('Disable offer'), findsOneWidget);
+      expect(find.textContaining('Cannot move an offer'), findsOneWidget);
+    });
+  });
+
+  group('OfferCreateSheet promotional price (widget)', () {
+    testWidgets('shows the promo price input ONLY for a promo offer',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        offersRepositoryProvider.overrideWithValue(FakeOffersRepo()),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
+        selectedShopProvider
+            .overrideWith(() => SelectedShopOverride(ownerShop(id: 10))),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: OfferCreateSheet())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The default type is a percentage offer.
+      expect(find.text('Promotional price *'), findsNothing);
+
+      await tester
+          .tap(find.byType(DropdownButtonFormField<ShopkeeperOfferType>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Promo price').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Promotional price *'), findsOneWidget);
+      expect(find.text('Discount % *'), findsNothing);
+    });
+
+    testWidgets('offers a Save-as-draft switch, off by default', (tester) async {
+      final container = ProviderContainer(overrides: [
+        offersRepositoryProvider.overrideWithValue(FakeOffersRepo()),
+        tokenStoreProvider.overrideWithValue(
+            InMemoryTokenStore(accessToken: 'test-access-token')),
+        selectedShopProvider
+            .overrideWith(() => SelectedShopOverride(ownerShop(id: 10))),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: OfferCreateSheet())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final toggle = find.byKey(const Key('offer-save-as-draft'));
+      expect(toggle, findsOneWidget);
+      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    });
+  });
+
+  group('OfferAssignRequest draft status', () {
+    OfferAssignRequest request(String? status) => OfferAssignRequest(
+          title: 'Winter sale',
+          offerType: ShopkeeperOfferType.percentageDiscount,
+          discountPercentage: 10,
+          status: status,
+          startDate: DateTime(2026, 1, 12),
+          endDate: DateTime(2026, 1, 20),
+          shopProductIds: const [1],
+        );
+
+    test('omits status so the backend publishes immediately', () {
+      expect(request(null).toJson().containsKey('status'), isFalse);
+    });
+
+    test('sends DRAFT when the shopkeeper parks the offer', () {
+      expect(request('DRAFT').toJson()['status'], 'DRAFT');
     });
   });
 }

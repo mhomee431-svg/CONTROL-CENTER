@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/ui/numeric_input.dart';
 import '../../../offers/domain/offer_models.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../products/domain/product_models.dart';
@@ -178,6 +179,8 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: NumericInput.decimal(),
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: _type.requiresPercentage
                         ? 'Discount percentage (%)'

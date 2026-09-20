@@ -1,6 +1,6 @@
-import '../../../../core/network/api_client.dart';
-import '../../../../core/network/api_endpoints.dart';
-import '../../../../core/network/token_store.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/token_store.dart';
 
 /// The signed-in shopkeeper's own profile (identity, not shop data).
 ///

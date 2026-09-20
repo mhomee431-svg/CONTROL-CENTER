@@ -86,6 +86,13 @@ const List<_HubTile> _stockTiles = [
     Routes.outOfStock,
   ),
   _HubTile(
+    Key('inventory-tile-discontinued'),
+    Icons.block_outlined,
+    'Discontinued',
+    'Listings you have stopped selling',
+    Routes.discontinuedStock,
+  ),
+  _HubTile(
     Key('inventory-tile-freshness'),
     Icons.update_outlined,
     'Inventory freshness',

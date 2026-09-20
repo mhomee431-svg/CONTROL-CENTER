@@ -34,9 +34,9 @@ void main() {
     expect(find.text('Verified'), findsOneWidget);
 
     // Verify categories chips
-    expect(find.text('Electronics'), findsOneWidget);
-    expect(find.text('Mobile Phones'), findsOneWidget);
-    expect(find.text('Accessories'), findsOneWidget);
+    expect(find.text('Hardware'), findsOneWidget);
+    expect(find.text('Household Goods'), findsOneWidget);
+    expect(find.text('Automotive Parts & Tools'), findsOneWidget);
 
     // Verify actions exist
     expect(find.text('Call'), findsOneWidget);

@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/auth_methods.dart';
 import '../../domain/auth_models.dart';
 import '../controllers/auth_controller.dart';
+import '../widgets/auth_widgets.dart';
 
 /// Primary entry screen for the Shopkeeper App.
 ///
-/// The VISIBLE auth methods are driven by [kEnabledAuthMethods]
-/// (see `../../domain/auth_methods.dart`) — screens consult
-/// [isAuthMethodEnabledProvider] instead of hardcoding method buttons, so a
-/// future method (Phone OTP) becomes UI-visible by adding ONE entry to that
-/// list, with no widget changes.
+/// Every method button consults [isAuthMethodEnabledProvider], so the visible
+/// set IS the `kEnabledAuthMethods` list: Google Sign-In, Phone OTP (SMS) and
+/// password login are all reachable from here.
 ///
 /// MVP: Google Sign-In + Firebase Authentication is the only enabled method.
 /// On tap the native Google picker opens, Firebase exchanges the credential
@@ -21,6 +23,11 @@ import '../controllers/auth_controller.dart';
 /// the existing shopkeeper or creates one on the first sign-in.
 class WelcomeScreen extends ConsumerWidget {
   const WelcomeScreen({super.key});
+
+  /// Stable keys for the three method entry points (widget tests / previews).
+  static const phoneSignInKey = Key('welcome-phone-signin');
+  static const passwordSignInKey = Key('welcome-password-signin');
+  static const createAccountKey = Key('welcome-create-account');
 
   Future<void> _signInWithGoogle(BuildContext context, WidgetRef ref) async {
     debugPrint('[LOGIN] Continue with Google tapped');
@@ -66,6 +73,16 @@ class WelcomeScreen extends ConsumerWidget {
             SystemState.sessionExpired;
     final h = MediaQuery.of(context).size.height;
 
+    // Which entry points to render: the SSOT list decides, plus a platform
+    // check for SMS — a build that cannot send a code must not advertise it.
+    final googleEnabled =
+        ref.watch(isAuthMethodEnabledProvider(AuthMethod.googleFirebase));
+    final phoneEnabled =
+        ref.watch(isAuthMethodEnabledProvider(AuthMethod.phoneOtp)) &&
+            ref.read(authControllerProvider.notifier).isPhoneOtpSupported;
+    final passwordEnabled =
+        ref.watch(isAuthMethodEnabledProvider(AuthMethod.password));
+
     return Scaffold(
       body: SafeArea(
         child: Column(children: [
@@ -101,26 +118,48 @@ class WelcomeScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w700,
                       )),
                   const SizedBox(height: 10),
-                  Text('Manage your shop, products and inventory',
+                  Text('Manage your shop, products and inventory.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.outline,
                         height: 1.4,
                       )),
                   const SizedBox(height: 36),
-                  // Auth-method switch (auth_methods.dart): the Google button
-                  // renders only while its method is enabled, so a future
-                  // method becomes visible by adding ONE list entry — no
-                  // widget changes.
-                  if (ref.watch(isAuthMethodEnabledProvider(
-                    AuthMethod.googleFirebase,
-                  )))
-                    _GoogleSignInButton(
+                  // Auth-method switch (auth_methods.dart): every button
+                  // renders only while its method is enabled, so the visible
+                  // set is the `kEnabledAuthMethods` list and nothing else.
+                  if (googleEnabled)
+                    GoogleSignInButton(
                       isLoading: isLoading,
                       onPressed: isLoading
                           ? null
                           : () => _signInWithGoogle(context, ref),
                     ),
+                  if (phoneEnabled) ...[
+                    const SizedBox(height: 12),
+                    PhoneSignInButton(
+                      key: WelcomeScreen.phoneSignInKey,
+                      onPressed:
+                          isLoading ? null : () => context.push(Routes.phoneOtp),
+                    ),
+                  ],
+                  if (passwordEnabled) ...[
+                    const SizedBox(height: 10),
+                    AuthMethodDivider(),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      key: WelcomeScreen.passwordSignInKey,
+                      onPressed:
+                          isLoading ? null : () => context.push(Routes.login),
+                      child: Text(AuthMethod.password.actionLabel),
+                    ),
+                    TextButton(
+                      key: WelcomeScreen.createAccountKey,
+                      onPressed:
+                          isLoading ? null : () => context.push(Routes.register),
+                      child: const Text('Create a new account'),
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   Text(
                     'By continuing, you agree to our Terms & Privacy Policy.',
@@ -196,119 +235,6 @@ class _SessionExpiredNotice extends StatelessWidget {
   }
 }
 
-/// Google's official "G" mark drawn with the four brand colours so we don't
-/// need an external asset.
-class _GoogleLogo extends StatelessWidget {
-  const _GoogleLogo({this.size = 20});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    const blue = Color(0xFF4285F4);
-    const red = Color(0xFFEA4335);
-    const yellow = Color(0xFFFBBC05);
-    const green = Color(0xFF34A853);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _GoogleGPainter(blue, red, yellow, green),
-      ),
-    );
-  }
-}
-
-class _GoogleGPainter extends CustomPainter {
-  _GoogleGPainter(this.blue, this.red, this.yellow, this.green);
-
-  final Color blue, red, yellow, green;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final stroke = w * 0.16;
-
-    final bluePaint = Paint()
-      ..color = blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawLine(Offset(w * 0.06, h * 0.5), Offset(w * 0.30, h * 0.5), bluePaint);
-
-    final redPaint = Paint()
-      ..color = red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    final rect = Rect.fromLTWH(w * 0.06, h * 0.06, w * 0.88, h * 0.88);
-    canvas.drawArc(rect, -0.9, 1.2, false, redPaint);
-
-    final yellowPaint = Paint()
-      ..color = yellow
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, 0.9, 1.2, false, yellowPaint);
-
-    final greenPaint = Paint()
-      ..color = green
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(w * 0.50, h * 0.50), Offset(w * 0.94, h * 0.50), greenPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _GoogleGPainter oldDelegate) => false;
-}
-
-class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton({required this.isLoading, this.onPressed});
-
-  final bool isLoading;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF1F1F1F),
-          side: const BorderSide(color: Color(0xFFDADCE0)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 1,
-          shadowColor: Colors.black26,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const _GoogleLogo(size: 20),
-                  const SizedBox(width: 12),
-                  Text('Continue with Google',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: const Color(0xFF1F1F1F),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          )),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
 class _StorefrontIllustration extends StatelessWidget {
   const _StorefrontIllustration({required this.height});
 
@@ -370,7 +296,7 @@ class _StorefrontPainter extends CustomPainter {
     final doorPaint = Paint()..color = door;
     final doorRect = Rect.fromLTWH(cx - w * 0.08, h * 0.62, w * 0.16, h * 0.23);
     canvas.drawRect(doorRect, doorPaint);
-    final knobPaint = Paint()..color = Colors.amber.shade700;
+    final knobPaint = Paint()..color = AppColors.warning;
     canvas.drawCircle(Offset(cx + w * 0.04, h * 0.74), w * 0.012, knobPaint);
 
     final windowPaint = Paint()..color = window;

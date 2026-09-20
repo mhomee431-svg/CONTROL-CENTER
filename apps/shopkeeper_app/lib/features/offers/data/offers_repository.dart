@@ -18,8 +18,17 @@ abstract class OffersRepository {
   /// Offers belonging to this shop, newest window first.
   ///
   /// [status] filters by the shopkeeper-facing bucket (`active`, `scheduled`,
-  /// `expired`, `draft`); omit it for every offer.
+  /// `expired`, `draft`, `disabled`); omit it for every offer.
   Future<OfferListPage> fetchOffers(int shopId, String token, {String? status});
+
+  /// Activate / pause / disable / cancel one shop-owned offer.
+  /// Returns the updated offer row ([OfferSummary]) from the backend.
+  Future<OfferSummary> updateOfferStatus(
+    int shopId,
+    int offerId,
+    String status,
+    String token,
+  );
 }
 
 class ApiOffersRepository implements OffersRepository {
@@ -55,6 +64,21 @@ class ApiOffersRepository implements OffersRepository {
       },
     ) as Map<String, dynamic>;
     return OfferListPage.fromJson(data);
+  }
+
+  @override
+  Future<OfferSummary> updateOfferStatus(
+    int shopId,
+    int offerId,
+    String status,
+    String token,
+  ) async {
+    final data = await _api.patch(
+      ApiEndpoints.offerStatus(shopId, offerId),
+      body: {'status': status},
+      token: token,
+    ) as Map<String, dynamic>;
+    return OfferSummary.fromJson(data);
   }
 }
 

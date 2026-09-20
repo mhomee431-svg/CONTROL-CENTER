@@ -79,7 +79,8 @@ class ApiException implements Exception {
         ApiFailureKind.offline =>
           SystemStateSpec.of(SystemState.offline).message,
         ApiFailureKind.cancelled => 'Request was cancelled.',
-        ApiFailureKind.timeout ||
+        ApiFailureKind.timeout =>
+          SystemStateSpec.of(SystemState.timeout).message,
         ApiFailureKind.badResponse ||
         ApiFailureKind.unknown =>
           SystemStateSpec.of(SystemState.networkError).message,

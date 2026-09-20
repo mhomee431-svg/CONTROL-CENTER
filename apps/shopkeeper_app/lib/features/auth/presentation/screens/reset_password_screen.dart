@@ -80,6 +80,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 decoration: InputDecoration(
                   labelText: 'New password',
                   suffixIcon: IconButton(
+                    // Accessible name for the visibility toggle.
+                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                     icon: Icon(_obscurePassword
                         ? Icons.visibility_off
                         : Icons.visibility),
@@ -106,6 +108,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirm password',
                   suffixIcon: IconButton(
+                    // Accessible name for the visibility toggle.
+                    tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
                     icon: Icon(_obscureConfirm
                         ? Icons.visibility_off
                         : Icons.visibility),

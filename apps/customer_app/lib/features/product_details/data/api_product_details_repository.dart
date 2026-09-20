@@ -16,10 +16,17 @@ import '../domain/models/product_details_models.dart';
 class ApiProductDetailsRepository implements ProductDetailsRepository {
   final ApiClient _apiClient;
   final LocalCacheService _cache;
+  final double? latitude;
+  final double? longitude;
 
   static const String _cachePrefix = 'product_details_';
 
-  ApiProductDetailsRepository(this._apiClient, this._cache);
+  ApiProductDetailsRepository(
+    this._apiClient,
+    this._cache, {
+    this.latitude,
+    this.longitude,
+  });
 
   @override
   Future<ProductDetails> getProductDetails(String productId) async {
@@ -27,6 +34,13 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
       // Fetch product master + shop inventory in one call.
       final data = await _apiClient.get(
         ApiEndpoints.product(productId),
+        queryParameters: {
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
+          // Keep the radius explicit so the product page and search page use
+          // the same local-discovery boundary.
+          'radius_km': 25.0,
+        },
         requiresAuth: false,
       );
 

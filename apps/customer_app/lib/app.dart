@@ -7,6 +7,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/notifications/data/device_token_coordinator.dart';
+import 'features/notifications/presentation/controllers/fcm_lifecycle.dart';
 import 'features/saved_and_history/data/local_saved_and_history_repository.dart';
 import 'features/saved_and_history/domain/saved_and_history_repository.dart';
 import 'features/settings/presentation/controllers/settings_controller.dart';
@@ -33,6 +34,7 @@ class HyperlocalApp extends ConsumerWidget {
     final settings = ref.watch(settingsControllerProvider);
     // Keeps the session-expiry listener subscribed.
     ref.watch(sessionExpiryBridgeProvider);
+    ref.watch(fcmLifecycleBootstrapProvider);
 
     // ── Phase 9: personalization sync across auth transitions ──────────
     // ── Phase 10: device-token registration across auth transitions ────

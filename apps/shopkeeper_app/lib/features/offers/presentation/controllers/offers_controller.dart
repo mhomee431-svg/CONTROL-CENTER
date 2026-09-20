@@ -119,11 +119,15 @@ class OffersListState {
   /// Offers still running **or** starting in the future — the "Active" tab.
   /// Drafts are included so a just-created offer is never invisible.
   List<OfferSummary> get openOffers =>
-      items.where((o) => !o.isExpired).toList(growable: false);
+      items.where((o) => !o.isExpired && !o.isDisabled).toList(growable: false);
 
   /// Offers whose window already closed — the "Expired" tab.
   List<OfferSummary> get expiredOffers =>
       items.where((o) => o.isExpired).toList(growable: false);
+
+  /// Disabled offers — hidden from customers until re-enabled.
+  List<OfferSummary> get disabledOffers =>
+      items.where((o) => o.isDisabled).toList(growable: false);
 }
 
 final offersListControllerProvider =
@@ -175,6 +179,39 @@ class OffersListController extends Notifier<OffersListState> {
         status: OffersListStatus.error,
         message: 'Could not load offers.',
       );
+    }
+  }
+
+  /// Activate / pause / disable / cancel one offer, then reload the list so
+  /// every tab reflects the server-derived status bucket. Returns true when
+  /// the backend accepted the transition.
+  Future<bool> setStatus(int offerId, String status) async {
+    final shopId = _shopId;
+    final currentItems = state.items;
+    if (shopId == null) return false;
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw const ApiException(message: 'Not signed in');
+      await _repo.updateOfferStatus(shopId, offerId, status, token);
+      await load();
+      return true;
+    } on ApiException catch (e) {
+      state = OffersListState(
+        status: OffersListStatus.error,
+        items: currentItems,
+        message: _friendlyOfferError(
+          e,
+          forbidden: 'Only shop owners can change offer status.',
+        ),
+      );
+      return false;
+    } catch (_) {
+      state = OffersListState(
+        status: OffersListStatus.error,
+        items: currentItems,
+        message: 'Could not update the offer. Please retry.',
+      );
+      return false;
     }
   }
 }

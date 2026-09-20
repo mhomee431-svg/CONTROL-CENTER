@@ -23,6 +23,11 @@ abstract class NotificationPreferencesStore {
   Future<NotificationPreferences?> read(String userKey);
 
   Future<void> write(String userKey, NotificationPreferences preferences);
+
+  /// Removes this user's saved preferences, so the next read falls back to the
+  /// model defaults. Used by *Data & storage* so a shopkeeper can reset
+  /// delivery preferences without signing out.
+  Future<void> clear(String userKey);
 }
 
 /// Production store backed by flutter_secure_storage (encrypted on device).
@@ -59,6 +64,9 @@ class SecureNotificationPreferencesStore
         key: _key(userKey),
         value: jsonEncode(preferences.toJson()),
       );
+
+  @override
+  Future<void> clear(String userKey) => _storage.delete(key: _key(userKey));
 }
 
 /// In-memory store for widget/unit tests.
@@ -76,6 +84,11 @@ class InMemoryNotificationPreferencesStore
     NotificationPreferences preferences,
   ) async {
     _values[userKey] = preferences;
+  }
+
+  @override
+  Future<void> clear(String userKey) async {
+    _values.remove(userKey);
   }
 }
 

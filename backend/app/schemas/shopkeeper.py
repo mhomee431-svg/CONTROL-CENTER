@@ -1,9 +1,10 @@
 ﻿"""Phase 22/23 — Pydantic schemas for the Shopkeeper App API."""
 
-from datetime import datetime
-
-from pydantic import BaseModel, Field, field_validator
+from datetime import datetime, timezone
+from typing import ClassVar
 import re
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────
@@ -307,19 +308,35 @@ class ShopkeeperProductCreate(BaseModel):
     price: float = Field(..., ge=0)
     mrp: float | None = Field(None, ge=0)
     sku: str | None = Field(None, max_length=100)
-    quantity: int = Field(0, ge=0)
-    low_stock_threshold: int = Field(5, ge=0)
+    quantity: int = Field(0, ge=0, le=999_999, description="Initial stock quantity (0-999,999)")
+    low_stock_threshold: int = Field(5, ge=0, le=999_999, description="Alert threshold (0-999,999)")
     is_available: bool = True
     publish: bool = Field(False, description="Publish immediately (APPROVED) vs keep as DRAFT")
     # Phase 7 — PRODUCT_IMAGE object key from POST /media/confirm.
     image_key: str | None = Field(None, max_length=512)
+    # Taxonomy — optional. `categories` already stores both levels in one
+    # table, so a subcategory is a row whose `parent_id` is the category.
+    # Both are OPTIONAL: a shopkeeper can list a product before the catalog
+    # is fully classified, and existing clients keep working unchanged.
+    category_id: int | None = Field(None, ge=1)
+    subcategory_id: int | None = Field(None, ge=1)
+    # Barcode — optional. The first barcode supplied for a product becomes its
+    # primary identifier, so a scan can resolve it later. Only digits are
+    # meaningful for retail symbologies (EAN/UPC/GTIN/JAN/ITF).
+    barcode: str | None = Field(None, min_length=4, max_length=100)
+    barcode_type: str | None = Field(
+        None,
+        max_length=20,
+        description="Optional explicit identifier type (EAN/UPC/GTIN/JAN/ITF/CUSTOM); "
+        "inferred from the barcode length when omitted",
+    )
 
 
 class ShopkeeperProductUpdate(BaseModel):
     price: float | None = Field(None, ge=0)
     mrp: float | None = Field(None, ge=0)
-    quantity: int | None = Field(None, ge=0)
-    low_stock_threshold: int | None = Field(None, ge=0)
+    quantity: int | None = Field(None, ge=0, le=999_999, description="Updated stock quantity (0-999,999)")
+    low_stock_threshold: int | None = Field(None, ge=0, le=999_999, description="Alert threshold (0-999,999)")
     is_available: bool | None = None
     is_featured: bool | None = None
     status: str | None = Field(None, max_length=30)
@@ -327,7 +344,14 @@ class ShopkeeperProductUpdate(BaseModel):
     image_key: str | None = Field(None, max_length=512)
 
 
-# ── Phase 23 — Inventory management ──────────────────────────────────────
+class ShopkeeperLowStockThresholdUpdate(BaseModel):
+    """Set the per-listing low-stock threshold (the quantity that flips a
+    listing into LOW_STOCK)."""
+
+    low_stock_threshold: int = Field(..., ge=0, le=999_999)
+
+
+# ── Phase 23 — Inventory management ───────────────────────────────────────
 class ShopkeeperAddFromMaster(BaseModel):
     """Add an EXISTING product-master record (optionally a variant) to a shop.
 
@@ -340,19 +364,45 @@ class ShopkeeperAddFromMaster(BaseModel):
     price: float = Field(..., ge=0, description="Shop selling price")
     mrp: float | None = Field(None, ge=0)
     sku: str | None = Field(None, max_length=100)
-    quantity: int = Field(0, ge=0)
-    low_stock_threshold: int = Field(5, ge=0)
+    quantity: int = Field(0, ge=0, le=999_999)
+    low_stock_threshold: int = Field(5, ge=0, le=999_999)
     is_available: bool = True
 
 
 class ShopkeeperStockAdjustment(BaseModel):
     """Delta stock adjustment with audit trail (type + reason)."""
 
+    allowed_adjustment_types: ClassVar[set[str]] = {
+        "RESTOCK", "DAMAGE", "EXPIRY", "STOCK_COUNT", "CORRECTION",
+        "RETURN", "TRANSFER_OUT", "TRANSFER_IN", "SPOILAGE",
+    }
+
     adjustment_type: str = Field("CORRECTION", max_length=50)
     quantity_adjustment: int = Field(
-        ..., description="Delta units (+restock / -damage); result must stay >= 0"
+        ...,
+        ge=-999_999,
+        le=999_999,
+        description="Delta units (+restock / -damage); result must stay >= 0",
     )
     reason: str | None = Field(None, max_length=255)
+
+    @model_validator(mode="after")
+    def _validate_adjustment(self) -> "ShopkeeperStockAdjustment":
+        if self.quantity_adjustment == 0:
+            raise ValueError("Quantity adjustment cannot be zero")
+        adj_type = self.adjustment_type.upper()
+        if adj_type not in self.allowed_adjustment_types:
+            raise ValueError(f"Invalid adjustment type: {self.adjustment_type}")
+        # Positive deltas (restock, return, correction) are always fine.
+        # Negative deltas (damage, expiry, transfer out, spoilage) are allowed —
+        # the service layer rejects only if the RESULT goes negative.
+        return self
+
+
+class ShopkeeperOfferStatusUpdate(BaseModel):
+    """Change an offer's lifecycle state (shopkeeper-owned)."""
+
+    status: str = Field(..., max_length=20)
 
 
 class ShopkeeperBulkOperation(BaseModel):
@@ -362,7 +412,7 @@ class ShopkeeperBulkOperation(BaseModel):
     shop_product_ids: list[int] = Field(..., min_length=1, max_length=200)
     price: float | None = Field(None, ge=0)
     mrp: float | None = Field(None, ge=0)
-    quantity: int | None = Field(None, ge=0)
+    quantity: int | None = Field(None, ge=0, le=999_999)
     is_available: bool | None = None
 
 
@@ -373,7 +423,19 @@ class ShopkeeperOfferAssign(BaseModel):
     offer_type: str = Field(..., max_length=40)
     discount_value: float | None = Field(None, ge=0)
     discount_percentage: float | None = Field(None, gt=0, le=100)
+    promotional_price: float | None = Field(None, ge=0)
+    status: str | None = Field(None, max_length=20)
     start_date: datetime
     end_date: datetime
     shop_product_ids: list[int] = Field(..., min_length=1, max_length=200)
     terms_conditions: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_offer_window(self) -> "ShopkeeperOfferAssign":
+        start = self.start_date
+        end = self.end_date
+        aware_start = start if start.tzinfo is not None else start.replace(tzinfo=timezone.utc)
+        aware_end = end if end.tzinfo is not None else end.replace(tzinfo=timezone.utc)
+        if aware_end <= aware_start:
+            raise ValueError("Offer end date must be after start date")
+        return self

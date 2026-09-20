@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../pos/presentation/controllers/pos_controller.dart';
+import '../../../pos/domain/pos_models.dart';
 import '../controllers/import_controller.dart';
 import '../../domain/import_models.dart';
 
-/// Import Center — the hub of the Excel inventory-import flow:
-/// Download Sample → Start new import → Import history, with the status
-/// vocabulary of past jobs surfaced at a glance.
+/// Import Center — the central hub for bringing inventory into the shop.
+///
+/// Two primary methods are surfaced as the main entry points:
+///   1. Excel / CSV — upload a workbook to bulk-update stock / pricing / catalog.
+///   2. POS sync    — pull products + sales from a connected POS vendor.
+///
+/// Below the methods a compact status summary is shown (last import, last
+/// sync, failed counts, quick-history) so the shopkeeper always sees where
+/// each channel stands.
 class ImportCenterScreen extends ConsumerStatefulWidget {
   const ImportCenterScreen({super.key});
 
@@ -38,9 +47,18 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
       }
     });
 
-    final jobs = ref.watch(importControllerProvider.select((s) => s.jobs));
-    final downloading =
-        ref.watch(sampleDownloadProvider.select((s) => s.inProgress));
+        final jobs = ref.watch(importControllerProvider.select((s) => s.jobs));
+
+    // POS sync status is read live from the POS controller so the summary
+    // never shows stale data.
+    final posState = ref.watch(posControllerProvider);
+    final posIntegration = posState.integration;
+    final posJobs = posState.jobs;
+    final hasPos = posIntegration != null;
+    final posSyncStatus = _lastPosSyncStatus(posIntegration, posJobs);
+
+    final failedImports =
+        jobs.where((j) => j.status == 'FAILED').length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Import Center')),
@@ -48,88 +66,223 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Bulk-update your inventory from an Excel (.xlsx) workbook. '
-            'Download the sample, fill in your products, then upload it — '
-            'nothing is applied until you review and confirm the preview.',
+            'Bring products into your shop — manually or in bulk. '
+            'Choose a method below to get started.',
             style: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.outline,
             ),
           ),
-          const SizedBox(height: 16),
-          _FlowTiles(downloading: downloading),
+          const SizedBox(height: 20),
+          _MethodCard(
+            key: const Key('method-excel-csv'),
+            icon: Icons.upload_file_outlined,
+            title: 'Excel / CSV',
+            subtitle: 'Bulk-upload a workbook to update stock, prices or '
+                'catalog. Download a sample template, fill it in, then '
+                'preview before applying.',
+            onTap: () {
+              ref.read(importControllerProvider.notifier).resetFlow();
+              context.push(Routes.importUpload);
+            },
+          ),
+          const SizedBox(height: 12),
+          // Supporting action for the Excel path: the template the shopkeeper
+          // fills in before uploading. Keyed for the flow tests.
+          _DownloadSampleTile(
+            downloading: ref.watch(
+              sampleDownloadProvider.select((s) => s.inProgress),
+            ),
+            onTap: () => ref.read(sampleDownloadProvider.notifier).download(),
+          ),
+          const SizedBox(height: 12),
+          _MethodCard(
+            key: const Key('method-pos-sync'),
+            icon: Icons.point_of_sale_outlined,
+            title: 'POS Sync',
+            subtitle: hasPos
+                ? 'Connected to ${_integrationName(posIntegration)}. '
+                    'Sync products and sales from your POS.'
+                : 'Connect a POS system to sync products and sales automatically.',
+            onTap: () {
+              context.push(Routes.pos);
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Activity',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                ListTile(
+                  key: const Key('summary-last-import'),
+                  leading: const CircleAvatar(
+                    radius: 16,
+                    child: Icon(Icons.upload_file_outlined, size: 18),
+                  ),
+                  title: const Text('Last import'),
+                  subtitle: Text(_lastImportSubtitle(jobs)),
+                  onTap: () => context.push(Routes.importHistory),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  key: const Key('summary-last-sync'),
+                  leading: const CircleAvatar(
+                    radius: 16,
+                    child: Icon(Icons.sync_outlined, size: 18),
+                  ),
+                  title: const Text('Last POS sync'),
+                  subtitle: Text(posSyncStatus),
+                  onTap: () => context.push(Routes.posSyncHistory),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  key: const Key('summary-failed'),
+                  leading: const CircleAvatar(
+                    radius: 16,
+                    child: Icon(Icons.error_outline, size: 18),
+                  ),
+                  title: const Text('Failed'),
+                  subtitle: Text(
+                    failedImports > 0
+                        ? '$failedImports import(s) failed'
+                        : 'No failures yet',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: failedImports > 0
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  onTap: failedImports > 0
+                      ? () => context.push(Routes.importHistory)
+                      : null,
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           _RecentImports(jobs: jobs),
         ],
       ),
     );
   }
+
+  String _lastImportSubtitle(List<ImportJob> jobs) {
+    if (jobs.isEmpty) return 'No imports yet';
+    final latest = jobs.first;
+    return '${latest.filename} • ${latest.statusLabel}';
+  }
+
+  String _integrationName(dynamic integration) {
+    final name = integration is PosIntegration
+        ? integration.providerName
+        : 'your POS system';
+    return name.isEmpty ? 'your POS system' : name;
+  }
+
+  String _lastPosSyncStatus(dynamic integration, List<dynamic> jobs) {
+    if (integration == null) return 'No POS connected';
+    if (jobs.isEmpty) return 'No sync history';
+    final latest = jobs.first;
+    final status = latest is PosSyncJob ? latest.status : 'UNKNOWN';
+    final time =
+        _formatDate(latest is PosSyncJob ? latest.completedAt : null);
+    return '$status${time.isNotEmpty ? ' • $time' : ''}';
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '';
+    return DateFormat('d MMM yyyy, h:mm a').format(dt);
+  }
 }
 
-class _FlowTiles extends ConsumerWidget {
-  const _FlowTiles({required this.downloading});
+/// "Download sample" — fetches the import template and hands it to the platform
+/// save dialog. Shows a spinner while the download is in flight.
+class _DownloadSampleTile extends StatelessWidget {
+  const _DownloadSampleTile({required this.downloading, required this.onTap});
 
   final bool downloading;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          ListTile(
-            key: const Key('import-tile-download-sample'),
-            leading: Icon(Icons.download_outlined,
-                color: Theme.of(context).colorScheme.primary),
-            title: const Text('Download sample'),
-            subtitle: const Text(
-              'Get the import template workbook',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: downloading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.chevron_right),
-            onTap: downloading
-                ? null
-                : () => ref.read(sampleDownloadProvider.notifier).download(),
+      child: ListTile(
+        key: const Key('import-tile-download-sample'),
+        leading: Icon(Icons.download_outlined, color: theme.colorScheme.primary),
+        title: Text(
+          'Download sample',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-          Divider(height: 1, color: Theme.of(context).dividerColor),
-          ListTile(
-            key: const Key('import-tile-start'),
-            leading: Icon(Icons.upload_file_outlined,
-                color: Theme.of(context).colorScheme.primary),
-            title: const Text('Start new import'),
-            subtitle: const Text(
-              'Pick an .xlsx file, preview it, then apply',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // A leftover flow (e.g. after a completed import) must not
-              // leak into the upload screen.
-              ref.read(importControllerProvider.notifier).resetFlow();
-              context.push(Routes.importUpload);
-            },
+        ),
+        subtitle: const Text(
+          'Get the import template workbook',
+          style: TextStyle(fontSize: 12),
+        ),
+        trailing: downloading
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.chevron_right),
+        onTap: downloading ? null : onTap,
+      ),
+    );
+  }
+}
+
+/// Reusable method-card for the hub landing surface.
+class _MethodCard extends StatelessWidget {
+  const _MethodCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        leading: Icon(icon, color: theme.colorScheme.primary, size: 28),
+        title: Text(
+          title,
+          style: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 12,
+            color: theme.colorScheme.outline,
           ),
-          Divider(height: 1, color: Theme.of(context).dividerColor),
-          ListTile(
-            key: const Key('import-tile-history'),
-            leading: Icon(Icons.history_outlined,
-                color: Theme.of(context).colorScheme.primary),
-            title: const Text('Import history'),
-            subtitle: const Text(
-              'Past uploads, their rows and their outcomes',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(Routes.importHistory),
-          ),
-        ],
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }

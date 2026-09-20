@@ -8,6 +8,7 @@ import '../../features/auth/presentation/screens/create_profile_screen.dart';
 import '../../features/auth/presentation/screens/account_status_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/phone_otp_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
@@ -15,7 +16,10 @@ import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/account/presentation/screens/account_screen.dart';
 import '../../features/account/presentation/screens/account_settings_screen.dart';
 import '../../features/account/presentation/screens/security_screen.dart';
+import '../../features/account/presentation/screens/sessions_screen.dart';
 import '../../features/account/presentation/screens/app_settings_screen.dart';
+import '../../features/account/presentation/screens/language_screen.dart';
+import '../../features/account/presentation/screens/data_storage_screen.dart';
 import '../../features/account/presentation/screens/notification_settings_screen.dart';
 import '../../features/account/presentation/screens/privacy_screen.dart';
 import '../../features/account/presentation/screens/terms_screen.dart';
@@ -51,6 +55,7 @@ import '../../features/inventory_import/presentation/screens/import_processing_s
 import '../../features/inventory_import/presentation/screens/import_upload_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_dashboard_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_list_screen.dart';
+import '../../features/inventory/presentation/screens/low_stock_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_sync_status_screen.dart';
 import '../../features/inventory/presentation/screens/stock_history_screen.dart';
 import '../../features/inventory/presentation/screens/update_stock_screen.dart';
@@ -73,6 +78,7 @@ import '../../features/pos/presentation/screens/pos_sync_result_screen.dart';
 import '../../features/pos/presentation/screens/pos_sync_screen.dart';
 import '../../features/insights/domain/insights_models.dart';
 import '../../features/insights/presentation/screens/insights_drill_down_screen.dart';
+import '../../features/insights/presentation/screens/focused_report_screen.dart';
 import '../../features/insights/presentation/screens/insights_screen.dart';
 import '../../features/shell/all_features_screen.dart';
 import '../../features/support/presentation/screens/support_screen.dart';
@@ -115,6 +121,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         Routes.register,
         Routes.forgotPassword,
         Routes.resetPassword,
+        // Phone OTP: the shopkeeper must be able to sit on this screen while
+        // the SMS arrives — a signed-out redirect away from it would destroy
+        // the pending verification.
+        Routes.phoneOtp,
       ];
       final isSplash = loc == Routes.splash;
 
@@ -224,6 +234,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         final token = state.uri.queryParameters['token'] ?? '';
         return ResetPasswordScreen(token: token);
       }),
+      buildRoute(Routes.phoneOtp, (_, _) => const PhoneOtpScreen()),
       buildRoute(Routes.profileCreate, (_, _) => const CreateProfileScreen()),
       buildRoute(Routes.profileEdit, (_, _) => const EditProfileScreen()),
       buildRoute(Routes.accountStatus, (_, _) => const AccountStatusScreen()),
@@ -248,8 +259,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute(Routes.inventoryImport, (_, _) => const InventoryImportScreen()),
       buildRoute(Routes.inventoryDashboard, (_, _) => const InventoryDashboardScreen()),
       buildRoute(Routes.inventoryList, (_, _) => const InventoryScopeScreen(scope: InventoryScope.all)),
-      buildRoute(Routes.lowStock, (_, _) => const InventoryScopeScreen(scope: InventoryScope.low)),
+      buildRoute(Routes.lowStock, (_, _) => const LowStockScreen()),
       buildRoute(Routes.outOfStock, (_, _) => const InventoryScopeScreen(scope: InventoryScope.outOfStock)),
+      buildRoute(Routes.discontinuedStock, (_, _) => const InventoryScopeScreen(scope: InventoryScope.discontinued)),
       buildRoute(Routes.inventoryFreshness, (_, _) => const InventoryScopeScreen(scope: InventoryScope.freshness)),
       buildRoute(Routes.inventorySyncStatus, (_, _) => const InventorySyncStatusScreen()),
       buildRoute(Routes.updateStock, (context, state) {
@@ -312,6 +324,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         );
       }),
       buildRoute(Routes.insights, (_, _) => const InsightsScreen()),
+      buildRoute(Routes.insightsSales, (_, _) =>
+          const FocusedReportScreen(report: FocusedReport.sales)),
+      buildRoute(Routes.insightsProducts, (_, _) =>
+          const FocusedReportScreen(report: FocusedReport.products)),
+      buildRoute(Routes.insightsInventory, (_, _) =>
+          const FocusedReportScreen(report: FocusedReport.inventory)),
       GoRoute(
         path: Routes.insightsDrillDown(':metric'),
         parentNavigatorKey: rootNavigatorKey,
@@ -342,7 +360,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ── Settings module ───────────────────────────────────────────────────
       buildRoute(Routes.accountSettings, (_, _) => const AccountSettingsScreen()),
       buildRoute(Routes.security, (_, _) => const SecurityScreen()),
+      buildRoute(Routes.sessions, (_, _) => const SessionsScreen()),
       buildRoute(Routes.appSettings, (_, _) => const AppSettingsScreen()),
+      buildRoute(Routes.language, (_, _) => const LanguageScreen()),
+      buildRoute(Routes.dataStorage, (_, _) => const DataStorageScreen()),
       buildRoute(
           Routes.notificationSettings, (_, _) =>
           const NotificationSettingsScreen()),

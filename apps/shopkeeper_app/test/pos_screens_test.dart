@@ -82,6 +82,48 @@ void main() {
       expect(find.byKey(const Key('pos-setup-status')), findsOneWidget);
     });
 
+    testWidgets('the success panel can start the first sync in place',
+        (tester) async {
+      final repo = FakePosRepo();
+      final container = makeContainer(repo);
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container, const PosConnectionSetupScreen());
+      await tester.tap(find.byKey(const Key('pos-setup-submit')));
+      await tester.pumpAndSettle();
+
+      // Both exits are offered on the live connector...
+      expect(find.byKey(const Key('pos-setup-sync-now')), findsOneWidget);
+      expect(find.byKey(const Key('pos-setup-done')), findsOneWidget);
+      // ...but connecting alone must not queue a sync.
+      expect(repo.syncCalls, 0);
+
+      await tester.tap(find.byKey(const Key('pos-setup-sync-now')));
+      await tester.pumpAndSettle();
+
+      expect(repo.syncCalls, 1);
+      expect(find.textContaining('Initial sync started'), findsOneWidget);
+    });
+
+    testWidgets('a refused sync is reported instead of silently passing',
+        (tester) async {
+      final repo = FakePosRepo(
+        syncError: const ApiException(message: 'No connection'),
+      );
+      final container = makeContainer(repo);
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container, const PosConnectionSetupScreen());
+      await tester.tap(find.byKey(const Key('pos-setup-submit')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('pos-setup-sync-now')));
+      await tester.pumpAndSettle();
+
+      expect(repo.syncCalls, 1);
+      expect(find.textContaining('Sync could not be started'), findsOneWidget);
+    });
+
     testWidgets('credential rotation is sent only when the shopkeeper types it',
         (tester) async {
       final repo = FakePosRepo(integrations: [posIntegration(status: 'INACTIVE')]);

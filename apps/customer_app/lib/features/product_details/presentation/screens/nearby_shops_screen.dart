@@ -13,13 +13,21 @@ import '../../../../core/widgets/empty_state_view.dart';
 /// shop-specific price, availability, distance, and freshness.
 ///
 /// Navigation: Product → Nearby Shops → Shop → Directions
-class NearbyShopsScreen extends ConsumerWidget {
+class NearbyShopsScreen extends ConsumerStatefulWidget {
   final String productId;
   const NearbyShopsScreen({super.key, required this.productId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final productAsync = ref.watch(productDetailsProvider(productId));
+  ConsumerState<NearbyShopsScreen> createState() => _NearbyShopsScreenState();
+}
+
+class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
+  _ShopSort _sort = _ShopSort.nearest;
+  bool _inStockOnly = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final productAsync = ref.watch(productDetailsProvider(widget.productId));
 
     return Scaffold(
       appBar: AppBar(
@@ -33,33 +41,82 @@ class NearbyShopsScreen extends ConsumerWidget {
           title: 'Failed to load nearby shops',
           message: '$err',
           actionLabel: 'Try Again',
-          onActionTap: () => ref.refresh(productDetailsProvider(productId)),
+          onActionTap: () => ref.refresh(productDetailsProvider(widget.productId)),
         ),
       ),
     );
   }
 
   Widget _buildBody(BuildContext context, ProductDetails details) {
-    final offers = details.shopOffers;
+    final offers = details.shopOffers.where((offer) {
+      return !_inStockOnly || offer.isAvailable;
+    }).toList()
+      ..sort((a, b) {
+        switch (_sort) {
+          case _ShopSort.lowestPrice:
+            return a.price.compareTo(b.price);
+          case _ShopSort.highestRated:
+            return b.rating.compareTo(a.rating);
+          case _ShopSort.nearest:
+            return a.distanceInKm.compareTo(b.distanceInKm);
+        }
+      });
 
     if (offers.isEmpty) {
-      return const EmptyStateView(
+      return EmptyStateView(
         icon: Icons.storefront_outlined,
-        title: 'No nearby shops found',
-        message: 'This product is not currently available at any nearby shop.',
+        title: _inStockOnly ? 'No shops report this item in stock' : 'No nearby shops found',
+        message: _inStockOnly
+            ? 'Try showing all shops or refresh before visiting. Inventory can change quickly.'
+            : 'This product is not currently available at any nearby shop.',
+        actionLabel: _inStockOnly ? 'Show all shops' : null,
+        onActionTap: _inStockOnly ? () => setState(() => _inStockOnly = false) : null,
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: offers.length,
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+      itemCount: offers.length + 1,
       itemBuilder: (context, index) {
-        final offer = offers[index];
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                ChoiceChip(
+                  label: const Text('Nearest'),
+                  selected: _sort == _ShopSort.nearest,
+                  onSelected: (_) => setState(() => _sort = _ShopSort.nearest),
+                ),
+                ChoiceChip(
+                  label: const Text('Lowest price'),
+                  selected: _sort == _ShopSort.lowestPrice,
+                  onSelected: (_) => setState(() => _sort = _ShopSort.lowestPrice),
+                ),
+                ChoiceChip(
+                  label: const Text('Top rated'),
+                  selected: _sort == _ShopSort.highestRated,
+                  onSelected: (_) => setState(() => _sort = _ShopSort.highestRated),
+                ),
+                FilterChip(
+                  label: const Text('In stock only'),
+                  selected: _inStockOnly,
+                  onSelected: (value) => setState(() => _inStockOnly = value),
+                ),
+              ],
+            ),
+          );
+        }
+        final offer = offers[index - 1];
         return _NearbyShopCard(offer: offer);
       },
     );
   }
 }
+
+enum _ShopSort { nearest, lowestPrice, highestRated }
 
 class _NearbyShopCard extends StatelessWidget {
   final ShopInventoryOffer offer;
@@ -76,9 +133,16 @@ class _NearbyShopCard extends StatelessWidget {
     return DateTime.now().difference(lastUpdated).inHours > 24;
   }
 
+  String _availabilityLabel() {
+    if (!offer.isAvailable) return 'Out of Stock';
+    if (_isStale(offer.lastUpdated)) return 'Check stock';
+    return 'In Stock';
+  }
+
   @override
   Widget build(BuildContext context) {
     final stale = _isStale(offer.lastUpdated);
+    final availabilityLabel = _availabilityLabel();
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -133,17 +197,23 @@ class _NearbyShopCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: offer.isAvailable
-                            ? AppColors.secondary.withValues(alpha: 0.1)
-                            : AppColors.error.withValues(alpha: 0.1),
+                        color: !offer.isAvailable
+                            ? AppColors.error.withValues(alpha: 0.1)
+                            : stale
+                                ? Colors.orange.withValues(alpha: 0.1)
+                                : AppColors.secondary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        offer.isAvailable ? 'In Stock' : 'Out of Stock',
+                        availabilityLabel,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: offer.isAvailable ? AppColors.secondary : AppColors.error,
+                          color: !offer.isAvailable
+                              ? AppColors.error
+                              : stale
+                                  ? Colors.orange.shade800
+                                  : AppColors.secondary,
                         ),
                       ),
                     ),

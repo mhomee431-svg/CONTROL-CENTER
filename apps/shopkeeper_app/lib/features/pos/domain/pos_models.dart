@@ -121,6 +121,16 @@ class PosIntegration {
   bool get isDisconnected => status == 'DISCONNECTED' || status == 'INACTIVE';
   bool get hasError => status == 'ERROR';
 
+  /// True while a sync job is queued or running for this connector — the
+  /// status card renders a distinct "Syncing" state instead of "Connected".
+  bool get isSyncing {
+    final latest = latestJob;
+    if (latest != null && (latest.isQueued || latest.isRunning)) return true;
+    // The aggregated status payload may omit latest_job; a running row in the
+    // fetched history is equally authoritative.
+    return lastSyncStatus == 'QUEUED' || lastSyncStatus == 'RUNNING';
+  }
+
   factory PosIntegration.fromJson(Map<String, dynamic> json) => PosIntegration(
         id: (json['id'] as num?)?.toInt() ?? 0,
         shopId: (json['shop_id'] as num?)?.toInt() ?? 0,
@@ -153,6 +163,91 @@ class PosIntegration {
   }
 }
 
+/// One physically mapped POS terminal (`GET/POST .../devices`).
+class PosDevice {
+  const PosDevice({
+    required this.id,
+    required this.deviceIdentifier,
+    required this.isActive,
+    this.deviceName,
+    this.deviceType,
+    this.lastConnectedAt,
+  });
+
+  final int id;
+
+  /// The vendor's immutable terminal id — the map key, so a re-registration
+  /// refreshes the row instead of duplicating it.
+  final String deviceIdentifier;
+  final bool isActive;
+
+  /// Optional friendly name; empty falls back to the identifier.
+  final String? deviceName;
+
+  /// `POS_TERMINAL | SCANNER | TABLET` (free-form on the backend).
+  final String? deviceType;
+  final DateTime? lastConnectedAt;
+
+  String get displayName {
+    final name = deviceName?.trim() ?? '';
+    return name.isNotEmpty ? name : deviceIdentifier;
+  }
+
+  bool get isTerminal => deviceType == 'POS_TERMINAL';
+
+  factory PosDevice.fromJson(Map<String, dynamic> json) => PosDevice(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        deviceIdentifier: json['device_identifier'] as String? ?? '',
+        isActive: json['is_active'] as bool? ?? true,
+        deviceName: json['device_name'] as String?,
+        deviceType: json['device_type'] as String?,
+        lastConnectedAt: PosIntegration.parseDate(json['last_connected_at']),
+      );
+
+  static List<PosDevice> listFrom(dynamic raw) => raw is List
+      ? raw
+          .whereType<Map<String, dynamic>>()
+          .map(PosDevice.fromJson)
+          .toList(growable: false)
+      : const <PosDevice>[];
+}
+
+/// One log line from a job detail payload (`GET /shopkeeper/pos/jobs/{id}`).
+class PosJobLog {
+  const PosJobLog({
+    required this.level,
+    required this.message,
+    this.itemReference,
+    this.errorCode,
+    this.loggedAt,
+  });
+
+  /// `INFO | WARNING | ERROR`.
+  final String level;
+  final String message;
+  final String? itemReference;
+  final String? errorCode;
+  final DateTime? loggedAt;
+
+  bool get isError => level.toUpperCase() == 'ERROR';
+  bool get isWarning => level.toUpperCase() == 'WARNING';
+
+  factory PosJobLog.fromJson(Map<String, dynamic> json) => PosJobLog(
+        level: json['log_level'] as String? ?? 'INFO',
+        message: json['message'] as String? ?? '',
+        itemReference: json['item_reference'] as String?,
+        errorCode: json['error_code'] as String?,
+        loggedAt: PosIntegration.parseDate(json['logged_at']),
+      );
+
+  static List<PosJobLog> listFrom(dynamic raw) => raw is List
+      ? raw
+          .whereType<Map<String, dynamic>>()
+          .map(PosJobLog.fromJson)
+          .toList(growable: false)
+      : const <PosJobLog>[];
+}
+
 /// Shared technical-exception → shopkeeper-copy mapper for POS failures.
 String friendlyPosError(ApiException e, {String? forbidden}) {
   if (e.isUnauthorized || e.statusCode == 401) {
@@ -165,4 +260,103 @@ String friendlyPosError(ApiException e, {String? forbidden}) {
     return 'No internet connection. Check your network and retry.';
   }
   return e.message;
+}
+
+/// One mapping conflict a sync recorded: either the platform kept its value
+/// (the POS value was logged, not applied) or the POS overwrote it traceably.
+class PosJobConflict {
+  const PosJobConflict({
+    required this.posProductCode,
+    required this.field,
+    required this.detail,
+    this.platformValue,
+    this.posValue,
+  });
+
+  final String posProductCode;
+
+  /// Which synchronized field disagreed (`price`, `inventory`, …).
+  final String field;
+
+  /// The backend's own sentence about the conflict, when present.
+  final String detail;
+  final String? platformValue;
+  final String? posValue;
+
+  factory PosJobConflict.fromJson(Map<String, dynamic> json) {
+    String pick(List<String> keys) {
+      for (final key in keys) {
+        final value = json[key];
+        if (value is String && value.trim().isNotEmpty) return value.trim();
+      }
+      return '';
+    }
+
+    final platform = pick(const ['platform_value', 'platform']);
+    final pos = pick(const ['pos_value', 'pos']);
+    return PosJobConflict(
+      posProductCode: json['pos_product_code'] as String? ?? '',
+      field: pick(const ['field', 'field_name', 'attribute']),
+      detail: pick(const ['message', 'reason', 'detail', 'description']),
+      platformValue: platform.isEmpty ? null : platform,
+      posValue: pos.isEmpty ? null : pos,
+    );
+  }
+
+  static List<PosJobConflict> listFrom(dynamic raw) => raw is List
+      ? raw
+          .whereType<Map<String, dynamic>>()
+          .map(PosJobConflict.fromJson)
+          .toList(growable: false)
+      : const <PosJobConflict>[];
+}
+
+/// A sync job WITH its diagnostics: `GET /shopkeeper/pos/jobs/{id}` returns the
+/// job payload plus every log line and every recorded mapping conflict.
+class PosJobDetail {
+  const PosJobDetail({
+    required this.job,
+    this.logs = const [],
+    this.conflicts = const [],
+  });
+
+  final PosSyncJob job;
+  final List<PosJobLog> logs;
+  final List<PosJobConflict> conflicts;
+
+  bool get hasDiagnostics => logs.isNotEmpty || conflicts.isNotEmpty;
+
+  factory PosJobDetail.fromJson(Map<String, dynamic> json) => PosJobDetail(
+        job: PosSyncJob.fromJson(json),
+        logs: PosJobLog.listFrom(json['logs']),
+        conflicts: PosJobConflict.listFrom(json['conflicts']),
+      );
+}
+
+/// The connector's vendor-neutral sync configuration (`config_json`).
+///
+/// The backend deep-merges whatever map this app sends, so only the knobs a
+/// shopkeeper can reason about are offered here — never the whole bag.
+class PosSyncSettings {
+  const PosSyncSettings({this.batchSize, this.fieldAuthorities = const {}});
+
+  /// Records applied per sync pass (backend default 500).
+  final int? batchSize;
+
+  /// Per-field authority override: `PLATFORM` (platform value kept, the POS
+  /// value recorded as a conflict) or `POS` (the till wins, written traceably).
+  ///
+  /// Fields not listed keep the backend's own default and are never touched.
+  final Map<String, String> fieldAuthorities;
+
+  String authorityFor(String field) {
+    final value = fieldAuthorities[field];
+    if (value == null || value.trim().isEmpty) return 'PLATFORM';
+    return value.trim().toUpperCase();
+  }
+
+  Map<String, dynamic> toRequest() => {
+        if (batchSize != null) 'batch_size': batchSize,
+        if (fieldAuthorities.isNotEmpty) 'field_authorities': fieldAuthorities,
+      };
 }
