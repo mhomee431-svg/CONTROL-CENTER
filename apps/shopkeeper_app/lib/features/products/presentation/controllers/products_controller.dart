@@ -11,6 +11,23 @@ import '../../domain/product_models.dart';
 
 enum ProductsStatus { loading, ready, accessDenied, error }
 
+/// The catalog's DATA state: the rows, the server's summary counts and the
+/// lifecycle of the last read/write.
+///
+/// What this state covers, and where each facet lives:
+///   * list          — [items] (the whole catalog in one `view=list` response)
+///   * loading/error — [status] + [message] (`accessDenied` is its own status,
+///                     because "you may not see this shop" is not a retryable
+///                     failure)
+///   * detail        — [itemById]: Product Details is DERIVED from these rows,
+///                     never fetched a second time, so opening it cannot blank
+///                     or re-sort the list behind it
+///   * create / edit / deactivate — `createProduct` / `saveEdits` /
+///                     `setAvailability` on [ProductsController], each of which
+///                     swaps the server's own row back into [items]
+///   * search / filter / sort / pagination — the products LIST's own view state
+///                     (`ProductsListState`), kept per-screen so one screen's
+///                     filter can never narrow another's
 class ProductsState {
   const ProductsState({
     required this.status,
@@ -28,6 +45,19 @@ class ProductsState {
   /// True when [items] were rebuilt from the device's offline snapshot rather
   /// than a live response (see `ProductsSnapshotStore`).
   final bool fromCache;
+
+  /// The LIVE row for [id] — or null once it has left the catalog.
+  ///
+  /// A details view resolves its row through this instead of rendering the row
+  /// it was tapped with: after an edit or a stock adjustment the controller
+  /// swaps the row in place, so the open view refreshes itself, and a row that
+  /// was removed can be reported as gone rather than shown from a stale copy.
+  ShopProductItem? itemById(int id) {
+    for (final item in items) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
 
   factory ProductsState.loading({ProductsState? from}) => ProductsState(
         status: ProductsStatus.loading,

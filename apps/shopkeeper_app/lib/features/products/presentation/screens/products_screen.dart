@@ -13,8 +13,9 @@ import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../offers/presentation/widgets/offer_create_sheet.dart';
 import '../../domain/product_models.dart';
-import '../../domain/product_search.dart';
+import '../../domain/product_query.dart';
 import '../controllers/products_controller.dart';
+import '../controllers/products_list_controller.dart';
 import '../widgets/product_details_sheet.dart';
 import '../widgets/product_sheets.dart';
 import '../widgets/stock_sheets.dart';
@@ -129,62 +130,6 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 }
 
-enum ProductSort { name, price, stock, recentlyUpdated }
-
-class ProductFilterApplied {
-  const ProductFilterApplied({
-    this.search = '',
-    this.stock = 'all',
-    this.availability,
-    this.category,
-    this.brand,
-    this.minPrice,
-    this.maxPrice,
-    this.recentlyUpdated = false,
-  });
-
-  final String search;
-  final String stock;
-  final bool? availability;
-  final String? category;
-  final String? brand;
-  final double? minPrice;
-  final double? maxPrice;
-  final bool recentlyUpdated;
-
-  bool get hasActiveFilters =>
-      stock != 'all' ||
-      availability != null ||
-      category != null ||
-      brand != null ||
-      minPrice != null ||
-      maxPrice != null ||
-      recentlyUpdated;
-
-  ProductFilterApplied copyWith({
-    String? search,
-    String? stock,
-    bool? availability,
-    String? category,
-    String? brand,
-    double? minPrice,
-    double? maxPrice,
-    bool? recentlyUpdated,
-  }) {
-    return ProductFilterApplied(
-      search: search ?? this.search,
-      stock: stock ?? this.stock,
-      availability: availability ?? this.availability,
-      category: category ?? this.category,
-      brand: brand ?? this.brand,
-      minPrice: minPrice ?? this.minPrice,
-      maxPrice: maxPrice ?? this.maxPrice,
-      recentlyUpdated: recentlyUpdated ?? this.recentlyUpdated,
-    );
-  }
-}
-
-
 class _ReadyBody extends ConsumerStatefulWidget {
   const _ReadyBody({
     required this.allItems,
@@ -204,18 +149,20 @@ class _ReadyBody extends ConsumerStatefulWidget {
 }
 
 class _ReadyBodyState extends ConsumerState<_ReadyBody> {
+  /// The search box's text buffer.
+  ///
+  /// The QUERY itself lives in the list's view controller
+  /// ([productsListControllerProvider]); this controller only mirrors it so
+  /// typing keeps its cursor and selection. It is seeded from the query on
+  /// mount, which is what brings the shopkeeper's search text BACK with the
+  /// screen instead of discarding it with the widget.
   final TextEditingController _search = TextEditingController();
-  ProductSort _sort = ProductSort.recentlyUpdated;
-  ProductFilterApplied _filter = const ProductFilterApplied();
 
-  /// Searchable text, indexed once per catalog instead of once per keystroke.
-  final ProductSearchCache _searchIndex = ProductSearchCache();
-
-  /// Last filtered + sorted result, with the inputs it was built from.
-  List<ShopProductItem>? _visibleCache;
-  ProductFilterApplied? _visibleForFilter;
-  ProductSort? _visibleForSort;
-  List<ShopProductItem>? _visibleForItems;
+  @override
+  void initState() {
+    super.initState();
+    _search.text = ref.read(productsListControllerProvider).query.search;
+  }
 
   @override
   void dispose() {
@@ -234,88 +181,6 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     });
   }
 
-  /// Filtered + sorted rows, recomputed only when one of its inputs actually
-  /// changed: the search text, a filter, the sort, or the catalog itself.
-  ///
-  /// One shared, pre-indexed predicate covers every human-readable identity of
-  /// a listing (name, brand, SKU, variant) — the same predicate the inventory
-  /// scopes and the price list use, so "search" can never mean two things. The
-  /// guard below it means a rebuild that has nothing to do with the list (a
-  /// snackbar, an availability flip) reuses the previous answer instead of
-  /// re-running the predicate over every product.
-  List<ShopProductItem> get _visible {
-    if (_visibleCache != null &&
-        _visibleForSort == _sort &&
-        _visibleForFilter == _filter &&
-        identical(_visibleForItems, widget.allItems)) {
-      return _visibleCache!;
-    }
-
-    final search = _searchIndex.of(widget.allItems);
-
-    final items = widget.allItems.where((i) {
-      if (!search.matches(i, _filter.search)) return false;
-
-      switch (_filter.stock) {
-        case 'in_stock':
-          if (i.stockStatus != 'IN_STOCK') return false;
-          break;
-        case 'low_stock':
-          if (i.stockStatus != 'LOW_STOCK' &&
-              i.stockStatus != 'LIMITED_STOCK') {
-            return false;
-          }
-          break;
-        case 'out_of_stock':
-          if (i.stockStatus != 'OUT_OF_STOCK') return false;
-          break;
-        default:
-          break;
-      }
-
-      if (_filter.availability != null &&
-          i.isAvailable != _filter.availability) {
-        return false;
-      }
-      if (_filter.category != null && i.category != _filter.category) {
-        return false;
-      }
-      if (_filter.brand != null && i.brand != _filter.brand) {
-        return false;
-      }
-      if (_filter.minPrice != null && i.price < _filter.minPrice!) {
-        return false;
-      }
-      if (_filter.maxPrice != null && i.price > _filter.maxPrice!) {
-        return false;
-      }
-      if (_filter.recentlyUpdated && i.lastUpdated == null) return false;
-      return true;
-    }).toList(growable: false);
-
-    switch (_sort) {
-      case ProductSort.name:
-        items.sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-      case ProductSort.price:
-        items.sort((a, b) => a.price.compareTo(b.price));
-      case ProductSort.stock:
-        items.sort((a, b) => b.quantity.compareTo(a.quantity));
-      case ProductSort.recentlyUpdated:
-        items.sort((a, b) {
-          final ta = a.lastUpdated ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final tb = b.lastUpdated ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return tb.compareTo(ta);
-        });
-    }
-
-    _visibleCache = items;
-    _visibleForFilter = _filter;
-    _visibleForSort = _sort;
-    _visibleForItems = widget.allItems;
-    return items;
-  }
-
   /// Distinct, case-insensitively sorted values present in the loaded catalog
   /// — the option lists behind the filter sheet's Category / Brand pickers.
   /// Sourced from real rows so a filter can never be offered that matches
@@ -330,39 +195,54 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 
-  void _openFilters() {
+  /// Clears ONLY the search text — the search box's own clear button.
+  void _clearSearch() {
+    _search.clear();
+    ref.read(productsListControllerProvider.notifier).setSearch('');
+  }
+
+  /// Clears the search text AND every filter — the "Clear" action and the
+  /// empty state's call to action.
+  void _clearAll() {
+    _search.clear();
+    ref.read(productsListControllerProvider.notifier).clear();
+  }
+
+
+  void _openFilters(ProductQuery query) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => ProductFilterSheet(
-        initial: _filter,
+        initial: query,
         categories: _distinctValues((i) => i.category),
         brands: _distinctValues((i) => i.brand),
-        // Rebuild the filter instead of copyWith-ing it: copyWith treats a
-        // `null` argument as "keep the previous value", which makes clearing
-        // the Availability segment (or tapping Reset) a no-op.
-        // Search + stock are edited outside the sheet, so keep them.
-        onApply: (f) => setState(() {
-          _filter = ProductFilterApplied(
-            search: _filter.search,
-            stock: _filter.stock,
-            availability: f.availability,
-            category: f.category,
-            brand: f.brand,
-            minPrice: f.minPrice,
-            maxPrice: f.maxPrice,
-            recentlyUpdated: f.recentlyUpdated,
-          );
-        }),
+        // The sheet returns the live query with only the filter facets
+        // replaced: `withFilters` takes every facet explicitly (and a `null`
+        // CLEARS it), so clearing Availability or tapping Reset can never be
+        // swallowed the way a `copyWith` would swallow it.
+        onApply: (applied) => ref
+            .read(productsListControllerProvider.notifier)
+            .setFilters(applied),
       ),
     );
   }
 
+  void _setStock(String scope) =>
+      ref.read(productsListControllerProvider.notifier).setStock(scope);
+
   @override
   Widget build(BuildContext context) {
     _message();
-    final items = _visible;
+    final query = ref.watch(productsListControllerProvider).query;
+    // The page is derived from the catalog rows + the query and memoized
+    // inside the controller, so a rebuild that changed neither (a snackbar, an
+    // availability flip) re-runs neither the predicate nor the sort.
+    final page = ref
+        .watch(productsListControllerProvider.notifier)
+        .pageFor(widget.allItems);
+    final items = page.rows;
 
     return LazyListView(
       padding: const EdgeInsets.all(16),
@@ -378,22 +258,20 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
         const SizedBox(height: 12),
         TextField(
           controller: _search,
-          onChanged: (v) =>
-              setState(() => _filter = _filter.copyWith(search: v)),
+          onChanged: (value) => ref
+              .read(productsListControllerProvider.notifier)
+              .setSearch(value),
           decoration: InputDecoration(
             hintText: 'Search name, brand or SKU…',
             prefixIcon: const Icon(Icons.search),
             isDense: true,
-            suffixIcon: _filter.search.isEmpty
+            suffixIcon: query.search.isEmpty
                 ? null
                 : IconButton(
                     // Accessible name for the icon-only clear action.
                     tooltip: 'Clear search',
                     icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      _search.clear();
-                      setState(() => _filter = _filter.copyWith(search: ''));
-                    },
+                    onPressed: _clearSearch,
                   ),
           ),
         ),
@@ -404,72 +282,68 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
             children: [
               _FilterChip(
                 label: 'All',
-                selected: _filter.stock == 'all',
-                onTap: () =>
-                    setState(() => _filter = _filter.copyWith(stock: 'all')),
+                selected: query.stock == ProductQuery.stockAll,
+                onTap: () => _setStock(ProductQuery.stockAll),
               ),
               const SizedBox(width: 8),
               _FilterChip(
                 label: 'In Stock',
-                selected: _filter.stock == 'in_stock',
-                onTap: () => setState(
-                    () => _filter = _filter.copyWith(stock: 'in_stock')),
+                selected: query.stock == ProductQuery.stockInStock,
+                onTap: () => _setStock(ProductQuery.stockInStock),
               ),
               const SizedBox(width: 8),
               _FilterChip(
                 label: 'Low Stock',
-                selected: _filter.stock == 'low_stock',
-                onTap: () => setState(
-                    () => _filter = _filter.copyWith(stock: 'low_stock')),
+                selected: query.stock == ProductQuery.stockLow,
+                onTap: () => _setStock(ProductQuery.stockLow),
               ),
               const SizedBox(width: 8),
               _FilterChip(
                 label: 'Out of Stock',
-                selected: _filter.stock == 'out_of_stock',
-                onTap: () => setState(
-                    () => _filter = _filter.copyWith(stock: 'out_of_stock')),
+                selected: query.stock == ProductQuery.stockOutOfStock,
+                onTap: () => _setStock(ProductQuery.stockOutOfStock),
               ),
             ],
           ),
         ),
+
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               // Hidden for an empty shop: "0 of 0 products" stacked on top of
               // "No products yet" is pure noise.
-              child: widget.allItems.isEmpty
+              child: page.isEmptyCatalog
                   ? const SizedBox.shrink()
                   : Text(
-                      '${items.length} of ${widget.allItems.length} products',
+                      '${page.matched} of ${page.total} products',
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
             ),
-            if (_filter.hasActiveFilters)
+            if (query.hasActiveFilters)
               TextButton.icon(
-                onPressed: () {
-                  _search.clear();
-                  setState(() => _filter = const ProductFilterApplied());
-                },
+                onPressed: _clearAll,
                 icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
                 label: const Text('Clear'),
               ),
             IconButton(
               tooltip: 'Filters',
-              onPressed: _openFilters,
+              onPressed: () => _openFilters(query),
               icon: Icon(
                 Icons.filter_alt_outlined,
-                color: _filter.hasActiveFilters
+                color: query.hasActiveFilters
                     ? AppTheme.brandSeed
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             PopupMenuButton<ProductSort>(
-              initialValue: _sort,
-              onSelected: (v) => setState(() => _sort = v),
+              initialValue: query.sort,
+              onSelected: (value) => ref
+                  .read(productsListControllerProvider.notifier)
+                  .setSort(value),
               tooltip: 'Sort',
               icon: const Icon(Icons.sort),
               itemBuilder: (_) => const [
@@ -483,7 +357,7 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
             ),
           ],
         ),
-        ],
+      ],
       // Rows are built lazily: a keystroke re-filters the catalog, but only the
       // rows near the viewport are re-created, so a large shop stays
       // responsive instead of rebuilding every row per character.
@@ -514,14 +388,47 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
       // No rows: the feature's own explanation stands in for the list, inside
       // the same scroll view (so it stays reachable).
       emptyPlaceholder: _EmptyResults(
-        catalogIsEmpty: widget.allItems.isEmpty,
-        search: _filter.search,
-        onClear: () {
-          _search.clear();
-          setState(() => _filter = const ProductFilterApplied());
-        },
+        catalogIsEmpty: page.isEmptyCatalog,
+        search: query.search,
+        onClear: _clearAll,
       ),
-      footer: const [SizedBox(height: 32)],
+      footer: [
+        // The page break: only a catalog bigger than one page ever shows it,
+        // and it names how many matching rows are still behind it.
+        if (page.hasMore)
+          _LoadMore(
+            hidden: page.hidden,
+            onTap: () =>
+                ref.read(productsListControllerProvider.notifier).showMore(),
+          ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+}
+
+/// The page break of the products list: how many matching rows are still
+/// behind it, and the one control that reveals them.
+class _LoadMore extends StatelessWidget {
+  const _LoadMore({required this.hidden, required this.onTap});
+
+  /// Matching rows the current page does not show yet.
+  final int hidden;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Center(
+        child: TextButton.icon(
+          key: const Key('products-load-more'),
+          onPressed: onTap,
+          icon: const Icon(Icons.expand_more, size: 18),
+          label: Text('Load more ($hidden remaining)'),
+        ),
+      ),
     );
   }
 }
@@ -535,8 +442,12 @@ class ProductFilterSheet extends StatefulWidget {
     this.brands = const [],
   });
 
-  final ProductFilterApplied initial;
-  final ValueChanged<ProductFilterApplied> onApply;
+  /// The live query from the list. The sheet edits ONLY the filter facets and
+  /// hands the whole query back, so the search text, the stock scope and the
+  /// sort survive a trip through the sheet untouched.
+  final ProductQuery initial;
+
+  final ValueChanged<ProductQuery> onApply;
 
   /// Category / brand values present in the loaded catalog. An empty list
   /// hides that picker entirely — the sheet never offers a filter that
@@ -724,13 +635,11 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       _minController.clear();
       _maxController.clear();
     });
-    widget.onApply(ProductFilterApplied(search: widget.initial.search));
+    widget.onApply(widget.initial.clearFilters());
   }
 
   void _apply() {
-    widget.onApply(ProductFilterApplied(
-      search: widget.initial.search,
-      stock: widget.initial.stock,
+    widget.onApply(widget.initial.withFilters(
       availability: _availability,
       category: _category,
       brand: _brand,
@@ -1011,11 +920,11 @@ class _EmptyResults extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final query = search.trim();
+    final text = search.trim();
     final (message, action) = catalogIsEmpty
         ? ('No products yet.\nTap "Add" to create your first listing.', null)
-        : query.isNotEmpty
-            ? ('No products match "$query".', 'Clear search')
+        : text.isNotEmpty
+            ? ('No products match "$text".', 'Clear search')
             : ('No products match your filters.', 'Clear filters');
 
     return Padding(
@@ -1145,4 +1054,4 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-
+

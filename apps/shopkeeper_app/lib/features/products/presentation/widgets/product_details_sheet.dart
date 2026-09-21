@@ -34,10 +34,11 @@ class ProductDetailsSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(productsControllerProvider).items.firstWhere(
-          (candidate) => candidate.id == item.id,
-          orElse: () => item,
-        );
+    final current = ref.watch(productsControllerProvider).itemById(item.id) ??
+        // The row left the catalog (or the list has not loaded yet): the
+        // tapped snapshot is still the best answer, and the sheet stays
+        // readable instead of throwing.
+        item;
     final scheme = Theme.of(context).colorScheme;
     final discount = _discountPercent(current);
 
