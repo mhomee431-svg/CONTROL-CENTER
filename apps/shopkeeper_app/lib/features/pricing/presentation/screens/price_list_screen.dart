@@ -6,9 +6,10 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/lazy_list.dart';
+import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
-import '../../../products/domain/product_search.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../controllers/price_list_controller.dart';
 import '../widgets/pricing_shared.dart';
 import '../../../inventory/presentation/widgets/inventory_shared.dart'
     show moneyLabel, trimNumber;
@@ -16,6 +17,10 @@ import '../../../inventory/presentation/widgets/inventory_shared.dart'
 /// Price List — every product with its current price, MRP and implied
 /// discount. Tap a row to open Update Price; the app bar exposes the shop-wide
 /// pricing surfaces (Price History, Create Offer).
+///
+/// The shopkeeper's own state (the search text and the page) lives in the
+/// price list's view controller, which is why leaving this screen and coming
+/// back keeps both.
 class PriceListScreen extends ConsumerStatefulWidget {
   const PriceListScreen({super.key});
 
@@ -24,14 +29,19 @@ class PriceListScreen extends ConsumerStatefulWidget {
 }
 
 class _PriceListScreenState extends ConsumerState<PriceListScreen> {
-  String _query = '';
+  /// The search box's text buffer. The query itself lives in the view
+  /// controller; this controller only mirrors it so typing keeps its cursor
+  /// and selection, and it is seeded from the query on mount, which is what
+  /// brings the shopkeeper's search text back with the screen.
+  final TextEditingController _search = TextEditingController();
 
-  /// The catalog's searchable text, indexed once per load — see [ProductSearch].
-  final ProductSearchCache _searchIndex = ProductSearchCache();
+  PriceListController get _controller =>
+      ref.read(priceListControllerProvider.notifier);
 
   @override
   void initState() {
     super.initState();
+    _search.text = ref.read(priceListControllerProvider).query.search;
     Future.microtask(() {
       final state = ref.read(productsControllerProvider);
       if (state.status == ProductsStatus.loading && state.items.isEmpty) {
@@ -41,14 +51,20 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
   }
 
   @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final state = ref.watch(productsControllerProvider);
-    // Same predicate as the products list and the inventory scopes (see
-    // [ProductSearch]) so "search" can never mean two things in one app.
-    final search = _searchIndex.of(state.items);
-    final query = _query.trim();
-    final visible =
-        state.items.where((i) => search.matches(i, query)).toList();
+    final catalog = ref.watch(productsControllerProvider);
+    // The view state is watched (a keystroke rebuilds the list); the page is
+    // derived from the catalog rows + the search text, and memoized inside
+    // the controller: a rebuild that changed neither runs neither.
+    ref.watch(priceListControllerProvider);
+    final page =
+        ref.watch(priceListControllerProvider.notifier).pageFor(catalog.items);
 
     return Scaffold(
       appBar: AppBar(
@@ -74,7 +90,8 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               key: const Key('price-search-field'),
-              onChanged: (v) => setState(() => _query = v),
+              controller: _search,
+              onChanged: _controller.setSearch,
               decoration: const InputDecoration(
                 hintText: 'Search name, brand or SKU',
                 prefixIcon: Icon(Icons.search_outlined),
@@ -84,19 +101,19 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
           ),
           Expanded(
             child: PricingAsyncBody(
-              status: state.status,
-              message: state.message,
+              status: catalog.status,
+              message: catalog.message,
               onRetry: () =>
                   ref.read(productsControllerProvider.notifier).load(),
               builder: (context) => LazyListView(
                 // Rows are built lazily, like the products and inventory
                 // lists — a keystroke re-filters the catalog, only the rows
                 // near the viewport rebuild.
-                itemCount: visible.length,
+                itemCount: page.rows.length,
                 // Provenance first: a stale cached PRICE that looks live is
                 // the most dangerous case of all, so it is labelled loudly.
                 header: [
-                  if (state.fromCache)
+                  if (catalog.fromCache)
                     const CachedDataNotice(
                       message: 'Showing your last synced prices — these may '
                           'have changed. Reconnect to refresh.',
@@ -105,15 +122,25 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
                 separatorBuilder: (_, _) =>
                     const Divider(height: 1, indent: 16),
                 itemBuilder: (context, i) => _PriceRow(
-                  item: visible[i],
+                  item: page.rows[i],
                   onTap: () =>
-                      context.push(Routes.updatePrice, extra: visible[i]),
+                      context.push(Routes.updatePrice, extra: page.rows[i]),
                 ),
+                // The page break: only a price book bigger than one page ever
+                // shows it, and it names how many rows are still behind it.
+                footer: [
+                  if (page.hasMore)
+                    LoadMoreTile(
+                      key: const Key('price-list-load-more'),
+                      hidden: page.hidden,
+                      onTap: _controller.showMore,
+                    ),
+                ],
                 // A filter that matched nothing is a different story from an
                 // empty catalog — each branch keeps its own copy, the layout
                 // is the shared empty state (centred by the lazy list).
                 emptyPlaceholder: SystemStateView.empty(
-                  title: query.isEmpty
+                  title: page.isEmptyCatalog
                       ? 'No products yet. Add products or import them from '
                             'Excel first.'
                       : 'No products match your search',
@@ -160,3 +187,4 @@ class _PriceRow extends StatelessWidget {
     );
   }
 }
+

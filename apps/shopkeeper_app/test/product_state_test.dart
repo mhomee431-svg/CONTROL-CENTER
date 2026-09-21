@@ -9,6 +9,7 @@ import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_model
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_query.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_search.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/products_controller.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_page.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/products_list_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/screens/products_screen.dart';
 

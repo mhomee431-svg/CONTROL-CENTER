@@ -53,6 +53,7 @@ import '../../features/inventory_import/presentation/screens/import_history_scre
 import '../../features/inventory_import/presentation/screens/import_preview_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_processing_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_upload_screen.dart';
+import '../../features/inventory/domain/inventory_scope.dart';
 import '../../features/inventory/presentation/screens/inventory_dashboard_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_list_screen.dart';
 import '../../features/inventory/presentation/screens/low_stock_screen.dart';

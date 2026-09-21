@@ -6,44 +6,23 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/lazy_list.dart';
+import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
-import '../../../products/domain/product_search.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../domain/inventory_scope.dart';
+import '../controllers/inventory_scope_controller.dart';
 import '../widgets/inventory_shared.dart';
 
-/// Which slice of the inventory a [InventoryScopeScreen] shows.
-enum InventoryScope {
-  all,
-  low,
-  outOfStock,
-  discontinued,
-  freshness;
-
-  String get title => switch (this) {
-        all => 'Inventory list',
-        low => 'Low stock',
-        outOfStock => 'Out of stock',
-        discontinued => 'Discontinued',
-        freshness => 'Inventory freshness',
-      };
-
-  String get emptyCopy => switch (this) {
-        all =>
-          'No products yet. Add your first product or import them from Excel.',
-        low => 'Nothing is running low. Every product is comfortably stocked.',
-        outOfStock => 'Nothing is out of stock. Great job staying on top of it.',
-        discontinued =>
-          'No discontinued listings. Everything you stock is still active.',
-        freshness =>
-          'Every listing has been updated recently. Nothing needs attention.',
-      };
-}
-
-/// Inventory List / Low Stock / Out of Stock / Inventory Freshness.
+/// Inventory List / Low Stock / Out of Stock / Discontinued / Inventory
+/// Freshness.
 ///
-/// One implementation, four routes: [scope] picks the slice. Rows always show
-/// the server stock state; the freshness route also surfaces last-updated
-/// times so the shopkeeper can see what to touch next.
+/// One implementation, five routes: [scope] picks the slice — and with it the
+/// question the list asks (`scope.query`), so a slice is a query, not a block
+/// of filter code in the screen. The shopkeeper's OWN state (the search text
+/// and the page) lives in the scope's view controller, which is why leaving
+/// this screen and coming back keeps both. Rows always show the server stock
+/// state; the freshness route also surfaces last-updated times so the
+/// shopkeeper can see what to touch next.
 class InventoryScopeScreen extends ConsumerStatefulWidget {
   const InventoryScopeScreen({super.key, required this.scope});
 
@@ -55,14 +34,24 @@ class InventoryScopeScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
-  String _query = '';
+  /// The search box's text buffer. The query itself lives in the scope's view
+  /// controller; this controller only mirrors it so typing keeps its cursor
+  /// and selection, and it is seeded from the query on mount, which is what
+  /// brings the shopkeeper's search text back with the screen.
+  final TextEditingController _search = TextEditingController();
 
-  /// The catalog's searchable text, indexed once per load — see [ProductSearch].
-  final ProductSearchCache _searchIndex = ProductSearchCache();
+  /// The state and the controller of THIS scope (one provider per scope: four
+  /// scope routes stay alive side by side in the shell's indexed stack).
+  InventoryScopeState get _state =>
+      ref.read(inventoryScopeControllerProvider(widget.scope));
+
+  InventoryScopeController get _controller =>
+      ref.read(inventoryScopeControllerProvider(widget.scope).notifier);
 
   @override
   void initState() {
     super.initState();
+    _search.text = _state.query.search;
     Future.microtask(() {
       final state = ref.read(productsControllerProvider);
       if (state.status == ProductsStatus.loading && state.items.isEmpty) {
@@ -71,47 +60,30 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
     });
   }
 
-  List<ShopProductItem> _filtered(List<ShopProductItem> items) {
-    // The predicate is the app's ONE product search (name / brand / SKU /
-    // variant), indexed once per catalog: a keystroke costs one `contains` per
-    // row, not four lower-cased strings per row.
-    final search = _searchIndex.of(items);
-    bool matches(ShopProductItem i) => search.matches(i, _query);
-
-    return switch (widget.scope) {
-      InventoryScope.all => items.where(matches).toList(),
-      InventoryScope.low =>
-        items.where((i) => i.isLowStock && matches(i)).toList(),
-      InventoryScope.outOfStock =>
-        items.where((i) => i.isOutOfStock && matches(i)).toList(),
-      // Discontinued listings keep whatever units are left, so they only turn
-      // up here — never in the low/out-of-stock slices.
-      InventoryScope.discontinued =>
-        items.where((i) => i.isDiscontinued && matches(i)).toList(),
-      // Freshness view: everything, stale listings first.
-      InventoryScope.freshness =>
-        items.where(matches).toList()
-          ..sort((a, b) {
-            final aStale = a.isStale ? 0 : 1;
-            final bStale = b.isStale ? 0 : 1;
-            if (aStale != bStale) return aStale.compareTo(bStale);
-            final aDate = a.lastUpdated ?? DateTime(1970);
-            final bDate = b.lastUpdated ?? DateTime(1970);
-            return aDate.compareTo(bDate); // oldest first
-          }),
-    };
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(productsControllerProvider);
-    final visible = _filtered(state.items);
+    final catalog = ref.watch(productsControllerProvider);
+    // The view state is watched (a keystroke rebuilds the list), the page is
+    // derived from the catalog rows + the scope's question + the search text,
+    // and memoized inside the controller: a rebuild that changed none of them
+    // re-runs neither the predicate nor the sort.
+    final view = ref.watch(inventoryScopeControllerProvider(widget.scope));
+    final page = ref
+        .watch(inventoryScopeControllerProvider(widget.scope).notifier)
+        .pageFor(catalog.items);
+    final query = view.query;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.scope.title),
         actions: [
-          if (state.status == ProductsStatus.ready)
+          if (catalog.status == ProductsStatus.ready)
             IconButton(
               icon: const Icon(Icons.refresh_outlined),
               tooltip: 'Refresh',
@@ -126,7 +98,8 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               key: const Key('inventory-search-field'),
-              onChanged: (v) => setState(() => _query = v),
+              controller: _search,
+              onChanged: _controller.setSearch,
               decoration: InputDecoration(
                 hintText: 'Search name, brand or SKU',
                 prefixIcon: const Icon(Icons.search_outlined),
@@ -134,13 +107,13 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
               ),
             ),
           ),
-          if (state.status == ProductsStatus.ready)
+          if (catalog.status == ProductsStatus.ready)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${visible.length} of ${state.items.length} products',
+                  '${page.matched} of ${page.total} products',
                   key: const Key('inventory-count'),
                   style: TextStyle(
                     fontSize: 12,
@@ -151,32 +124,46 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
             ),
           Expanded(
             child: ProductsAsyncBody(
-              status: state.status,
-              message: state.message,
-              onRetry: () => ref.read(productsControllerProvider.notifier).load(),
+              status: catalog.status,
+              message: catalog.message,
+              onRetry: () =>
+                  ref.read(productsControllerProvider.notifier).load(),
               builder: (context) => LazyListView(
-                itemCount: visible.length,
+                itemCount: page.rows.length,
                 // Provenance first: a cached list that looks live is worse
                 // than no list at all.
                 header: [
-                  if (state.fromCache) const CachedDataNotice(),
+                  if (catalog.fromCache) const CachedDataNotice(),
                 ],
                 separatorBuilder: (_, _) =>
                     const Divider(height: 1, indent: 16),
                 itemBuilder: (context, i) => _ProductRow(
-                  item: visible[i],
-                  showFreshness: widget.scope == InventoryScope.freshness,
+                  item: page.rows[i],
+                  showFreshness: widget.scope.showsFreshness,
                   onTap: () => context.push(
                     Routes.updateStock,
-                    extra: visible[i],
+                    extra: page.rows[i],
                   ),
                 ),
+                // The page break: only a slice bigger than one page ever
+                // shows it, and it names how many rows are still behind it.
+                footer: [
+                  if (page.hasMore)
+                    LoadMoreTile(
+                      key: const Key('inventory-load-more'),
+                      hidden: page.hidden,
+                      onTap: _controller.showMore,
+                    ),
+                ],
                 // The rows are built lazily; the filter-miss / empty-catalog
                 // copy stays with the feature.
                 emptyPlaceholder: _EmptyScope(
                   scope: widget.scope,
-                  query: _query,
-                  onClearSearch: () => setState(() => _query = ''),
+                  query: query.search,
+                  onClearSearch: () {
+                    _search.clear();
+                    _controller.clear();
+                  },
                 ),
               ),
             ),
@@ -186,7 +173,6 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
     );
   }
 }
-
 
 class _EmptyScope extends StatelessWidget {
   const _EmptyScope({

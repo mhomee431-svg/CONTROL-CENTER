@@ -8,6 +8,7 @@ import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/lazy_list.dart';
+import '../../../../core/ui/load_more.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
@@ -396,39 +397,14 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
         // The page break: only a catalog bigger than one page ever shows it,
         // and it names how many matching rows are still behind it.
         if (page.hasMore)
-          _LoadMore(
+          LoadMoreTile(
+            key: const Key('products-load-more'),
             hidden: page.hidden,
             onTap: () =>
                 ref.read(productsListControllerProvider.notifier).showMore(),
           ),
         const SizedBox(height: 32),
       ],
-    );
-  }
-}
-
-/// The page break of the products list: how many matching rows are still
-/// behind it, and the one control that reveals them.
-class _LoadMore extends StatelessWidget {
-  const _LoadMore({required this.hidden, required this.onTap});
-
-  /// Matching rows the current page does not show yet.
-  final int hidden;
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Center(
-        child: TextButton.icon(
-          key: const Key('products-load-more'),
-          onPressed: onTap,
-          icon: const Icon(Icons.expand_more, size: 18),
-          label: Text('Load more ($hidden remaining)'),
-        ),
-      ),
     );
   }
 }

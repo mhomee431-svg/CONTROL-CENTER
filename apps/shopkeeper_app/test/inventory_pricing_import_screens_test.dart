@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
+import 'package:hyperlocal_shopkeeper_app/features/inventory/domain/inventory_scope.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/presentation/screens/inventory_dashboard_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/presentation/screens/inventory_list_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/presentation/screens/inventory_sync_status_screen.dart';
