@@ -9,19 +9,16 @@ import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
 
 /// Injectable location service (tests override with a fake position source).
-final shopLocationServiceProvider =
-    Provider<LocationService>((ref) => LocationService());
+final shopLocationServiceProvider = Provider<LocationService>(
+  (ref) => LocationService(),
+);
 
 // ── Shop detail (module SSOT) ────────────────────────────────────────────────
 
 enum ShopProfileStatus { loading, ready, noShop, error }
 
 class ShopProfileState {
-  const ShopProfileState({
-    required this.status,
-    this.detail,
-    this.message,
-  });
+  const ShopProfileState({required this.status, this.detail, this.message});
 
   final ShopProfileStatus status;
   final ShopDetail? detail;
@@ -35,8 +32,8 @@ class ShopProfileState {
 /// screens all render slices of ONE payload instead of refetching per screen.
 final shopProfileDetailProvider =
     NotifierProvider<ShopProfileDetailController, ShopProfileState>(
-  ShopProfileDetailController.new,
-);
+      ShopProfileDetailController.new,
+    );
 
 class ShopProfileDetailController extends Notifier<ShopProfileState> {
   @override
@@ -60,10 +57,7 @@ class ShopProfileDetailController extends Notifier<ShopProfileState> {
     state = const ShopProfileState(status: ShopProfileStatus.loading);
     try {
       final detail = await _repo.getShopDetail(shop.id, await _token());
-      state = ShopProfileState(
-        status: ShopProfileStatus.ready,
-        detail: detail,
-      );
+      state = ShopProfileState(status: ShopProfileStatus.ready, detail: detail);
     } on ApiException catch (e) {
       state = ShopProfileState(
         status: ShopProfileStatus.error,
@@ -106,27 +100,27 @@ class ShopProfileDetailController extends Notifier<ShopProfileState> {
 
 // ── Weekly operating hours ───────────────────────────────────────────────────
 
-enum ShopHoursStatus { loading, ready, error }
+enum ShopHoursStatus { loading, ready, saving, error }
 
 class ShopHoursState {
   const ShopHoursState({
     required this.status,
     this.hours = const <ShopHourEntry>[],
-    this.saving = false,
     this.message,
   });
 
   final ShopHoursStatus status;
   final List<ShopHourEntry> hours;
-  final bool saving;
 
   /// Validation / failure copy — cleared by the screen after showing it.
   final String? message;
+
+  /// True while a save request is in flight (status == [saving]).
+  bool get isSaving => status == ShopHoursStatus.saving;
 }
 
 /// The shop's weekly schedule, edited in place and saved as ONE server call.
-final shopHoursProvider =
-    NotifierProvider<ShopHoursController, ShopHoursState>(
+final shopHoursProvider = NotifierProvider<ShopHoursController, ShopHoursState>(
   ShopHoursController.new,
 );
 
@@ -161,10 +155,7 @@ class ShopHoursController extends Notifier<ShopHoursState> {
         hours: ShopHourEntry.normalizeWeek(hours),
       );
     } on ApiException catch (e) {
-      state = ShopHoursState(
-        status: ShopHoursStatus.error,
-        message: e.message,
-      );
+      state = ShopHoursState(status: ShopHoursStatus.error, message: e.message);
     } catch (_) {
       state = const ShopHoursState(
         status: ShopHoursStatus.error,
@@ -181,7 +172,6 @@ class ShopHoursController extends Notifier<ShopHoursState> {
         for (final hour in state.hours)
           hour.dayOfWeek == entry.dayOfWeek ? entry : hour,
       ],
-      saving: state.saving,
     );
   }
 
@@ -189,7 +179,7 @@ class ShopHoursController extends Notifier<ShopHoursState> {
   /// transport failures land in [ShopHoursState.message] instead of throwing.
   Future<bool> save() async {
     final shop = ref.read(selectedShopProvider);
-    if (shop == null || state.saving) return false;
+    if (shop == null || state.isSaving) return false;
 
     // Client-side sanity: an open day needs open < close (the server rejects
     // the whole request otherwise).
@@ -207,11 +197,7 @@ class ShopHoursController extends Notifier<ShopHoursState> {
       }
     }
 
-    state = ShopHoursState(
-      status: ShopHoursStatus.ready,
-      hours: state.hours,
-      saving: true,
-    );
+    state = ShopHoursState(status: ShopHoursStatus.saving, hours: state.hours);
     try {
       await _repo.saveOperatingHours(
         shopId: shop.id,
@@ -242,11 +228,7 @@ class ShopHoursController extends Notifier<ShopHoursState> {
   /// never re-shows it.
   void clearMessage() {
     if (state.message != null) {
-      state = ShopHoursState(
-        status: state.status,
-        hours: state.hours,
-        saving: state.saving,
-      );
+      state = ShopHoursState(status: state.status, hours: state.hours);
     }
   }
 
@@ -263,25 +245,26 @@ class ShopHoursController extends Notifier<ShopHoursState> {
 
 // ── Shop location (view + controlled edit) ──────────────────────────────────
 
-enum ShopLocationStatus { loading, ready, error }
+enum ShopLocationStatus { loading, ready, saving, error }
 
 class ShopLocationState {
   const ShopLocationState({
     required this.status,
     this.detail,
-    this.saving = false,
     this.message,
     this.savedMessage,
   });
 
   final ShopLocationStatus status;
   final ShopDetail? detail;
-  final bool saving;
 
-  /// Blocking failure copy (load / permission / accuracy).
+  /// True while the GPS→server update is in flight (status == [saving]).
+  bool get isSaving => status == ShopLocationStatus.saving;
+
+  /// Validation / failure copy.
   final String? message;
 
-  /// One-off success copy — cleared by the screen after showing it.
+  /// One-shot success copy — cleared by the screen after showing it.
   final String? savedMessage;
 }
 
@@ -290,8 +273,8 @@ class ShopLocationState {
 /// IDOR-safe endpoint the backend audits.
 final shopLocationProvider =
     NotifierProvider<ShopLocationController, ShopLocationState>(
-  ShopLocationController.new,
-);
+      ShopLocationController.new,
+    );
 
 class ShopLocationController extends Notifier<ShopLocationState> {
   @override
@@ -342,7 +325,7 @@ class ShopLocationController extends Notifier<ShopLocationState> {
   /// [ShopLocationState.message] — the stored location is never overwritten.
   Future<bool> useCurrentLocation() async {
     final shop = ref.read(selectedShopProvider);
-    if (shop == null || state.saving) return false;
+    if (shop == null || state.isSaving) return false;
 
     final service = ref.read(shopLocationServiceProvider);
     final permission = await service.resolvePermission();
@@ -350,13 +333,13 @@ class ShopLocationController extends Notifier<ShopLocationState> {
       state = _keep(
         message: permission.deniedForever
             ? 'Location permission is turned off for this app. Enable it in '
-                'your device settings and try again.'
+                  'your device settings and try again.'
             : 'Location permission is needed to update the shop location.',
       );
       return false;
     }
 
-    state = _keep(saving: true);
+    state = const ShopLocationState(status: ShopLocationStatus.saving);
     try {
       final acquisition = await service.acquireBestLocation(
         timeout: const Duration(seconds: 20),
@@ -364,7 +347,8 @@ class ShopLocationController extends Notifier<ShopLocationState> {
       final reading = acquisition.best;
       if (reading == null || !reading.hasValidCoordinates) {
         state = _keep(
-          message: 'Could not get a location fix. Step outside or try again '
+          message:
+              'Could not get a location fix. Step outside or try again '
               'near a window.',
         );
         return false;
@@ -372,32 +356,30 @@ class ShopLocationController extends Notifier<ShopLocationState> {
       final accuracy = reading.accuracy ?? double.infinity;
       if (accuracy > LocationAccuracyConfig.minimumUsableAccuracyMeters) {
         state = _keep(
-          message: 'The location fix is only accurate to '
+          message:
+              'The location fix is only accurate to '
               '${accuracy.toStringAsFixed(0)} m. Move to a clearer spot '
               '(under ${LocationAccuracyConfig.minimumUsableAccuracyMeters.toStringAsFixed(0)} m) and retry.',
         );
         return false;
       }
-      await _repo.updateShopLocation(
-        shop.id,
-        {
-          'latitude': reading.latitude,
-          'longitude': reading.longitude,
-          'location': {
-            'location_source': 'GPS',
-            'location_type': 'SHOP_ENTRANCE',
-            'location_status': 'CONFIRMED',
-            'accuracy_meters': accuracy,
-            'location_captured_at': DateTime.now().toUtc().toIso8601String(),
-          },
+      await _repo.updateShopLocation(shop.id, {
+        'latitude': reading.latitude,
+        'longitude': reading.longitude,
+        'location': {
+          'location_source': 'GPS',
+          'location_type': 'SHOP_ENTRANCE',
+          'location_status': 'CONFIRMED',
+          'accuracy_meters': accuracy,
+          'location_captured_at': DateTime.now().toUtc().toIso8601String(),
         },
-        await _token(),
-      );
+      }, await _token());
       await load();
       state = ShopLocationState(
         status: ShopLocationStatus.ready,
         detail: state.detail,
-        savedMessage: 'Shop location updated '
+        savedMessage:
+            'Shop location updated '
             '(${accuracy.toStringAsFixed(0)} m accuracy).',
       );
       return true;
@@ -419,7 +401,6 @@ class ShopLocationController extends Notifier<ShopLocationState> {
       state = ShopLocationState(
         status: state.status,
         detail: state.detail,
-        saving: state.saving,
         message: state.message,
       );
     }
@@ -427,12 +408,10 @@ class ShopLocationController extends Notifier<ShopLocationState> {
 
   /// Rebuilds the state while keeping the loaded payload — a failed action
   /// must never blank the screen.
-  ShopLocationState _keep({bool? saving, String? message}) =>
-      ShopLocationState(
-        status: ShopLocationStatus.ready,
-        detail: state.detail,
-        saving: saving ?? state.saving,
-        message: message,
-        savedMessage: state.savedMessage,
-      );
+  ShopLocationState _keep({String? message}) => ShopLocationState(
+    status: ShopLocationStatus.ready,
+    detail: state.detail,
+    message: message,
+    savedMessage: state.savedMessage,
+  );
 }

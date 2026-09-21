@@ -12,8 +12,7 @@ class ShopLocationScreen extends ConsumerStatefulWidget {
   const ShopLocationScreen({super.key});
 
   @override
-  ConsumerState<ShopLocationScreen> createState() =>
-      _ShopLocationScreenState();
+  ConsumerState<ShopLocationScreen> createState() => _ShopLocationScreenState();
 }
 
 class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
@@ -28,7 +27,7 @@ class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(shopLocationProvider);
-        final canEdit = shopCanEdit(ref);
+    final canEdit = shopCanEdit(ref);
 
     // Success / failure copy is surfaced exactly once per action.
     ref.listen<ShopLocationState>(shopLocationProvider, (prev, next) {
@@ -51,17 +50,18 @@ class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
       body: SafeArea(
         child: switch (state.status) {
           ShopLocationStatus.loading => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            child: CircularProgressIndicator(),
+          ),
           ShopLocationStatus.error => _LocationErrorView(
-              message: state.message,
-              onRetry: () => ref.read(shopLocationProvider.notifier).load(),
-            ),
-          ShopLocationStatus.ready => _LocationBody(
-              detail: detail,
-              canEdit: canEdit,
-              saving: state.saving,
-            ),
+            message: state.message,
+            onRetry: () => ref.read(shopLocationProvider.notifier).load(),
+          ),
+          ShopLocationStatus.ready ||
+          ShopLocationStatus.saving => _LocationBody(
+            detail: detail,
+            canEdit: canEdit,
+            saving: state.isSaving,
+          ),
         },
       ),
     );
@@ -108,7 +108,7 @@ class _LocationBody extends ConsumerWidget {
     required this.saving,
   });
 
-    final ShopDetail? detail;
+  final ShopDetail? detail;
   final bool canEdit;
   final bool saving;
 
@@ -123,7 +123,7 @@ class _LocationBody extends ConsumerWidget {
           margin: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(16),
-                        child: detail?.hasLocation ?? false
+            child: detail?.hasLocation ?? false
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -147,17 +147,17 @@ class _LocationBody extends ConsumerWidget {
                       ShopInfoRow(
                         icon: Icons.explore_outlined,
                         label: 'Coordinates',
-                                                value: detail?.coordinatesLabel ?? '',
+                        value: detail?.coordinatesLabel ?? '',
                       ),
                       ShopInfoRow(
                         icon: Icons.map_outlined,
                         label: 'Latitude',
-                                                value: detail?.latitude?.toStringAsFixed(6) ?? '',
+                        value: detail?.latitude?.toStringAsFixed(6) ?? '',
                       ),
                       ShopInfoRow(
                         icon: Icons.map_outlined,
                         label: 'Longitude',
-                                                value: detail?.longitude?.toStringAsFixed(6) ?? '',
+                        value: detail?.longitude?.toStringAsFixed(6) ?? '',
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -222,8 +222,8 @@ class _LocationBody extends ConsumerWidget {
                   key: const Key('shop-location-update'),
                   onPressed: canEdit && !saving
                       ? () => ref
-                          .read(shopLocationProvider.notifier)
-                          .useCurrentLocation()
+                            .read(shopLocationProvider.notifier)
+                            .useCurrentLocation()
                       : null,
                   icon: saving
                       ? const SizedBox(
@@ -233,7 +233,7 @@ class _LocationBody extends ConsumerWidget {
                         )
                       : const Icon(Icons.my_location_outlined),
                   label: Text(
-                                        detail?.hasLocation ?? false
+                    detail?.hasLocation ?? false
                         ? 'Use my current location'
                         : 'Save my current location',
                   ),

@@ -44,10 +44,15 @@ class _OperatingHoursScreenState extends ConsumerState<OperatingHoursScreen> {
       ),
     );
     if (picked == null) return;
-    final label = '${picked.hour.toString().padLeft(2, '0')}:'
+    final label =
+        '${picked.hour.toString().padLeft(2, '0')}:'
         '${picked.minute.toString().padLeft(2, '0')}';
-    ref.read(shopHoursProvider.notifier).updateEntry(
-          isOpen ? entry.copyWith(openTime: label) : entry.copyWith(closeTime: label),
+    ref
+        .read(shopHoursProvider.notifier)
+        .updateEntry(
+          isOpen
+              ? entry.copyWith(openTime: label)
+              : entry.copyWith(closeTime: label),
         );
   }
 
@@ -55,13 +60,9 @@ class _OperatingHoursScreenState extends ConsumerState<OperatingHoursScreen> {
     final shop = ref.read(selectedShopProvider);
     if (shop == null) return;
     try {
-      await ref
-          .read(shopRepositoryProvider)
-          .updateSettings(
-            shop.id,
-            {'is_open_24x7': value},
-            (await ref.read(tokenStoreProvider).readAccessToken())!,
-          );
+      await ref.read(shopRepositoryProvider).updateSettings(shop.id, {
+        'is_open_24x7': value,
+      }, (await ref.read(tokenStoreProvider).readAccessToken())!);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(value ? 'Marked open 24×7' : '24×7 turned off')),
@@ -101,32 +102,31 @@ class _OperatingHoursScreenState extends ConsumerState<OperatingHoursScreen> {
         child: switch (hoursState.status) {
           ShopHoursStatus.loading ||
           ShopHoursStatus.error when hoursState.hours.isEmpty => Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    hoursState.message ?? 'Loading your operating hours…',
-                    style: TextStyle(fontSize: 13, color: scheme.outline),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    key: const Key('shop-hours-retry'),
-                    onPressed: () =>
-                        ref.read(shopHoursProvider.notifier).load(),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                  ),
-                ],
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  hoursState.message ?? 'Loading your operating hours…',
+                  style: TextStyle(fontSize: 13, color: scheme.outline),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: const Key('shop-hours-retry'),
+                  onPressed: () => ref.read(shopHoursProvider.notifier).load(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
             ),
+          ),
           _ => _HoursBody(
-              detail: detail,
-              canEdit: canEdit,
-              saving: hoursState.saving,
-              hours: hoursState.hours,
-              onToggle24x7: _toggle24x7,
-              onPickTime: _pickTime,
-            ),
+            detail: detail,
+            canEdit: canEdit,
+            saving: hoursState.isSaving,
+            hours: hoursState.hours,
+            onToggle24x7: _toggle24x7,
+            onPickTime: _pickTime,
+          ),
         },
       ),
     );
@@ -258,10 +258,7 @@ class _DayRow extends StatelessWidget {
             width: 88,
             child: Text(
               entry.dayLabel,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(
