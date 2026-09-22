@@ -24,6 +24,12 @@
   fast when the API host secret is missing
 - New docs: `docs/deployment/BRANCHING.md` (develop vs staging, gates,
   runbooks); `scripts/setup_branch_protection.ps1` applies the branch rules
+  (`-Discover` uses the exact check names GitHub reports)
+- Reconciled with the existing `platform-ci.yml` (PR gate for every app/package)
+  and `flutter-admin.yml`: the Flutter branch gates now skip `pull_request` runs
+  (platform-ci already covers them), and the admin panel publishes a staging web
+  artifact on `develop` next to its production artifact on `main`
+- `docs/deployment/GITHUB_CICD.md` + `DEPLOYMENT.md` updated to the enforced flow
 - terraform staging preset domains aligned with the apps' staging default
   (`staging-api.hyperlocal.in`)
 

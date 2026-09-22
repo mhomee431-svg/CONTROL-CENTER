@@ -81,29 +81,35 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/network_verify.p
 
 ### GitHub Actions Workflows
 
+`platform-ci.yml` is the pull-request gate for every app and package; the
+`backend-*` and `flutter-*` workflows build artifacts and deploy. Full gate
+matrix: [`BRANCHING.md`](BRANCHING.md) · overview:
+[`GITHUB_CICD.md`](GITHUB_CICD.md).
+
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| backend-ci.yml | PR or push to `develop` / `main` | Quality gates (analyze, tests, security, migration rehearsal) |
+| platform-ci.yml | PR to `develop`/`main`; push to `develop` | Backend battery + customer / shopkeeper / admin / shared-models analyze & test |
+| backend-ci.yml | PR or push to `develop` / `main` | Backend-specific quality gates |
 | backend-cd.yml | Push to `develop` / `main` | Staged deploy: staging → smoke → E2E → approval → production |
 | backend-deploy.yml | Push to `develop` / `main` when `DEPLOY_TARGET=ecs` | Same staged deploy on ECS/Fargate |
 | secret-scan.yml | Push/PR | Secret detection |
-| flutter-customer.yml | PR to `develop`/`main`; push builds the branch's APK | Customer app CI + staging (`develop`) / production (`main`) APK |
-| flutter-shopkeeper.yml | PR to `develop`/`main`; push builds the branch's APK | Shopkeeper app CI + staging (`develop`) / production (`main`) APK |
-
-See [`BRANCHING.md`](BRANCHING.md) for the branch rules, required checks and
-release runbooks.
+| flutter-customer.yml | PR to `develop`/`main`; push builds the branch APK | Customer app CI + staging (`develop`) / production (`main`) APK |
+| flutter-shopkeeper.yml | PR to `develop`/`main`; push builds the branch APK | Shopkeeper app CI + staging (`develop`) / production (`main`) APK |
+| flutter-admin.yml | Push to `develop` / `main` | Admin web artifact: staging (`develop`) / production (`main`) |
 
 ### Deployment Flow
 
 1. Developer opens a PR from `feature/*` into `develop` (or `main`)
-2. CI runs the quality gates (lint, tests, security, migration rehearsal)
+2. `platform-ci.yml` + `backend-ci.yml` run the quality gates (analyze, tests,
+   security, migration rehearsal)
 3. Merge to `develop` → the CD pipeline starts
 4. Migration safety check (dangerous migrations need `migrate_approved=true`)
 5. Build & push the Docker image to ECR (`:<sha>` + `:develop`)
 6. Deploy to staging (SSM Run Command on `hyperlocal-staging-app`)
 7. Smoke test staging (health, readiness, deployment SHA)
 8. **E2E contract battery** — the deployed API must match
-   `packages/api_contracts/openapi.json` (the staging release gate)
+   `packages/api_contracts/openapi.json` (the staging release gate; a failure
+   here blocks production even if someone approves it)
 9. PR `develop` → `main` for final review, then merge (CI runs again)
 10. CD re-validates on staging, then **manual approval** on the protected
     `production` environment

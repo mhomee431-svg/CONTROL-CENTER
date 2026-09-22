@@ -1,0 +1,112 @@
+name: Platform CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'apps/**'
+      - 'backend/**'
+      - 'packages/**'
+      - 'infrastructure/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  push:
+    branches: [develop]
+    paths:
+      - 'apps/**'
+      - 'backend/**'
+      - 'packages/**'
+      - 'infrastructure/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend quality gates
+    uses: ./.github/workflows/reusable-backend-checks.yml
+    with:
+      python-version: '3.14'
+
+  customer:
+    name: Customer app checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/customer_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Run tests
+        run: flutter test
+
+  shopkeeper:
+    name: Shopkeeper app checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/shopkeeper_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Run tests
+        run: flutter test
+
+  admin:
+    name: Admin panel checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin_panel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Run tests
+        run: flutter test
+
+  shared-models:
+    name: Shared Dart package checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/shared_models
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Run tests
+        run: flutter test

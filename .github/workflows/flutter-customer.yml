@@ -23,9 +23,13 @@ on:
   workflow_dispatch:
 
 jobs:
+  # On pushes to develop/main this gates the APK builds below. Pull requests are
+  # gated by platform-ci.yml (Customer app checks), so this job is skipped there
+  # to avoid running analyze/test twice on every PR.
   test-analyze:
-    name: Customer — test & analyze (PR gate)
+    name: Customer — test & analyze (branch gate)
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
     defaults:
       run:
         working-directory: apps/customer_app

@@ -119,11 +119,19 @@ Required status checks (job `name:` values — keep those names stable):
 | Workflow | Check name |
 |---|---|
 | `backend-ci.yml` | `Backend quality gates (static, unit, integration, build, security, migrations)` |
-| `flutter-customer.yml` | `Customer — test & analyze (PR gate)` |
-| `flutter-shopkeeper.yml` | `Shopkeeper — test & analyze (PR gate)` |
+Required status checks — pull requests are gated by `platform-ci.yml`, so these
+are the names to require (job `name:` values; keep them stable):
 
-Deployment jobs are intentionally **not** required checks: they run on push, not
-on PRs, and branch protection only matches checks reported on the PR head.
+| Workflow | Required check |
+|---|---|
+| `platform-ci.yml` | `Backend quality gates`, `Customer app checks`, `Shopkeeper app checks`, `Admin panel checks`, `Shared Dart package checks` |
+| `backend-ci.yml` | `Backend quality gates (static, unit, integration, build, security, migrations)` — optional extra backend gate on backend PRs |
+
+`scripts/setup_branch_protection.ps1` applies exactly these contexts; run it with
+`-Discover` to use the names GitHub actually reports for the branch (recommended
+after the first CI run) or `-Checks @("...")` to set them explicitly. Deployment
+jobs are intentionally **not** required checks: they run on push, not on PRs, and
+branch protection only matches checks reported on the PR head.
 
 ## 5. Branch → environment mapping (single source of truth)
 

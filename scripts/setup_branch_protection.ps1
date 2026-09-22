@@ -10,6 +10,8 @@
 #   $env:GITHUB_TOKEN = "<PAT with repo + administration scope>"   # classic PAT
 #   powershell -ExecutionPolicy Bypass -File scripts/setup_branch_protection.ps1 -DryRun
 #   powershell -ExecutionPolicy Bypass -File scripts/setup_branch_protection.ps1
+#   # or: use the exact check names GitHub reports for the branch
+#   powershell -ExecutionPolicy Bypass -File scripts/setup_branch_protection.ps1 -Discover
 #
 # Notes:
 #   * Fine-grained PATs need "Administration: read and write" + "Contents: read
@@ -24,6 +26,8 @@ param(
     [string]$Token = $env:GITHUB_TOKEN,
     [string]$BaseBranch = "main",
     [string[]]$Branches = @("develop", "main"),
+    [string[]]$Checks,
+    [switch]$Discover,
     [switch]$DryRun
 )
 
@@ -31,14 +35,41 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $ApiBase = "https://api.github.com/repos/$Repo"
-$EmDash = [char]0x2014   # the dash used inside the workflow job names
 
-# Required status checks: these must match the workflow job `name:` values.
-$RequiredChecks = @(
-    "Backend quality gates (static, unit, integration, build, security, migrations)",
-    ("Customer " + $EmDash + " test & analyze (PR gate)"),
-    ("Shopkeeper " + $EmDash + " test & analyze (PR gate)")
+# The PR gate is platform-ci.yml, so these are the checks a PR must satisfy.
+# Override with -Checks, or use -Discover to take the names GitHub reports.
+$PreferredChecks = @(
+    "Backend quality gates",
+    "Customer app checks",
+    "Shopkeeper app checks",
+    "Admin panel checks",
+    "Shared Dart package checks"
 )
+
+function Resolve-RequiredChecks {
+    param([string]$Branch)
+
+    if ($Checks) { return $Checks }
+    if (-not $Discover) { return $PreferredChecks }
+
+    # Ask GitHub which checks actually report on this branch (read-only GET).
+    try {
+        $runs = Invoke-RestMethod -Method GET -Headers (New-Headers) `
+            -Uri "$ApiBase/commits/$Branch/check-runs?per_page=100"
+        $names = @($runs.check_runs | ForEach-Object { $_.name } | Where-Object { $_ } | Select-Object -Unique)
+        if ($names.Count -eq 0) {
+            Write-Host "  no check runs on '$Branch' yet - using the preferred list"
+            return $PreferredChecks
+        }
+        $matched = @($names | Where-Object { $PreferredChecks -contains $_ })
+        if ($matched.Count -gt 0) { return $matched }
+        Write-Host "  discovered on '$Branch': $($names -join ', ')"
+        return $names
+    } catch {
+        Write-Host "  discovery failed ($($_.Exception.Message)) - using the preferred list"
+        return $PreferredChecks
+    }
+}
 
 function New-Headers {
     @{
@@ -73,7 +104,10 @@ function Invoke-GitHub {
 
 # -- The gate: exactly these checks must be green before a merge --------------
 function Get-BranchPolicy {
-    param([string]$Branch)
+    param(
+        [string]$Branch,
+        [string[]]$CheckNames
+    )
 
     # `main` releases must be built on top of the latest base branch.
     $strict = ($Branch -eq "main")
@@ -81,7 +115,7 @@ function Get-BranchPolicy {
     @{
         required_status_checks           = @{
             strict   = $strict
-            contexts = $RequiredChecks
+            contexts = $CheckNames
         }
         enforce_admins                   = @{ enabled = $true }
         required_pull_request_reviews    = @{
@@ -139,8 +173,11 @@ foreach ($branch in $Branches) {
 
     Ensure-Branch -Branch $branch
 
+    $required = @(Resolve-RequiredChecks -Branch $branch)
+    Write-Host "  required checks: $($required -join ', ')"
+
     try {
-        Invoke-GitHub -Method PUT -Uri "$ApiBase/branches/$branch/protection" -Body (Get-BranchPolicy -Branch $branch) | Out-Null
+        Invoke-GitHub -Method PUT -Uri "$ApiBase/branches/$branch/protection" -Body (Get-BranchPolicy -Branch $branch -CheckNames $required) | Out-Null
         if ($DryRun) {
             Write-Host "  [dry-run] would apply the protection rule above"
         } else {
