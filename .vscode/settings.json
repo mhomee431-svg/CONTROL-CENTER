@@ -1,5 +1,5 @@
 {
-    "chat.disableAIFeatures": true,
+    "chat.disableAIFeatures": false,
     "dart.flutterHotReloadOnSave": "all",
     "CodeGPT.apiKey": "CodeGPT Plus Beta"
 }
