@@ -83,24 +83,29 @@ powershell -ExecutionPolicy Bypass -File infrastructure/scripts/network_verify.p
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| backend-ci.yml | PR to main | Quality gates |
+| platform-ci.yml | PR to develop/main, push to develop | Backend and all Dart package/app quality gates |
+| backend-ci.yml | PR/push to main | Backend-specific quality gates |
 | backend-cd.yml | Push to main | Deploy to AWS |
 | secret-scan.yml | Push/PR | Secret detection |
-| flutter-customer.yml | PR to main | Customer app CI |
-| flutter-shopkeeper.yml | PR to main | Shopkeeper app CI |
+| flutter-customer.yml | Push to main | Customer production APK |
+| flutter-shopkeeper.yml | Push to main | Shopkeeper production APK |
+| flutter-admin.yml | Push to main | Admin production web artifact |
 
 ### Deployment Flow
 
-1. Developer pushes to main
-2. CI runs quality gates (lint, test, security)
-3. Migration safety check
-4. Build & push Docker image to ECR
-5. Deploy to staging
-6. Smoke test staging
-7. Manual approval for production
-8. Deploy to production
-9. Verify production health
-10. Automatic rollback on failure
+1. Developer opens a pull request from a feature branch to develop
+2. CI runs backend, app, and package quality gates
+3. The change is merged to develop for integration testing
+4. A reviewed pull request promotes develop to main
+5. CI runs the main quality gates (lint, test, security)
+6. Migration safety check
+7. Build & push Docker image to ECR
+8. Deploy to staging
+9. Smoke test staging
+10. Manual approval for production
+11. Deploy to production
+12. Verify production health
+13. Automatic rollback on failure
 
 ## Environment Variables
 
