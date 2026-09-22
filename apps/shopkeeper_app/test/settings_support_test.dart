@@ -7,6 +7,7 @@ import 'package:hyperlocal_shopkeeper_app/features/account/domain/device_session
 import 'package:hyperlocal_shopkeeper_app/core/auth/firebase_auth_service.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
+import 'package:hyperlocal_shopkeeper_app/core/permissions/data/permission_service.dart';
 import 'package:hyperlocal_shopkeeper_app/core/router/app_router.dart';
 import 'package:hyperlocal_shopkeeper_app/core/router/route_names.dart';
 import 'package:hyperlocal_shopkeeper_app/features/account/presentation/controllers/settings_controller.dart';
@@ -57,6 +58,11 @@ ProviderContainer buildContainer({
       notificationPreferencesStoreProvider.overrideWithValue(
         preferences ?? InMemoryNotificationPreferencesStore(),
       ),
+      // Settings > Notifications reads the DEVICE notification permission from
+      // the platform. A widget test must never touch a platform channel, so
+      // the real app gets the scriptable fake (default: refused).
+      permissionServiceProvider
+          .overrideWithValue(InMemoryPermissionService()),
     ],
   );
   addTearDown(container.dispose);
@@ -494,6 +500,7 @@ void main() {
       expect(find.text('FAQs'), findsOneWidget);
       expect(find.text('Contact Support'), findsOneWidget);
       expect(find.text('Report Issue'), findsOneWidget);
+      expect(find.text('My Tickets'), findsOneWidget);
     });
 
     testWidgets('every group row opens a real screen — no dead taps',
@@ -519,6 +526,7 @@ void main() {
         'settings_faqs': 'Help centre',
         'settings_contact_support': 'Contact support',
         'settings_report_issue': 'Report an issue',
+        'settings_my_tickets': 'My support tickets',
       };
 
       for (final entry in destinations.entries) {

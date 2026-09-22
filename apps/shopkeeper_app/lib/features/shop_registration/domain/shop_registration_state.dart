@@ -94,6 +94,10 @@ enum RegistrationLocationStatus {
   adjustingAccuracy,
   ready,
   permissionDenied,
+
+  /// Permanently denied / blocked by policy: asking again cannot work, only the
+  /// system settings can.
+  permissionBlocked,
   serviceDisabled,
   error,
 }
@@ -129,6 +133,7 @@ class ShopRegistrationState {
     this.accuracyMeters,
     this.reverseGeocoding = false,
     this.detectedAddress,
+    this.locationManual = false,
     this.locationError,
     this.description = '',
     this.openTime = '09:00',
@@ -184,6 +189,11 @@ class ShopRegistrationState {
   final double? accuracyMeters;
   final bool reverseGeocoding;
   final PickedLocation? detectedAddress;
+
+  /// True when the pin was placed by hand because no GPS fix was available
+  /// (permission denied, GPS off, or no signal) — the submitted capture
+  /// provenance says `MANUAL` and claims no accuracy radius.
+  final bool locationManual;
   final String? locationError;
 
   // ── Documents & additional information ──
@@ -258,6 +268,9 @@ class ShopRegistrationState {
     bool? reverseGeocoding,
     PickedLocation? detectedAddress,
     bool clearDetectedAddress = false,
+    /// The pin was placed by hand (permission denied / GPS off) instead of from
+    /// a GPS fix — reported honestly to the backend as `MANUAL`.
+    bool? locationManual,
     String? locationError,
     bool clearLocationError = false,
     String? description,
@@ -306,6 +319,7 @@ class ShopRegistrationState {
       reverseGeocoding: reverseGeocoding ?? this.reverseGeocoding,
       detectedAddress:
           clearDetectedAddress ? null : (detectedAddress ?? this.detectedAddress),
+      locationManual: locationManual ?? this.locationManual,
       locationError:
           clearLocationError ? null : (locationError ?? this.locationError),
       description: description ?? this.description,

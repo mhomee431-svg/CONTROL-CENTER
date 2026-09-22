@@ -7,6 +7,7 @@ import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/cached_data_notice.dart';
+import '../../../../core/ui/debounced_search_field.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../../core/ui/numeric_input.dart';
@@ -17,6 +18,7 @@ import '../../domain/product_models.dart';
 import '../../domain/product_query.dart';
 import '../controllers/products_controller.dart';
 import '../controllers/products_list_controller.dart';
+import '../controllers/recent_searches_controller.dart';
 import '../widgets/product_details_sheet.dart';
 import '../widgets/product_sheets.dart';
 import '../widgets/stock_sheets.dart';
@@ -150,25 +152,15 @@ class _ReadyBody extends ConsumerStatefulWidget {
 }
 
 class _ReadyBodyState extends ConsumerState<_ReadyBody> {
-  /// The search box's text buffer.
-  ///
-  /// The QUERY itself lives in the list's view controller
-  /// ([productsListControllerProvider]); this controller only mirrors it so
-  /// typing keeps its cursor and selection. It is seeded from the query on
-  /// mount, which is what brings the shopkeeper's search text BACK with the
-  /// screen instead of discarding it with the widget.
-  final TextEditingController _search = TextEditingController();
+  /// The screen owns NO search buffer of its own — the query text lives in the
+/// list's view controller ([productsListControllerProvider]) and
+/// [DebouncedSearchField] mirrors it internally, seeded from that query on
+/// mount. This is what brings the shopkeeper's search text BACK with the
+/// screen instead of discarding it with the widget.
 
   @override
   void initState() {
     super.initState();
-    _search.text = ref.read(productsListControllerProvider).query.search;
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   void _message() {
@@ -198,14 +190,12 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
 
   /// Clears ONLY the search text — the search box's own clear button.
   void _clearSearch() {
-    _search.clear();
     ref.read(productsListControllerProvider.notifier).setSearch('');
   }
 
   /// Clears the search text AND every filter — the "Clear" action and the
   /// empty state's call to action.
   void _clearAll() {
-    _search.clear();
     ref.read(productsListControllerProvider.notifier).clear();
   }
 
@@ -244,6 +234,8 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
         .watch(productsListControllerProvider.notifier)
         .pageFor(widget.allItems);
     final items = page.rows;
+    // Shared product-search history: submitted terms only, most-recent-first.
+    final recents = ref.watch(recentSearchesControllerProvider).terms;
 
     return LazyListView(
       padding: const EdgeInsets.all(16),
@@ -257,24 +249,29 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
         if (widget.fromCache) const CachedDataNotice(),
         if (widget.summary != null) _SummaryChips(summary: widget.summary!),
         const SizedBox(height: 12),
-        TextField(
-          controller: _search,
-          onChanged: (value) => ref
+        DebouncedSearchField(
+          key: const Key('products_search_field'),
+          hintText: 'Search name, brand or SKU…',
+          initialValue: query.search,
+          onChanged: ref
               .read(productsListControllerProvider.notifier)
-              .setSearch(value),
-          decoration: InputDecoration(
-            hintText: 'Search name, brand or SKU…',
-            prefixIcon: const Icon(Icons.search),
-            isDense: true,
-            suffixIcon: query.search.isEmpty
-                ? null
-                : IconButton(
-                    // Accessible name for the icon-only clear action.
-                    tooltip: 'Clear search',
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: _clearSearch,
-                  ),
-          ),
+              .setSearch,
+          onCleared: _clearSearch,
+          // A submitted term is history: record it AND make sure the rows
+          // match it even if the debounce had not fired yet.
+          onSubmitted: (value) => ref
+              .read(recentSearchesControllerProvider.notifier)
+              .record(value),
+          onFocusLost: (value) => ref
+              .read(recentSearchesControllerProvider.notifier)
+              .record(value),
+          recentSearches: recents,
+          onRecentSelected: ref
+              .read(productsListControllerProvider.notifier)
+              .setSearch,
+          onRecentRemoved: (term) => ref
+              .read(recentSearchesControllerProvider.notifier)
+              .remove(term),
         ),
         const SizedBox(height: 8),
         SingleChildScrollView(

@@ -418,3 +418,221 @@ class InsightsBundle {
     (max, point) => point.value > max ? point.value : max,
   );
 }
+
+// ── Business insights (live shop snapshot) ───────────────────────────────────
+// Contract: `GET /api/v1/shopkeeper/shops/{id}/insights`
+// (`backend/app/api/routes/shopkeeper_portal.py` ->
+// `shopkeeper_service.business_insights`). Unlike the analytics sections above,
+// these cards describe the shop's CURRENT state — listings, inventory, offers
+// and profile — computed server-side from the live database rather than from
+// the trailing window. Nothing is fabricated here either: a card the backend
+// did not send is simply absent, and a card with nothing to report is skipped
+// instead of rendering a meaningless zero.
+
+/// How urgent one insight card is, as classified by the backend.
+enum BusinessInsightStatus {
+  healthy,
+  warning,
+  critical,
+  info;
+
+  /// Parses the backend classification; an unknown value falls back to [info]
+  /// so a future server-side status never breaks an older client.
+  static BusinessInsightStatus fromName(Object? raw) =>
+      switch (raw?.toString().toLowerCase()) {
+        'healthy' => BusinessInsightStatus.healthy,
+        'warning' => BusinessInsightStatus.warning,
+        'critical' => BusinessInsightStatus.critical,
+        _ => BusinessInsightStatus.info,
+      };
+
+  String get label => switch (this) {
+    BusinessInsightStatus.healthy => 'Healthy',
+    BusinessInsightStatus.warning => 'Needs attention',
+    BusinessInsightStatus.critical => 'Action needed',
+    BusinessInsightStatus.info => 'For review',
+  };
+}
+
+/// One data-driven insight card.
+///
+/// Stable ids: `top_products`, `low_stock`, `stale_inventory`,
+/// `search_visibility`, `offers_performance`, `profile_completeness`.
+class BusinessInsightCard {
+  const BusinessInsightCard({
+    required this.id,
+    required this.title,
+    this.description = '',
+    this.status = BusinessInsightStatus.info,
+    this.metrics = const <String, dynamic>{},
+    this.items = const <Map<String, dynamic>>[],
+    this.suggestion,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final BusinessInsightStatus status;
+
+  /// Card-specific metric map, exactly as the backend computed it.
+  final Map<String, dynamic> metrics;
+
+  /// The rows that triggered the card (products / offers / missing fields).
+  final List<Map<String, dynamic>> items;
+
+  /// The backend's next-step copy; null when there is nothing to act on.
+  final String? suggestion;
+
+  factory BusinessInsightCard.fromJson(Map<String, dynamic> json) =>
+      BusinessInsightCard(
+        id: (json['id'] ?? '').toString(),
+        title: (json['title'] ?? '').toString(),
+        description: (json['description'] ?? '').toString(),
+        status: BusinessInsightStatus.fromName(json['status']),
+        metrics: _asMap(json['metrics']),
+        items: _asMapList(json['items']),
+        suggestion: json['suggestion']?.toString(),
+      );
+
+  int metricInt(String key) => _asInt(metrics[key]);
+
+  double metricDouble(String key) => _asDouble(metrics[key]);
+
+  /// True when the card has something worth rendering. The backend sends every
+  /// card on every call, so a quiet shop would otherwise show a wall of zeros.
+  bool get hasData =>
+      items.isNotEmpty ||
+      suggestion != null ||
+      status == BusinessInsightStatus.warning ||
+      status == BusinessInsightStatus.critical;
+}
+
+/// Display mapping for [BusinessInsightCard]: keeps the model a plain parse of
+/// the backend payload while giving the UI the card-specific lines it renders.
+/// Every number below is read from the backend-sent [BusinessInsightCard
+/// .metrics] — none is derived or estimated on the client.
+extension BusinessInsightCardPresentation on BusinessInsightCard {
+  /// The line the card leads with, or null when the backend sent no number
+  /// worth stating (e.g. a visibility percentage for an empty catalog).
+  String? get headline => switch (id) {
+    'top_products' => metricInt('total_products') == 0
+        ? null
+        : '${metricInt('ranked_count')} of ${metricInt('active_products')} '
+              'active listings',
+    'low_stock' => metricInt('count') == 0
+        ? null
+        : '${metricInt('count')} at or below threshold',
+    'stale_inventory' => metricInt('count') == 0
+        ? null
+        : '${metricInt('count')} untouched for '
+              '${metricInt('oldest_stale_days')}+ days',
+    'search_visibility' => metricInt('total_products') == 0
+        ? null
+        : '${_percentLabel(metricDouble('visibility_percentage'))} of '
+              'listings visible in search',
+    'offers_performance' => metricInt('total_offers') == 0
+        ? null
+        : '${metricInt('active_offers')} active of '
+              '${metricInt('total_offers')} offers',
+    'profile_completeness' => metricInt('total_fields') == 0
+        ? null
+        : '${_percentLabel(metricDouble('completeness_percentage'))} complete '
+              '(${metricInt('completed_fields')}/'
+              '${metricInt('total_fields')} fields)',
+    _ => null,
+  };
+
+  /// Compact supporting numbers, card-specific and backend-derived.
+  List<String> get summaryLines => switch (id) {
+    'top_products' => <String>[
+      '${metricInt('total_products')} listings · '
+          '${metricInt('active_products')} active',
+    ],
+    'low_stock' => <String>[
+      '${_percentLabel(metricDouble('percentage'))} of your catalog · '
+          '${metricInt('total_gap_units')} units to restock',
+    ],
+    'stale_inventory' => <String>[
+      '${_percentLabel(metricDouble('percentage'))} of in-stock listings · '
+          'oldest ${metricInt('oldest_stale_days')} days',
+    ],
+    'search_visibility' => <String>[
+      '${metricInt('visible_products')} of ${metricInt('total_products')} '
+          'visible · ${metricInt('products_without_images')} without an image',
+    ],
+    'offers_performance' => <String>[
+      '${metricInt('draft_offers')} drafts · '
+          '${metricInt('expiring_soon')} expiring soon · '
+          '${_percentLabel(metricDouble('offer_coverage_percentage'))} '
+          'catalog coverage',
+    ],
+    'profile_completeness' => <String>[
+      '${metricInt('missing_fields_count')} fields still missing',
+    ],
+    _ => const <String>[],
+  };
+
+  /// Short lines for the rows the card flagged (max 5, in the backend's order).
+  List<String> get itemLines {
+    final lines = <String>[];
+    for (final row in items) {
+      if (lines.length == 5) break;
+      final label =
+          (row['name'] ?? row['title'] ?? row['label'] ?? row['field'] ?? '')
+              .toString();
+      final detail = _itemDetail(row);
+      final line = detail.isEmpty ? label : '$label · $detail';
+      if (line.trim().isNotEmpty) lines.add(line);
+    }
+    return List<String>.unmodifiable(lines);
+  }
+
+  String _itemDetail(Map<String, dynamic> row) => switch (id) {
+    'low_stock' =>
+      '${_asInt(row['quantity'])} left, restock ${_asInt(row['gap'])}',
+    'stale_inventory' => '${_asInt(row['days_since_update'])} days untouched',
+    'top_products' => '${_asInt(row['quantity'])} units in stock',
+    'offers_performance' => '${_asInt(row['product_count'])} products',
+    _ => '',
+  };
+}
+
+/// `75%` / `62.5%` — trailing zeros dropped.
+String _percentLabel(double value) =>
+    '${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)}%';
+
+/// The complete business-insights payload (`GET .../shops/{id}/insights`).
+class BusinessInsightsBundle {
+  const BusinessInsightsBundle({
+    this.shopName = '',
+    this.generatedAt,
+    this.insights = const <BusinessInsightCard>[],
+  });
+
+  final String shopName;
+  final DateTime? generatedAt;
+  final List<BusinessInsightCard> insights;
+
+  factory BusinessInsightsBundle.fromJson(Map<String, dynamic> json) =>
+      BusinessInsightsBundle(
+        shopName: (_asMap(json['shop'])['name'] ?? '').toString(),
+        generatedAt: DateTime.tryParse((json['generated_at'] ?? '').toString()),
+        insights: _asMapList(
+          json['insights'],
+        ).map(BusinessInsightCard.fromJson).toList(growable: false),
+      );
+
+  /// The card with [id], or null when the backend did not send it.
+  BusinessInsightCard? byId(String id) {
+    for (final card in insights) {
+      if (card.id == id) return card;
+    }
+    return null;
+  }
+
+  /// Only the cards with something to report, in the backend's order.
+  List<BusinessInsightCard> get actionable =>
+      insights.where((card) => card.hasData).toList(growable: false);
+
+  bool get isEmpty => insights.isEmpty;
+}

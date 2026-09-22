@@ -15,8 +15,6 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
-    AppError,
-    ConflictError,
     ForbiddenError,
     NotFoundError,
     ValidationError,
@@ -25,7 +23,7 @@ from app.core.logging import get_logger
 from app.models.admin import AuditLog
 from app.models.merchant_category import (
     MerchantCategory,
-    MerchantCategoryCode,
+    MerchantCategoryCode,  # noqa: F401 - registers the merchant_category_codes table
     MerchantVerificationRequirement,
 )
 from app.models.merchant_onboarding import (
@@ -36,15 +34,12 @@ from app.models.merchant_onboarding import (
 from app.models.shop import Shop, ShopOwner
 from app.models.user import User
 from app.services.identity_provider import (
-    IdentityVerificationResult,
     get_identity_provider,
 )
 from app.services.bank_provider import (
-    BankVerificationResult,
     get_bank_provider,
 )
 from app.services.category_provider import (
-    CategoryVerificationResult,
     get_category_provider,
 )
 
@@ -339,7 +334,7 @@ def verify_phone(
     return onboarding
 
 
-def submit_identity_verification(
+async def submit_identity_verification(
     db: Session,
     onboarding: MerchantOnboarding,
     user: User,
@@ -412,7 +407,7 @@ def submit_identity_verification(
 
         try:
             # Call provider
-            result = provider.verify_gstin(gstin)
+            result = await provider.verify_gstin(gstin)
 
             # Update verification record
             identity_ver.status = IdentityVerificationStatus(result.status)
@@ -486,7 +481,7 @@ def submit_identity_verification(
         db.flush()
 
         try:
-            result = provider.verify_udyam(udyam_number)
+            result = await provider.verify_udyam(udyam_number)
 
             identity_ver.status = IdentityVerificationStatus(result.status)
             identity_ver.provider_reference_id = result.reference_id
@@ -552,7 +547,7 @@ def submit_identity_verification(
     return {"onboarding": onboarding, "results": results}
 
 
-def submit_bank_verification(
+async def submit_bank_verification(
     db: Session,
     onboarding: MerchantOnboarding,
     user: User,
@@ -678,7 +673,7 @@ def submit_bank_verification(
     return {"onboarding": onboarding, "result": result_data}
 
 
-def submit_category_documents(
+async def submit_category_documents(
     db: Session,
     onboarding: MerchantOnboarding,
     user: User,
@@ -746,7 +741,7 @@ def submit_category_documents(
         db.flush()
 
         try:
-            result = provider.verify_drug_license(drug_no)
+            result = await provider.verify_drug_license(drug_no)
             doc_ver.status = result.status
             doc_ver.provider_reference_id = result.reference_id
             doc_ver.requires_admin_review = result.requires_admin_review
@@ -805,7 +800,7 @@ def submit_category_documents(
         db.flush()
 
         try:
-            result = provider.verify_fssai_license(fssai_no)
+            result = await provider.verify_fssai_license(fssai_no)
             doc_ver.status = result.status
             doc_ver.provider_reference_id = result.reference_id
             doc_ver.requires_admin_review = result.requires_admin_review
@@ -864,7 +859,7 @@ def submit_category_documents(
         db.flush()
 
         try:
-            result = provider.verify_driving_license(dl_no)
+            result = await provider.verify_driving_license(dl_no)
             doc_ver.status = result.status
             doc_ver.provider_reference_id = result.reference_id
             doc_ver.requires_admin_review = result.requires_admin_review
@@ -922,7 +917,7 @@ def submit_category_documents(
         db.flush()
 
         try:
-            result = provider.verify_vehicle_rc(rc_no)
+            result = await provider.verify_vehicle_rc(rc_no)
             doc_ver.status = result.status
             doc_ver.provider_reference_id = result.reference_id
             doc_ver.requires_admin_review = result.requires_admin_review
@@ -970,8 +965,10 @@ def get_onboarding_status(
     if onboarding.user_id != user.id:
         raise ForbiddenError("Not authorized")
 
-    # Get requirements for the category
-    requirements = get_category_requirements(db, onboarding.category_code)
+    # Resolved for the category so the response can be extended with the
+    # requirement breakdown without another query; the requirements are what
+    # drive `next_action`, which IS returned below.
+    requirements = get_category_requirements(db, onboarding.category_code)  # noqa: F841
 
     # Build verification status
     verification = {

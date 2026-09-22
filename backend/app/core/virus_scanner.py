@@ -12,7 +12,6 @@ This module provides the hooks and can be enabled when a scanner is available.
 import logging
 import hashlib
 from datetime import datetime, timezone
-from typing import Optional
 
 from app.core.config import settings
 
@@ -115,6 +114,68 @@ def _scan_with_clamav(content: bytes, filename: str | None) -> ScanResult | None
     except Exception as exc:
         logger.error("ClamAV scan failed: %s", exc)
         return ScanResult(is_clean=True, scanner="clamav", error=str(exc))
+
+
+def _scan_with_external(content: bytes, filename: str | None) -> ScanResult | None:
+    """Scan a file through a configured external scanner API.
+
+    Disabled unless ``VIRUS_SCAN_API_URL`` is configured: with no endpoint this
+    returns ``None`` so the caller logs "no scanner available" and the file is
+    treated as clean — the same fail-open behaviour a missing ClamAV daemon
+    gets.
+
+    Endpoint contract: POST the raw bytes (``application/octet-stream``) with
+    the original name in ``X-Filename`` (and ``Authorization: Bearer ...`` when
+    ``VIRUS_SCAN_API_KEY`` is set), answering ``{"clean": bool,
+    "threats": ["name", ...]}``. A non-200 answer or an unreadable body is
+    reported as an error result that still fails OPEN, so an unreachable
+    scanner can never block uploads.
+    """
+    api_url = getattr(settings, "VIRUS_SCAN_API_URL", None)
+    if not api_url:
+        logger.debug("No external scanner configured, skipping external scan")
+        return None
+
+    try:
+        import httpx
+
+        headers = {"Content-Type": "application/octet-stream"}
+        if filename:
+            headers["X-Filename"] = filename
+        api_key = getattr(settings, "VIRUS_SCAN_API_KEY", None)
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        resp = httpx.post(
+            api_url,
+            content=content,
+            headers=headers,
+            timeout=float(getattr(settings, "VIRUS_SCAN_TIMEOUT_SECONDS", 30.0)),
+        )
+        if resp.status_code != 200:
+            logger.error("External scanner returned HTTP %s", resp.status_code)
+            return ScanResult(
+                is_clean=True,
+                scanner="external",
+                error=f"scanner HTTP {resp.status_code}",
+            )
+
+        payload = resp.json()
+        raw_threats = payload.get("threats") or []
+        threats = [str(item) for item in raw_threats]
+        is_clean = bool(payload.get("clean", not threats))
+        if not is_clean:
+            logger.warning(
+                "Virus detected by external scanner: %s in file %s", threats, filename
+            )
+        return ScanResult(is_clean=is_clean, scanner="external", threats=threats)
+
+    except ImportError:
+        logger.debug("httpx not installed, skipping external scan")
+        return None
+    except Exception as exc:
+        logger.error("External scan failed: %s", exc)
+        return ScanResult(is_clean=True, scanner="external", error=str(exc))
 
 
 def should_scan_file(content_type: str) -> bool:

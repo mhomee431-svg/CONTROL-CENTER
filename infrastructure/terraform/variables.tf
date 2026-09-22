@@ -180,3 +180,22 @@ variable "uploads_bucket_name" {
   type        = string
   default     = ""
 }
+
+# ── Phase 3: media-processor Lambda ─────────────────────────────────────────
+variable "data_subnet_cidr_a" {
+  description = "Second PRIVATE data subnet CIDR (AZ a) for Lambda VPC placement. Lambda requires 2 subnets in different AZs to attach to a VPC; both subnets share the isolated data route table (no internet route, S3 via Gateway endpoint)."
+  type        = string
+  default     = "10.0.21.0/24"
+}
+
+variable "media_lambda_memory_mb" {
+  description = "Lambda memory (MB). 256 is sufficient for S3 event processing + DB writes."
+  type        = number
+  default     = 256
+}
+
+variable "media_lambda_timeout_sec" {
+  description = "Lambda timeout (seconds). 30s covers S3 head/get + DB transaction per object."
+  type        = number
+  default     = 30
+}

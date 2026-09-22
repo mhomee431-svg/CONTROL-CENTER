@@ -205,10 +205,17 @@ async def download_import_sample(
 async def list_inventory_imports(
     shop_id: int,
     limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List this shop's import jobs (newest first)."""
+    """List this shop's import jobs (newest first), paginated.
+
+    ``limit`` / ``offset`` slice the newest-first order, and ``total`` reports
+    how many jobs the shop actually has so the client knows whether a further
+    page exists instead of inferring it from a short page (which would be wrong
+    for any page that happens to end exactly on a size boundary).
+    """
     from app.models.inventory_import import InventoryImportJob
 
     try:
@@ -221,7 +228,9 @@ async def list_inventory_imports(
         .filter(InventoryImportJob.shop_id == access.shop.id)
         .all()
     )
-    ordered = sorted(jobs, key=lambda j: j.id, reverse=True)[:limit]
+    ordered = sorted(jobs, key=lambda j: j.id, reverse=True)
+    total = len(ordered)
+    page = ordered[offset : offset + limit]
     items = [
         {
             "id": job.id,
@@ -231,9 +240,17 @@ async def list_inventory_imports(
             "valid_rows": int(job.valid_rows or 0),
             "error_rows": int(job.error_rows or 0),
         }
-        for job in ordered
+        for job in page
     ]
-    return success_response(data={"items": items, "count": len(items)})
+    return success_response(
+        data={
+            "items": items,
+            "count": len(items),
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        }
+    )
 
 
 @router.get("/inventory-imports/{job_id}")

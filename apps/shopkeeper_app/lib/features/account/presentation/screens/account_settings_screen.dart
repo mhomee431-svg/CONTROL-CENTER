@@ -190,6 +190,13 @@ class AccountSettingsScreen extends ConsumerWidget {
                   subtitle: 'Tell us what went wrong',
                   onTap: () => context.push(Routes.reportIssue),
                 ),
+                SettingsTile(
+                  key: const Key('settings_my_tickets'),
+                  icon: Icons.confirmation_number_outlined,
+                  title: 'My Tickets',
+                  subtitle: 'Status of the reports you sent',
+                  onTap: () => context.push(Routes.myTickets),
+                ),
               ],
             ),
             const SizedBox(height: 24),

@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/permissions/data/permission_service.dart';
 import '../products/presentation/controllers/products_controller.dart';
 import '../products/presentation/widgets/product_sheets.dart';
 import 'domain/barcode_models.dart';
 import 'presentation/controllers/barcode_controller.dart';
 import 'presentation/widgets/barcode_sheets.dart';
+import 'presentation/widgets/camera_permission_gate.dart';
 
 /// Full-screen barcode scanner with live camera feed (Phase 24).
 ///
@@ -318,7 +320,20 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
             ),
         ],
       ),
-      body: ValueListenableBuilder<MobileScannerState>(
+      // The camera-permission conversation (explain → request → denied →
+      // system-settings guidance) lives in the gate, so MobileScanner is never
+      // built — and never asks for the camera itself — before the grant.
+      body: BarcodeCameraGate(
+        onEnterManually: _showManualEntrySheet,
+        cameraBuilder: _cameraPreview,
+      ),
+    );
+  }
+
+  /// The live camera preview + scan-frame overlay, built by [BarcodeCameraGate]
+  /// once the camera permission has been granted.
+  Widget _cameraPreview(BuildContext context) =>
+      ValueListenableBuilder<MobileScannerState>(
         valueListenable: _cameraController,
         builder: (context, cameraState, _) {
           // Req 27: the frame and its instruction only make sense over a live
@@ -340,6 +355,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                   error: error,
                   onRetry: _restartCamera,
                   onManualEntry: _showManualEntrySheet,
+                  onOpenSettings: _openSystemSettings,
                 ),
               ),
               if (!cameraFailed) ...[
@@ -377,25 +393,34 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
             ],
           );
         },
-      ),
-    );
-  }
+      );
+
+  /// The way back from a permission that was revoked while the app was open or
+  /// blocked after the grant (runtime failure path of the scanner).
+  Future<void> _openSystemSettings() =>
+      ref.read(permissionServiceProvider).openSystemSettings();
 }
 
 /// Req 27: dedicated camera-failure view. Distinguishes permission denial
 /// (fix in system Settings, then retry) from unsupported devices and other
 /// initialization failures. Manual barcode entry is always offered so the
 /// flow never dead-ends; back navigation stays in the AppBar.
+///
+/// A permission denial found HERE (rather than by the gate) means the grant
+/// disappeared at runtime, so the view also offers the system-settings escape
+/// hatch next to Retry.
 class _ScannerErrorView extends StatelessWidget {
   const _ScannerErrorView({
     required this.error,
     required this.onRetry,
     required this.onManualEntry,
+    required this.onOpenSettings,
   });
 
   final MobileScannerException? error;
   final VoidCallback onRetry;
   final VoidCallback onManualEntry;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -455,6 +480,17 @@ class _ScannerErrorView extends StatelessWidget {
               label: const Text('Retry camera'),
             ),
           const SizedBox(height: 12),
+          // A runtime permission loss can only be fixed in the system
+          // settings, so that escape hatch sits right under Retry.
+          if (code == MobileScannerErrorCode.permissionDenied) ...[
+            OutlinedButton.icon(
+              key: const Key('scanner_open_settings'),
+              onPressed: onOpenSettings,
+              icon: const Icon(Icons.settings_outlined),
+              label: const Text('Open System Settings'),
+            ),
+            const SizedBox(height: 12),
+          ],
           OutlinedButton.icon(
             onPressed: onManualEntry,
             icon: const Icon(Icons.keyboard_alt_outlined),

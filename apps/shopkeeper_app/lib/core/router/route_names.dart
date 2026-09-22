@@ -140,6 +140,19 @@ abstract final class Routes {
   static const contactSupport = '/contact-support';
   static const reportIssue = '/report-issue';
 
+  // ── Support tickets (real intake + tracking) ─────────────────────────────
+  /// The shopkeeper's own tickets with their live backend status.
+  static const myTickets = '/my-tickets';
+
+  /// One ticket, by id. Re-read from the backend on open so the status shown is
+  /// the one support has actually set.
+  static String supportTicketDetail(int ticketId) => '$myTickets/$ticketId';
+
+  /// go_router path TEMPLATE for the detail route — [supportTicketDetail]
+  /// produces concrete links (`/my-tickets/42`), while the route itself must be
+  /// declared with a `:ticketId` segment.
+  static const supportTicketDetailTemplate = '$myTickets/:ticketId';
+
   // ── Account-status gate (suspended / restricted) ────────────────────────
   static const accountStatus = '/account-status';
 

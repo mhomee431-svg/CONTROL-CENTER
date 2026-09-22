@@ -108,7 +108,6 @@ from sqlalchemy import event  # noqa: E402
 from sqlalchemy.orm import Session as _Session  # noqa: E402
 
 
-@event.listens_for(_Session, "before_flush")
 def _stamp_portable_defaults(session, flush_context, instances):
     now = datetime.now(timezone.utc)
     for obj in session.new:
@@ -122,6 +121,26 @@ def _stamp_portable_defaults(session, flush_context, instances):
     for obj in session.dirty:
         if hasattr(obj, "updated_at"):
             obj.updated_at = now
+
+
+@pytest.fixture(autouse=True)
+def _install_portable_defaults_listener():
+    """Install the timestamp stamping for THIS module's tests only.
+
+    The handler is registered on the base ``Session`` class because this
+    module's ``db`` fixture builds a plain ``sessionmaker``. That target is
+    process-global, so registering it at import time leaked into every later
+    test module: their flushes silently rewrote ``updated_at = now``, which
+    broke staleness-based tests elsewhere (media reconciliation / the S3-event
+    reconcile cron saw no stale rows). Installing it per-test and removing it
+    on teardown keeps this module's Postgres-parity semantics without the
+    cross-module side effect.
+    """
+    event.listen(_Session, "before_flush", _stamp_portable_defaults)
+    try:
+        yield
+    finally:
+        event.remove(_Session, "before_flush", _stamp_portable_defaults)
 
 
 @pytest.fixture(autouse=True)

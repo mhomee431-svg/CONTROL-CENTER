@@ -24,6 +24,19 @@ class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
     Future.microtask(() => ref.read(shopLocationProvider.notifier).load());
   }
 
+  /// Opens the phone settings page that unblocks the last failure: this app's
+  /// permission page, or the device location-services page.
+  Future<void> _openSettings({required bool forLocationServices}) async {
+    final service = ref.read(shopLocationServiceProvider);
+    final opened = forLocationServices
+        ? await service.openLocationSettings()
+        : await service.openAppSettings();
+    if (!mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Could not open your phone settings from here.'),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(shopLocationProvider);
@@ -61,6 +74,9 @@ class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
             detail: detail,
             canEdit: canEdit,
             saving: state.isSaving,
+            needsSettings: state.needsSettings,
+            needsLocationServices: state.needsLocationServices,
+            onOpenSettings: _openSettings,
           ),
         },
       ),
@@ -106,11 +122,24 @@ class _LocationBody extends ConsumerWidget {
     required this.detail,
     required this.canEdit,
     required this.saving,
+    required this.needsSettings,
+    required this.needsLocationServices,
+    required this.onOpenSettings,
   });
 
   final ShopDetail? detail;
   final bool canEdit;
   final bool saving;
+
+  /// The last update failed because the app's location permission is blocked.
+  final bool needsSettings;
+
+  /// The last update failed because the device's location services are off.
+  final bool needsLocationServices;
+
+  /// Opens the settings page that fixes whichever of the two applies.
+  final Future<void> Function({required bool forLocationServices})
+      onOpenSettings;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -199,6 +228,54 @@ class _LocationBody extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
+        // A blocked permission / switched-off GPS cannot be fixed by tapping the
+        // update button again: send the shopkeeper to the exact settings page.
+        if (needsSettings || needsLocationServices) ...[
+          Card(
+            key: const Key('shop-location-permission-notice'),
+            margin: EdgeInsets.zero,
+            color: scheme.errorContainer.withValues(alpha: 0.35),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    needsSettings
+                        ? 'Location permission is blocked for this app'
+                        : 'Location services are turned off',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    needsSettings
+                        ? 'Allow the app to use your location in the phone '
+                            'settings, then try again.'
+                        : 'Turn GPS on in the phone settings, then try again.',
+                    style: TextStyle(fontSize: 12, color: scheme.outline),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    key: const Key('shop-location-open-settings'),
+                    onPressed: () => onOpenSettings(
+                      forLocationServices: needsLocationServices,
+                    ),
+                    icon: const Icon(Icons.settings_outlined),
+                    label: Text(
+                      needsSettings
+                          ? 'Open System Settings'
+                          : 'Turn On Location Services',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         Card(
           margin: EdgeInsets.zero,
           child: Padding(

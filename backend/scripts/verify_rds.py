@@ -70,6 +70,8 @@ EXPECTED_TABLES: set[str] = {
     "merchant_onboardings", "business_identity_verifications",
     "bank_account_verifications", "category_document_verifications",
     "verification_attempts", "verification_provider_logs",
+    # 0024 media pipeline (S3 upload lifecycle: PENDING -> READY)
+    "media",
 }
 
 # Geography POINT columns that must be typed for PostGIS.

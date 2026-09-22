@@ -98,6 +98,14 @@ class ApiEndpoints {
   static String analyticsFreshness(int shopId) =>
       '/api/v1/shopkeeper/shops/$shopId/analytics/freshness';
 
+  // ── Business insights (live shop snapshot, not windowed) ──
+  // Data-driven insight cards computed server-side from the shop's CURRENT
+  // state: top products, low stock, stale inventory, product search
+  // visibility, offers performance and profile completeness. Requires the
+  // `dashboard:read` permission on the shop.
+  static String shopInsights(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/insights';
+
   // ── Merchant categories (shop-registration wizard) ──
   static const String businessCategories =
       '/api/v1/shopkeeper/businesses/categories';
@@ -203,4 +211,25 @@ class ApiEndpoints {
   /// JSON envelope).
   static String inventoryImportSample(int shopId) =>
       '${inventoryImports(shopId)}/sample';
+
+  // ── Support tickets (real intake + tracking) ──────────────────────────────
+  /// `GET` lists the signed-in shopkeeper's tickets (newest first, optional
+  /// `status` filter), `POST` files a new one. The backend scopes every row to
+  /// the caller, so there is no shop/owner parameter to pass.
+  static const String supportTickets = '/api/v1/shopkeeper/support/tickets';
+
+  /// One ticket including its current status, resolution notes and timestamps.
+  static String supportTicket(int ticketId) => '$supportTickets/$ticketId';
+
+  // ── Media (the platform's signed-upload pipeline) ─────────────────────────
+  // The same pipeline product and shop images use, consumed here for an
+  // optional support screenshot. Like `/categories`, it is platform-wide
+  // rather than shopkeeper-namespaced, because the object store is shared.
+  //
+  // Flow: request a grant → upload the bytes → confirm → attach the returned
+  // key when filing the ticket. AWS credentials never reach the client.
+    static const String mediaDirectUpload = '/api/v1/media/direct-upload';
+
+  /// The only media category a support ticket accepts.
+  static const String supportAttachmentCategory = 'SUPPORT_ATTACHMENT';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'features/shell/app_lifecycle_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/ui/text_scale.dart';
@@ -13,6 +14,12 @@ class ShopkeeperApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Mount the app-lifecycle coordinator for the whole app lifetime: it owns
+    // the single WidgetsBindingObserver (background/foreground/resume) and
+    // the network-reconnect refresh (see
+    // features/shell/app_lifecycle_controller.dart). Watching `.notifier`
+    // keeps it alive WITHOUT rebuilding this widget on every snapshot change.
+    ref.watch(appLifecycleControllerProvider.notifier);
     final router = ref.watch(routerProvider);
     final settings = ref.watch(settingsControllerProvider);
     return MaterialApp.router(

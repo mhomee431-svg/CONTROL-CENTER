@@ -198,8 +198,11 @@ app.include_router(inventory_intake.router, prefix=API_PREFIX)
 
 # Phase 7 — S3 object storage (signed media uploads, authorized reads/deletes)
 from app.api.routes import media as media_routes
+from app.api.routes import media_state, webhooks as webhook_routes
 
 app.include_router(media_routes.router, prefix=API_PREFIX)
+app.include_router(media_state.router, prefix=API_PREFIX)
+app.include_router(webhook_routes.router, prefix=API_PREFIX)
 
 # Phase 25 — Provider-agnostic POS integration platform
 app.include_router(pos_integration.router, prefix=API_PREFIX)
@@ -241,6 +244,11 @@ app.include_router(shopkeeper_analytics_routes.router, prefix=API_PREFIX)
 # Shopkeeper Management (documents, hours, holidays, notifications)
 from app.api.routes import shopkeeper_extra as shopkeeper_extra_routes
 app.include_router(shopkeeper_extra_routes.router, prefix=API_PREFIX)
+
+# Shopkeeper Support (help-centre tickets filed from the app)
+from app.api.routes import shopkeeper_support as shopkeeper_support_routes
+app.include_router(shopkeeper_support_routes.router, prefix=API_PREFIX)
+
 
 # Merchant Onboarding & Verification (Tiered Merchant Onboarding System)
 from app.api.routes import merchant_onboarding as merchant_onboarding_routes

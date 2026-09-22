@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../data/location_accuracy_config.dart';
 import '../../domain/location_capture_state.dart';
 import '../controllers/location_capture_controller.dart';
+import '../../../../core/permissions/widgets/permission_prompt_view.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// "Add Your Shop" location capture — mobile-first, ride-app style.
@@ -41,7 +42,12 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
     if (state.status != LocationCaptureStatus.readyForConfirmation) return;
 
     final pin = state.shopPin!;
-    final device = state.deviceReading!;
+    final device = state.deviceReading;
+    // Map-only capture (no GPS fix): there is no device reading to report, and
+    // the pin is the one the shopkeeper placed — recorded as MANUAL, never
+    // dressed up as a GPS fix.
+    final capturedAt = device?.timestamp ?? DateTime.now();
+    final mapOnly = state.mapOnly || device == null;
     final addressSummary = (state.effectiveAddressText?.isNotEmpty ?? false)
         ? state.effectiveAddressText!
         : 'Lat ${pin.latitude.toStringAsFixed(6)}, '
@@ -71,15 +77,173 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
     Navigator.of(context).pop(CapturedShopLocation(
       latitude: pin.latitude,
       longitude: pin.longitude,
-      accuracyMeters: state.accuracyMeters ?? 0,
-      capturedAt: device.timestamp,
+      accuracyMeters: state.accuracyMeters,
+      capturedAt: capturedAt,
       addressText: state.effectiveAddressText,
       city: state.address?.city,
       state: state.address?.state,
       pincode: state.address?.pincode,
-      integrityStatus: device.isMock ? 'SUSPICIOUS' : 'NORMAL',
+      integrityStatus: device == null
+          ? 'UNKNOWN'
+          : (device.isMock ? 'SUSPICIOUS' : 'NORMAL'),
+      locationSource: mapOnly ? 'MANUAL' : 'GPS',
     ));
   }
+
+  /// Location permission denied — or blocked, which is NOT the same thing:
+  /// a plain denial can be asked again ("Allow Location"), while a permanent
+  /// denial can only be changed in the system settings. Both states offer the
+  /// two fallbacks that need no permission at all.
+  PermissionPromptView _permissionDeniedView(LocationCaptureState state) {
+    final blocked = state.permissionBlocked;
+    return PermissionPromptView(
+      icon: blocked ? Icons.lock_outline : Icons.location_searching,
+      title: blocked
+          ? 'Location permission is blocked'
+          : 'Location permission needed',
+      message: blocked
+          ? 'Location access is turned off for this app, so your shop pin '
+              'cannot be found automatically.'
+          : 'Location permission is required to accurately add your shop.',
+      bullets: blocked
+          ? const [
+              'Open your phone Settings > Apps > Passly Business',
+              'Open Permissions > Location and choose "Allow"',
+              'Return to the app and tap "Allow Location" again',
+            ]
+          : const [],
+      primary: PermissionPromptAction(
+        key: const Key('location_permission_primary'),
+        label: blocked ? 'Open System Settings' : 'Allow Location',
+        icon: blocked ? Icons.settings_outlined : Icons.my_location,
+        onPressed: blocked
+            ? () => _openPhoneSettings(forLocationServices: false)
+            : () => ref
+                .read(locationCaptureControllerProvider.notifier)
+                .startCapture(),
+      ),
+      fallbacks: [
+        PermissionPromptAction(
+          key: const Key('location_choose_on_map'),
+          label: 'Choose Location on Map',
+          icon: Icons.map_outlined,
+          onPressed: _chooseOnMap,
+        ),
+        PermissionPromptAction(
+          key: const Key('location_enter_manually'),
+          label: 'Enter Address Manually',
+          icon: Icons.edit_location_alt_outlined,
+          onPressed: _enterManually,
+        ),
+      ],
+    );
+  }
+
+  /// "Choose Location on Map" — the fallback that needs neither permission nor
+  /// GPS: the shopkeeper places the shop pin on the map by hand.
+  void _chooseOnMap() {
+    ref.read(locationCaptureControllerProvider.notifier).startMapOnlyCapture();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('Tap the map to place your shop pin.'),
+      ));
+  }
+
+  /// "Enter Address Manually" — this screen only sets the PIN; the wizard owns
+  /// the address fields, so the shopkeeper is returned there.
+  void _enterManually() {
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).pop();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('Enter your shop address in the form.'),
+      ));
+  }
+
+  /// Opens the phone settings page that unblocks the current state: the app's
+  /// permission page, or the device location-services page.
+  Future<void> _openPhoneSettings({required bool forLocationServices}) async {
+    final controller = ref.read(locationCaptureControllerProvider.notifier);
+    final opened = forLocationServices
+        ? await controller.openDeviceLocationSettings()
+        : await controller.openSystemSettings();
+    if (!mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Could not open your phone settings from here.'),
+    ));
+  }
+
+  /// GPS switched off at device level: the permission is fine, the hardware is
+  /// off, and only the system location settings can turn it back on.
+  PermissionPromptView _serviceDisabledView() => PermissionPromptView(
+        icon: Icons.location_off_outlined,
+        title: 'Location services are off',
+        message:
+            'Location services are turned off. Please enable GPS and try again.',
+        bullets: const [
+          'Open your phone Settings > Location and turn it on',
+          'Then return here and tap "Try Again"',
+        ],
+        primary: PermissionPromptAction(
+          key: const Key('location_turn_on_gps'),
+          label: 'Turn On Location Services',
+          icon: Icons.location_on_outlined,
+          onPressed: () => _openPhoneSettings(forLocationServices: true),
+        ),
+        fallbacks: [
+          PermissionPromptAction(
+            key: const Key('location_retry'),
+            label: 'Try Again',
+            icon: Icons.refresh,
+            onPressed: () => ref
+                .read(locationCaptureControllerProvider.notifier)
+                .startCapture(),
+          ),
+          PermissionPromptAction(
+            key: const Key('location_choose_on_map'),
+            label: 'Choose Location on Map',
+            icon: Icons.map_outlined,
+            onPressed: _chooseOnMap,
+          ),
+          PermissionPromptAction(
+            key: const Key('location_enter_manually'),
+            label: 'Enter Address Manually',
+            icon: Icons.edit_location_alt_outlined,
+            onPressed: _enterManually,
+          ),
+        ],
+      );
+
+  /// Acquisition failed (timeout, no usable fix, signal lost) — retry, or place
+  /// the pin by hand.
+  PermissionPromptView _errorView(LocationCaptureState state) =>
+      PermissionPromptView(
+        icon: Icons.error_outline,
+        title: 'Unable to get location',
+        message: state.errorMessage ??
+            'Check your GPS signal and connection, then try again.',
+        primary: PermissionPromptAction(
+          key: const Key('location_retry'),
+          label: 'Try Again',
+          icon: Icons.refresh,
+          onPressed: () =>
+              ref.read(locationCaptureControllerProvider.notifier).acquire(),
+        ),
+        fallbacks: [
+          PermissionPromptAction(
+            label: 'Choose Location on Map',
+            icon: Icons.map_outlined,
+            onPressed: _chooseOnMap,
+          ),
+          PermissionPromptAction(
+            label: 'Enter Address Manually',
+            icon: Icons.edit_location_alt_outlined,
+            onPressed: _enterManually,
+          ),
+        ],
+      );
 
   /// Warns when the pin drifted far from the device GPS fix.
   Future<bool> _checkDriftBeforePlacing(LatLng pin) async {
@@ -137,36 +301,13 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
           _AcquiringView(
             state: state,
             onManual: () => Navigator.of(context).pop(),
+            onChooseOnMap: _chooseOnMap,
           ),
-        LocationCaptureStatus.locationPermissionDenied => _BlockedView(
-            icon: Icons.lock_outline,
-            message:
-                'Location permission is required to accurately add your shop.',
-            onRetry: () => ref
-                .read(locationCaptureControllerProvider.notifier)
-                .startCapture(),
-            retryLabel: 'Allow Location',
-            onManual: () => Navigator.of(context).pop(),
-          ),
-        LocationCaptureStatus.locationServiceDisabled => _BlockedView(
-            icon: Icons.location_off_outlined,
-            message:
-                'Location services are turned off. Please enable GPS and try again.',
-            onRetry: () => ref
-                .read(locationCaptureControllerProvider.notifier)
-                .startCapture(),
-            retryLabel: 'Try Again',
-            onManual: () => Navigator.of(context).pop(),
-          ),
-        LocationCaptureStatus.error => _BlockedView(
-            icon: Icons.error_outline,
-            message: 'Unable to get location.\n'
-                '${state.errorMessage ?? 'Check your GPS signal and connection, then try again.'}',
-            onRetry: () =>
-                ref.read(locationCaptureControllerProvider.notifier).acquire(),
-            retryLabel: 'Try Again',
-            onManual: () => Navigator.of(context).pop(),
-          ),
+        LocationCaptureStatus.locationPermissionDenied =>
+          _permissionDeniedView(state),
+        LocationCaptureStatus.locationServiceDisabled =>
+          _serviceDisabledView(),
+        LocationCaptureStatus.error => _errorView(state),
         LocationCaptureStatus.locationReady ||
         LocationCaptureStatus.locationPoorAccuracy ||
         LocationCaptureStatus.reverseGeocoding ||
@@ -176,8 +317,11 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
             adjusting: _adjusting,
             onToggleAdjust: () => setState(() => _adjusting = !_adjusting),
             onTapMap: _onTapMap,
-            onRetry: () =>
-                ref.read(locationCaptureControllerProvider.notifier).acquire(),
+            // Re-runs the full pre-flight, so a revoked permission or a disabled
+            // GPS service is reported honestly instead of silently aborting.
+            onRetry: () => ref
+                .read(locationCaptureControllerProvider.notifier)
+                .startCapture(),
             onConfirm: _confirm,
           ),
         LocationCaptureStatus.saving ||
@@ -191,10 +335,18 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
 /// "Fetching your location…" / "Improving location accuracy…" view with the
 /// best-practice checklist. No map here — the map only appears once ready.
 class _AcquiringView extends StatelessWidget {
-  const _AcquiringView({required this.state, required this.onManual});
+  const _AcquiringView({
+    required this.state,
+    required this.onManual,
+    required this.onChooseOnMap,
+  });
 
   final LocationCaptureState state;
   final VoidCallback onManual;
+
+  /// Fallback while searching: place the pin on the map instead of waiting for
+  /// a GPS fix.
+  final VoidCallback onChooseOnMap;
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +405,13 @@ class _AcquiringView extends StatelessWidget {
               const SizedBox(height: 24),
               // Don't force waiting on a weak/unavailable GPS fix.
               OutlinedButton.icon(
+                key: const Key('location_choose_on_map_acquiring'),
+                onPressed: onChooseOnMap,
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Choose Location on Map'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
                 onPressed: onManual,
                 icon: const Icon(Icons.edit_location_alt_outlined),
                 label: const Text('Enter Location Manually'),
@@ -265,57 +424,10 @@ class _AcquiringView extends StatelessWidget {
   }
 }
 
-/// Permission denied / GPS off / generic failure — never crashes, never
-/// fabricates coordinates, always offers a manual path.
-class _BlockedView extends StatelessWidget {
-  const _BlockedView({
-    required this.icon,
-    required this.message,
-    required this.onRetry,
-    required this.retryLabel,
-    required this.onManual,
-  });
-
-  final IconData icon;
-  final String message;
-  final VoidCallback onRetry;
-  final String retryLabel;
-  final VoidCallback onManual;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Icon(icon, size: 56, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.my_location),
-              label: Text(retryLabel),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: onManual,
-              icon: const Icon(Icons.edit_location_alt_outlined),
-              label: const Text('Enter Location Manually'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+/// Permission denied / GPS off / generic failure — every one of these states is
+/// rendered by the shared [PermissionPromptView] so the same situation never
+/// looks different on two screens. The manual paths (`Choose Location on Map`,
+/// `Enter Address Manually`) are offered from the screen's state machine.
 class _ChecklistItem extends StatelessWidget {
   const _ChecklistItem(this.text);
 
@@ -340,10 +452,17 @@ class _ChecklistItem extends StatelessWidget {
 
 /// Live accuracy indicator — shows the REAL radius, never "100% accurate".
 class _AccuracyChip extends StatelessWidget {
-  const _AccuracyChip({required this.accuracyMeters, required this.tier});
+  const _AccuracyChip({
+    required this.accuracyMeters,
+    required this.tier,
+    this.label,
+  });
 
   final double? accuracyMeters;
   final AccuracyTier tier;
+
+  /// Overrides the derived text (map-only mode has no radius to report at all).
+  final String? label;
 
   Color get _color => switch (tier) {
         AccuracyTier.excellent => AppColors.qualityBest,
@@ -368,8 +487,9 @@ class _AccuracyChip extends StatelessWidget {
           Icon(Icons.gps_fixed, size: 14, color: _color),
           const SizedBox(width: 6),
           Text(
-            '${LocationAccuracyConfig.tierLabel(tier)} — '
-            '${LocationAccuracyConfig.accuracyLabel(accuracyMeters)}',
+            label ??
+                '${LocationAccuracyConfig.tierLabel(tier)} — '
+                    '${LocationAccuracyConfig.accuracyLabel(accuracyMeters)}',
             style: TextStyle(
                 color: _color, fontWeight: FontWeight.w600, fontSize: 13),
           ),
@@ -397,33 +517,44 @@ class _MapConfirmView extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onConfirm;
 
-  LatLng get _deviceLatLng => LatLng(
-      state.deviceReading!.latitude, state.deviceReading!.longitude);
+  /// Where the GPS fix was taken — null in map-only mode, where no fix exists.
+  LatLng? get _deviceLatLng {
+    final device = state.deviceReading;
+    return device == null ? null : LatLng(device.latitude, device.longitude);
+  }
+
+  /// Map centre when there is neither a fix nor a pin yet: the middle of the
+  /// country, zoomed out, so any shop can be reached by panning.
+  static const LatLng _overviewCenter = LatLng(20.5937, 78.9629);
 
   Set<Marker> get _markers => {
-        // DEVICE LOCATION — where the GPS fix was taken (blue).
-        Marker(
-          markerId: const MarkerId('device_location'),
-          position: _deviceLatLng,
-          infoWindow: const InfoWindow(title: 'Your device location'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueAzure),
-        ),
+        // DEVICE LOCATION — where the GPS fix was taken (blue). Absent in
+        // map-only mode, because there is no fix to show.
+        if (_deviceLatLng != null)
+          Marker(
+            markerId: const MarkerId('device_location'),
+            position: _deviceLatLng!,
+            infoWindow: const InfoWindow(title: 'Your device location'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure),
+          ),
         // SHOP PIN — the shop entrance the keeper confirms (red, draggable).
-        Marker(
-          markerId: const MarkerId('shop_pin'),
-          position: state.shopPin!,
-          draggable: true,
-          infoWindow: const InfoWindow(title: 'Shop entrance'),
-          onDragEnd: onTapMap,
-        ),
+        if (state.shopPin != null)
+          Marker(
+            markerId: const MarkerId('shop_pin'),
+            position: state.shopPin!,
+            draggable: true,
+            infoWindow: const InfoWindow(title: 'Shop entrance'),
+            onDragEnd: onTapMap,
+          ),
       };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final poor = state.status == LocationCaptureStatus.locationPoorAccuracy;
-    final center = state.shopPin ?? _deviceLatLng;
+    final hasFix = _deviceLatLng != null;
+    final center = state.shopPin ?? _deviceLatLng ?? _overviewCenter;
     return SafeArea(
       child: Column(
         children: [
@@ -434,14 +565,16 @@ class _MapConfirmView extends StatelessWidget {
                 Semantics(
                   liveRegion: true,
                   child: Text(
-                    'Location found',
+                    state.mapOnly ? 'Place your shop pin' : 'Location found',
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
                 const Spacer(),
                 Text(
-                  'Location accuracy — '
-                  '${LocationAccuracyConfig.accuracyLabel(state.accuracyMeters)}',
+                  state.mapOnly
+                      ? 'No GPS fix — pin placed by hand'
+                      : 'Location accuracy — '
+                          '${LocationAccuracyConfig.accuracyLabel(state.accuracyMeters)}',
                   style: theme.textTheme.labelSmall
                       ?.copyWith(color: theme.colorScheme.outline),
                 ),
@@ -452,10 +585,17 @@ class _MapConfirmView extends StatelessWidget {
             child: Stack(
               children: [
                 GoogleMap(
-                  initialCameraPosition:
-                      CameraPosition(target: center, zoom: 17),
+                  initialCameraPosition: CameraPosition(
+                    target: center,
+                    zoom: hasFix || state.shopPin != null
+                        ? LocationAccuracyConfig.initialMapZoom
+                        : LocationAccuracyConfig.overviewMapZoom,
+                  ),
                   markers: _markers,
-                  myLocationEnabled: true,
+                  // The blue-dot layer needs the location grant; in map-only
+                  // mode the permission is exactly what is missing, so it stays
+                  // off instead of throwing.
+                  myLocationEnabled: state.permission?.granted ?? false,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
@@ -468,8 +608,12 @@ class _MapConfirmView extends StatelessWidget {
                   child: Row(
                     children: [
                       _AccuracyChip(
-                          accuracyMeters: state.accuracyMeters,
-                          tier: state.tier),
+                        accuracyMeters: state.accuracyMeters,
+                        tier: state.tier,
+                        label: state.mapOnly
+                            ? 'Accuracy unknown — no GPS fix'
+                            : null,
+                      ),
                       const Spacer(),
                       FloatingActionButton.small(
                         heroTag: 'recenter',
@@ -479,6 +623,24 @@ class _MapConfirmView extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (state.mapOnly && !adjusting)
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    right: 12,
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Text(
+                          state.shopPin == null
+                              ? 'Tap the map to place your shop pin.'
+                              : 'Drag the pin or tap the map to correct your '
+                                  'shop entrance.',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  ),
                 if (adjusting)
                   Positioned(
                     bottom: 12,
@@ -524,7 +686,9 @@ class _BottomPanel extends ConsumerWidget {
   });
 
   final LocationCaptureState state;
-  final LatLng deviceLatLng;
+
+  /// Device GPS fix — `null` in map-only mode.
+  final LatLng? deviceLatLng;
   final bool poor;
   final VoidCallback onRetry;
   final VoidCallback onToggleAdjust;
@@ -533,6 +697,9 @@ class _BottomPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    // Local for null-promotion (public final fields do not promote).
+    final fix = deviceLatLng;
+    final pin = state.shopPin;
     return Flexible(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -574,17 +741,25 @@ class _BottomPanel extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
             ],
-            Text('Device location vs shop pin',
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: theme.colorScheme.outline)),
+            Text(
+              fix == null
+                  ? 'Shop pin (placed by hand — no GPS fix)'
+                  : 'Device location vs shop pin',
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
             const SizedBox(height: 4),
             Text(
-              '📍 Device GPS: '
-              '${deviceLatLng.latitude.toStringAsFixed(6)}, '
-              '${deviceLatLng.longitude.toStringAsFixed(6)}\n'
-              '🏪 Shop pin: '
-              '${state.shopPin!.latitude.toStringAsFixed(6)}, '
-              '${state.shopPin!.longitude.toStringAsFixed(6)}',
+              [
+                if (fix != null)
+                  '📍 Device GPS: ${fix.latitude.toStringAsFixed(6)}, '
+                      '${fix.longitude.toStringAsFixed(6)}',
+                if (pin != null)
+                  '🏪 Shop pin: ${pin.latitude.toStringAsFixed(6)}, '
+                      '${pin.longitude.toStringAsFixed(6)}'
+                else
+                  '🏪 Shop pin: not placed yet — tap the map',
+              ].join('\n'),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -612,6 +787,15 @@ class _BottomPanel extends ConsumerWidget {
                 icon: const Icon(Icons.check_circle_outline),
                 label: const Text('Confirm Shop Location'),
               ),
+              if (state.mapOnly) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const Key('location_try_gps_again'),
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('Use my current location instead'),
+                ),
+              ],
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: onToggleAdjust,

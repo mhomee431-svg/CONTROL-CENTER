@@ -5,7 +5,7 @@ import html as _html
 import logging
 from datetime import datetime, timedelta, timezone
 
-from app.core.celery_app import celery_app
+from app.core.celery_app import celery_app, publish_task_nonblocking
 from app.database.session import SessionLocal
 from app.search import indexer
 from app.search.engine import aggregate_popular_searches
@@ -309,7 +309,10 @@ def dispatch_scheduled_pos_syncs() -> dict:
                 )
                 if created:
                     db.commit()
-                    run_pos_sync_job.delay(job.id)
+                    publish_task_nonblocking(
+                        lambda: run_pos_sync_job.delay(job.id),
+                        label=f"run_pos_sync_job({job.id})",
+                    )
                     dispatched.append(
                         {"integration_id": integration.id, "job_id": job.id, "sync_type": sync_type}
                     )

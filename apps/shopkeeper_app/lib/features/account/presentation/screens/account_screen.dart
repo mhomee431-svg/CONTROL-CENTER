@@ -166,6 +166,14 @@ class _UserCard extends StatelessWidget {
                 Text(user?.phoneNumber ?? '',
                     style:
                         TextStyle(fontSize: 13, color: scheme.outline)),
+                // E-mail is shown only when the backend actually has one —
+                // the card never invents a placeholder address.
+                if (user?.email != null && (user?.email as String).trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(user!.email!.trim(),
+                      style:
+                          TextStyle(fontSize: 13, color: scheme.outline)),
+                ],
                 if (user?.role != null) ...[
                   const SizedBox(height: 6),
                   Container(

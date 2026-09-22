@@ -4,7 +4,7 @@
 
 All endpoints require shopkeeper authentication and business ownership.
 """
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -14,13 +14,10 @@ from app.database.session import get_db
 from app.models.merchant_onboarding import MerchantOnboarding
 from app.models.user import User
 from app.schemas.merchant_onboarding import (
-    AdminOnboardingListItem,
-    AdminOnboardingReviewRequest,
     BankVerificationRequest,
     CategoryDocumentsRequest,
     IdentityVerificationRequest,
     MerchantOnboardingRequest,
-    OnboardingStatusResponse,
 )
 from app.services import merchant_onboarding_service
 
@@ -218,7 +215,7 @@ async def submit_identity(
         )
 
     onboarding = _get_onboarding_for_user(db, current_user, business_id)
-    result = merchant_onboarding_service.submit_identity_verification(
+    result = await merchant_onboarding_service.submit_identity_verification(
         db, onboarding, current_user,
         gstin=payload.gstin, udyam_number=payload.udyam_number,
     )
@@ -246,7 +243,7 @@ async def submit_bank(
 ):
     """Submit bank account for penny-drop verification."""
     onboarding = _get_onboarding_for_user(db, current_user, business_id)
-    result = merchant_onboarding_service.submit_bank_verification(
+    result = await merchant_onboarding_service.submit_bank_verification(
         db, onboarding, current_user,
         account_number=payload.account_number,
         ifsc_code=payload.ifsc_code,
@@ -276,7 +273,7 @@ async def submit_category_documents(
 ):
     """Submit category-specific documents for verification."""
     onboarding = _get_onboarding_for_user(db, current_user, business_id)
-    result = merchant_onboarding_service.submit_category_documents(
+    result = await merchant_onboarding_service.submit_category_documents(
         db, onboarding, current_user,
         category_details=payload.category_details,
     )

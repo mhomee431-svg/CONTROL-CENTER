@@ -54,6 +54,10 @@ class LocationAccuracyConfig {
   /// Initial camera zoom when centering on the device location.
   static const double initialMapZoom = 17;
 
+  /// Zoom used when there is neither a GPS fix nor a pin yet (map-only mode):
+  /// the shopkeeper pans/zooms to their shop.
+  static const double overviewMapZoom = 5;
+
   /// If the shop pin is moved further than this from the device GPS fix,
   /// the shopkeeper must explicitly confirm ("Are you sure this is your shop?").
   static const double pinDriftWarningMeters = 150;

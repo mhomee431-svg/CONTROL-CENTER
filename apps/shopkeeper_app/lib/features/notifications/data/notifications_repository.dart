@@ -7,9 +7,18 @@ import '../domain/notification_models.dart';
 
 /// Notifications contract for one authorized shop.
 abstract class NotificationsRepository {
-  /// Latest notifications surfaced to the shop's owners/managers.
+  /// One page of notifications surfaced to the shop's owners/managers.
+  ///
+  /// Paginated by the BACKEND (`limit` / `offset`): the page carries the
+  /// server's own `total`, which is what the screen uses to decide whether a
+  /// further page exists. Nothing is loaded twice — the caller passes the
+  /// offset of the rows it already holds.
   Future<NotificationsPage> fetchNotifications(
-      int shopId, String token, {int limit});
+    int shopId,
+    String token, {
+    int limit,
+    int offset,
+  });
 
   /// Marks a single notification as read (idempotent on the backend).
   Future<void> markAsRead(int notificationId, String token);
@@ -28,12 +37,13 @@ class ApiNotificationsRepository implements NotificationsRepository {
   Future<NotificationsPage> fetchNotifications(
     int shopId,
     String token, {
-    int limit = 50,
+    int limit = notificationsPageSize,
+    int offset = 0,
   }) async {
     final data = await _api.get(
       ApiEndpoints.shopNotifications(shopId),
       token: token,
-      query: {'limit': limit},
+      query: {'limit': limit, 'offset': offset},
     ) as Map<String, dynamic>;
     return NotificationsPage.fromJson(data);
   }

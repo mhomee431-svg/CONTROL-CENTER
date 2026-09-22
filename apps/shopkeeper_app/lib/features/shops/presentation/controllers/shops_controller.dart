@@ -67,6 +67,30 @@ class ShopsController extends Notifier<ShopsState> {
     }
   }
 
+  bool _refreshInFlight = false;
+
+  /// Silent re-fetch used by background resume/reconnect refreshes (see
+  /// `features/shell/app_lifecycle_controller.dart`): keeps the current
+  /// (possibly `ready`) state visible the whole time and only replaces it on
+  /// success — the Shops screen must never flash a spinner for a background
+  /// refresh it did not ask for. Re-entrant calls are dropped, never queued.
+  Future<void> refresh() async {
+    if (_refreshInFlight) return;
+    _refreshInFlight = true;
+    try {
+      final token = await _token();
+      if (token == null) return; // signed out mid-flight → keep current state
+      final shops = await _repo.listMyShops(token);
+      state = ShopsState(status: ShopsStatus.ready, shops: shops);
+    } catch (_) {
+      // Silent: the auth listener only mirrors a `ready` list that actually
+      // differs, so a failure leaves both this state and the session
+      // snapshot untouched — the next resume/reconnect tries again.
+    } finally {
+      _refreshInFlight = false;
+    }
+  }
+
   /// Registers a new shop owned by the current user and returns the created
   /// detail, or `null` on failure (with [ShopsState.errorMessage] populated
   /// from the backend's own message).

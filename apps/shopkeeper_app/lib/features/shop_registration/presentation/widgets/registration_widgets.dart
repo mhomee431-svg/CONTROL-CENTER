@@ -486,11 +486,21 @@ class RegistrationErrorCard extends StatelessWidget {
     required this.message,
     this.onRetry,
     this.icon = Icons.cloud_off_outlined,
+    this.retryLabel = 'Retry',
+    this.extraActions = const <RegistrationErrorAction>[],
   });
 
   final String message;
   final VoidCallback? onRetry;
   final IconData icon;
+
+  /// Label of the link-styled primary action ('Retry' unless the state needs a
+  /// more specific word, e.g. 'Allow Location').
+  final String retryLabel;
+
+  /// Additional ways forward (fallbacks) rendered under the message. Used by
+  /// the location step so a denied permission never dead-ends.
+  final List<RegistrationErrorAction> extraActions;
 
   @override
   Widget build(BuildContext context) {
@@ -503,49 +513,90 @@ class RegistrationErrorCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(RegistrationSpacing.fieldRadius),
         border: Border.all(color: scheme.error.withValues(alpha: 0.3)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: scheme.error),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                fontSize: 13.5,
-                height: 1.45,
-                color: RegistrationColors.textPrimary,
-              ),
-            ),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(width: 8),
-            // Link-styled, but still an action: it needs a button role and a
-            // 44dp touch target (previously ~20dp of bare text).
-            Semantics(
-              button: true,
-              child: GestureDetector(
-                onTap: onRetry,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  child: Text(
-                    'Retry',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.primary,
-                    ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 20, color: scheme.error),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: RegistrationColors.textPrimary,
                   ),
                 ),
               ),
+              if (onRetry != null) ...[
+                const SizedBox(width: 8),
+                // Link-styled, but still an action: it needs a button role and
+                // a 44dp touch target (previously ~20dp of bare text).
+                Semantics(
+                  button: true,
+                  child: GestureDetector(
+                    onTap: onRetry,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 12),
+                      child: Text(
+                        retryLabel,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          // Fallbacks that need no permission at all — a blocked shopkeeper is
+          // never left without a next step.
+          if (extraActions.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 4,
+              runSpacing: 0,
+              children: [
+                for (final action in extraActions)
+                  TextButton(
+                    key: action.key,
+                    onPressed: action.onPressed,
+                    child: Text(
+                      action.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ],
       ),
     );
   }
+}
+
+/// One fallback action inside a [RegistrationErrorCard].
+class RegistrationErrorAction {
+  const RegistrationErrorAction({
+    required this.label,
+    required this.onPressed,
+    this.key,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final Key? key;
 }
 
 // ── Location accuracy chip (never claims 100% GPS accuracy) ───────────────────

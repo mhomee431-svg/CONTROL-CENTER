@@ -132,10 +132,10 @@ class ApiClient {
   /// Invoked when a request fails with 401 (session revoked/expired).
   final void Function(ApiException error)? onUnauthorized;
 
-  Options _options(String? token) => Options(
+  Options _options(String? token, {bool json = true}) => Options(
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          if (json) 'Content-Type': 'application/json',
           if (token != null && token.isNotEmpty)
             'Authorization': 'Bearer $token',
         },
@@ -160,6 +160,40 @@ class ApiClient {
 
   Future<dynamic> delete(String path, {String? token}) =>
       _send(() => dio.delete(path, options: _options(token)));
+
+  /// Multipart POST against this API (the backend-streamed upload path).
+  ///
+  /// `Content-Type` is deliberately NOT set: Dio writes
+  /// `multipart/form-data; boundary=…` itself, and forcing the JSON type here
+  /// would strip the boundary the server needs to parse the parts.
+  Future<dynamic> postMultipart(
+    String path, {
+    required FormData form,
+    String? token,
+  }) =>
+      _send(() => dio.post(path, data: form, options: _options(token, json: false)));
+
+  /// POST a multipart form to an ABSOLUTE third-party URL (the signed S3
+  /// upload endpoint).
+  ///
+  /// No `Authorization` header and no JSON content type are attached: the
+  /// signature in the form already authorizes the write, and S3 rejects a
+  /// request carrying credentials it did not sign for.
+  Future<void> postFormToExternal(String url, {required FormData form}) async {
+    try {
+      await dio.post(
+        url,
+        data: form,
+        options: Options(
+          headers: const {'Accept': '*/*'},
+          // S3 answers 204 on success; Dio must not treat it as an empty body.
+          responseType: ResponseType.plain,
+        ),
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 
   Future<dynamic> _send(Future<Response<dynamic>> Function() fn) async {
     try {

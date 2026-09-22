@@ -82,10 +82,12 @@ class DashboardController extends Notifier<DashboardState> {
   Future<DashboardAlerts> _loadAlerts(
       int shopId, String token, DashboardData data) async {
     final failedImport = await _guard(() async {
-      final jobs = await ref
+      // One small page is enough for a "needs attention" signal: the newest
+      // jobs are the ones the shopkeeper can still act on.
+      final page = await ref
           .read(inventoryImportRepositoryProvider)
           .listJobs(shopId, token, limit: 10);
-      for (final job in jobs) {
+      for (final job in page.jobs) {
         // Newest first — the first FAILED job (or one stored with row
         // errors) is the one the shopkeeper should fix.
         if (job.status == 'FAILED' || (job.status == 'PARTIAL' && job.hasErrors)) {
@@ -127,6 +129,37 @@ class DashboardController extends Notifier<DashboardState> {
       return await run();
     } catch (_) {
       return null;
+    }
+  }
+
+  bool _refreshInFlight = false;
+
+  /// Re-fetches the dashboard WITHOUT blanking the screen (silent refresh).
+  ///
+  /// Background resume/reconnect refreshes (see
+  /// `features/shell/app_lifecycle_controller.dart`) use this instead of
+  /// [load]: the shopkeeper keeps seeing the last numbers while fresh ones
+  /// load, and a failure keeps the current view instead of throwing an error
+  /// over working data. A re-entrant call while one refresh is running is
+  /// dropped, never queued.
+  Future<void> refresh() async {
+    if (_refreshInFlight) return;
+    final shop = ref.read(selectedShopProvider);
+    if (shop == null) return;
+    _refreshInFlight = true;
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      // Signed out mid-flight → keep the current view; logout resets state.
+      if (token == null) return;
+      final data = await _repo.fetchDashboard(shop.id, token);
+      final alerts = await _loadAlerts(shop.id, token, data);
+      state = DashboardState(
+          status: DashboardStatus.ready, data: data, alerts: alerts);
+    } catch (_) {
+      // Silent: a failed background refresh keeps the current state — the
+      // next resume/reconnect/user pull-to-refresh tries again.
+    } finally {
+      _refreshInFlight = false;
     }
   }
 

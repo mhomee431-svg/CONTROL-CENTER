@@ -38,6 +38,7 @@ class LocationCaptureState {
     this.pinDriftConfirmed = false,
     this.address,
     this.addressLineOverride,
+    this.mapOnly = false,
     this.isSaving = false,
     this.errorMessage,
   });
@@ -69,6 +70,12 @@ class LocationCaptureState {
   /// Shopkeeper-edited address text (kept separate from coordinates).
   final String? addressLineOverride;
 
+  /// True when the pin was placed WITHOUT a GPS fix (permission denied, GPS
+  /// services off, or no signal) — the shopkeeper picked it on the map or
+  /// typed the coordinates. Accuracy is unknown in that case, which is stated
+  /// instead of invented.
+  final bool mapOnly;
+
   final bool isSaving;
   final String? errorMessage;
 
@@ -80,10 +87,15 @@ class LocationCaptureState {
       accuracyMeters != null &&
       accuracyMeters! <= LocationAccuracyConfig.minimumUsableAccuracyMeters;
 
+  /// True when the permission must be re-granted in the system settings —
+  /// asking again cannot work (permanently denied / locked by policy).
+  bool get permissionBlocked => permission?.deniedForever ?? false;
+
   bool get canConfirm =>
       shopPin != null &&
-      deviceReading != null &&
-      hasUsableAccuracy &&
+      // A hand-placed pin needs no GPS reading; a GPS-backed pin must meet the
+      // accuracy contract.
+      (mapOnly || (deviceReading != null && hasUsableAccuracy)) &&
       (pinDriftMeters == null ||
           pinDriftMeters! <= LocationAccuracyConfig.pinDriftWarningMeters ||
           pinDriftConfirmed);
@@ -105,6 +117,7 @@ class LocationCaptureState {
     bool? pinDriftConfirmed,
     PickedLocation? address,
     String? addressLineOverride,
+    bool? mapOnly,
     bool? isSaving,
     String? errorMessage,
     bool clearError = false,
@@ -120,6 +133,7 @@ class LocationCaptureState {
       pinDriftConfirmed: pinDriftConfirmed ?? this.pinDriftConfirmed,
       address: address ?? this.address,
       addressLineOverride: addressLineOverride ?? this.addressLineOverride,
+      mapOnly: mapOnly ?? this.mapOnly,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -134,19 +148,23 @@ class CapturedShopLocation {
   const CapturedShopLocation({
     required this.latitude,
     required this.longitude,
-    required this.accuracyMeters,
     required this.capturedAt,
+    this.accuracyMeters,
     this.addressText,
     this.city,
     this.state,
     this.pincode,
     this.locationType = 'SHOP_ENTRANCE',
     this.integrityStatus = 'UNKNOWN',
+    this.locationSource = 'GPS',
   });
 
   final double latitude;
   final double longitude;
-  final double accuracyMeters;
+
+  /// Accuracy radius of the GPS fix that produced the pin. `null` when the pin
+  /// was placed by hand on the map (no fix) — never fabricated as 0.
+  final double? accuracyMeters;
   final DateTime capturedAt;
   final String? addressText;
   final String? city;
@@ -159,12 +177,15 @@ class CapturedShopLocation {
   /// Client-side mock/suspicious signal (NORMAL | SUSPICIOUS | UNKNOWN).
   final String integrityStatus;
 
+  /// Backend `LocationSource`: GPS (device fix) or MANUAL (hand-placed pin).
+  final String locationSource;
+
   Map<String, dynamic> toLocationMeta() => {
-        'location_source': 'GPS',
+        'location_source': locationSource,
         'location_type': locationType,
         'location_status': 'CAPTURED',
         'location_integrity_status': integrityStatus,
-        'accuracy_meters': accuracyMeters,
+        if (accuracyMeters != null) 'accuracy_meters': accuracyMeters,
         'location_captured_at': capturedAt.toUtc().toIso8601String(),
         'location_verified': true,
       };

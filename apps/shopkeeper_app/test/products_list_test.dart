@@ -130,6 +130,9 @@ void main() {
 
       Future<void> search(String query) async {
         await tester.enterText(searchBox(), query);
+        // The search box debounces the filter call: pump past the 300 ms
+        // pause so the query reaches the list before asserting.
+        await tester.pump(const Duration(milliseconds: 350));
         await tester.pumpAndSettle();
       }
 
@@ -160,6 +163,9 @@ void main() {
       await pumpList(tester, harness.container);
 
       await tester.enterText(searchBox(), 'nothing-like-this');
+      // The search box debounces the filter call: pump past the 300 ms
+      // pause so the query reaches the list before asserting.
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
       expect(

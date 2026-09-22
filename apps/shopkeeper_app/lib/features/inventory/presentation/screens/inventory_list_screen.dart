@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/ui/cached_data_notice.dart';
+import '../../../../core/ui/debounced_search_field.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../products/presentation/controllers/recent_searches_controller.dart';
 import '../../domain/inventory_scope.dart';
 import '../controllers/inventory_scope_controller.dart';
 import '../widgets/inventory_shared.dart';
@@ -34,16 +36,10 @@ class InventoryScopeScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
-  /// The search box's text buffer. The query itself lives in the scope's view
-  /// controller; this controller only mirrors it so typing keeps its cursor
-  /// and selection, and it is seeded from the query on mount, which is what
-  /// brings the shopkeeper's search text back with the screen.
-  final TextEditingController _search = TextEditingController();
-
-  /// The state and the controller of THIS scope (one provider per scope: four
-  /// scope routes stay alive side by side in the shell's indexed stack).
-  InventoryScopeState get _state =>
-      ref.read(inventoryScopeControllerProvider(widget.scope));
+  /// The query lives in the scope's view controller;
+  /// [DebouncedSearchField] mirrors it internally, seeded from the query on
+  /// mount, which is what brings the shopkeeper's search text back with the
+  /// screen.
 
   InventoryScopeController get _controller =>
       ref.read(inventoryScopeControllerProvider(widget.scope).notifier);
@@ -51,19 +47,12 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
   @override
   void initState() {
     super.initState();
-    _search.text = _state.query.search;
     Future.microtask(() {
       final state = ref.read(productsControllerProvider);
       if (state.status == ProductsStatus.loading && state.items.isEmpty) {
         ref.read(productsControllerProvider.notifier).load();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   @override
@@ -78,6 +67,8 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
         .watch(inventoryScopeControllerProvider(widget.scope).notifier)
         .pageFor(catalog.items);
     final query = view.query;
+    // Shared product-search history: submitted terms only, most-recent-first.
+    final recents = ref.watch(recentSearchesControllerProvider).terms;
 
     return Scaffold(
       appBar: AppBar(
@@ -96,15 +87,23 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
+            child: DebouncedSearchField(
               key: const Key('inventory-search-field'),
-              controller: _search,
+              hintText: 'Search name, brand or SKU',
+              initialValue: query.search,
               onChanged: _controller.setSearch,
-              decoration: InputDecoration(
-                hintText: 'Search name, brand or SKU',
-                prefixIcon: const Icon(Icons.search_outlined),
-                isDense: true,
-              ),
+              // A submitted term is history (shared across the catalog lists).
+              onSubmitted: (value) => ref
+                  .read(recentSearchesControllerProvider.notifier)
+                  .record(value),
+              onFocusLost: (value) => ref
+                  .read(recentSearchesControllerProvider.notifier)
+                  .record(value),
+              recentSearches: recents,
+              onRecentSelected: _controller.setSearch,
+              onRecentRemoved: (term) => ref
+                  .read(recentSearchesControllerProvider.notifier)
+                  .remove(term),
             ),
           ),
           if (catalog.status == ProductsStatus.ready)
@@ -160,8 +159,7 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
                 emptyPlaceholder: _EmptyScope(
                   scope: widget.scope,
                   query: query.search,
-                  onClearSearch: () {
-                    _search.clear();
+                                    onClearSearch: () {
                     _controller.clear();
                   },
                 ),

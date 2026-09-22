@@ -412,6 +412,23 @@ class ProductHistoryEntry {
   String get actorLabel =>
       (actor != null && actor!.trim().isNotEmpty) ? 'By ${actor!.trim()}' : 'Automated';
 
+  /// Value signature used to de-duplicate a row across PAGES.
+  ///
+  /// Audit entries carry no id, so two pages are stitched by their content: the
+  /// type, the timestamp and the numbers/actor of a change describe it uniquely.
+  /// An identical pair of rows would be a genuine duplicate.
+  String get signature => [
+        type,
+        occurredAt?.toUtc().toIso8601String() ?? '',
+        quantityChange ?? '',
+        quantityAdjustment ?? '',
+        quantityBefore ?? '',
+        quantityAfter ?? '',
+        oldPrice ?? '',
+        newPrice ?? '',
+        actor ?? '',
+      ].join('|');
+
   /// Signed delta this entry applied to stock (null for price changes).
   int? get stockDelta => quantityChange ??
       quantityAdjustment ??
@@ -546,6 +563,13 @@ class LowStockThresholdResult {
             ShopProductItem._parseDate(json['last_inventory_update']),
       );
 }
+/// How many audit entries one history request asks for.
+///
+/// The history endpoint accepts `limit` 1…200; 50 matches the server's own
+/// default, so the first page is exactly what the backend already served and
+/// each further page is one bounded request.
+const int productHistoryPageSize = 50;
+
 /// Combined audit trail for one shop product (newest first, server-sorted).
 class ProductHistoryResult {
   const ProductHistoryResult({
@@ -557,6 +581,7 @@ class ProductHistoryResult {
     this.hasMore = false,
     this.currentQuantity,
     this.stockStatus,
+    this.received,
   });
 
   final int shopProductId;
@@ -582,8 +607,58 @@ class ProductHistoryResult {
   /// Server stock state string for the summary tile (never a client enum).
   final String? stockStatus;
 
+  /// How many rows the SERVER has served for this product across every page
+  /// merged into [entries].
+  ///
+  /// Deliberately separate from `entries.length`: de-duplication across pages
+  /// can drop a row, and client-side filtering (the price history hides every
+  /// non-price entry) shrinks the visible list — neither may move the server's
+  /// window, or a follow-up request would re-fetch or skip a page.
+  final int? received;
+
+  /// Rows the server has served so far (falls back to the rows in hand).
+  int get servedCount => received ?? entries.length;
+
+  /// The offset a FOLLOW-UP page request must start at.
+  int get nextOffset => offset + servedCount;
+
   /// Parsed entry count.
   int get count => entries.length;
+
+  /// Entries the server still holds beyond the rows in hand — the count
+  /// "Load more" offers. Null when the server never reported a total, so the
+  /// control asks to load more without claiming a number it cannot know.
+  int? get hidden {
+    final known = total;
+    if (known == null) return null;
+    final left = known - entries.length;
+    return left > 0 ? left : 0;
+  }
+
+  /// This result with [next]'s rows appended — the ONE way two pages of an
+  /// audit trail are stitched, so the stock history and the price history page
+  /// identically.
+  ///
+  /// [total]/[hasMore] come from [next]: the last page the server returned is
+  /// the one that knows where its window now ends.
+  ProductHistoryResult append(ProductHistoryResult next) {
+    final seen = entries.map((e) => e.signature).toSet();
+    return ProductHistoryResult(
+      shopProductId: next.shopProductId == 0 ? shopProductId : next.shopProductId,
+      entries: [
+        ...entries,
+        ...next.entries.where((e) => !seen.contains(e.signature)),
+      ],
+      total: next.total ?? total,
+      // The window still starts where the FIRST page started.
+      offset: offset,
+      limit: next.limit,
+      hasMore: next.hasMore,
+      currentQuantity: next.currentQuantity ?? currentQuantity,
+      stockStatus: next.stockStatus ?? stockStatus,
+      received: servedCount + next.servedCount,
+    );
+  }
 
   factory ProductHistoryResult.fromJson(Map<String, dynamic> json) {
     final entries = ((json['entries'] as List<dynamic>?) ?? const [])
@@ -604,6 +679,7 @@ class ProductHistoryResult {
           (total != null && offset + entries.length < total),
       currentQuantity: (json['current_quantity'] as num?)?.toInt(),
       stockStatus: json['stock_status'] as String?,
+      received: entries.length,
     );
   }
 }

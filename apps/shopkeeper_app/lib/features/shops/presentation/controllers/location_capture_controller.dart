@@ -92,11 +92,36 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
       pinIsAdjusted: false,
       pinDriftMeters: 0,
       pinDriftConfirmed: false,
+      // A real fix replaces the hand-placed-pin mode.
+      mapOnly: false,
       status: poor
           ? LocationCaptureStatus.locationPoorAccuracy
           : LocationCaptureStatus.locationReady,
     );
   }
+
+  /// Fallback that needs NO permission and NO GPS: the shopkeeper places the
+  /// shop pin on the map by hand ("Choose Location on Map").
+  ///
+  /// Nothing is fabricated — [LocationCaptureState.mapOnly] is set so the UI
+  /// and the submitted payload state that the coordinates were placed
+  /// manually (backend `LocationSource.MANUAL`) and that no accuracy radius
+  /// exists.
+  void startMapOnlyCapture() {
+    state = state.copyWith(
+      status: LocationCaptureStatus.locationReady,
+      mapOnly: true,
+      clearError: true,
+    );
+  }
+
+  /// Opens this app's page in the system settings — the only way back from a
+  /// permanently denied location permission.
+  Future<bool> openSystemSettings() => _location.openAppSettings();
+
+  /// Opens the device location-services page — the way back from "GPS is off".
+  Future<bool> openDeviceLocationSettings() =>
+      _location.openLocationSettings();
 
   /// Moves the shop ENTRANCE pin; significant drift from the GPS fix is
   /// flagged and must be confirmed by the shopkeeper.

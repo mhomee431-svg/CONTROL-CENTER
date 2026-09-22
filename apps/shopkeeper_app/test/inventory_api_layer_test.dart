@@ -244,5 +244,16 @@ class FakeApiClient implements ApiClient {
 
   @override
   Future<dynamic> delete(String path, {String? token}) async => response;
+
+  @override
+  Future<dynamic> postMultipart(
+    String path, {
+    required FormData form,
+    String? token,
+  }) async =>
+      response;
+
+  @override
+  Future<void> postFormToExternal(String url, {required FormData form}) async {}
 }
 

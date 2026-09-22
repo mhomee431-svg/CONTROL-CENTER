@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import event
@@ -11,9 +11,11 @@ from app.main import app
 from app.core.security import hash_password, verify_password, create_password_reset_token
 from app.database.session import Base, get_db
 from app.models.user import User, UserStatus
-from app.models.role import Role, Permission
-from app.models.session import AuthSession, TokenBlacklist
-from app.models.shop import Shop, ShopOwner, ShopManager, ShopStatus
+# Model imports below are also metadata registration: `create_test_tables()`
+# resolves these tables through Base.metadata.sorted_tables.
+from app.models.role import Role, Permission  # noqa: F401
+from app.models.session import AuthSession, TokenBlacklist  # noqa: F401
+from app.models.shop import Shop, ShopOwner, ShopManager, ShopStatus  # noqa: F401
 from app.core.shopkeeper_permissions import ensure_shopkeeper_role
 
 
@@ -46,9 +48,6 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 # Models use PostgreSQL `server_default="now()"`, which SQLite can't evaluate.
 # This ORM event auto-populates created_at/updated_at in Python for any mapped
 # object that declares them, so INSERTs never fall back to the DB default.
-from sqlalchemy.orm import Mapper
-
-
 @event.listens_for(TestingSessionLocal, "before_flush")
 def _fill_timestamps(session, flush_context, instances):
     for obj in session.new:
@@ -122,19 +121,32 @@ def client():
                 table.drop(engine, checkfirst=True)
         except Exception:
             pass
-    
+
     # Create tables
     create_test_tables()
-    yield TestClient(app)
-    
-    # Cleanup
-    for table_name in needed_tables:
-        try:
-            table = Base.metadata.tables.get(table_name)
-            if table is not None:
-                table.drop(engine, checkfirst=True)
-        except Exception:
-            pass
+
+    # Pin this module's SQLite session onto the app for exactly this test.
+    # Another module's teardown may call ``app.dependency_overrides.clear()``,
+    # which would strip the override installed at import time and send these
+    # requests to the real PostgreSQL engine instead (~2 minute connect stall
+    # when no local server is running). Snapshot first so co-running modules
+    # get their own wiring back afterwards.
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
+
+        # Cleanup
+        for table_name in needed_tables:
+            try:
+                table = Base.metadata.tables.get(table_name)
+                if table is not None:
+                    table.drop(engine, checkfirst=True)
+            except Exception:
+                pass
 
 
 @pytest.fixture
@@ -645,7 +657,6 @@ class TestLogoutRevocation:
         )
 
     def test_logout_revokes_token_session(self, client, db, active_user):
-        from app.models.session import AuthSession
         from app.services.auth_service import issue_tokens
 
         tokens = issue_tokens(active_user, db, device_id="logout-test-device")

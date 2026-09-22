@@ -38,3 +38,17 @@ class MediaAttachRequest(BaseModel):
     product_master_id: Optional[int] = Field(None, ge=1)
     shop_id: Optional[int] = Field(None, ge=1, description="Target shop (required for both target types)")
     field: str = Field("image", max_length=12, description="Shop target column: image | cover | logo")
+
+
+class MediaStatusResponse(BaseModel):
+    """Phase 2/3 - lifecycle state of a media key (returned by GET /media/status)."""
+
+    key: str
+    state: str = Field(..., description="PENDING | UPLOADED | PROCESSING | READY | FAILED")
+    content_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    quarantine_key: Optional[str] = None
+    processed_at: Optional[str] = None
+    created_at: Optional[str] = None

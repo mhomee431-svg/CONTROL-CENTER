@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/ui/cached_data_notice.dart';
+import '../../../../core/ui/debounced_search_field.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../products/presentation/controllers/recent_searches_controller.dart';
 import '../controllers/price_list_controller.dart';
 import '../widgets/pricing_shared.dart';
 import '../../../inventory/presentation/widgets/inventory_shared.dart'
@@ -29,11 +31,10 @@ class PriceListScreen extends ConsumerStatefulWidget {
 }
 
 class _PriceListScreenState extends ConsumerState<PriceListScreen> {
-  /// The search box's text buffer. The query itself lives in the view
-  /// controller; this controller only mirrors it so typing keeps its cursor
-  /// and selection, and it is seeded from the query on mount, which is what
-  /// brings the shopkeeper's search text back with the screen.
-  final TextEditingController _search = TextEditingController();
+  /// The query itself lives in the view controller;
+  /// [DebouncedSearchField] mirrors it internally, seeded from the query on
+  /// mount, which is what brings the shopkeeper's search text back with the
+  /// screen.
 
   PriceListController get _controller =>
       ref.read(priceListControllerProvider.notifier);
@@ -41,19 +42,12 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
   @override
   void initState() {
     super.initState();
-    _search.text = ref.read(priceListControllerProvider).query.search;
     Future.microtask(() {
       final state = ref.read(productsControllerProvider);
       if (state.status == ProductsStatus.loading && state.items.isEmpty) {
         ref.read(productsControllerProvider.notifier).load();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   @override
@@ -65,6 +59,8 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
     ref.watch(priceListControllerProvider);
     final page =
         ref.watch(priceListControllerProvider.notifier).pageFor(catalog.items);
+    // Shared product-search history: submitted terms only, most-recent-first.
+    final recents = ref.watch(recentSearchesControllerProvider).terms;
 
     return Scaffold(
       appBar: AppBar(
@@ -88,15 +84,26 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
+            child: DebouncedSearchField(
               key: const Key('price-search-field'),
-              controller: _search,
+              hintText: 'Search name, brand or SKU',
+              initialValue: ref
+                  .read(priceListControllerProvider)
+                  .query
+                  .search,
               onChanged: _controller.setSearch,
-              decoration: const InputDecoration(
-                hintText: 'Search name, brand or SKU',
-                prefixIcon: Icon(Icons.search_outlined),
-                isDense: true,
-              ),
+              // A submitted term is history (shared across the catalog lists).
+              onSubmitted: (value) => ref
+                  .read(recentSearchesControllerProvider.notifier)
+                  .record(value),
+              onFocusLost: (value) => ref
+                  .read(recentSearchesControllerProvider.notifier)
+                  .record(value),
+              recentSearches: recents,
+              onRecentSelected: _controller.setSearch,
+              onRecentRemoved: (term) => ref
+                  .read(recentSearchesControllerProvider.notifier)
+                  .remove(term),
             ),
           ),
           Expanded(

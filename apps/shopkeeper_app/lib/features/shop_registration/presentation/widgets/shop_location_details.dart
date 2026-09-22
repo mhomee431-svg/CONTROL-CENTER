@@ -76,6 +76,8 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
       RegistrationLocationStatus.adjustingAccuracy =>
         'Getting location... Improving accuracy',
       RegistrationLocationStatus.permissionDenied => 'Permission denied',
+      RegistrationLocationStatus.permissionBlocked =>
+        'Permission blocked — allow it in phone settings',
       RegistrationLocationStatus.serviceDisabled ||
       RegistrationLocationStatus.error =>
         'Unable to get location',

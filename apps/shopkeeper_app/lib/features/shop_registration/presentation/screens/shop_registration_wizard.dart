@@ -691,6 +691,16 @@ class _LocationStep extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onNext;
 
+  /// Whether the blue "my location" layer may be drawn: it needs the location
+  /// grant, which manual mode exists precisely because it is missing.
+  bool get _showsDeviceLocationLayer => switch (state.locationStatus) {
+        RegistrationLocationStatus.locating ||
+        RegistrationLocationStatus.adjustingAccuracy =>
+          true,
+        RegistrationLocationStatus.ready => !state.locationManual,
+        _ => false,
+      };
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -739,7 +749,10 @@ class _LocationStep extends StatelessWidget {
                                 context, listen: false)
                             .read(shopRegistrationControllerProvider.notifier)
                             .movePin(latLng),
-                        myLocationEnabled: true,
+                        // The blue-dot layer needs the location grant: on for a
+                        // GPS-backed pin, off in manual mode (where the
+                        // permission is exactly what is missing).
+                        myLocationEnabled: _showsDeviceLocationLayer,
                         zoomControlsEnabled: false,
                         mapToolbarEnabled: false,
                       ),
@@ -747,9 +760,10 @@ class _LocationStep extends StatelessWidget {
                         top: 10,
                         left: 10,
                         child: RegistrationAccuracyChip(
-                            accuracyMeters: state.pinAdjusted
-                                ? null
-                                : state.accuracyMeters),
+                            accuracyMeters:
+                                (state.pinAdjusted || state.locationManual)
+                                    ? null
+                                    : state.accuracyMeters),
                       ),
                       Positioned(
                         bottom: 12,
@@ -767,6 +781,17 @@ class _LocationStep extends StatelessWidget {
                   ),
                 ),
               ),
+              if (state.locationManual) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'No GPS fix — tap the map above to place your shop entrance '
+                  'pin, or type the coordinates below.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: RegistrationColors.textSecondary,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               ShopLocationDetails(
                 state: state,
@@ -888,27 +913,127 @@ class _LocationActions extends StatelessWidget {
         ),
       );
     }
-    if (locationStatus == RegistrationLocationStatus.permissionDenied) {
+    if (locationStatus == RegistrationLocationStatus.permissionDenied ||
+        locationStatus == RegistrationLocationStatus.permissionBlocked) {
+      final blocked =
+          locationStatus == RegistrationLocationStatus.permissionBlocked;
       return RegistrationErrorCard(
+        key: const Key('registration_location_permission_card'),
         icon: Icons.lock_outline,
-        message: 'Permission denied. Allow location access in app settings, '
-            'then retry, or select your shop manually.',
-        onRetry: () => notifier.acquireLocation(),
+        message: blocked
+            ? 'Location permission is blocked for this app. Allow it in your '
+                'phone settings, or place your shop pin on the map below.'
+            : 'Permission denied. Allow location access, then retry, or select '
+                'your shop location on the map below.',
+        // A blocked permission cannot be asked again — the system settings are
+        // the only way back, so the primary action changes with the state.
+        retryLabel: blocked ? 'Open System Settings' : 'Allow Location',
+        onRetry: blocked
+            ? () => notifier.openSystemSettings()
+            : () => notifier.acquireLocation(),
+        extraActions: [
+          RegistrationErrorAction(
+            key: const Key('registration_choose_on_map'),
+            label: 'Choose Location on Map',
+            onPressed: () {
+              notifier.useManualLocation();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Tap the map to place your shop pin.'),
+              ));
+            },
+          ),
+          RegistrationErrorAction(
+            key: const Key('registration_enter_address'),
+            label: 'Enter Address Manually',
+            onPressed: () {
+              notifier.useManualLocation();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text(
+                  'Type your address below, then tap the map to place your '
+                  'shop pin.',
+                ),
+              ));
+            },
+          ),
+        ],
       );
     }
     if (locationStatus == RegistrationLocationStatus.serviceDisabled) {
       return RegistrationErrorCard(
+        key: const Key('registration_location_services_card'),
         icon: Icons.location_off_outlined,
         message:
             'Location services are turned off. Please enable GPS and try again.',
-        onRetry: () => notifier.acquireLocation(),
+        // The permission is fine — only the device switch can be turned on.
+        retryLabel: 'Turn On GPS',
+        onRetry: () => notifier.openDeviceLocationSettings(),
+        extraActions: [
+          RegistrationErrorAction(
+            key: const Key('registration_choose_on_map'),
+            label: 'Choose Location on Map',
+            onPressed: () {
+              notifier.useManualLocation();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Tap the map to place your shop pin.'),
+              ));
+            },
+          ),
+          RegistrationErrorAction(
+            key: const Key('registration_enter_address'),
+            label: 'Enter Address Manually',
+            onPressed: () {
+              notifier.useManualLocation();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text(
+                  'Type your address below, then tap the map to place your '
+                  'shop pin.',
+                ),
+              ));
+            },
+          ),
+        ],
       );
     }
     if (locationStatus == RegistrationLocationStatus.error) {
       return RegistrationErrorCard(
+        key: const Key('registration_location_error_card'),
         message:
             controllerState.locationError ?? 'Could not get your location.',
         onRetry: () => notifier.retryLocation(),
+        extraActions: [
+          RegistrationErrorAction(
+            key: const Key('registration_choose_on_map'),
+            label: 'Choose Location on Map',
+            onPressed: () {
+              notifier.useManualLocation();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Tap the map to place your shop pin.'),
+              ));
+            },
+          ),
+        ],
+      );
+    }
+    if (controllerState.locationManual) {
+      return PrimaryButton(
+        key: const Key('registration_place_pin_on_map'),
+        label: controllerState.pin == null
+            ? 'Place Pin on the Map'
+            : 'Confirm Location and Continue',
+        icon: controllerState.pin == null ? Icons.map_outlined : Icons.check,
+        loading: controllerState.reverseGeocoding,
+        loadingLabel: 'Detecting address…',
+        onPressed: () async {
+          if (controllerState.pin == null) {
+            // Manual mode: GPS is unavailable by choice, so never re-run the
+            // permission flow behind the shopkeeper's back.
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Tap the map to place your shop pin.'),
+            ));
+            return;
+          }
+          await notifier.confirmPinAndReverseGeocode();
+        },
       );
     }
     return PrimaryButton(

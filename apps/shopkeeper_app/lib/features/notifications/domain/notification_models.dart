@@ -276,26 +276,52 @@ class ShopkeeperNotification {
   }
 }
 
-/// Full notifications page payload.
+/// How many rows one notifications request asks for.
+///
+/// The shop-notifications endpoint accepts `limit` 1…100; 20 is its own default
+/// and the page size the list was designed around, so the first request matches
+/// the server's own framing and each "Load more" is one bounded round trip
+/// instead of a full history dump.
+const int notificationsPageSize = 20;
+
+/// One page of the notifications endpoint, plus the counters the screen needs.
 class NotificationsPage {
   const NotificationsPage({
     required this.items,
     required this.unreadCount,
+    this.total = 0,
   });
 
   final List<ShopkeeperNotification> items;
   final int unreadCount;
 
+  /// How many notifications THIS shop has in total, as counted by the server
+  /// across every page (not just the rows in this response).
+  ///
+  /// It exists so "is there another page?" is answered by the backend rather
+  /// than guessed from a short page — a page that ends exactly on a size
+  /// boundary would otherwise look like the end of the list.
+  final int total;
+
   bool get isEmpty => items.isEmpty;
 
-  factory NotificationsPage.fromJson(Map<String, dynamic> json) =>
-      NotificationsPage(
-        items: ((json['notifications'] as List<dynamic>?) ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(ShopkeeperNotification.fromJson)
-            .toList(growable: false),
-        unreadCount: (json['unread'] as num?)?.toInt() ?? 0,
-      );
+  /// True when this response did not carry every row the server holds.
+  bool get hasMore => items.length < total;
+
+  factory NotificationsPage.fromJson(Map<String, dynamic> json) {
+    final items = ((json['notifications'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShopkeeperNotification.fromJson)
+        .toList(growable: false);
+    // Older payloads omit `total`; falling back to the row count keeps
+    // `hasMore` false (no invented "load more") instead of promising a page
+    // the server never said existed.
+    return NotificationsPage(
+      items: items,
+      unreadCount: (json['unread'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? items.length,
+    );
+  }
 }
 
 /// Material icon for a backend notification type.

@@ -1,5 +1,5 @@
 # app/schemas/product.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 from enum import Enum
 
@@ -26,8 +26,7 @@ class ProductMaster(BaseModel):
     image_url: Optional[str] = None
     description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ShopInventory(BaseModel):
@@ -41,8 +40,7 @@ class ShopInventory(BaseModel):
     availability_status: AvailabilityStatus
     distance_km: float = Field(..., description="Distance of the shop from the user's location in kilometers.")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductComparisonResponse(BaseModel):
@@ -53,5 +51,4 @@ class ProductComparisonResponse(BaseModel):
     product_details: ProductMaster
     shop_inventories: List[ShopInventory]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

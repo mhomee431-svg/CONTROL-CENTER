@@ -270,10 +270,21 @@ async def get_shop_notifications(
     shop_id: int,
     unread_only: bool = Query(False),
     limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get notifications relevant to this shop owners/managers."""
+    """Get notifications relevant to this shop owners/managers.
+
+    Paginated (``limit`` / ``offset``) like every other list this app reads:
+    the response carries ``total`` so the client can tell whether another page
+    exists instead of guessing from a short page.
+
+    ``unread`` is counted across the WHOLE shop-scoped set, not just the
+    returned page — a page-scoped count would make the badge shrink as the
+    shopkeeper pages deeper, and a page with no unread rows would report zero
+    even while earlier pages were still unread.
+    """
     access = _resolve(shop_id, current_user, db)
     access.require("notifications", "read")
     shop = access.shop
@@ -285,17 +296,28 @@ async def get_shop_notifications(
         if manager.user_id and manager.user_id not in user_ids:
             user_ids.append(manager.user_id)
     if not user_ids:
-        return success_response(data={"notifications": [], "count": 0, "unread": 0})
-    query = (
-        db.query(Notification)
-        .filter(Notification.user_id.in_(user_ids))
-        .order_by(Notification.created_at.desc())
-        .limit(limit)
-    )
+        return success_response(
+            data={"notifications": [], "count": 0, "total": 0, "unread": 0}
+        )
+    base = db.query(Notification).filter(Notification.user_id.in_(user_ids))
     if unread_only:
-        query = query.filter(Notification.is_read == False)  # noqa: E712
-    notifications = query.all()
-    unread = sum(1 for n in notifications if not n.is_read)
+        base = base.filter(Notification.is_read == False)  # noqa: E712
+    total = base.count()
+    # Badge count: every unread notification in scope, independent of the page.
+    unread = (
+        db.query(Notification)
+        .filter(
+            Notification.user_id.in_(user_ids),
+            Notification.is_read == False,  # noqa: E712
+        )
+        .count()
+    )
+    notifications = (
+        base.order_by(Notification.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return success_response(data={
         "notifications": [
             {
@@ -315,6 +337,7 @@ async def get_shop_notifications(
             for n in notifications
         ],
         "count": len(notifications),
+        "total": total,
         "unread": unread,
     })
 

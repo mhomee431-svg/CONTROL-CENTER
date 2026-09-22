@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../widgets/inventory_shared.dart';
@@ -25,6 +26,9 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
   ShopProductItem? _selected;
   ProductHistoryLoad? _load;
   bool _loading = false;
+
+  /// True while the next page of the trail is in flight.
+  bool _loadingMore = false;
 
   bool get _pickerMode => widget.product == null && _selected == null;
 
@@ -52,6 +56,26 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
     if (!mounted) return;
     setState(() {
       _loading = false;
+      _load = load;
+    });
+  }
+
+  /// Fetches the NEXT page of the audit trail.
+  ///
+  /// The server pages it (`limit`/`offset` + `has_more`): the request starts at
+  /// the offset the loaded page ended at, and the returned page is stitched on
+  /// by the controller's shared append rule. A failed page keeps every entry
+  /// already on screen.
+  Future<void> _loadMore() async {
+    final history = _load?.history;
+    if (history == null || !history.hasMore || _loadingMore) return;
+    setState(() => _loadingMore = true);
+    final load = await ref
+        .read(productsControllerProvider.notifier)
+        .loadMoreHistory(_product.id, history);
+    if (!mounted) return;
+    setState(() {
+      _loadingMore = false;
       _load = load;
     });
   }
@@ -102,19 +126,35 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _HistoryList(load: _load, onRefresh: _loadHistory),
+          : _HistoryList(
+              load: _load,
+              onRefresh: _loadHistory,
+              onLoadMore: _loadMore,
+              loadingMore: _loadingMore,
+            ),
     );
   }
 }
 
 class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.load, required this.onRefresh});
+  const _HistoryList({
+    required this.load,
+    required this.onRefresh,
+    required this.onLoadMore,
+    required this.loadingMore,
+  });
 
   final ProductHistoryLoad? load;
 
   /// Re-fetches the trail (pull-to-refresh / retry). Owned by the screen so
   /// the summary tile and the entries always come from the same fetch.
   final Future<void> Function() onRefresh;
+
+  /// Reveals the next page of the trail (the server pages it).
+  final Future<void> Function() onLoadMore;
+
+  /// True while that next page is in flight.
+  final bool loadingMore;
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +171,10 @@ class _HistoryList extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (history != null) StockHistorySummary(history: history),
-          if (load?.error != null)
+          // A failure with nothing loaded is the full error state; a failure
+          // after entries are on screen is a footnote under them, so a page
+          // that did not arrive can never hide the trail already fetched.
+          if (load?.error != null && entries.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
@@ -166,11 +209,41 @@ class _HistoryList extends StatelessWidget {
                 ],
               ),
             )
-          else
+          else ...[
             for (var i = 0; i < entries.length; i++) ...[
               if (i > 0) const Divider(height: 1),
               _EntryTile(entry: entries[i]),
             ],
+            // Older entries stay behind the server's page break until asked
+            // for — the trail is a paged endpoint, not one giant response.
+            if (history != null && history.hasMore)
+              LoadMoreTile(
+                key: const Key('stock-history-load-more'),
+                hidden: history.hidden,
+                onTap: loadingMore ? () {} : onLoadMore,
+              ),
+            if (loadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            if (load?.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  load!.error!,
+                  key: const Key('stock-history-page-error'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: outline),
+                ),
+              ),
+          ],
         ],
       ),
     );

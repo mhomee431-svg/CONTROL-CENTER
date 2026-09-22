@@ -1,5 +1,6 @@
 """Tests for Firebase Authentication - Part 2: RBAC and Legacy Migration."""
 import pytest
+from .test_database_schema import requires_db
 from unittest.mock import patch
 
 from app.core.exceptions import ForbiddenError, UnauthorizedError
@@ -49,6 +50,7 @@ class TestFirebaseAuthResult:
 class TestRoleBasedAccessControl:
     """Tests for RBAC enforcement."""
 
+    @requires_db
     def test_customer_cannot_access_shopkeeper_routes(self, db_session):
         """Customer role should not have shopkeeper permissions."""
         with patch("app.services.firebase_auth_service.verify_firebase_id_token") as mock_verify:
@@ -65,6 +67,7 @@ class TestRoleBasedAccessControl:
             permission_names = [p.name for p in result.user.role.permissions]
             assert "create:shop" not in permission_names
 
+    @requires_db
     def test_shopkeeper_has_shop_permissions(self, db_session):
         """Shopkeeper role should have shop-related permissions."""
         with patch("app.services.firebase_auth_service.verify_firebase_id_token") as mock_verify:
@@ -82,6 +85,7 @@ class TestRoleBasedAccessControl:
 class TestLegacyMigration:
     """Tests for legacy user migration (phone number linking)."""
 
+    @requires_db
     def test_legacy_user_linked_by_phone(self, db_session):
         """Existing user without firebase_uid should be linked by phone."""
         # Create legacy user without firebase_uid

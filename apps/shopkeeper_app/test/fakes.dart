@@ -649,7 +649,12 @@ ShopkeeperNotification notificationFixture({
     );
 
 class FakeNotificationsRepo implements NotificationsRepository {
-  FakeNotificationsRepo({this.page, this.error, this.markAsReadError});
+  FakeNotificationsRepo({
+    this.page,
+    this.error,
+    this.markAsReadError,
+    this.allItems,
+  });
 
   /// Notifications page returned on success (the baseline state).
   final NotificationsPage? page;
@@ -663,6 +668,17 @@ class FakeNotificationsRepo implements NotificationsRepository {
   final List<int> markedRead = [];
   int fetchCalls = 0;
 
+  /// The `offset` of every fetch, in order — the proof that "Load more" asks
+  /// for the rows it does not already hold.
+  final List<int> requestedOffsets = [];
+
+  /// Full fixture for PAGED reads.
+  ///
+  /// When set, the fake slices it by `limit`/`offset` exactly like the shop
+  /// notifications endpoint and reports the server's total, so a "Load more"
+  /// test pages through real second-page rows instead of replaying page one.
+  final List<ShopkeeperNotification>? allItems;
+
   /// Bulk mark-all-read calls (the controller must use ONE call, not a loop).
   int markAllAsReadCalls = 0;
 
@@ -670,10 +686,24 @@ class FakeNotificationsRepo implements NotificationsRepository {
   Future<NotificationsPage> fetchNotifications(
     int shopId,
     String token, {
-    int limit = 50,
+    int limit = notificationsPageSize,
+    int offset = 0,
   }) async {
     fetchCalls++;
+    requestedOffsets.add(offset);
     if (error != null) throw error!;
+    final full = allItems;
+    if (full != null) {
+      final start = offset < full.length ? offset : full.length;
+      final end = offset + limit < full.length ? offset + limit : full.length;
+      return NotificationsPage(
+        items: full.sublist(start, end),
+        // The backend counts unread across the WHOLE shop-scoped set, not just
+        // the returned page — the fake does the same.
+        unreadCount: full.where((n) => n.isUnread).length,
+        total: full.length,
+      );
+    }
     final base = page ?? const NotificationsPage(items: [], unreadCount: 0);
     if (markedRead.isEmpty) return base;
 
@@ -692,6 +722,7 @@ class FakeNotificationsRepo implements NotificationsRepository {
     return NotificationsPage(
       items: items,
       unreadCount: unread < 0 ? 0 : unread,
+      total: base.total == 0 ? items.length : base.total,
     );
   }
 
@@ -828,6 +859,7 @@ class FakeImportRepo implements InventoryImportRepository {
     this.onUpload,
     this.onConfirm,
     this.onList,
+    this.allJobs,
     this.error,
     this.sampleBytes,
   });
@@ -837,11 +869,22 @@ class FakeImportRepo implements InventoryImportRepository {
   final ImportConfirmResult? onConfirm;
   final List<ImportJob>? onList;
 
+  /// Full fixture for PAGED reads.
+  ///
+  /// When set, the fake slices it by `limit`/`offset` exactly like the backend
+  /// and reports the server's total — so a "Load more" test sees real second-page
+  /// rows instead of a replay of page one.
+  final List<ImportJob>? allJobs;
+
   /// When set, thrown from every call (simulates a network failure).
   final Object? error;
 
   /// Returned by [downloadSample] (defaults to a plausible .xlsx magic).
   final Uint8List? sampleBytes;
+
+  /// The `offset` of every list request, in order — the proof that paging asks
+  /// for the rows it does not already hold.
+  final List<int> requestedJobOffsets = [];
 
   int uploadCalls = 0;
   int confirmCalls = 0;
@@ -902,14 +945,22 @@ class FakeImportRepo implements InventoryImportRepository {
   }
 
   @override
-  Future<List<ImportJob>> listJobs(
+  Future<ImportJobPage> listJobs(
     int shopId,
     String token, {
-    int limit = 20,
+    int limit = importJobsPageSize,
+    int offset = 0,
   }) async {
     lastShopId = shopId;
+    requestedJobOffsets.add(offset);
     if (error != null) throw error!;
-    return onList ??
+    final full = allJobs;
+    if (full != null) {
+      final start = offset < full.length ? offset : full.length;
+      final end = offset + limit < full.length ? offset + limit : full.length;
+      return ImportJobPage(jobs: full.sublist(start, end), total: full.length);
+    }
+    final jobs = onList ??
         const [
           ImportJob(
             id: 1,
@@ -920,6 +971,7 @@ class FakeImportRepo implements InventoryImportRepository {
             errorRows: 0,
           ),
         ];
+    return ImportJobPage(jobs: jobs, total: jobs.length);
   }
 
   @override
@@ -944,6 +996,7 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     this.onUpdate,
     this.onAdjustStock,
     this.onHistory,
+    this.allHistoryEntries,
     this.onLowStockThreshold,
     this.onAdjustments,
   });
@@ -1037,11 +1090,21 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   /// Overrides the [fetchProductHistory] response.
   final ProductHistoryResult? Function(int, int, String)? onHistory;
 
+  /// Full fixture for PAGED history reads.
+  ///
+  /// When set, the fake slices it by `limit`/`offset` like the backend and
+  /// reports `total` / `has_more`, so a history "Load more" test pages through
+  /// real second-page entries instead of replaying the first page.
+  final List<ProductHistoryEntry>? allHistoryEntries;
+
   int adjustStockCalls = 0;
   int historyCalls = 0;
   int? lastAdjustedId;
   Map<String, dynamic>? lastAdjustPayload;
   int? lastHistoryProductId;
+
+  /// The `offset` of every history request, in order.
+  final List<int> requestedHistoryOffsets = [];
 
   @override
   Future<StockAdjustmentResult> adjustStock(
@@ -1073,11 +1136,29 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   Future<ProductHistoryResult> fetchProductHistory(
     int shopId,
     int productId,
-    String token,
-  ) async {
+    String token, {
+    int limit = productHistoryPageSize,
+    int offset = 0,
+  }) async {
     historyCalls++;
     lastShopId = shopId;
     lastHistoryProductId = productId;
+    requestedHistoryOffsets.add(offset);
+    final full = allHistoryEntries;
+    if (full != null) {
+      final start = offset < full.length ? offset : full.length;
+      final end = offset + limit < full.length ? offset + limit : full.length;
+      return ProductHistoryResult(
+        shopProductId: productId,
+        entries: full.sublist(start, end),
+        total: full.length,
+        offset: offset,
+        limit: limit,
+        hasMore: end < full.length,
+        currentQuantity: 12,
+        stockStatus: 'IN_STOCK',
+      );
+    }
     final overridden = onHistory?.call(shopId, productId, token);
     if (overridden != null) return overridden;
     return ProductHistoryResult(shopProductId: productId, entries: const []);
@@ -1224,6 +1305,7 @@ class FakeInsightsRepo implements InsightsRepository {
     this.clicksSeries = const <InsightsPoint>[],
     this.topProducts = const <TopProduct>[],
     this.hourly = const <HourlyPoint>[],
+    this.businessInsights = const BusinessInsightsBundle(),
   });
 
   /// Raw payload returned on success (defaults to [insightsJson]).
@@ -1239,11 +1321,21 @@ class FakeInsightsRepo implements InsightsRepository {
   List<TopProduct> topProducts;
   List<HourlyPoint> hourly;
 
+  /// Live business-insight cards. Defaults to an EMPTY bundle, which hides the
+  /// section entirely — tests that don't care about the cards are unaffected.
+  BusinessInsightsBundle businessInsights;
+
+  /// When set, [fetchBusinessInsights] throws this instead of returning
+  /// [businessInsights] — independent of [error], so a test can fail just the
+  /// insight cards and assert the section reports the failure.
+  Object? businessInsightsError;
+
   int calls = 0;
   int viewsCalls = 0;
   int clicksCalls = 0;
   int topProductsCalls = 0;
   int hourlyCalls = 0;
+  int businessInsightsCalls = 0;
   int? lastShopId;
   int? lastDays;
   int? lastTopProductsDays;
@@ -1261,6 +1353,18 @@ class FakeInsightsRepo implements InsightsRepository {
     lastDays = days;
     if (error != null) throw error!;
     return InsightsBundle.fromJson(json ?? insightsJson());
+  }
+
+  @override
+  Future<BusinessInsightsBundle> fetchBusinessInsights(
+    int shopId,
+    String token,
+  ) async {
+    businessInsightsCalls++;
+    lastShopId = shopId;
+    if (businessInsightsError != null) throw businessInsightsError!;
+    if (error != null) throw error!;
+    return businessInsights;
   }
 
   @override

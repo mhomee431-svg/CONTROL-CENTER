@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/ui/lazy_list.dart';
+import '../../../../core/ui/load_more.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/notification_models.dart';
 import '../controllers/notifications_controller.dart';
@@ -82,8 +84,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   /// Ready body: category filter bar above the (filtered) list.
   ///
-  /// Filtering is client-side over the already-loaded page, so switching
-  /// category is instant and never refetches.
+  /// Filtering is client-side over the already-loaded pages, so switching
+  /// category is instant and never refetches. Paging, by contrast, IS a
+  /// backend call: the rows arrive a page at a time ([NotificationsState.total]
+  /// comes from the server), and the footer reveals the next page — the same
+  /// `LoadMoreTile` the catalog lists use, so a paged list behaves identically
+  /// everywhere in the app.
   Widget _readyBody(NotificationsState state) {
     final theme = Theme.of(context);
     final filter = _categoryFilter;
@@ -101,7 +107,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ),
         Divider(height: 1, color: theme.dividerColor),
         Expanded(
-          child: visible.isEmpty
+          child: visible.isEmpty && !state.hasMore
               ? SystemStateView.empty(
                   title: filter == null
                       ? 'No notifications yet'
@@ -116,10 +122,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   onRefresh: () => ref
                       .read(notificationsControllerProvider.notifier)
                       .load(),
-                  child: ListView.separated(
+                  child: LazyListView(
                     itemCount: visible.length,
-                    separatorBuilder: (_, _) => Divider(
-                        height: 1, color: theme.dividerColor),
+                    padding: EdgeInsets.zero,
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, color: theme.dividerColor),
                     itemBuilder: (context, index) {
                       final notification = visible[index];
                       return _NotificationTile(
@@ -127,6 +134,60 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         onTap: () => _onTap(notification),
                       );
                     },
+                    // A filter that hid every loaded row still leaves rows on
+                    // the server: "Load more" stays reachable (the loaded pages
+                    // are filtered client-side), and the empty state is only
+                    // shown once the server has nothing left to send.
+                    emptyPlaceholder: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          filter == null
+                              ? 'No notifications on this page.'
+                              : 'No ${filter.label} notifications on this page.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: theme.colorScheme.outline),
+                        ),
+                      ),
+                    ),
+                    footer: [
+                      if (state.hasMore)
+                        LoadMoreTile(
+                          key: const Key('notifications-load-more'),
+                          hidden: state.hidden,
+                          onTap: state.loadingMore
+                              ? () {}
+                              : () => ref
+                                  .read(notificationsControllerProvider.notifier)
+                                  .loadMore(),
+                        ),
+                      if (state.loadingMore)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                      // A page that failed keeps the rows already loaded and
+                      // says why — it never blanks the list.
+                      if (state.message != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          child: Text(
+                            state.message!,
+                            key: const Key('notifications-page-error'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
         ),

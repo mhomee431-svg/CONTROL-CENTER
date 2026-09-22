@@ -269,16 +269,85 @@ class GeolocatorPositionSource implements PositionSource {
       ).map(GpsReading.fromPosition);
 }
 
+/// Abstraction over the two system-settings pages a blocked shopkeeper needs.
+///
+/// WHY ITS OWN INTERFACE: the location capture stack is used by widget tests
+/// that must never touch a platform channel, and the callers only care that
+/// "Open settings" was attempted. A test double records the call and returns
+/// the result the scenario needs.
+abstract class SystemSettingsOpener {
+  /// This app's page in the system settings — the way back from a permanently
+  /// denied location permission.
+  Future<bool> openAppSettings();
+
+  /// The DEVICE location-services page — the way back from "GPS is turned off".
+  Future<bool> openLocationSettings();
+}
+
+/// Production implementation (geolocator's own settings deep links).
+class PlatformSettingsOpener implements SystemSettingsOpener {
+  const PlatformSettingsOpener();
+
+  @override
+  Future<bool> openAppSettings() async {
+    try {
+      return await Geolocator.openAppSettings();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> openLocationSettings() async {
+    try {
+      return await Geolocator.openLocationSettings();
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+/// Test double: records which page was requested, opens nothing.
+class RecordingSettingsOpener implements SystemSettingsOpener {
+  final List<String> calls = [];
+
+  /// Result handed back to the caller.
+  bool result = true;
+
+  @override
+  Future<bool> openAppSettings() async {
+    calls.add('app');
+    return result;
+  }
+
+  @override
+  Future<bool> openLocationSettings() async {
+    calls.add('location');
+    return result;
+  }
+}
+
 /// High-accuracy location service: permission flow, multi-reading acquisition,
 /// best-reading selection, staleness handling — NO low-level GPS logic in UI.
 class LocationService {
-  LocationService({PositionSource? positionSource})
-      : _source = positionSource ?? const GeolocatorPositionSource();
+  LocationService({
+    PositionSource? positionSource,
+    SystemSettingsOpener? settingsOpener,
+  })  : _source = positionSource ?? const GeolocatorPositionSource(),
+        _settings = settingsOpener ?? const PlatformSettingsOpener();
 
   static final LocationService instance =
       LocationService();
 
   final PositionSource _source;
+  final SystemSettingsOpener _settings;
+
+  /// Opens this app's page in the system settings. `false` when the platform
+  /// refused — the caller explains instead of pretending it worked.
+  Future<bool> openAppSettings() => _settings.openAppSettings();
+
+  /// Opens the device location-services page (GPS off, not permission).
+  Future<bool> openLocationSettings() => _settings.openLocationSettings();
 
   /// Pre-flight permission/service check. Never throws.
   Future<LocationPermissionStatus> resolvePermission() async {

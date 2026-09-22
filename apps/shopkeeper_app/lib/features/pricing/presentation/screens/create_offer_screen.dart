@@ -81,7 +81,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
     );
-    if (picked == null) return;
+    // The date picker route can be dismissed while this screen is disposed;
+    // never touch state after that.
+    if (picked == null || !mounted) return;
     setState(() {
       if (isStart) {
         _start = picked;

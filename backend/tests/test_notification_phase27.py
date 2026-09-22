@@ -572,7 +572,7 @@ class TestRetry:
             sweep = ns.retry_failed_notifications(db)
             assert sweep["retried"] >= 1
 
-            notification = db.query(Notification).get(nid)
+            notification = db.get(Notification, nid)
             assert notification.delivery_status == "SENT"
             delivery = db.query(NotificationDelivery).one()
             assert delivery.status == "SENT"
@@ -658,7 +658,7 @@ class TestEndToEndBusinessEvent:
         assert sent.data["notification_id"] == str(created_ids[0])
         assert "149" in sent.body
 
-        notification = db.query(Notification).get(created_ids[0])
+        notification = db.get(Notification, created_ids[0])
         assert notification.type == "PRICE_DROP"
         assert notification.audience == "customer"
         assert notification.delivery_status == "SENT"

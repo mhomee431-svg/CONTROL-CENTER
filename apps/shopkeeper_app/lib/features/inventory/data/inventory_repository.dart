@@ -26,8 +26,13 @@ abstract class InventoryRepository {
 
   /// Inventory history: movements, adjustments and price changes, newest
   /// first (`GET /shops/{shopId}/products/{productId}/history`).
+  ///
+  /// Paginated by the BACKEND (`limit` / `offset`): [offset] selects the page,
+  /// so a product with a long audit trail never ships its whole history in one
+  /// response. The result carries the server's `total` and `has_more`.
   Future<ProductHistoryResult> fetchProductHistory(
-      int shopId, int productId, String token);
+      int shopId, int productId, String token,
+      {int limit, int offset});
 
   /// Change the quantity at which a listing is flagged LOW_STOCK
   /// (`PATCH /shops/{shopId}/products/{productId}/low-stock-threshold`).
@@ -108,10 +113,12 @@ class ApiInventoryRepository implements InventoryRepository {
 
   @override
   Future<ProductHistoryResult> fetchProductHistory(
-      int shopId, int productId, String token) async {
+      int shopId, int productId, String token,
+      {int limit = productHistoryPageSize, int offset = 0}) async {
     final data = await _api.get(
       ApiEndpoints.productHistory('$shopId', '$productId'),
       token: token,
+      query: {'limit': limit, 'offset': offset},
     ) as Map<String, dynamic>;
     return ProductHistoryResult.fromJson(data);
   }

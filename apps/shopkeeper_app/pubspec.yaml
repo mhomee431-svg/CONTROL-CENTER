@@ -56,9 +56,15 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   # Connectivity detection — Online / Offline / Reconnecting states.
   connectivity_plus: ^6.1.0
+  # Runtime permission status + requests (camera, notifications) and the
+  # "open the system settings page" escape hatch for a permanent denial.
+  # Location keeps geolocator as its single permission owner — see
+  # lib/core/permissions/permission_service.dart for the rationale.
+  permission_handler: ^13.0.2
   # Shared platform models (API envelope, pagination) — one source of truth
   hyperlocal_shared_models:
     path: ../../packages/shared_models
+  flutter_image_compress: ^2.5.1
 
 dev_dependencies:
   flutter_test:

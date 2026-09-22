@@ -253,6 +253,8 @@ class ShopLocationState {
     this.detail,
     this.message,
     this.savedMessage,
+    this.needsSettings = false,
+    this.needsLocationServices = false,
   });
 
   final ShopLocationStatus status;
@@ -266,6 +268,14 @@ class ShopLocationState {
 
   /// One-shot success copy — cleared by the screen after showing it.
   final String? savedMessage;
+
+  /// The last failure can only be fixed on this app's system-settings page
+  /// (location permission permanently denied).
+  final bool needsSettings;
+
+  /// The last failure is the DEVICE switch: location services are off, so the
+  /// system location-settings page is the fix.
+  final bool needsLocationServices;
 }
 
 /// Shop Location: reads the stored coordinates and owns the controlled
@@ -332,9 +342,20 @@ class ShopLocationController extends Notifier<ShopLocationState> {
     if (!permission.granted) {
       state = _keep(
         message: permission.deniedForever
-            ? 'Location permission is turned off for this app. Enable it in '
-                  'your device settings and try again.'
+            ? 'Location permission is turned off for this app. Allow it in '
+                  'your phone settings, then try again.'
             : 'Location permission is needed to update the shop location.',
+        // A permanent denial cannot be asked again — the screen offers the
+        // system-settings action instead of a pointless retry loop.
+        needsSettings: permission.deniedForever,
+      );
+      return false;
+    }
+    if (!permission.serviceEnabled) {
+      state = _keep(
+        message:
+            'Location services are turned off. Turn on GPS and try again.',
+        needsLocationServices: true,
       );
       return false;
     }
@@ -408,10 +429,17 @@ class ShopLocationController extends Notifier<ShopLocationState> {
 
   /// Rebuilds the state while keeping the loaded payload — a failed action
   /// must never blank the screen.
-  ShopLocationState _keep({String? message}) => ShopLocationState(
-    status: ShopLocationStatus.ready,
-    detail: state.detail,
-    message: message,
-    savedMessage: state.savedMessage,
-  );
+  ShopLocationState _keep({
+    String? message,
+    bool needsSettings = false,
+    bool needsLocationServices = false,
+  }) =>
+      ShopLocationState(
+        status: ShopLocationStatus.ready,
+        detail: state.detail,
+        message: message,
+        savedMessage: state.savedMessage,
+        needsSettings: needsSettings,
+        needsLocationServices: needsLocationServices,
+      );
 }

@@ -439,3 +439,58 @@ class ShopkeeperOfferAssign(BaseModel):
         if aware_end <= aware_start:
             raise ValueError("Offer end date must be after start date")
         return self
+
+
+class ShopkeeperSupportTicketCreate(BaseModel):
+    """A support ticket filed from the shopkeeper app.
+
+    Sent by *Report an issue* and *Contact support*. Field limits mirror
+    ``app.services.support_service``: the schema rejects an obviously malformed
+    request early (FastAPI 422 with a field-level message), and the service
+    re-validates because it is also reachable from tests and admin tooling.
+    """
+
+    category: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Issue category code (APP_PRODUCTS, APP_INVENTORY, ...)",
+    )
+    description: str = Field(
+        ...,
+        min_length=10,
+        max_length=4000,
+        description="What happened, in the shopkeeper's own words",
+    )
+    priority: str | None = Field(
+        None, max_length=20, description="LOW | MEDIUM | HIGH | URGENT"
+    )
+    subject: str | None = Field(
+        None, max_length=255, description="Optional one-line title"
+    )
+    steps: str | None = Field(
+        None, max_length=2000, description="Optional steps to reproduce"
+    )
+    app_version: str | None = Field(
+        None, max_length=50, description="Client build the report came from"
+    )
+    shop_id: int | None = Field(
+        None,
+        ge=1,
+        description=(
+            "Shop the report belongs to. Authorized through the standard "
+            "shop-access check, so a foreign shop id is rejected with 403."
+        ),
+    )
+    attachment_key: str | None = Field(
+        None,
+        min_length=8,
+        max_length=512,
+        description=(
+            "Optional screenshot/evidence, as a media key from the signed "
+            "upload flow (``support/{your_user_id}/....png``). The key is "
+            "validated (category + self scope + object exists) before it is "
+            "stored, so a foreign or phantom key is rejected."
+        ),
+    )
+

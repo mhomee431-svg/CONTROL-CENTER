@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/network/token_store.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/lazy_list.dart';
+import '../../../../core/ui/load_more.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/import_repository.dart';
 import '../../domain/import_models.dart';
@@ -55,6 +57,10 @@ class _ImportHistoryScreenState extends ConsumerState<ImportHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final jobs = ref.watch(importControllerProvider.select((s) => s.jobs));
+    final total = ref.watch(importControllerProvider.select((s) => s.jobsTotal));
+    final loadingMore =
+        ref.watch(importControllerProvider.select((s) => s.loadingMoreJobs));
+    final hasMore = jobs.length < total;
 
     return Scaffold(
       appBar: AppBar(
@@ -70,12 +76,39 @@ class _ImportHistoryScreenState extends ConsumerState<ImportHistoryScreen> {
       ),
       body: jobs.isEmpty
           ? const _EmptyHistory()
-          : ListView.separated(
+          // The history is PAGED BY THE BACKEND (`limit`/`offset`): only the
+          // jobs already fetched are rendered, and the footer reveals the next
+          // page. `total` is the server's own count, so "Load more" appears
+          // exactly when further jobs exist.
+          : LazyListView(
               padding: const EdgeInsets.all(16),
               itemCount: jobs.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) =>
                   _JobTile(job: jobs[i], onTap: () => _openJob(jobs[i])),
+              footer: [
+                if (hasMore)
+                  LoadMoreTile(
+                    key: const Key('import-history-load-more'),
+                    hidden: total - jobs.length,
+                    onTap: loadingMore
+                        ? () {}
+                        : () => ref
+                            .read(importControllerProvider.notifier)
+                            .loadMoreJobs(),
+                  ),
+                if (loadingMore)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+              ],
             ),
     );
   }

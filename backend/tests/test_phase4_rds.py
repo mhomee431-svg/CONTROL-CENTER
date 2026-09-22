@@ -3,7 +3,7 @@
 These tests require no live database. They validate the parts of the Phase 4
 deliverable that are statically verifiable:
 
-- The Alembic migration chain is linear and its HEAD is "0023".
+- The Alembic migration chain is linear and its HEAD is "0025".
 - PostGIS is enabled by a migration (CREATE EXTENSION postgis).
 - PostGIS Geography columns exist in the migration chain.
 - The Phase 4 verifier (scripts/verify_rds.py) encodes the same approved
@@ -14,8 +14,6 @@ real RDS instance) and in tests/test_database_schema.py (requires DB).
 """
 import re
 from pathlib import Path
-
-import pytest
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 VERSIONS = BACKEND_DIR / "alembic" / "versions"
@@ -45,7 +43,7 @@ def _verifier_tables():
     return set(re.findall(r'"([\w_]+)"', block.group(1)))
 
 
-def test_migration_chain_is_linear_and_head_is_0023():
+def test_migration_chain_is_linear_and_head_is_0025():
     revisions = {}
     for f in _migration_files():
         src = _source(f)
@@ -68,7 +66,7 @@ def test_migration_chain_is_linear_and_head_is_0023():
         if nxt is None:
             break
         current = nxt
-    assert current == "0023", f"migration HEAD should be 0023, got {current}"
+    assert current == "0025", f"migration HEAD should be 0025, got {current}"
     assert sorted(revisions) == sorted(seen), "chain is not linear (branch/merge)"
 
 

@@ -28,8 +28,17 @@ abstract class InventoryImportRepository {
   /// Confirm the staged job → process rows into the canonical inventory.
   Future<ImportConfirmResult> confirm(int shopId, int jobId, String token);
 
-  /// Recent import jobs for this shop (newest first).
-  Future<List<ImportJob>> listJobs(int shopId, String token, {int limit});
+  /// One page of recent import jobs for this shop (newest first).
+  ///
+  /// Paginated by the BACKEND (`limit` / `offset`). The page carries the
+  /// server's `total`, so Import History knows whether another page exists
+  /// instead of inferring it from a short page.
+  Future<ImportJobPage> listJobs(
+    int shopId,
+    String token, {
+    int limit,
+    int offset,
+  });
 
   /// Download Sample — the import template workbook as raw .xlsx bytes.
   Future<Uint8List> downloadSample(int shopId, String token);
@@ -145,24 +154,22 @@ class ApiInventoryImportRepository implements InventoryImportRepository {
   }
 
   @override
-  Future<List<ImportJob>> listJobs(
+  Future<ImportJobPage> listJobs(
     int shopId,
     String token, {
-    int limit = 20,
+    int limit = importJobsPageSize,
+    int offset = 0,
   }) async {
     try {
       final response = await _dio.get(
         ApiEndpoints.inventoryImports(shopId),
-        queryParameters: {'limit': limit},
+        queryParameters: {'limit': limit, 'offset': offset},
         options: _options(token),
       );
       final body = response.data;
       if (body is Map && body['success'] == true) {
         final data = (body['data'] as Map).cast<String, dynamic>();
-        return ((data['items'] as List<dynamic>?) ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(ImportJob.fromJson)
-            .toList(growable: false);
+        return ImportJobPage.fromJson(data);
       }
       throw ApiException(statusCode: response.statusCode, message: 'Not found');
     } on DioException catch (e) {

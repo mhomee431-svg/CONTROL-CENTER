@@ -229,10 +229,16 @@ class ProductsController extends Notifier<ProductsState> {
     }
   }
 
-  /// Loads one product's audit trail (movements / adjustments / price
-  /// changes). Never throws — failures surface as a readable message so the
-  /// history sheet can render an inline error instead of dying.
-  Future<ProductHistoryLoad> loadHistory(int productId) async {
+  /// Loads ONE PAGE of a product's audit trail (movements / adjustments /
+  /// price changes). Never throws — failures surface as a readable message so
+  /// the history sheet can render an inline error instead of dying.
+  ///
+  /// [offset] is the caller's page position: 0 fetches the newest page, and the
+  /// history screens pass the offset the previous page ended at
+  /// ([ProductHistoryResult.nextOffset]) to append the next one. The server
+  /// pages this history, so a long-lived product never ships its whole audit
+  /// trail in a single response.
+  Future<ProductHistoryLoad> loadHistory(int productId, {int offset = 0}) async {
     final shopId = _shopId;
     if (shopId == null) {
       return const ProductHistoryLoad(error: 'No shop selected');
@@ -240,7 +246,12 @@ class ProductsController extends Notifier<ProductsState> {
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
-      final history = await _inventoryRepo.fetchProductHistory(shopId, productId, token);
+      final history = await _inventoryRepo.fetchProductHistory(
+        shopId,
+        productId,
+        token,
+        offset: offset,
+      );
       return ProductHistoryLoad(history: history);
     } on ApiException catch (e) {
       return ProductHistoryLoad(
@@ -251,6 +262,23 @@ class ProductsController extends Notifier<ProductsState> {
     } catch (_) {
       return const ProductHistoryLoad(error: 'Could not load history.');
     }
+  }
+
+  /// Loads the NEXT page of a product's audit trail and stitches it onto
+  /// [current] — the shared append rule, so the stock history and the price
+  /// history page through identical logic.
+  ///
+  /// Returns [current] unchanged (with the reason) when the page could not be
+  /// fetched: a failed page must never empty the history already on screen.
+  Future<ProductHistoryLoad> loadMoreHistory(
+    int productId,
+    ProductHistoryResult current,
+  ) async {
+    final next = await loadHistory(productId, offset: current.nextOffset);
+    if (!next.ok) {
+      return ProductHistoryLoad(history: current, error: next.error);
+    }
+    return ProductHistoryLoad(history: current.append(next.history!));
   }
 
   /// Clears a one-off error message after it has been surfaced.

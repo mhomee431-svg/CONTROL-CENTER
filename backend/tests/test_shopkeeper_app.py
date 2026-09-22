@@ -710,6 +710,315 @@ class TestVerificationStatus:
 
 
 
+    # ── Business Insights ────────────────────────────────────────────────────
+    def test_insights_returns_all_six_cards(self):
+        from app.models.product import (
+            Inventory, Offer, OfferProduct, OfferStatus, OfferType,
+            ProductMaster, ShopProduct, StockStatus,
+        )
+        from app.models.shop import ShopCategory, ShopStatus
+        from app.models.subscription import Subscription, SubscriptionStatus
+        from app.services import shopkeeper_service as svc
+
+        user = make_user(role_name="shopkeeper")
+        shop = make_shop()
+        owner_row = make_owner()
+
+        sp1 = make_shop_product(sp_id=101, master_name="Rice 1kg", price=120.0,
+                                 quantity=50, threshold=10, active=True)
+        sp1.last_inventory_update = datetime.now(timezone.utc) - timedelta(hours=1)
+        sp1.last_price_update = datetime.now(timezone.utc) - timedelta(hours=2)
+
+        sp2 = make_shop_product(sp_id=102, master_name="Sugar 1kg", price=60.0,
+                                 quantity=3, threshold=10, active=True)
+        sp2.last_inventory_update = datetime.now(timezone.utc) - timedelta(days=5)
+
+        sp3 = make_shop_product(sp_id=103, master_name="Atta 5kg", price=250.0,
+                                 quantity=0, threshold=5, active=True)
+        sp3.last_inventory_update = datetime.now(timezone.utc) - timedelta(days=15)
+
+        sp4 = make_shop_product(sp_id=104, master_name="Old Product", price=50.0,
+                                 quantity=0, threshold=5, active=False)
+        sp4.last_inventory_update = datetime.now(timezone.utc) - timedelta(days=60)
+
+        sp5 = make_shop_product(sp_id=105, master_name="Stale Item", price=80.0,
+                                 quantity=20, threshold=5, active=True)
+        sp5.last_inventory_update = datetime.now(timezone.utc) - timedelta(days=45)
+        sp5.last_price_update = datetime.now(timezone.utc) - timedelta(days=45)
+
+        now = datetime.now(timezone.utc)
+        offer = Offer(shop_id=10, title="Diwali Sale",
+                      offer_type=OfferType.PERCENTAGE_DISCOUNT,
+                      status=OfferStatus.ACTIVE, discount_percentage=15.0,
+                      start_date=now - timedelta(days=1),
+                      end_date=now + timedelta(days=7))
+        offer.id = 1
+        op1 = OfferProduct(offer_id=1, shop_product_id=101)
+        op1.id = 1
+        offer.offer_products = [op1]
+
+        draft_offer = Offer(shop_id=10, title="New Year Sale",
+                            offer_type=OfferType.FLAT_DISCOUNT,
+                            status=OfferStatus.DRAFT, discount_value=500.0,
+                            start_date=now, end_date=now + timedelta(days=30))
+        draft_offer.id = 2
+
+        subscription = Subscription(user_id=1, shop_id=10, plan_id=1,
+                                     status=SubscriptionStatus.ACTIVE)
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(owner_row), [owner_row])
+        db.set_all(ShopProduct, [sp1, sp2, sp3, sp4, sp5])
+        db.queue_first(Inventory, [sp1.inventory, sp2.inventory, sp3.inventory,
+                                    sp4.inventory, sp5.inventory])
+        db.set_all(Offer, [offer, draft_offer])
+        db.set_all(OfferProduct, [op1])
+        db.queue_first(type(subscription), [subscription])
+
+        sp1.product_master.image_url = "https://example.com/rice.jpg"
+        sp2.product_master.image_url = "https://example.com/sugar.jpg"
+        sp3.product_master.image_url = "https://example.com/atta.jpg"
+        sp5.product_master.image_url = "https://example.com/stale.jpg"
+
+        access = svc.resolve_shop_access(db, user, 10)
+        insights = svc.business_insights(access, db)
+
+        assert "shop" in insights
+        assert insights["shop"]["id"] == 10
+        assert insights["shop"]["name"] == "Kirana Corner"
+        assert "generated_at" in insights
+        assert "insights" in insights
+        assert len(insights["insights"]) == 6
+
+        by_id = {card["id"]: card for card in insights["insights"]}
+
+        top = by_id["top_products"]
+        assert top["title"] == "Top Products"
+        assert top["status"] == "warning"
+        assert top["metrics"]["total_products"] == 5
+        assert top["metrics"]["active_products"] == 4
+        assert top["metrics"]["ranked_count"] == 4
+        assert len(top["items"]) == 4
+        assert top["items"][0]["shop_product_id"] == 101
+        assert top["items"][0]["name"] == "Rice 1kg"
+        assert top["items"][0]["stock_value"] == 6000.0
+        top_ids = {item["shop_product_id"] for item in top["items"]}
+        assert 104 not in top_ids
+
+        low = by_id["low_stock"]
+        assert low["title"] == "Low Stock Alert"
+        assert low["status"] == "warning"
+        assert low["metrics"]["count"] == 1
+        assert low["metrics"]["total_products"] == 5
+        assert low["metrics"]["percentage"] == 20.0
+        assert low["metrics"]["total_gap_units"] == 7
+        assert len(low["items"]) == 1
+        assert low["items"][0]["shop_product_id"] == 102
+        assert low["items"][0]["name"] == "Sugar 1kg"
+        assert low["items"][0]["gap"] == 7
+        assert low["suggestion"] is not None
+        stale = by_id["stale_inventory"]
+        assert stale["title"] == "Stale Inventory"
+        assert stale["status"] == "warning"
+        assert stale["metrics"]["count"] == 1
+        assert stale["metrics"]["oldest_stale_days"] >= 44
+        assert len(stale["items"]) == 1
+        assert stale["items"][0]["shop_product_id"] == 105
+        assert stale["items"][0]["name"] == "Stale Item"
+        stale_ids = {item["shop_product_id"] for item in stale["items"]}
+        assert 104 not in stale_ids
+        assert 103 not in stale_ids
+
+        visibility = by_id["search_visibility"]
+        assert visibility["title"] == "Product Search Visibility"
+        assert visibility["metrics"]["total_products"] == 5
+        assert visibility["metrics"]["visible_products"] == 4
+        assert visibility["metrics"]["visibility_percentage"] == 80.0
+        assert visibility["metrics"]["products_without_images"] == 0
+        assert visibility["status"] == "healthy"
+        assert "by_status" in visibility["metrics"]
+
+        offers = by_id["offers_performance"]
+        assert offers["title"] == "Offers Performance"
+        assert offers["metrics"]["total_offers"] == 2
+        assert offers["metrics"]["active_offers"] == 1
+        assert offers["metrics"]["draft_offers"] == 1
+        assert offers["metrics"]["expiring_soon"] == 1
+        assert offers["metrics"]["offer_coverage_percentage"] == 25.0
+        assert offers["metrics"]["products_with_offers"] == 1
+        assert offers["metrics"]["by_type"]["PERCENTAGE_DISCOUNT"] == 1
+        assert offers["metrics"]["by_type"]["FLAT_DISCOUNT"] == 1
+        assert len(offers["items"]) == 1
+        assert offers["items"][0]["offer_id"] == 1
+        assert offers["items"][0]["title"] == "Diwali Sale"
+        assert offers["items"][0]["offer_type"] == "PERCENTAGE_DISCOUNT"
+        assert offers["items"][0]["discount_percentage"] == 15.0
+        assert offers["items"][0]["is_expiring_soon"] is True
+        assert offers["suggestion"] is None
+
+        profile = by_id["profile_completeness"]
+        assert profile["title"] == "Profile Completeness"
+        assert profile["metrics"]["total_fields"] == 12
+        assert profile["metrics"]["completed_fields"] == 2
+        assert profile["metrics"]["completeness_percentage"] == round(2 / 12 * 100, 1)
+        assert profile["metrics"]["missing_fields_count"] == 10
+        assert len(profile["items"]) == 10
+        missing_fields = {item["field"] for item in profile["items"]}
+        assert "name" not in missing_fields
+        assert "category" not in missing_fields
+        assert "description" in missing_fields
+        assert "phone" in missing_fields
+        assert profile["status"] == "critical"
+
+        assert low["suggestion"] is not None
+        assert "restock" in low["suggestion"].lower()
+        assert stale["suggestion"] is not None
+        assert profile["suggestion"] is not None
+        assert "complete" in profile["suggestion"].lower()
+        assert top["suggestion"] is None
+
+    def test_insights_empty_shop(self):
+        from app.models.product import Offer, ShopProduct
+        from app.models.shop import ShopCategory, ShopStatus
+        from app.services import shopkeeper_service as svc
+
+        user = make_user(role_name="shopkeeper")
+        shop = make_shop(shop_id=20, name="Empty Shop")
+        owner_row = make_owner(shop_id=20)
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(owner_row), [owner_row])
+        db.set_all(ShopProduct, [])
+        db.set_all(Offer, [])
+
+        access = svc.resolve_shop_access(db, user, 20)
+        insights = svc.business_insights(access, db)
+
+        assert len(insights["insights"]) == 6
+
+    def test_insights_expired_offer_not_active(self):
+        from app.models.product import (
+            Inventory, Offer, OfferProduct, OfferStatus, OfferType,
+            ProductMaster, ShopProduct, StockStatus,
+        )
+        from app.models.shop import ShopCategory, ShopStatus
+        from app.services import shopkeeper_service as svc
+
+        user = make_user(role_name="shopkeeper")
+        shop = make_shop()
+        owner_row = make_owner()
+
+        sp1 = make_shop_product(sp_id=301, master_name="Test Product", price=100.0,
+                                 quantity=20, threshold=5, active=True)
+        sp1.last_inventory_update = datetime.now(timezone.utc) - timedelta(days=1)
+        sp1.product_master.image_url = "https://example.com/test.jpg"
+
+        now = datetime.now(timezone.utc)
+        expired_offer = Offer(shop_id=10, title="Old Sale",
+                              offer_type=OfferType.PERCENTAGE_DISCOUNT,
+                              status=OfferStatus.ACTIVE, discount_percentage=10.0,
+                              start_date=now - timedelta(days=60),
+                              end_date=now - timedelta(days=30))
+        expired_offer.id = 1
+        op1 = OfferProduct(offer_id=1, shop_product_id=301)
+        op1.id = 1
+        expired_offer.offer_products = [op1]
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(owner_row), [owner_row])
+        db.set_all(ShopProduct, [sp1])
+        db.queue_first(Inventory, [sp1.inventory])
+        db.set_all(Offer, [expired_offer])
+        db.set_all(OfferProduct, [op1])
+
+        access = svc.resolve_shop_access(db, user, 10)
+        insights = svc.business_insights(access, db)
+
+        offers = {card["id"]: card for card in insights["insights"]}["offers_performance"]
+        assert offers["metrics"]["active_offers"] == 0
+        assert offers["metrics"]["expiring_soon"] == 0
+        assert offers["items"] == []
+
+
+# ── Business insights endpoint (GET /shopkeeper/shops/{id}/insights) ─────────
+
+
+class TestShopkeeperInsightsRoute:
+    """Route-level coverage: envelope shape + shop-scoped authorization."""
+
+    def test_insights_route_returns_all_six_cards(self):
+        from app.api.routes import shopkeeper_portal
+        from app.models.product import (
+            Inventory,
+            Offer,
+            OfferStatus,
+            OfferType,
+            ShopProduct,
+        )
+
+        user = make_user(role_name="shopkeeper")
+        shop = make_shop()
+        owner_row = make_owner()
+
+        sp1 = make_shop_product(sp_id=401, master_name="Route Rice",
+                                price=100.0, quantity=10, threshold=5, active=True)
+        sp1.product_master.image_url = "https://example.com/route-rice.jpg"
+
+        now = datetime.now(timezone.utc)
+        offer = Offer(shop_id=10, title="Route Sale",
+                      offer_type=OfferType.PERCENTAGE_DISCOUNT,
+                      status=OfferStatus.ACTIVE, discount_percentage=5.0,
+                      start_date=now - timedelta(days=1),
+                      end_date=now + timedelta(days=3))
+        offer.id = 9
+        offer.offer_products = []
+
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(owner_row), [owner_row])
+        db.set_all(ShopProduct, [sp1])
+        db.queue_first(Inventory, [sp1.inventory])
+        db.set_all(Offer, [offer])
+
+        response = run_async(shopkeeper_portal.get_insights(10, user, db))
+        body = json.loads(bytes(response.body).decode())
+
+        assert response.status_code == 200
+        assert body["success"] is True
+        assert body["data"]["shop"]["id"] == 10
+        assert "generated_at" in body["data"]
+        cards = {card["id"] for card in body["data"]["insights"]}
+        assert cards == {
+            "top_products",
+            "low_stock",
+            "stale_inventory",
+            "search_visibility",
+            "offers_performance",
+            "profile_completeness",
+        }
+
+    def test_insights_route_rejects_unauthorized_shop(self):
+        from app.api.routes import shopkeeper_portal
+        from app.core.exceptions import ForbiddenError
+
+        customer = make_user(role_name="customer")
+        shop = make_shop(shop_id=88, name="Someone Else")
+        db = ShopkeeperMockDB()
+        db.queue_first(type(shop), [shop])
+        db.queue_first(type(make_owner()), [None])
+        db.queue_first(type(make_manager()), [None])
+
+        # Direct route invocation surfaces the domain error; FastAPI's exception
+        # handlers translate it to an HTTP 403 on the wire.
+        with pytest.raises(ForbiddenError):
+            run_async(shopkeeper_portal.get_insights(88, customer, db))
+
+
+
+
 # ── Unauthorized shop access ─────────────────────────────────────────────
 
 
@@ -997,6 +1306,7 @@ class TestRouteRegistration:
             "/api/v1/shopkeeper/shops",
             "/api/v1/shopkeeper/shops/{shop_id}",
             "/api/v1/shopkeeper/shops/{shop_id}/dashboard",
+            "/api/v1/shopkeeper/shops/{shop_id}/insights",
             "/api/v1/shopkeeper/shops/{shop_id}/inventory",
             "/api/v1/shopkeeper/shops/{shop_id}/products",
             "/api/v1/shopkeeper/shops/{shop_id}/profile",

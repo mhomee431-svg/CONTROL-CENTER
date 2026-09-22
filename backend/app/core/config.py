@@ -100,10 +100,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, ge=1)
     # Refresh tokens for session renewal (spec: 30 days)
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(30, ge=1)
-    # Session idle timeout
-    SESSION_IDLE_TIMEOUT_DAYS: int = Field(30, ge=1)
-    # Maximum devices per user
-    SESSION_MAX_DEVICES: int = Field(5, ge=1, le=10)
     PASSWORD_HASHING_ALGO: str = "sha256"
     # Password reset token expiry (minutes)
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(30, ge=1)
@@ -111,8 +107,6 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = Field(8, ge=6)
     # Password reset cooldown (seconds) - prevents abuse
     PASSWORD_RESET_COOLDOWN_SECONDS: int = Field(60, ge=30)
-    TOKEN_ISSUER: str = "hyperlocal-api"
-    TOKEN_AUDIENCE: str = "hyperlocal-app"
 
     # ── OTP ─────────────────────────────────────────────────────────────────────
     # Phone OTP delivery is handled client-side by Firebase Phone Auth; the
@@ -215,6 +209,15 @@ class Settings(BaseSettings):
     STORAGE_LOCAL_PATH: str = "./storage/uploads"
     S3_BUCKET_NAME: Optional[str] = None
     S3_REGION: str = "us-east-1"
+
+    # ── Webhooks (Phase 3) ──────────────────────────────────────────────────────
+    # HMAC-SHA256 secret for inbound webhooks (S3-object-created / provider
+    # completion notifications). Required in production; empty => the webhook
+    # endpoint returns 500 (fail closed) so a missing secret is never silent.
+    WEBHOOK_HMAC_SECRET: Optional[str] = None
+    WEBHOOK_TOLERANCE_SECONDS: int = Field(
+        300, ge=0, description="Replay window (seconds) for webhook timestamps"
+    )
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_ENDPOINT_URL: Optional[str] = None
@@ -229,6 +232,17 @@ class Settings(BaseSettings):
     # Hard byte caps per media category (defense against "objects as DB" abuse).
     MEDIA_MAX_IMAGE_BYTES: int = Field(5 * 1024 * 1024, ge=1024)          # 5 MB
     MEDIA_MAX_DOCUMENT_BYTES: int = Field(15 * 1024 * 1024, ge=1024)      # 15 MB
+
+    # -- Virus scanning (optional; see app/core/virus_scanner.py) --------------
+    # Uploads are scanned only when a scanner is reachable: ClamAV through its
+    # daemon, otherwise the external HTTP scanner below. With neither
+    # configured the file is treated as clean (the documented fail-open
+    # default), so this stays OFF until a scanner is actually deployed.
+    VIRUS_SCAN_ENABLED: bool = False
+    VIRUS_SCAN_API_URL: Optional[str] = None
+    VIRUS_SCAN_API_KEY: Optional[str] = None
+    # Hard timeout for the external scanner -- it runs inline with the upload.
+    VIRUS_SCAN_TIMEOUT_SECONDS: float = Field(30.0, ge=1, le=120)
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None

@@ -25,15 +25,14 @@ from app.core.dependencies import (
     get_current_user,
     require_role,
 )
-from app.core.exceptions import AppError, ForbiddenError, UnauthorizedError
+from app.core.exceptions import AppError
 from app.core.logging import get_logger
 from app.core.observability.metrics import record_auth_result
 from app.core.rate_limit import auth_rate_limit
 from app.core.responses import error_response, success_response
 from app.core.security import hash_password, verify_password
-from app.core.shopkeeper_permissions import ensure_shopkeeper_role
 from app.database.session import get_db
-from app.models.role import Role
+from app.models.role import Role  # noqa: F401 - registers the `roles` table on Base.metadata
 from app.models.shop import (
     LocationIntegrityStatus,
     LocationSource,
@@ -57,16 +56,8 @@ from app.schemas.shopkeeper import (
     ShopkeeperSendOTPRequest,
 )
 from app.core.shopkeeper_permissions import sync_owner_role
-from app.models.shop import (
-    LocationIntegrityStatus,
-    LocationSource,
-    LocationStatus,
-    LocationType,
-    Shop,
-    ShopStatus,
-)
-from app.models.shop import ShopOwner
 from app.services import shopkeeper_service
+from app.services.password_service import request_password_reset, reset_password
 from app.services.shopkeeper_service import MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY
 from app.services.auth_service import (
     get_active_sessions,
@@ -76,7 +67,6 @@ from app.services.auth_service import (
     refresh_session,
     revoke_session_by_id,
 )
-from app.services.firebase_auth_service import authenticate_with_firebase
 from app.services.firebase_verification import (
     FirebaseVerificationError,
     verify_firebase_id_token_claims,
@@ -249,7 +239,10 @@ async def register(
     phone_number + password directly. Re-enable the Firebase block when the
     OTP flow is switched back on.
     """
-    client_ip = request.client.host if request.client else None
+    # Retained for the Firebase block documented above: it is the caller IP the
+    # disabled OTP flow would have recorded. Kept so re-enabling the block stays
+    # a pure uncomment, with no line to re-derive.
+    client_ip = request.client.host if request.client else None  # noqa: F841
 
     phone = (payload.phone_number or "").strip()
     name = (payload.name or "").strip()

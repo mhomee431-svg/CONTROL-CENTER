@@ -15,6 +15,8 @@ class InsightsState {
     this.bundle,
     this.rangeDays = kInsightsDefaultRange,
     this.message,
+    this.businessInsights,
+    this.insightsError,
   });
 
   final InsightsStatus status;
@@ -23,6 +25,14 @@ class InsightsState {
   /// Trailing window (days) the current [bundle] was computed for.
   final int rangeDays;
   final String? message;
+
+  /// Live business-insight cards for the same shop (top products, low stock,
+  /// stale inventory, search visibility, offers performance, profile
+  /// completeness). Null when that sub-call failed — [insightsError] then
+  /// carries the reason, so the section reports the failure instead of
+  /// pretending the shop has nothing to show.
+  final BusinessInsightsBundle? businessInsights;
+  final String? insightsError;
 
   factory InsightsState.loading({int rangeDays = kInsightsDefaultRange}) =>
       InsightsState(status: InsightsStatus.loading, rangeDays: rangeDays);
@@ -58,9 +68,26 @@ class InsightsController extends Notifier<InsightsState> {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
       final bundle = await _repo.fetchInsights(shop.id, token, days: rangeDays);
+      // The insight cards come from a second, independent call: the analytics
+      // report stays truthful (and visible) if that sub-call fails, and the
+      // section then says so instead of rendering a fake empty state. A 403 is
+      // rethrown — it means the shop itself is off limits, which the outer
+      // catch classifies as `accessDenied`.
+      BusinessInsightsBundle? businessInsights;
+      String? insightsError;
+      try {
+        businessInsights = await _repo.fetchBusinessInsights(shop.id, token);
+      } on ApiException catch (e) {
+        if (e.isForbidden) rethrow;
+        insightsError = e.message;
+      } catch (_) {
+        insightsError = 'Business insights could not be loaded.';
+      }
       state = InsightsState(
         status: InsightsStatus.ready,
         bundle: bundle,
+        businessInsights: businessInsights,
+        insightsError: insightsError,
         rangeDays: rangeDays,
       );
     } on ApiException catch (e) {

@@ -1,0 +1,6 @@
+# ── Generated Lambda packaging artifacts (Phase 3 media processor) ───────────
+# `infrastructure/lambda_staging/` is produced by
+# `python infrastructure/build_media_lambda_staging.py` and the zip is produced
+# by Terraform's `data "archive_file"` — neither belongs in version control.
+lambda_staging/
+media_processor_lambda.zip

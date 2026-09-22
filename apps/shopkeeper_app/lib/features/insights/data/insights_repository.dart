@@ -56,6 +56,19 @@ abstract class InsightsRepository {
     String token, {
     int days = kInsightsDefaultRange,
   });
+
+  /// Data-driven business-insight cards (`GET .../shops/{id}/insights`).
+  ///
+  /// Unlike the analytics calls above, this reports the shop's CURRENT state
+  /// (top products, low stock, stale inventory, search visibility, offers
+  /// performance, profile completeness) rather than a trailing window — every
+  /// value is computed server-side from the live database. Requires the same
+  /// `dashboard:read` permission; an unauthorized shop fails with a 403
+  /// [ApiException].
+  Future<BusinessInsightsBundle> fetchBusinessInsights(
+    int shopId,
+    String token,
+  );
 }
 
 class ApiInsightsRepository implements InsightsRepository {
@@ -140,6 +153,18 @@ class ApiInsightsRepository implements InsightsRepository {
         .whereType<Map>()
         .map((row) => HourlyPoint.fromJson(row.cast<String, dynamic>()))
         .toList(growable: false);
+  }
+
+  @override
+  Future<BusinessInsightsBundle> fetchBusinessInsights(
+    int shopId,
+    String token,
+  ) async {
+    final data = await _api.get(
+      ApiEndpoints.shopInsights(shopId),
+      token: token,
+    ) as Map<String, dynamic>;
+    return BusinessInsightsBundle.fromJson(data);
   }
 
   List<InsightsPoint> _series(Object? rows, String valueKey) =>

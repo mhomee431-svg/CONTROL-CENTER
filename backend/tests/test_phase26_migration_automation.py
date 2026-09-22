@@ -73,7 +73,7 @@ requires_db = pytest.mark.skipif(not _database_available(),
 def test_chain_is_linear_with_single_head():
     revisions = rehearsal.parse_revisions(VERSIONS_DIR)
     assert rehearsal.chain_issues(revisions) == []
-    assert rehearsal.head_revision(revisions) == "0023"
+    assert rehearsal.head_revision(revisions) == "0025"
 
 
 def test_revision_ids_are_sequential_and_unique():
@@ -182,7 +182,7 @@ def test_no_silent_not_null_column_adds():
 # ═══════════════════════════════════════════════════════════════════════════
 def test_migration_generator_computes_next_revision():
     gen = _load_script_module("generate_migration", BACKEND_DIR / "scripts" / "generate_migration.py")
-    assert gen.next_rev_id(VERSIONS_DIR) == "0024"
+    assert gen.next_rev_id(VERSIONS_DIR) == "0026"
 
 
 def test_drift_checker_self_consistent():

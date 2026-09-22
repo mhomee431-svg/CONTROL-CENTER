@@ -48,6 +48,8 @@ class ImportState {
     this.preview,
     this.result,
     this.jobs = const [],
+    this.jobsTotal = 0,
+    this.loadingMoreJobs = false,
     this.message,
   });
 
@@ -55,10 +57,48 @@ class ImportState {
   final PickedWorkbook? workbook;
   final ImportPreview? preview;
   final ImportConfirmResult? result;
+
+  /// The import jobs loaded SO FAR (newest first).
   final List<ImportJob> jobs;
+
+  /// How many import jobs the shop has in total, per the SERVER's count across
+  /// every page — not the number currently held.
+  final int jobsTotal;
+
+  /// True while the next page of jobs is in flight.
+  final bool loadingMoreJobs;
 
   /// Error copy when [status] is [ImportStatus.error].
   final String? message;
+
+  /// True when the server holds jobs this list has not fetched yet.
+  bool get jobsHasMore => jobs.length < jobsTotal;
+
+  /// Jobs still behind the page break — the count the footer offers.
+  int get jobsHidden => jobsTotal - jobs.length;
+
+  /// This state with the upload → preview → confirm flow fields replaced.
+  ///
+  /// The jobs list and its pagination counters are carried through UNTOUCHED:
+  /// a step of the import flow must never silently reset how much history is
+  /// loaded, which would hide "Load more" the moment an upload starts.
+  ImportState flow({
+    required ImportStatus status,
+    PickedWorkbook? workbook,
+    ImportPreview? preview,
+    ImportConfirmResult? result,
+    String? message,
+  }) =>
+      ImportState(
+        status: status,
+        workbook: workbook ?? this.workbook,
+        preview: preview ?? this.preview,
+        result: result ?? this.result,
+        jobs: jobs,
+        jobsTotal: jobsTotal,
+        loadingMoreJobs: loadingMoreJobs,
+        message: message,
+      );
 
   factory ImportState.idle() => const ImportState(status: ImportStatus.idle);
 }
@@ -99,38 +139,25 @@ class InventoryImportController extends Notifier<ImportState> {
       final workbook = await ref.read(workbookPickerProvider).pick();
       if (workbook == null) return; // user cancelled — stay idle
       _patch(
-        (s) => ImportState(
-          status: ImportStatus.uploading,
-          workbook: workbook,
-          jobs: s.jobs,
-        ),
+        (s) => s.flow(status: ImportStatus.uploading, workbook: workbook),
       );
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
       final preview = await _repo.upload(shopId, workbook, token);
       _patch(
-        (s) => ImportState(
-          status: ImportStatus.preview,
-          workbook: s.workbook,
-          preview: preview,
-          jobs: s.jobs,
-        ),
+        (s) => s.flow(status: ImportStatus.preview, preview: preview),
       );
     } on ApiException catch (e) {
       _patch(
-        (s) => ImportState(
+        (s) => s.flow(
           status: ImportStatus.error,
-          workbook: s.workbook,
-          jobs: s.jobs,
           message: _friendly(e, fallback: 'Upload failed. Please retry.'),
         ),
       );
     } catch (_) {
       _patch(
-        (s) => ImportState(
+        (s) => s.flow(
           status: ImportStatus.error,
-          workbook: s.workbook,
-          jobs: s.jobs,
           message: 'Upload failed. Please retry.',
         ),
       );
@@ -142,65 +169,51 @@ class InventoryImportController extends Notifier<ImportState> {
     final shopId = ref.read(selectedShopProvider)?.id;
     final jobId = state.preview?.meta.id;
     if (shopId == null || jobId == null) return;
-    _patch(
-      (s) => ImportState(
-        status: ImportStatus.confirming,
-        workbook: s.workbook,
-        preview: s.preview,
-        jobs: s.jobs,
-      ),
-    );
+    _patch((s) => s.flow(status: ImportStatus.confirming));
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
       final result = await _repo.confirm(shopId, jobId, token);
       _patch(
-        (s) => ImportState(
-          status: ImportStatus.done,
-          workbook: s.workbook,
-          preview: s.preview,
-          result: result,
-          jobs: s.jobs,
-        ),
+        (s) => s.flow(status: ImportStatus.done, result: result),
       );
     } on ApiException catch (e) {
       _patch(
-        (s) => ImportState(
+        (s) => s.flow(
           status: ImportStatus.error,
-          workbook: s.workbook,
-          preview: s.preview,
-          jobs: s.jobs,
           message: _friendly(e, fallback: 'Could not apply the import.'),
         ),
       );
     } catch (_) {
       _patch(
-        (s) => ImportState(
+        (s) => s.flow(
           status: ImportStatus.error,
-          workbook: s.workbook,
-          preview: s.preview,
-          jobs: s.jobs,
           message: 'Could not apply the import.',
         ),
       );
     }
   }
 
-  /// Loads the shop's recent import jobs (surfaced at the bottom).
+  /// Loads the FIRST page of the shop's import jobs.
+  ///
+  /// Always restarts at offset 0 and replaces the rows, so a refresh can never
+  /// stack a previous page set under the current one.
   Future<void> loadJobs() async {
     final shopId = ref.read(selectedShopProvider)?.id;
     if (shopId == null) return;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) return;
-      final jobs = await _repo.listJobs(shopId, token);
+      final page = await _repo.listJobs(shopId, token);
       _patch(
         (s) => ImportState(
           status: s.status,
           workbook: s.workbook,
           preview: s.preview,
           result: s.result,
-          jobs: jobs,
+          jobs: page.jobs,
+          jobsTotal: page.total,
+          loadingMoreJobs: s.loadingMoreJobs,
         ),
       );
     } on ApiException {
@@ -210,10 +223,69 @@ class InventoryImportController extends Notifier<ImportState> {
     }
   }
 
+  /// Fetches the NEXT page of import jobs and appends it.
+  ///
+  /// Paginated by the BACKEND: the offset is the number already held, so each
+  /// page is one bounded round trip. A no-op when nothing is left (so a footer
+  /// tap at the end cannot loop), and a failed page keeps the jobs already on
+  /// screen — the history must never blank because of one dropped request.
+  Future<void> loadMoreJobs() async {
+    final shopId = ref.read(selectedShopProvider)?.id;
+    if (shopId == null) return;
+    if (!state.jobsHasMore || state.loadingMoreJobs) return;
+    _patch((s) => ImportState(
+          status: s.status,
+          workbook: s.workbook,
+          preview: s.preview,
+          result: s.result,
+          jobs: s.jobs,
+          jobsTotal: s.jobsTotal,
+          loadingMoreJobs: true,
+        ));
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) return;
+      final page = await _repo.listJobs(
+        shopId,
+        token,
+        offset: state.jobs.length,
+      );
+      // De-duplicate by id: a new job started while paging shifts the offset
+      // window, and the same row could otherwise be appended twice.
+      final seen = state.jobs.map((j) => j.id).toSet();
+      _patch((s) => ImportState(
+            status: s.status,
+            workbook: s.workbook,
+            preview: s.preview,
+            result: s.result,
+            jobs: [...s.jobs, ...page.jobs.where((j) => !seen.contains(j.id))],
+            jobsTotal: page.total,
+            loadingMoreJobs: false,
+          ));
+    } catch (_) {
+      _patch((s) => ImportState(
+            status: s.status,
+            workbook: s.workbook,
+            preview: s.preview,
+            result: s.result,
+            jobs: s.jobs,
+            jobsTotal: s.jobsTotal,
+            loadingMoreJobs: false,
+          ));
+    }
+  }
+
   /// Back to the pick step (keeps recent jobs visible).
+  ///
+  /// The flow's own fields are cleared; the job history and its pagination
+  /// counters are kept, so starting a new upload does not make the loaded
+  /// history look complete when it is not.
   void resetFlow() {
-    final jobs = state.jobs;
-    state = ImportState(status: ImportStatus.idle, jobs: jobs);
+    state = ImportState(
+      status: ImportStatus.idle,
+      jobs: state.jobs,
+      jobsTotal: state.jobsTotal,
+    );
   }
 
   /// Clears ALL cached import state (called on logout).

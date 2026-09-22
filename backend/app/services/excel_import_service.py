@@ -31,7 +31,7 @@ from app.core.logging import get_logger
 from app.models.inventory_import import ImportJobStatus, InventoryImportJob, InventoryImportRow
 from app.models.product import (
     BarcodeRelationship,
-    IdentifierType,
+    IdentifierType,  # noqa: F401 - registers the product_identifiers type enum on Base.metadata
     Inventory,
     InventoryMovement,
     InventorySource,
@@ -608,10 +608,19 @@ def _get_scoped_job(access, db: Session, job_id: int) -> InventoryImportJob:
 
 
 def _enqueue_processing(job_id: int) -> None:
-    """Hand a large import to the background worker."""
+    """Hand a large import to the background worker.
+
+    Published with a hard time budget (see ``publish_task_nonblocking``): a
+    degraded broker must not stall the confirm request. The job row already
+    exists, so an abandoned publish can be requeued.
+    """
+    from app.core.celery_app import publish_task_nonblocking
     from app.services.tasks import process_inventory_import
 
-    process_inventory_import.delay(int(job_id))
+    publish_task_nonblocking(
+        lambda: process_inventory_import.delay(int(job_id)),
+        label=f"process_inventory_import({job_id})",
+    )
 
 
 def confirm_import(
@@ -674,7 +683,9 @@ def process_import_job(
 
     ``include_failed=True`` retries rows previously marked ERROR.
     """
-    import app.models.product as product_models
+    # Mapper side effects: guarantees every product table is registered before
+    # the upsert below resolves relationships on this session.
+    import app.models.product as product_models  # noqa: F401
 
     job = db.query(InventoryImportJob).filter(InventoryImportJob.id == int(job_id)).first()
     if job is None:

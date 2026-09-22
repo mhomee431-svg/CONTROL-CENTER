@@ -98,7 +98,10 @@ ALLOWLIST_PATHS = [
         r"(^|/)package-lock\.json$",
         # Firebase/Google Android client config — the API key inside is a public
         # identifier (restricted by package name), not a server secret.
-        r"(^|/)google-services\.json$",
+        r"(^|/)google-services\.json(\.bak)?$",
+        # FlutterFire-generated client config (Flutter/Dart) — holds the same
+        # public, package-name-restricted API key as google-services.json.
+        r"(^|/)firebase_options\.dart$",
         # Build script references the key by variable (%MAPS_API_KEY% injected
         # from gitignored local.properties at build time) — no literal secret.
         r"(^|/)build_customer_app\.bat$",

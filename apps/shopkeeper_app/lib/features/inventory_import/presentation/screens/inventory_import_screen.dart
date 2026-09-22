@@ -116,11 +116,15 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
   Future<void> _pickAndUpload() async {
     setState(() {});
     await ref.read(importControllerProvider.notifier).pickAndUpload();
+    // The picker/upload can outlive this screen (user navigates back while the
+    // file dialog or the upload is in flight); never touch state after dispose.
+    if (!mounted) return;
     setState(() {});
   }
 
   Future<void> _confirm() async {
     await ref.read(importControllerProvider.notifier).confirm();
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -134,6 +138,8 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
   Future<void> _downloadSample() async {
     if (ref.read(sampleDownloadProvider).inProgress) return;
     await ref.read(sampleDownloadProvider.notifier).download();
+    // The download (plus the platform save dialog) can outlive this screen.
+    if (!mounted) return;
     setState(() {});
   }
 }

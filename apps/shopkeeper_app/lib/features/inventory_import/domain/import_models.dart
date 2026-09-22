@@ -157,6 +157,43 @@ DateTime? _parseTimestamp(Object? raw) {
   return DateTime.tryParse(raw)?.toLocal();
 }
 
+/// How many import jobs one request asks for.
+///
+/// The list endpoint accepts `limit` 1…100; 20 covers months of routine
+/// importing without paging, while keeping the first response small.
+const int importJobsPageSize = 20;
+
+/// One page of the import-jobs list, plus the server's count for the shop.
+///
+/// The count is the server's, so "Load more" is offered only when the backend
+/// actually holds further jobs — a page that happens to end on a size boundary
+/// is never mistaken for the end of the history.
+class ImportJobPage {
+  const ImportJobPage({required this.jobs, required this.total});
+
+  /// The jobs in THIS page, newest first.
+  final List<ImportJob> jobs;
+
+  /// How many import jobs the shop has in total (all pages).
+  final int total;
+
+  /// True when the server holds jobs this page does not carry.
+  bool get hasMore => jobs.length < total;
+
+  factory ImportJobPage.fromJson(Map<String, dynamic> json) {
+    final jobs = ((json['items'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ImportJob.fromJson)
+        .toList(growable: false);
+    return ImportJobPage(
+      jobs: jobs,
+      total: json['total'] as int? ?? jobs.length,
+    );
+  }
+}
+
+
+
 /// One row of the import preview (valid or error with a reason).
 class ImportRow {
   const ImportRow({

@@ -34,9 +34,6 @@ import os
 import random
 import time
 import uuid
-from typing import Any
-
-import pytest
 
 API_BASE = os.getenv("PHASE13_API_BASE_URL", "https://api.hyperlocal.in").rstrip("/")
 DATABASE_URL = os.getenv("PHASE13_DATABASE_URL")
@@ -72,6 +69,7 @@ CUSTOMER_AUTH_PATHS = {
 SHOPKEEPER_AUTH_PATHS = {
     "send": "/api/v1/shopkeeper/auth/send-otp",
     "login": "/api/v1/shopkeeper/auth/login",
+    "firebase": "/api/v1/shopkeeper/auth/firebase-login",
 }
 
 
@@ -155,18 +153,33 @@ def _login_customer(http, phone, *, register=False):
 
 
 def _login_shopkeeper(http, phone):
-    otp = _otp_value(http, phone, shopkeeper=True)
+    """Drive the shopkeeper auth flow.
+
+    Shopkeeper auth is Firebase-based, exactly like the customer flow: OTP
+    delivery happens client-side in the Flutter app and the backend verifies
+    the resulting Firebase ID token, so there is no dev OTP / Fast2SMS backdoor
+    to fetch a code from. The phone number is therefore taken from the verified
+    token, not from the caller.
+
+    A live verification must inject a real token with ``PHASE13_FIREBASE_TOKEN``;
+    without it the dependent tests are skipped with a precise reason.
+    """
+    if not FIREBASE_TOKEN:
+        raise AuthUnavailable(
+            "PHASE13_FIREBASE_TOKEN unset - shopkeeper auth now requires a "
+            "Firebase ID token (no dev OTP / Fast2SMS backdoor exists)"
+        )
     payload = {
-        "phone_number": phone,
-        "otp": otp,
+        "firebase_id_token": FIREBASE_TOKEN,
         "device_id": str(uuid.uuid4()),
         "device_name": "phase13-verifier",
         "device_type": "web",
-        "app_version": "1.0.0",
+        "platform": "phase13-verify",
     }
-    r = _req(http, "POST", SHOPKEEPER_AUTH_PATHS["login"], json_body=payload)
+    path = SHOPKEEPER_AUTH_PATHS["firebase"]
+    r = _req(http, "POST", path, json_body=payload)
     if r.status_code not in _OK:
-        raise AuthUnavailable(f"shopkeeper login -> {r.status_code}: {r.text[:250]}")
+        raise AuthUnavailable(f"{path} -> {r.status_code}: {r.text[:250]}")
     data = assert_ok(r)
     token = (data or {}).get("access_token")
     if not token:

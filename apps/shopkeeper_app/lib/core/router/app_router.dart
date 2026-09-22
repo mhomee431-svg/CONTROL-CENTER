@@ -30,6 +30,8 @@ import '../../features/notifications/presentation/screens/notification_preferenc
 import '../../features/support/presentation/screens/support_faq_screen.dart';
 import '../../features/support/presentation/screens/contact_support_screen.dart';
 import '../../features/support/presentation/screens/report_issue_screen.dart';
+import '../../features/support/presentation/screens/my_tickets_screen.dart';
+import '../../features/support/presentation/screens/ticket_detail_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
@@ -378,6 +380,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute(Routes.faq, (_, _) => const SupportFaqScreen()),
       buildRoute(Routes.contactSupport, (_, _) => const ContactSupportScreen()),
       buildRoute(Routes.reportIssue, (_, _) => const ReportIssueScreen()),
+      buildRoute(Routes.myTickets, (_, _) => const MyTicketsScreen()),
+      GoRoute(
+        path: Routes.supportTicketDetailTemplate,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => TicketDetailScreen(
+          ticketId:
+              int.tryParse(state.pathParameters['ticketId'] ?? '') ?? 0,
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ShopkeeperShell(navigationShell: navigationShell),

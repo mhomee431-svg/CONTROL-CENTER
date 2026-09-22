@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../account/presentation/widgets/settings_widgets.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/support_models.dart';
+import '../controllers/support_tickets_controller.dart';
 
 /// Ways to reach the support team.
 ///
-/// WHY THERE IS NO "SEND" BUTTON: the shopkeeper backend exposes no
-/// support-intake endpoint, so a submit button here would either do nothing or
-/// lie. The screen instead composes the request (already tagged with the account
-/// and shop it belongs to), copies it to the clipboard and shows the support
-/// address, so it can be sent from a mail app. That composed text is exactly
-/// what an intake endpoint would receive later.
+/// "Write to us" now files a REAL support ticket: the message goes to the
+/// backend's support queue and comes back with a reference (`HL-42`) and the
+/// status support has set, so the shopkeeper has a record instead of a copied
+/// paragraph. The composed e-mail text is kept as a secondary action for anyone
+/// who prefers to follow up by mail — it carries the same content the ticket
+/// does.
+///
+/// The subject line is derived server-side from the first line of the message
+/// together with the topic, and the shop context is attached by the backend (it
+/// re-authorizes the shop id before accepting the ticket).
 class ContactSupportScreen extends ConsumerStatefulWidget {
   const ContactSupportScreen({super.key});
 
@@ -72,8 +79,42 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
     );
   }
 
+  /// Sends the message as a support ticket.
+  ///
+  /// On success the form is cleared and the ticket — with the reference and
+  /// status the backend assigned — is shown. On failure the message stays in
+  /// the box: a shopkeeper should never have to retype a support request
+  /// because a request timed out.
+  Future<void> _sendRequest() async {
+    if (_message.text.trim().isEmpty) {
+      setState(() => _error = 'Describe what you need help with');
+      return;
+    }
+    setState(() => _error = null);
+    final ticket = await ref
+        .read(supportTicketsProvider.notifier)
+        .submit(
+          category: _topic,
+          // A free-form question carries no severity signal; MEDIUM is what the
+          // backend defaults to and matches how support triages these.
+          severity: IssueSeverity.medium,
+          description: _message.text.trim(),
+        );
+    if (ticket == null || !mounted) return;
+    _message.clear();
+  }
+
+  /// Returns to the form after the confirmation has been acknowledged.
+  void _writeAnother() {
+    ref.read(supportTicketsProvider.notifier).acknowledgeFiled();
+    setState(() => _error = null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final support = ref.watch(supportTicketsProvider);
+    final filed = support.lastFiled;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Contact support')),
       body: SafeArea(
@@ -129,29 +170,151 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            _ComposeCard(
-              topic: _topic,
-              onTopicChanged: (value) => setState(() => _topic = value),
-              message: _message,
-              includeDetails: _includeDetails,
-              onIncludeDetailsChanged: (value) =>
-                  setState(() => _includeDetails = value),
-              error: _error,
-              onCopyRequest: _copyRequest,
-            ),
-            const SizedBox(height: 16),
-            const SettingsNotice(
-              icon: Icons.info_outline,
-              title: 'How this works',
-              message: 'Writing from inside the app is not connected to the '
-                  'support inbox yet. Fill the form in, tap "Copy request" and '
-                  'paste it into an e-mail - your account and shop details are '
-                  'already included, which is what support needs to answer '
-                  'quickly.',
-            ),
+            if (filed != null)
+              _TicketConfirmation(
+                reference: filed.reference,
+                statusLabel: filed.statusLabel,
+                onWriteAnother: _writeAnother,
+              )
+            else ...[
+              _ComposeCard(
+                topic: _topic,
+                onTopicChanged: (value) => setState(() => _topic = value),
+                message: _message,
+                includeDetails: _includeDetails,
+                onIncludeDetailsChanged: (value) =>
+                    setState(() => _includeDetails = value),
+                error: _error,
+                onCopyRequest: _copyRequest,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const Key('contact_send_request'),
+                  onPressed: support.submitting ? null : _sendRequest,
+                  icon: support.submitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send),
+                  label: Text(support.submitting ? 'Sending...' : 'Send to support'),
+                ),
+              ),
+              if (support.submitError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  support.submitError!,
+                  key: const Key('contact_submit_error'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const SettingsNotice(
+                icon: Icons.info_outline,
+                title: 'Your message becomes a tracked ticket',
+                message: 'Sending files a support ticket with your topic, '
+                    'account and shop attached - the same details support '
+                    'needs to answer quickly. Its status stays visible under '
+                    'My support tickets, and the text can still be copied to '
+                    'send it by e-mail.',
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Confirmation shown once the backend has created the ticket.
+///
+/// The reference and status wording are the SERVER's values, not a locally
+/// invented ticket number — quoting this to support actually identifies the
+/// row support sees.
+class _TicketConfirmation extends StatelessWidget {
+  const _TicketConfirmation({
+    required this.reference,
+    required this.statusLabel,
+    required this.onWriteAnother,
+  });
+
+  final String reference;
+  final String statusLabel;
+  final VoidCallback onWriteAnother;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Icon(
+          Icons.check_circle_outline,
+          size: 56,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Text(
+            'Message sent',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: Text(
+            'Your message is in the support queue.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reference,
+                  key: const Key('contact_filed_reference'),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('Status: $statusLabel', style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          key: const Key('contact_filed_view_tickets'),
+          onPressed: () => context.push(Routes.myTickets),
+          icon: const Icon(Icons.confirmation_number_outlined),
+          label: const Text('View my support tickets'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const Key('contact_filed_another'),
+          onPressed: onWriteAnother,
+          icon: const Icon(Icons.add),
+          label: const Text('Write another message'),
+        ),
+      ],
     );
   }
 }

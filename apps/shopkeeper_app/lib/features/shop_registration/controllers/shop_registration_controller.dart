@@ -272,10 +272,35 @@ class ShopRegistrationController
     state = state.copyWith(
       pin: position,
       pinAdjusted: true,
+      // No GPS reading behind the pin → this is a MANUAL capture, and the
+      // payload must say so instead of claiming a fix.
+      locationManual: state.reading == null || state.locationManual,
       locationStatus: RegistrationLocationStatus.ready,
       clearLocationError: true,
     );
   }
+
+  /// "Choose Location on Map" / "Enter Address Manually" — both dismiss the
+  /// permission + GPS prompts so the step can be completed without them: the
+  /// pin comes from the map, the address from the fields below it.
+  ///
+  /// Nothing is inferred: the capture stays flagged as MANUAL.
+  void useManualLocation() {
+    _location.startMapOnlyCapture();
+    state = state.copyWith(
+      locationManual: true,
+      locationStatus: RegistrationLocationStatus.ready,
+      clearLocationError: true,
+    );
+  }
+
+  /// Opens this app's page in the system settings — the only way back from a
+  /// permanently denied location permission.
+  Future<bool> openSystemSettings() => _location.openSystemSettings();
+
+  /// Opens the device location-services page — the way back from "GPS is off".
+  Future<bool> openDeviceLocationSettings() =>
+      _location.openDeviceLocationSettings();
 
   /// Re-confirms after the shopkeeper moved the pin far from the GPS fix.
   void confirmPinDrift() {
@@ -308,7 +333,11 @@ class ShopRegistrationController
       locationError: capture.status == LocationCaptureStatus.error
           ? (capture.errorMessage ?? 'Could not get your location')
           : (capture.status == LocationCaptureStatus.locationPermissionDenied
-              ? 'Location permission is needed to verify your shop.'
+              ? (capture.permissionBlocked
+                  ? 'Location permission is blocked for this app. '
+                      'Allow it in your phone settings, or place the pin on '
+                      'the map.'
+                  : 'Location permission is needed to verify your shop.')
               : (capture.status ==
                       LocationCaptureStatus.locationServiceDisabled
                   ? 'Location services are turned off. Please enable GPS and try again.'
@@ -328,7 +357,9 @@ class ShopRegistrationController
         LocationCaptureStatus.success =>
           RegistrationLocationStatus.ready,
         LocationCaptureStatus.locationPermissionDenied =>
-          RegistrationLocationStatus.permissionDenied,
+          capture.permissionBlocked
+              ? RegistrationLocationStatus.permissionBlocked
+              : RegistrationLocationStatus.permissionDenied,
         LocationCaptureStatus.locationServiceDisabled =>
           RegistrationLocationStatus.serviceDisabled,
         LocationCaptureStatus.error => RegistrationLocationStatus.error,
@@ -581,10 +612,18 @@ class ShopRegistrationController
         'pincode': state.pincode.trim(),
         'country': 'India',
       },
-      // Capture provenance — GPS coordinates stay the primary location; the
-      // accuracy radius is the real one, never claimed as 100%.
+      // Capture provenance. A device fix reports GPS with its REAL accuracy
+      // radius (never claimed as 100%). A pin the shopkeeper placed by hand —
+      // permission denied, GPS off, or no signal — is reported as MANUAL with
+      // no accuracy radius, so the backend never records a fiction.
       'location': reading == null
-          ? null
+          ? {
+              'location_source': 'MANUAL',
+              'location_type': 'SHOP_ENTRANCE',
+              'location_status': 'CORRECTED',
+              'location_integrity_status': 'UNKNOWN',
+              'location_verified': true,
+            }
           : {
               'location_source': 'GPS',
               'location_type': 'SHOP_ENTRANCE',

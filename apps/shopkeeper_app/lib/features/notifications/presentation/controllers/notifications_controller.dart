@@ -13,6 +13,8 @@ class NotificationsState {
     required this.status,
     this.items = const [],
     this.unreadCount = 0,
+    this.total = 0,
+    this.loadingMore = false,
     this.message,
   });
 
@@ -20,8 +22,24 @@ class NotificationsState {
   final List<ShopkeeperNotification> items;
   final int unreadCount;
 
+  /// How many notifications this shop has in total, per the SERVER's count
+  /// across every page — not the number currently held.
+  final int total;
+
+  /// True while the next page is in flight (the footer shows progress).
+  final bool loadingMore;
+
   /// Error copy when [status] is [NotificationsStatus.error].
   final String? message;
+
+  /// True when the server holds rows this list has not fetched yet.
+  ///
+  /// Derived from the server's own [total] and the rows in hand, so it can
+  /// never promise a page that does not exist.
+  bool get hasMore => items.length < total;
+
+  /// Rows still behind the page break — the count the footer offers.
+  int get hidden => total - items.length;
 
   factory NotificationsState.loading() =>
       const NotificationsState(status: NotificationsStatus.loading);
@@ -30,12 +48,16 @@ class NotificationsState {
     NotificationsStatus? status,
     List<ShopkeeperNotification>? items,
     int? unreadCount,
+    int? total,
+    bool? loadingMore,
     String? message,
   }) =>
       NotificationsState(
         status: status ?? this.status,
         items: items ?? this.items,
         unreadCount: unreadCount ?? this.unreadCount,
+        total: total ?? this.total,
+        loadingMore: loadingMore ?? this.loadingMore,
         message: message,
       );
 }
@@ -52,7 +74,11 @@ class NotificationsController extends Notifier<NotificationsState> {
 
   int? get _shopId => ref.read(selectedShopProvider)?.id;
 
-  /// Loads (or reloads) the notifications for the selected shop.
+  /// Loads (or reloads) the FIRST page for the selected shop.
+  ///
+  /// A reload always restarts at offset 0 and replaces the rows: the list must
+  /// never show page 2 of a previous session's data stacked under page 1 of the
+  /// current one.
   Future<void> load() async {
     final shopId = _shopId;
     if (shopId == null) {
@@ -63,11 +89,16 @@ class NotificationsController extends Notifier<NotificationsState> {
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
-      final page = await _repo.fetchNotifications(shopId, token);
+      final page = await _repo.fetchNotifications(
+        shopId,
+        token,
+        limit: notificationsPageSize,
+      );
       state = NotificationsState(
         status: NotificationsStatus.ready,
         items: page.items,
         unreadCount: page.unreadCount,
+        total: page.total,
       );
     } on ApiException catch (e) {
       state = NotificationsState(
@@ -80,6 +111,51 @@ class NotificationsController extends Notifier<NotificationsState> {
       state = const NotificationsState(
         status: NotificationsStatus.error,
         message: 'Could not load notifications.',
+      );
+    }
+  }
+
+  /// Fetches the NEXT page and appends it.
+  ///
+  /// Backend pagination, not a wider request: the offset is the number of rows
+  /// already held, so each page costs one bounded round trip and no row is
+  /// downloaded twice. Safe to call when nothing is left — the guard returns
+  /// immediately, so a footer tap at the end of the list cannot loop.
+  Future<void> loadMore() async {
+    final shopId = _shopId;
+    if (shopId == null) return;
+    if (state.status != NotificationsStatus.ready) return;
+    if (!state.hasMore || state.loadingMore) return;
+
+    state = state.copyWith(loadingMore: true);
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw const ApiException(message: 'Not signed in');
+      final page = await _repo.fetchNotifications(
+        shopId,
+        token,
+        limit: notificationsPageSize,
+        offset: state.items.length,
+      );
+      // De-duplicate by id: a notification arriving mid-page shifts the
+      // offset window, and the same row could otherwise be listed twice.
+      final seen = state.items.map((n) => n.id).toSet();
+      state = state.copyWith(
+        items: [
+          ...state.items,
+          ...page.items.where((n) => !seen.contains(n.id)),
+        ],
+        unreadCount: page.unreadCount,
+        total: page.total,
+        loadingMore: false,
+      );
+    } on ApiException catch (e) {
+      // Keep the rows already loaded — a failed page must not blank the list.
+      state = state.copyWith(loadingMore: false, message: e.message);
+    } catch (_) {
+      state = state.copyWith(
+        loadingMore: false,
+        message: 'Could not load more notifications.',
       );
     }
   }

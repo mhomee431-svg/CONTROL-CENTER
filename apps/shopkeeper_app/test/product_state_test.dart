@@ -413,6 +413,9 @@ void main() {
       await pumpScreen(tester, harness.container);
 
       await tester.enterText(searchBox(), 'amul');
+      // The search box debounces the filter call: pump past the 300 ms
+      // pause so the query reaches the list before asserting.
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
       expect(find.text('1 of 2 products'), findsOneWidget);
 
@@ -440,6 +443,9 @@ void main() {
       await pumpScreen(tester, harness.container);
 
       await tester.enterText(searchBox(), 'amul');
+      // The search box debounces the filter call: pump past the 300 ms
+      // pause so the query reaches the list before tapping through.
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
       harness.container
           .read(productsListControllerProvider.notifier)
@@ -467,6 +473,9 @@ void main() {
       await pumpScreen(tester, harness.container);
 
       await tester.enterText(searchBox(), 'amul');
+      // The search box debounces the filter call: pump past the 300 ms
+      // pause so the query reaches the list before tapping through.
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
       expect(find.text('1 of 2 products'), findsOneWidget);
 

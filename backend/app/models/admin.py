@@ -103,6 +103,14 @@ class Complaint(Base, TimestampMixin):
     resolution_notes: Mapped[str | None] = mapped_column(Text)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Optional evidence attached from the shopkeeper app's *Report an issue*
+    # screen: the server-minted media KEY (never a presigned URL — those
+    # expire; a URL is minted at serialization time), plus the metadata the
+    # storage layer reported for that object. A ticket can therefore show what
+    # was actually uploaded without trusting a client-supplied filename/size.
+    attachment_key: Mapped[str | None] = mapped_column(String(512))
+    attachment_meta: Mapped[dict | None] = mapped_column(JSON)
+
 
 class AuditLog(Base, TimestampMixin):
     __tablename__ = "audit_logs"

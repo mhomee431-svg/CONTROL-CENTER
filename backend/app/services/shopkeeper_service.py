@@ -11,7 +11,7 @@ their own services/routes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, time, timezone
+from datetime import datetime, timedelta, time, timezone
 import re
 import uuid
 from typing import Any
@@ -28,11 +28,9 @@ from app.core.exceptions import (
 )
 from app.core.logging import get_logger
 from app.core.shopkeeper_permissions import (
-    SHOPKEEPER_PERMISSIONS,
     effective_shop_permissions,
     ensure_shopkeeper_role,
     has_permission,
-    permission_key,
     sync_owner_role,
 )
 from app.models.product import (
@@ -52,6 +50,7 @@ from app.models.product import (
     ProductMaster,
     ProductStatus,
     ShopProduct,
+    ShopProductStatus,
 )
 from app.services.inventory_service import compute_freshness
 from app.models.shop import (
@@ -59,7 +58,7 @@ from app.models.shop import (
     ShopAddress,
     ShopManager,
     ShopOwner,
-    ShopStatus,
+    ShopStatus,  # noqa: F401 - registers the shops table + status enum on Base.metadata
     ShopVerification,
     VerificationStatus,
 )
@@ -773,7 +772,361 @@ def dashboard_payload(access: ShopAccess, db: Session) -> dict[str, Any]:
     }
 
 
-# ── Inventory overview & products ────────────────────────────────────────
+def business_insights(access: ShopAccess, db: Session) -> dict[str, Any]:
+    """Shopkeeper business insights — data-driven insight cards.
+
+    Returns a list of insight cards, each with a status (``healthy`` /
+    ``warning`` / ``critical`` / ``info``), key metrics, and (where relevant)
+    the specific items that triggered the insight. All numbers are derived from
+    the live database — no hardcoded values.
+    """
+    shop = access.shop
+
+    # Fetch all products + inventories for this shop (same pattern as dashboard)
+    products = db.query(ShopProduct).filter(ShopProduct.shop_id == shop.id).all()
+    inventories: dict[int, Inventory] = {}
+    for sp in products:
+        inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+        if inv is not None:
+            inventories[sp.id] = inv
+
+    now = datetime.now(timezone.utc)
+    insights: list[dict[str, Any]] = []
+
+    # ── 1. Top Products ────────────────────────────────────────────────────────
+    # Rank active, non-discontinued products by a composite of stock value and
+    # recent activity. Without a sales ledger, "top" = highest inventory value
+    # with a recency boost for recently-touched products.
+    active_products = [sp for sp in products if sp.is_active and not is_discontinued(sp)]
+
+    def _top_score(sp: ShopProduct) -> tuple[float, datetime]:
+        inv = inventories.get(sp.id)
+        quantity = inv.quantity if inv is not None else 0
+        stock_value = quantity * (sp.price or 0.0)
+        # recency: more recent last update → higher score
+        last_ts = None
+        for ts in (sp.last_inventory_update, sp.last_price_update, sp.updated_at, sp.created_at):
+            if ts is not None:
+                if last_ts is None or ts > last_ts:
+                    last_ts = ts
+        age_days = (now - last_ts).total_seconds() / 86400 if last_ts else 9999
+        return stock_value - (age_days * 0.01 * (sp.price or 0.0)), last_ts or datetime.min.replace(tzinfo=timezone.utc)
+
+    ranked = sorted(active_products, key=_top_score, reverse=True)[:5]
+    top_items = []
+    for sp in ranked:
+        inv = inventories.get(sp.id)
+        top_items.append({
+            "shop_product_id": sp.id,
+            "name": _display_name(sp),
+            "sku": sp.sku,
+            "status": _shop_product_status_value(sp),
+            "quantity": inv.quantity if inv is not None else 0,
+            "price": sp.price,
+            "stock_value": (inv.quantity * (sp.price or 0.0)) if inv is not None else 0,
+            "last_updated": _iso(
+                max(
+                    (ts for ts in (sp.last_inventory_update, sp.last_price_update, sp.updated_at, sp.created_at) if ts is not None),
+                    default=datetime.min.replace(tzinfo=timezone.utc),
+                    key=lambda ts: ts,
+                )
+            ),
+        })
+
+    insights.append({
+        "id": "top_products",
+        "title": "Top Products",
+        "description": "Your highest-value products ranked by inventory value and recent activity.",
+        "status": "healthy" if len(active_products) >= 5 else ("warning" if len(active_products) >= 1 else "info"),
+        "metrics": {
+            "total_products": len(products),
+            "active_products": len(active_products),
+            "ranked_count": len(top_items),
+            "top_product_value": top_items[0]["stock_value"] if top_items else 0,
+        },
+        "items": top_items,
+        "suggestion": None,
+    })
+    # ── 2. Low Stock ────────────────────────────────────────────────────────────
+    low_stock_items = []
+    for sp in products:
+        inv = inventories.get(sp.id)
+        if inv is None:
+            continue
+        if inv.quantity <= inv.low_stock_threshold and inv.quantity > 0:
+            low_stock_items.append({
+                "shop_product_id": sp.id,
+                "name": _display_name(sp),
+                "sku": sp.sku,
+                "quantity": inv.quantity,
+                "low_stock_threshold": inv.low_stock_threshold,
+                "gap": inv.low_stock_threshold - inv.quantity,
+                "status": _shop_product_status_value(sp),
+            })
+    low_stock_items.sort(key=lambda x: x["gap"], reverse=True)
+
+    low_stock_count = len(low_stock_items)
+    insights.append({
+        "id": "low_stock",
+        "title": "Low Stock Alert",
+        "description": "Products at or below their low-stock threshold — restock soon to avoid lost sales.",
+        "status": (
+            "critical" if low_stock_count >= 10
+            else "warning" if low_stock_count >= 1
+            else "healthy" if low_stock_count == 0
+            else "info"
+        ),
+        "metrics": {
+            "count": low_stock_count,
+            "total_products": len(products),
+            "percentage": round(low_stock_count / max(len(products), 1) * 100, 1),
+            "total_gap_units": sum(item["gap"] for item in low_stock_items),
+        },
+        "items": low_stock_items[:10],
+        "suggestion": (
+            "Restock the items above. Consider raising low-stock thresholds for fast-moving products."
+            if low_stock_count > 0 else None
+        ),
+    })
+    # ── 3. Stale Inventory ──────────────────────────────────────────────────────
+    STALE_DAYS = 30
+    stale_cutoff = now - timedelta(days=STALE_DAYS)
+    stale_items = []
+    for sp in products:
+        if not sp.is_active or is_discontinued(sp):
+            continue
+        inv = inventories.get(sp.id)
+        if inv is None or inv.quantity <= 0:
+            continue
+        # Find most recent update timestamp
+        last_ts = None
+        for ts in (sp.last_inventory_update, sp.last_price_update, sp.updated_at, sp.created_at):
+            if ts is not None:
+                if last_ts is None or ts > last_ts:
+                    last_ts = ts
+        if last_ts is None or last_ts < stale_cutoff:
+            stale_items.append({
+                "shop_product_id": sp.id,
+                "name": _display_name(sp),
+                "sku": sp.sku,
+                "quantity": inv.quantity,
+                "last_inventory_update": _iso(sp.last_inventory_update),
+                "last_price_update": _iso(sp.last_price_update),
+                "days_since_update": round((now - last_ts).total_seconds() / 86400) if last_ts else None,
+                "status": _shop_product_status_value(sp),
+            })
+    stale_items.sort(key=lambda x: x["days_since_update"] or 0, reverse=True)
+
+    stale_count = len(stale_items)
+    active_in_stock = sum(
+        1 for sp in products
+        if sp.is_active and not is_discontinued(sp) and inventories.get(sp.id) is not None and inventories[sp.id].quantity > 0
+    )
+    insights.append({
+        "id": "stale_inventory",
+        "title": "Stale Inventory",
+        "description": f"Active, in-stock products not updated in {STALE_DAYS} days — review pricing, stock levels, or discontinue.",
+        "status": (
+            "critical" if stale_count >= 10
+            else "warning" if stale_count >= 1
+            else "healthy" if stale_count == 0
+            else "info"
+        ),
+        "metrics": {
+            "count": stale_count,
+            "total_active_in_stock": active_in_stock,
+            "percentage": round(stale_count / max(active_in_stock, 1) * 100, 1),
+            "oldest_stale_days": max((item["days_since_update"] or 0) for item in stale_items) if stale_items else 0,
+        },
+        "items": stale_items[:10],
+        "suggestion": (
+            "Update stock counts, refresh prices, or mark stale items as discontinued."
+            if stale_count > 0 else None
+        ),
+    })
+    # ── 4. Product Search Visibility ────────────────────────────────────────────
+    status_counts: dict[str, int] = {}
+    missing_images = 0
+    visible_count = 0
+    for sp in products:
+        status_val = _shop_product_status_value(sp)
+        status_counts[status_val] = status_counts.get(status_val, 0) + 1
+        # Visible = the listing is active AND carries an approved/active status.
+        # Compared via the status helper (not the enum object) because the
+        # SQLAlchemy column default is only applied at INSERT time — an
+        # in-memory / not-yet-flushed row can legitimately have status unset.
+        if sp.is_active and _shop_product_status_value(sp) in ("ACTIVE", "APPROVED"):
+            visible_count += 1
+        # Image data lives on the master and is read from the loaded
+        # relationship (not a per-row query). Only ACTIVE listings are counted:
+        # an inactive listing cannot be "hidden from search for lack of image".
+        if sp.is_active:
+            master = getattr(sp, "product_master", None)
+            if master is None or not getattr(master, "image_url", None):
+                missing_images += 1
+
+    total_products = len(products)
+    visibility_pct = round(visible_count / max(total_products, 1) * 100, 1) if total_products else 0.0
+
+    insights.append({
+        "id": "search_visibility",
+        "title": "Product Search Visibility",
+        "description": "How many of your products are visible in search — approved, active, and with images.",
+        "status": (
+            "healthy" if visibility_pct >= 80
+            else "warning" if visibility_pct >= 50
+            else "critical" if visibility_pct > 0
+            else "info"
+        ),
+        "metrics": {
+            "total_products": total_products,
+            "visible_products": visible_count,
+            "visibility_percentage": visibility_pct,
+            "products_without_images": missing_images,
+            "by_status": status_counts,
+        },
+        "items": [],
+        "suggestion": (
+            "Products in PENDING_REVIEW, REJECTED, or INACTIVE status are hidden from search. "
+            "Review and approve/reactivate them, and add images to improve visibility."
+            if visibility_pct < 100 else None
+        ),
+    })
+
+    # ── 5. Offers Performance ───────────────────────────────────────────────────
+    offers = db.query(Offer).filter(Offer.shop_id == shop.id).all()
+    # "Active" requires the approved status AND a window that has not ended:
+    # an ACTIVE-status offer whose end_date has already passed is expired, not
+    # active, so it must not be advertised (or counted) as a running offer.
+    active_offers = [
+        o
+        for o in offers
+        if (
+            o.status == OfferStatus.ACTIVE
+            and o.end_date is not None
+            and _to_utc(o.end_date) >= now
+        )
+    ]
+    expiring_soon = [
+        o for o in active_offers
+        if o.end_date is not None and _to_utc(o.end_date) <= now + timedelta(days=7)
+    ]
+
+    # Offer coverage: % of active products that have at least one offer
+    product_ids_with_offers: set[int] = set()
+    for o in offers:
+        for op in o.offer_products:
+            product_ids_with_offers.add(op.shop_product_id)
+
+    total_active_products = len([sp for sp in products if sp.is_active and not is_discontinued(sp)])
+    offer_coverage_pct = round(len(product_ids_with_offers) / max(total_active_products, 1) * 100, 1) if total_active_products else 0.0
+
+    by_type: dict[str, int] = {}
+    for o in offers:
+        by_type[o.offer_type.value] = by_type.get(o.offer_type.value, 0) + 1
+
+    expiring_count = len(expiring_soon)
+    insights.append({
+        "id": "offers_performance",
+        "title": "Offers Performance",
+        "description": "Overview of your active, draft, and expiring offers — and how much of your catalog they cover.",
+        "status": (
+            "healthy" if len(active_offers) >= 1
+            else "warning" if total_active_products >= 5
+            else "info"
+        ),
+        "metrics": {
+            "total_offers": len(offers),
+            "active_offers": len(active_offers),
+            "draft_offers": sum(1 for o in offers if o.status == OfferStatus.DRAFT),
+            "expiring_soon": expiring_count,
+            "offer_coverage_percentage": offer_coverage_pct,
+            "products_with_offers": len(product_ids_with_offers),
+            "by_type": by_type,
+        },
+        "items": [
+            {
+                "offer_id": o.id,
+                "title": o.title,
+                "offer_type": o.offer_type.value,
+                "status": o.status.value,
+                "start_date": _iso(o.start_date),
+                "end_date": _iso(o.end_date),
+                "discount_value": float(o.discount_value) if o.discount_value is not None else None,
+                "discount_percentage": float(o.discount_percentage) if o.discount_percentage is not None else None,
+                "product_count": len(o.offer_products),
+                "is_expiring_soon": o in expiring_soon,
+            }
+            for o in sorted(active_offers, key=lambda o: o.end_date)[:5]
+        ],
+        "suggestion": (
+            "You have no active offers. Create offers to boost sales and move inventory — "
+            "especially on products flagged as low stock or stale."
+            if len(active_offers) == 0 and total_active_products >= 5
+            else None
+        ),
+    })
+    # ── 6. Profile Completeness ─────────────────────────────────────────────────
+    profile_fields = [
+        ("name", "Store name", shop.name is not None and shop.name.strip() != ""),
+        ("description", "Description", shop.description is not None and shop.description.strip() != ""),
+        ("tagline", "Tagline", shop.tagline is not None and shop.tagline.strip() != ""),
+        ("logo_url", "Logo image", shop.logo_url is not None and shop.logo_url.strip() != ""),
+        ("cover_image_url", "Cover image", shop.cover_image_url is not None and shop.cover_image_url.strip() != ""),
+        ("image_url", "Store image", shop.image_url is not None and shop.image_url.strip() != ""),
+        ("phone", "Phone number", shop.phone is not None and shop.phone.strip() != ""),
+        ("email", "Email address", shop.email is not None and shop.email.strip() != ""),
+        ("website_url", "Website", shop.website_url is not None and shop.website_url.strip() != ""),
+        ("whatsapp_number", "WhatsApp number", shop.whatsapp_number is not None and shop.whatsapp_number.strip() != ""),
+        ("category", "Shop category", shop.category is not None),
+        ("business_type", "Business type", shop.business_type is not None and shop.business_type.strip() != ""),
+    ]
+
+    completed_fields = sum(1 for _, _, filled in profile_fields if filled)
+    total_fields = len(profile_fields)
+    completeness_pct = round(completed_fields / max(total_fields, 1) * 100, 1)
+
+    missing = [
+        {"field": field, "label": label, "value": None}
+        for field, label, filled in profile_fields
+        if not filled
+    ]
+
+    insights.append({
+        "id": "profile_completeness",
+        "title": "Profile Completeness",
+        "description": "How complete your shop profile is — a complete profile builds customer trust and improves search visibility.",
+        "status": (
+            "healthy" if completeness_pct >= 80
+            else "warning" if completeness_pct >= 50
+            else "critical" if completeness_pct > 0
+            else "info"
+        ),
+        "metrics": {
+            "completed_fields": completed_fields,
+            "total_fields": total_fields,
+            "completeness_percentage": completeness_pct,
+            "missing_fields_count": len(missing),
+        },
+        "items": missing,
+        "suggestion": (
+            "Complete the missing profile fields above — especially name, description, logo, "
+            "and contact details — to improve customer trust and search visibility."
+            if missing else None
+        ),
+    })
+
+    return {
+        "shop": {
+            "id": shop.id,
+            "name": shop.name,
+            "status": shop.status.value,
+        },
+        "generated_at": now.isoformat(),
+        "insights": insights,
+    }
+
+
 
 
 def inventory_overview(access: ShopAccess, db: Session) -> dict[str, Any]:
@@ -1224,8 +1577,6 @@ def create_product(
     a duplicate master record is never created.
     Phase 28 guard: the shop's plan ``max_products`` entitlement is enforced.
     """
-    from app.models.product import ShopProductStatus
-
     # Phase 28 — subscription entitlement enforcement (product limit).
     _enforce_product_limit(db, access)
 
@@ -1593,8 +1944,6 @@ def add_product_from_master(
     shopkeepers select from the platform catalog and set shop-level price,
     MRP, availability and quantity.
     """
-    from app.models.product import ShopProductStatus
-
     access.require("product", "create")
 
     # Phase 28 — subscription entitlement enforcement (product limit).
@@ -1817,8 +2166,6 @@ def remove_product(
     access: ShopAccess, db: Session, user: User, shop_product_id: int
 ) -> dict[str, Any]:
     """Deactivate + soft-delete a shop product listing."""
-    from app.models.product import ShopProductStatus
-
     access.require("product", "delete")
     sp: ShopProduct | None = (
         db.query(ShopProduct)

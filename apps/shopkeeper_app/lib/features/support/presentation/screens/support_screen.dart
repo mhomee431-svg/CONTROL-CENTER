@@ -9,10 +9,11 @@ import '../../domain/support_models.dart';
 /// questions.
 ///
 /// Every action here opens a REAL screen (`Routes.faq`,
-/// `Routes.contactSupport`, `Routes.reportIssue`, `Routes.accountSettings`).
-/// The previous inline dialogs were replaced by them, so the hub and the detail
-/// screens cannot drift apart — and the questions below come from [supportFaqs],
-/// the same list the help centre searches.
+/// `Routes.contactSupport`, `Routes.reportIssue`, `Routes.myTickets`,
+/// `Routes.accountSettings`). The previous inline dialogs were replaced by
+/// them, so the hub and the detail screens cannot drift apart — and the
+/// questions below come from [supportFaqs], the same list the help centre
+/// searches.
 class SupportScreen extends ConsumerWidget {
   const SupportScreen({super.key});
 
@@ -55,17 +56,17 @@ class SupportScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _ActionCard(
-                    icon: Icons.menu_book_outlined,
-                    label: 'Help centre',
-                    onTap: () => context.push(Routes.faq),
+                    icon: Icons.confirmation_number_outlined,
+                    label: 'My tickets',
+                    onTap: () => context.push(Routes.myTickets),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _ActionCard(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    onTap: () => context.push(Routes.accountSettings),
+                    icon: Icons.menu_book_outlined,
+                    label: 'Help centre',
+                    onTap: () => context.push(Routes.faq),
                   ),
                 ),
               ],

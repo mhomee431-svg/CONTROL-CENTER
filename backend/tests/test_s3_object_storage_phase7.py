@@ -44,7 +44,7 @@ from app.core.upload_security import (  # noqa: E402
     sniff_media_content_type,
     validate_media_upload,
 )
-from datetime import datetime  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
 
 from app.models.base import Base  # noqa: E402
 from app.models.inventory_import import InventoryImportJob, InventoryImportRow  # noqa: E402

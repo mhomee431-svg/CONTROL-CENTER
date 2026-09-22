@@ -218,6 +218,23 @@ async def get_dashboard(
     return success_response(data=shopkeeper_service.dashboard_payload(access, db))
 
 
+@router.get("/shops/{shop_id}/insights")
+async def get_insights(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Shopkeeper business insights — data-driven insight cards.
+
+    Returns insight cards for top products, low stock, stale inventory,
+    search visibility, offers performance, and profile completeness.
+    All metrics are derived from live database state.
+    """
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    access.require("dashboard", "read")
+    return success_response(data=shopkeeper_service.business_insights(access, db))
+
+
 @router.get("/shops/{shop_id}/inventory")
 async def get_inventory(
     shop_id: int,

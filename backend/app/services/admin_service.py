@@ -43,7 +43,7 @@ from app.models.product import (
 )
 from app.models.search import SearchEvent, SearchHistory
 from app.models.shop import Shop, ShopStatus
-from app.models.subscription import Payment, Subscription, SubscriptionPlan, SubscriptionStatus
+from app.models.subscription import Payment, Subscription, SubscriptionPlan, SubscriptionStatus  # noqa: F401 - SubscriptionPlan registers the plans table
 from app.models.system import FeatureFlag, SystemSetting
 from app.models.user import User, UserStatus
 from app.models.analytics import ProductClick, ProductView, ShopView
@@ -1641,7 +1641,49 @@ def update_complaint(
         target_type="COMPLAINT", target_id=complaint.id, action_data=new_values,
         ip_address=ip_address,
     )
+    _notify_ticket_reporter(db, complaint, new_values)
     return serialize_model(complaint)
+
+
+def _notify_ticket_reporter(db: Session, complaint: Complaint, new_values: dict) -> None:
+    """Tell the shopkeeper when their support ticket moves.
+
+    Only tickets filed by the SHOPKEEPER APP are notified: ``complaint_type``
+    uses the ``APP_*`` codes for those (see ``support_service``), while the same
+    table also carries CUSTOMER complaints about a shop — a customer must not
+    receive a shopkeeper-audience support notice.
+
+    Best-effort by design, exactly like the shop-verification notice above: a
+    notification outage must never roll back the governance action that the
+    admin actually performed.
+    """
+    if "status" not in new_values:
+        return
+    if not str(complaint.complaint_type).startswith("APP_"):
+        return
+    if complaint.complainant_user_id is None:
+        return
+
+    try:
+        from app.services import notification_service
+        from app.services.support_service import STATUS_LABELS
+
+        label = STATUS_LABELS.get(complaint.status) or new_values["status"]
+        message = f"Your support ticket HL-{complaint.id} is now: {label}."
+        if complaint.resolution_notes:
+            message = f"{message} {complaint.resolution_notes}"
+        notification_service.notify_support_event(
+            db,
+            shopkeeper_user_id=complaint.complainant_user_id,
+            title=f"Support ticket HL-{complaint.id} updated",
+            message=message,
+            ticket_id=complaint.id,
+        )
+    except Exception:  # noqa: BLE001 — notifications must never break governance flows
+        logging.getLogger(__name__).warning(
+            "Failed to notify reporter of complaint %s status change", complaint.id
+        )
+
 
 # ── Notifications (admin broadcast) ──────────────────────────────────────
 def send_admin_notification(
@@ -1698,9 +1740,15 @@ def send_admin_notification(
 
     if created:
         try:
+            from app.core.celery_app import publish_task_nonblocking
             from app.services.notification_tasks import deliver_batch_task
 
-            deliver_batch_task.delay(created)
+            # Same hard time budget as the single-notification path: a degraded
+            # broker must not stall the admin request (the sweep converges).
+            publish_task_nonblocking(
+                lambda: deliver_batch_task.delay(created),
+                label=f"deliver_batch({len(created)})",
+            )
         except Exception:  # noqa: BLE001 — dispatch is a side-effect
             logger.warning(
                 "Admin broadcast dispatch failed; the periodic retry sweep "

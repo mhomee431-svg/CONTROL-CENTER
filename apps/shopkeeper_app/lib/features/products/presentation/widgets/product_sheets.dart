@@ -53,7 +53,11 @@ Future<(MediaObject, String)?> _pickAndUploadProductImage(
     showMessage('Only JPG, PNG or WebP images are supported');
     return null;
   }
-  final size = File(path).lengthSync();
+  // `length()` (not `lengthSync()`) so the stat never blocks the UI isolate
+  // while the file dialog result is processed. The mounted guard keeps the
+  // snackbar below off a disposed context.
+  final size = await File(path).length();
+  if (!context.mounted) return null;
   if (size > MediaRepository.maxImageBytes) {
     showMessage('Image must be smaller than 5 MB');
     return null;

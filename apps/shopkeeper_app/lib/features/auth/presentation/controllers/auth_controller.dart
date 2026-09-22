@@ -15,12 +15,15 @@ import '../../data/firebase_phone_otp_service.dart';
 import '../../data/auth_repository.dart';
 import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../products/presentation/controllers/recent_searches_controller.dart';
 import '../../../shops/presentation/controllers/shops_controller.dart';
 import '../../../notifications/presentation/controllers/notification_preferences_controller.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../../barcode/presentation/controllers/barcode_controller.dart';
 import '../../../inventory_import/presentation/controllers/import_controller.dart';
 import '../../../insights/presentation/controllers/insights_controller.dart';
+import '../../../support/presentation/controllers/support_tickets_controller.dart';
+import '../../../account/presentation/controllers/sessions_controller.dart';
 import 'selected_shop.dart';
 
 enum AuthStatus {
@@ -710,6 +713,18 @@ class AuthController extends Notifier<AuthState> {
     // Customer-activity reports are scoped to one account's shops — they must
     // never survive into the next session.
     ref.read(insightsControllerProvider.notifier).reset();
+    // Support tickets are scoped to the reporter: the next shopkeeper on this
+    // device must not see the previous account's support history or its open
+    // confirmation banner.
+    ref.read(supportTicketsProvider.notifier).reset();
+    // Search history is per account as well: the next shopkeeper on this
+    // device must not see the previous account's recent terms (and the
+    // store wipe keeps the encrypted history off the device).
+    await ref.read(recentSearchesControllerProvider.notifier).clearAll();
+    // Device sessions are per account as well — the Security screen's cached
+    // device list must start empty for the next sign-in, not show who was
+    // signed in before the logout.
+    ref.read(sessionsControllerProvider.notifier).reset();
 
     // 4) Unauthenticated → the router redirect sends the user to login.
     state = AuthState.unauthenticated();

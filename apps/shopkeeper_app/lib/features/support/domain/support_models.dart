@@ -152,28 +152,47 @@ const List<FaqEntry> supportFaqs = [
 ];
 
 /// What a report is about — drives the category picker on the report screen.
+///
+/// [code] is the value sent to the backend, which validates it against its own
+/// `support_service.CATEGORIES` (see `backend/app/services/support_service.py`)
+/// and rejects anything else with a 422. The codes are pinned by tests on BOTH
+/// sides, so a rename here cannot silently start filing free-text categories
+/// that support cannot filter on. The server stores the ticket under the
+/// `APP_*` prefix, which is how the shared complaints queue tells a shopkeeper's
+/// app-issue ticket apart from a customer's complaint about a shop.
 enum IssueCategory {
-  products('Products & catalogue'),
-  inventory('Inventory & stock'),
-  offers('Offers & pricing'),
-  pos('POS / billing sync'),
-  payments('Payments & subscription'),
-  account('Account & sign-in'),
-  other('Something else');
+  products('APP_PRODUCTS', 'Products & catalogue'),
+  inventory('APP_INVENTORY', 'Inventory & stock'),
+  offers('APP_OFFERS', 'Offers & pricing'),
+  pos('APP_POS', 'POS / billing sync'),
+  payments('APP_PAYMENTS', 'Payments & subscription'),
+  account('APP_ACCOUNT', 'Account & sign-in'),
+  other('APP_OTHER', 'Something else');
 
-  const IssueCategory(this.label);
+  const IssueCategory(this.code, this.label);
 
+  /// Backend category code (`APP_*`).
+  final String code;
+
+  /// What the shopkeeper reads in the picker.
   final String label;
 }
 
 /// How badly the issue blocks the shopkeeper — sets the triage priority of the
-/// report that gets sent to support.
+/// ticket filed with support.
+///
+/// [code] maps onto the backend's `complaints.priority` vocabulary (which also
+/// accepts URGENT, reserved for support escalating a ticket later).
 enum IssueSeverity {
-  low('Low - annoying but workable'),
-  medium('Medium - slows me down'),
-  high('High - I cannot use the app');
+  low('LOW', 'Low - annoying but workable'),
+  medium('MEDIUM', 'Medium - slows me down'),
+  high('HIGH', 'High - I cannot use the app');
 
-  const IssueSeverity(this.label);
+  const IssueSeverity(this.code, this.label);
 
+  /// Backend priority code.
+  final String code;
+
+  /// What the shopkeeper reads in the picker.
   final String label;
 }

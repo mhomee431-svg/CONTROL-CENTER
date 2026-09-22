@@ -88,7 +88,7 @@ def request_json(url: str, timeout: float) -> tuple[int, object]:
     """GET *url* and return (status, parsed-json). Never raises for 4xx/5xx."""
     req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as response:
             status = response.status
             raw = response.read()
     except urllib.error.HTTPError as exc:  # still a response: body matters
@@ -152,7 +152,9 @@ def check_health(health: dict, expect_env: str | None, sha: str | None) -> None:
         if not commit or commit == "unknown":
             warn("deployment.commit is unknown - skipping SHA match (set GIT_COMMIT)")
         elif not (short.startswith(commit) or commit.startswith(short)):
-            fail(f"deployment.commit={commit!r} != expected {short!r} (wrong build is live)")
+            fail(
+                f"deployment.commit={commit!r} != expected {short!r} (wrong build is live)"
+            )
         else:
             pass_(f"deployment.commit={commit}")
 
@@ -209,7 +211,9 @@ def _schema_names(spec: dict) -> set[str]:
     return set(((spec.get("components") or {}).get("schemas") or {}).keys())
 
 
-def check_contract(url: str, contract_path: Path, timeout: float, subset_ok: bool) -> None:
+def check_contract(
+    url: str, contract_path: Path, timeout: float, subset_ok: bool
+) -> None:
     section(f"contract parity (/openapi.json vs {contract_path.name})")
     if not contract_path.is_file():
         fail(f"contract file not found: {contract_path}")
@@ -225,7 +229,9 @@ def check_contract(url: str, contract_path: Path, timeout: float, subset_ok: boo
 
     expected_ops = _operation_signatures(expected)
     live_ops = _operation_signatures(live)
-    print(f"  operations: contract {len(expected_ops)} paths / live {len(live_ops)} paths")
+    print(
+        f"  operations: contract {len(expected_ops)} paths / live {len(live_ops)} paths"
+    )
 
     missing = sorted(set(expected_ops) - set(live_ops))
     extra = sorted(set(live_ops) - set(expected_ops))
@@ -278,7 +284,9 @@ def check_contract(url: str, contract_path: Path, timeout: float, subset_ok: boo
     expected_version = ((expected.get("info") or {}).get("version") or "").strip()
     live_version = ((live.get("info") or {}).get("version") or "").strip()
     if expected_version and live_version and expected_version != live_version:
-        fail(f"info.version drift: contract {expected_version!r} vs live {live_version!r}")
+        fail(
+            f"info.version drift: contract {expected_version!r} vs live {live_version!r}"
+        )
     pass_(f"info.version={live_version or 'unset'}")
 
 
@@ -286,7 +294,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="E2E contract battery for a deployed Hyperlocal environment.",
     )
-    parser.add_argument("--url", required=True, help="Base URL (scheme + host, no /api/v1)")
+    parser.add_argument(
+        "--url", required=True, help="Base URL (scheme + host, no /api/v1)"
+    )
     parser.add_argument("--expect-env", default=None, help="staging | production")
     parser.add_argument("--sha", default=None, help="Expected git SHA (short or long)")
     parser.add_argument(
@@ -294,8 +304,12 @@ def main(argv: list[str] | None = None) -> int:
         default=str(DEFAULT_CONTRACT),
         help=f"Committed OpenAPI file (default: {DEFAULT_CONTRACT.name})",
     )
-    parser.add_argument("--timeout", type=float, default=20.0, help="Per-request timeout (s)")
-    parser.add_argument("--wait", type=int, default=300, help="Seconds to wait for /health")
+    parser.add_argument(
+        "--timeout", type=float, default=20.0, help="Per-request timeout (s)"
+    )
+    parser.add_argument(
+        "--wait", type=int, default=300, help="Seconds to wait for /health"
+    )
     parser.add_argument(
         "--subset-ok",
         action="store_true",

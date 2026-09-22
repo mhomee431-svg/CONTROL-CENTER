@@ -1,9 +1,15 @@
 """Celery background job infrastructure with production-ready config."""
 
+import logging
+import threading
+from typing import Any, Callable
+
 from celery import Celery
 from celery.schedules import crontab
 
 from app.core.config import settings
+
+logger = logging.getLogger("app.core.celery")
 
 celery_app = Celery(
     "hyperlocal",
@@ -99,3 +105,59 @@ except Exception:  # noqa: BLE001 — telemetry is best-effort, never fatal
 # Export commonly needed helpers
 def get_celery_app() -> Celery:
     return celery_app
+
+
+# ── Non-blocking task publish ───────────────────────────────────────────────
+# Celery's ``send_task`` can block the CALLING thread for minutes when the
+# broker / result backend is unreachable: the Redis result backend's
+# ``on_task_call`` hook reconnects through kombu's ``retry_over_time``
+# (20 retries with backoff) before it finally gives up. Every fire-and-forget
+# publisher in the service layer must therefore publish on a short-lived daemon
+# thread with a hard time budget, so a degraded broker can never stall a
+# request thread. Abandoned publishes are converged by the periodic sweeps
+# (search-index sync, notification retry, scheduled POS sync).
+_TASK_PUBLISH_TIMEOUT_SECONDS = 1.0
+
+
+def publish_task_nonblocking(
+    publish: Callable[[], Any],
+    *,
+    label: str,
+    timeout: float = _TASK_PUBLISH_TIMEOUT_SECONDS,
+) -> bool:
+    """Run a Celery publish (``task.delay(...)`` / ``send_task(...)``) with a cap.
+
+    ``publish`` executes on a daemon thread that is joined for at most
+    ``timeout`` seconds. Returns ``True`` when the publish completed inside the
+    budget, ``False`` when it was abandoned or failed. NEVER raises: enqueuing
+    a background job must not break the request that triggered it.
+    """
+    outcome: dict[str, bool] = {"published": False}
+
+    def _publish() -> None:
+        try:
+            publish()
+            outcome["published"] = True
+        except Exception:  # noqa: BLE001 — the worker thread must never crash
+            logger.debug("Celery publish failed: %s", label, exc_info=True)
+
+    try:
+        worker = threading.Thread(
+            target=_publish,
+            name=f"celery-publish-{label}",
+            daemon=True,
+        )
+        worker.start()
+        worker.join(timeout=timeout)
+    except Exception:  # noqa: BLE001 — publish must never break the caller
+        logger.exception("Could not publish Celery task %s", label)
+        return False
+
+    if worker.is_alive():
+        logger.warning(
+            "Celery publish timed out (broker degraded) after %ss: %s",
+            timeout,
+            label,
+        )
+        return False
+    return outcome["published"]

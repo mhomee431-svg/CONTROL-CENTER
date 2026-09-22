@@ -213,9 +213,17 @@ def create_notification(
     if enqueue:
         # Import lazily so callers without a broker can run synchronously.
         try:
+            from app.core.celery_app import publish_task_nonblocking
             from app.services.notification_tasks import deliver_notification_task
 
-            deliver_notification_task.delay(notification.id)
+            # Published with a hard time budget: a Redis outage must not block
+            # the request thread for minutes (Celery's Redis result backend
+            # retries 20 times before giving up). An abandoned publish leaves
+            # the row PENDING, which the 5-minute retry sweep delivers.
+            publish_task_nonblocking(
+                lambda: deliver_notification_task.delay(notification.id),
+                label=f"deliver_notification({notification.id})",
+            )
         except Exception as exc:  # noqa: BLE001 — broker issues must never break host flows
             logger.warning(
                 "Could not enqueue delivery for notification %s (%s); "

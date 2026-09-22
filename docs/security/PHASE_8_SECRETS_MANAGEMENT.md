@@ -117,16 +117,26 @@ local-only credentials: **pending user action** (see §7).
 |---|---|
 | Tracked files (731) | ✅ **0 findings** |
 | History — pushed commits (`origin/main`) | ✅ **0 findings** (removed `.env*` held dev placeholders only) |
-| History — **local-only** Cline checkpoint refs | ⚠️ **8 findings, 2 incidents** (below) |
+| History — **local-only** Cline checkpoint refs | ⚠️ **389 findings across 6 local-only paths, 3 incidents** (below) |
 
 ### ⚠️ Known incidents (local-only, never pushed)
 
-Both exist solely in `refs/cline/checkpoints/*` snapshot commits — verified
-with `git branch -r --contains` (nothing on `origin/main`):
+All findings exist solely in `refs/cline/checkpoints/*` snapshot commits and
+gitignored local files — verified with `git branch -r --contains` (nothing on
+`origin/main`). Every path below is gitignored today, so it cannot be
+re-committed:
 
 1. **Firebase service-account key** `backend/hyperlocal--discovery-firebase-adminsdk-fbsvc-3e2c39a88e.json`
-   — still on disk (now git- & docker-ignored).
+   — still on disk (now git- & docker-ignored). Captured under both `backend/`
+   and `Backend/` casing, which is why the test matches case-insensitively.
 2. **AWS access key + secret** in a since-deleted `.tools/tf_init_plan.ps1`.
+3. **Customer-app smoke-run artifacts** (the bulk of the 389 findings):
+   `storage/_run_chrome.cmd`, `storage/_run_chrome_debug.cmd`,
+   `storage/_run_emu.cmd`, `storage/_run_emu_nominatim.cmd` — Flutter wrappers
+   that inject `MAPS_API_KEY` via `--dart-define` — plus
+   `storage/chrome_run.log.err`, which echoed the key; and the repo-root
+   `hyperlocal-prod-key.pem` private key. All are ignored now
+   (`.gitignore`: `storage/_run_*.cmd`, `storage/*.log.err`, `*.pem`).
 
 **Runbook (owner action):**
 
@@ -136,6 +146,10 @@ with `git branch -r --contains` (nothing on `origin/main`):
 #      store it in Secrets Manager as FCM_CREDENTIALS_JSON.
 #    - AWS IAM → deactivate/delete the affected access key, mint a new one
 #      into SSM/Secrets Manager if still needed.
+#    - Google Cloud console → regenerate the Maps API key and restrict it to
+#      the Android package / iOS bundle id (the old value is in local history).
+#    - Replace hyperlocal-prod-key.pem with a freshly minted key pair and
+#      delete the old one everywhere it was installed.
 
 # 2. Purge the local checkpoint snapshots holding the old values:
 git for-each-ref --format='%(refname)' refs/cline/checkpoints |
@@ -148,7 +162,8 @@ python scripts/security/scan_secrets.py --tracked --history
 
 Until pruned, the scanner intentionally reports these so they cannot be
 forgotten; `test_git_history_has_no_untracked_leaks` fails on **any other**
-historical finding.
+historical finding — i.e. on any path beyond the six listed above, including
+anything new placed under `storage/`.
 
 ---
 

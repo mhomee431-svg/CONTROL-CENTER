@@ -80,11 +80,22 @@ MEDIA_CATEGORIES: dict[str, MediaCategory] = {
         ("application/pdf",),
         settings.MEDIA_MAX_DOCUMENT_BYTES,
     ),
+    # Support screenshots — evidence a shopkeeper attaches to a support ticket
+    # from *Report an issue*. SELF-scoped (``user``): a ticket belongs to its
+    # reporter, and the shop association on a ticket is optional by design, so
+    # the key is scoped to the reporter's own id rather than to a shop. A key
+    # minted for user A can therefore never be attached to user B's ticket.
+    # Images only — the report screen offers "attach a screenshot".
+    "SUPPORT_ATTACHMENT": _category(
+        "SUPPORT_ATTACHMENT", "support", "user",
+        ("image/jpeg", "image/png", "image/webp"),
+        settings.MEDIA_MAX_IMAGE_BYTES,
+    ),
 }
 
 # Server-minted key shape: {prefix}/{scope}/{YYYY}/{MM}/{uuid8}_{safe}.{ext}
 _KEY_RE = re.compile(
-    r"^(?P<prefix>(?:products|shops|documents))"
+    r"^(?P<prefix>(?:products|shops|documents|support))"
     r"/(?P<scope>\d+)"
     r"/(?P<year>20\d{2})/(?P<month>0[1-9]|1[0-2])"
     r"/[0-9a-f]{8}_[A-Za-z0-9._-]+\.(?:jpg|jpeg|png|webp|pdf)$"
@@ -385,7 +396,10 @@ async def attach_media(
       * existence       - the object must actually be uploaded (HEAD), so
                           phantom keys cannot be referenced
     Returns the durable ``storage_ref`` (``s3://{bucket}/{key}``) to store in
-    DB columns plus a short-lived presigned URL for immediate use.
+    DB columns plus a short-lived presigned URL for immediate use, and the
+    SERVER-OBSERVED ``size_bytes`` / ``content_type`` from the HEAD — callers
+    that persist evidence (support screenshots) record what the object really
+    is, never what the client claimed.
     """
     parsed = parse_object_key(key)
     if parsed.category.name != expected_category:
@@ -418,6 +432,8 @@ async def attach_media(
         "storage_ref": storage_ref,
         "url": url,
         "category": parsed.category.name,
+        "size_bytes": head.get("size"),
+        "content_type": head.get("content_type"),
     }
 
 

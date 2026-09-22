@@ -24,11 +24,21 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 SCANNER = REPO_ROOT / "scripts" / "security" / "scan_secrets.py"
 
 # Local-only Cline checkpoint snapshots that still contain pre-rotation
-# credentials (never pushed — see docs/PHASE_8_SECRETS_MANAGEMENT.md for the
-# rotation/prune runbook). The history test fails on anything else.
+# credentials (never pushed — see docs/security/PHASE_8_SECRETS_MANAGEMENT.md
+# for the rotation/prune runbook). The history test fails on anything else.
+# Entries are lower-case prefixes: the matcher compares case-insensitively
+# because the same incident appears as both ``backend/…`` and ``Backend/…``.
 KNOWN_LOCAL_INCIDENTS = (
     "backend/hyperlocal--discovery-firebase-adminsdk-",
     ".tools/tf_init_plan.ps1",
+    # Local-only smoke-run artifacts of the customer app: shell wrappers that
+    # inject MAPS_API_KEY at build time plus the log they wrote. Every one is
+    # gitignored today (.gitignore: storage/_run_*.cmd, storage/*.log.err) and
+    # only ever existed inside local checkpoint commits.
+    "storage/_run_",
+    "storage/chrome_run.log.err",
+    # Local-only private key kept at the repo root (gitignored: *.pem).
+    "hyperlocal-prod-key.pem",
 )
 
 
@@ -89,9 +99,12 @@ def test_git_history_has_no_untracked_leaks():
     """
     proc = _run_scanner("--history", "--json")
     payload = json.loads(proc.stdout)
+    # Case-insensitive prefix match: the same local-only incident was captured
+    # under both "backend/" and "Backend/" in the checkpoint snapshots, so a
+    # case-sensitive startswith() reported it as an unforeseen regression.
     unexpected = [
         f for f in payload["findings"]
-        if not f["path"].startswith(KNOWN_LOCAL_INCIDENTS)
+        if not f["path"].lower().startswith(KNOWN_LOCAL_INCIDENTS)
     ]
     assert unexpected == [], json.dumps(unexpected, indent=2)
 

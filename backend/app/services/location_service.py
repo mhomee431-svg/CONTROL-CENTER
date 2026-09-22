@@ -105,15 +105,18 @@ async def reverse_geocode(latitude: float, longitude: float) -> Optional[Reverse
         return None
 
     try:
-        resp = httpx.get(
-            _GEOCODE_URL,
-            params={
-                "latlng": f"{latitude},{longitude}",
-                "key": api_key,
-                "result_type": "street_address|route|locality|administrative_area_level_1|postal_code",
-            },
-            timeout=8.0,
-        )
+        # httpx.AsyncClient (not blocking httpx.get): these calls run on the
+        # event loop, so a slow Google Maps response must never freeze every
+        # other request the server is handling.
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                _GEOCODE_URL,
+                params={
+                    "latlng": f"{latitude},{longitude}",
+                    "key": api_key,
+                    "result_type": "street_address|route|locality|administrative_area_level_1|postal_code",
+                },
+            )
         if resp.status_code != 200:
             logger.warning("Geocoding API returned status %s", resp.status_code)
             return None
@@ -195,7 +198,8 @@ async def address_autocomplete(
         params["strictbounds"] = False
 
     try:
-        resp = httpx.get(_PLACES_AUTOCOMPLETE_URL, params=params, timeout=8.0)
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(_PLACES_AUTOCOMPLETE_URL, params=params)
         if resp.status_code != 200:
             return []
 
@@ -225,15 +229,15 @@ async def get_place_coordinates(place_id: str) -> Optional[Tuple[float, float]]:
         return None
 
     try:
-        resp = httpx.get(
-            _PLACE_DETAILS_URL,
-            params={
-                "place_id": place_id,
-                "key": api_key,
-                "fields": "geometry",
-            },
-            timeout=8.0,
-        )
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                _PLACE_DETAILS_URL,
+                params={
+                    "place_id": place_id,
+                    "key": api_key,
+                    "fields": "geometry",
+                },
+            )
         if resp.status_code != 200:
             return None
 
@@ -266,18 +270,18 @@ async def get_directions(
         return None
 
     try:
-        resp = httpx.get(
-            _DIRECTIONS_URL,
-            params={
-                "origin": f"{origin_lat},{origin_lng}",
-                "destination": f"{dest_lat},{dest_lng}",
-                "mode": mode,
-                "key": api_key,
-                "departure_time": "now",
-                "traffic_model": "best_guess",
-            },
-            timeout=10.0,
-        )
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                _DIRECTIONS_URL,
+                params={
+                    "origin": f"{origin_lat},{origin_lng}",
+                    "destination": f"{dest_lat},{dest_lng}",
+                    "mode": mode,
+                    "key": api_key,
+                    "departure_time": "now",
+                    "traffic_model": "best_guess",
+                },
+            )
         if resp.status_code != 200:
             return None
 
@@ -320,6 +324,24 @@ async def get_directions(
 
 # ── Distance Matrix ────────────────────────────────────────────────────────
 
+class DistanceMatrixResult:
+    """One origin -> destination cell of a Distance Matrix response."""
+
+    __slots__ = (
+        "origin_address", "destination_address",
+        "distance_meters", "distance_text",
+        "duration_seconds", "duration_text",
+    )
+
+    def __init__(self, **kwargs: Any):
+        self.origin_address: str = kwargs.get("origin_address", "")
+        self.destination_address: str = kwargs.get("destination_address", "")
+        self.distance_meters: int = kwargs.get("distance_meters", 0)
+        self.distance_text: str = kwargs.get("distance_text", "")
+        self.duration_seconds: int = kwargs.get("duration_seconds", 0)
+        self.duration_text: str = kwargs.get("duration_text", "")
+
+
 async def get_distance_matrix(
     origins: list[Tuple[float, float]],
     destinations: list[Tuple[float, float]],
@@ -341,18 +363,18 @@ async def get_distance_matrix(
     dest_str = "|".join(f"{lat},{lng}" for lat, lng in destinations)
 
     try:
-        resp = httpx.get(
-            _DISTANCE_MATRIX_URL,
-            params={
-                "origins": origins_str,
-                "destinations": dest_str,
-                "mode": mode,
-                "key": api_key,
-                "departure_time": "now",
-                "traffic_model": "best_guess",
-            },
-            timeout=15.0,
-        )
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                _DISTANCE_MATRIX_URL,
+                params={
+                    "origins": origins_str,
+                    "destinations": dest_str,
+                    "mode": mode,
+                    "key": api_key,
+                    "departure_time": "now",
+                    "traffic_model": "best_guess",
+                },
+            )
         if resp.status_code != 200:
             return []
 
