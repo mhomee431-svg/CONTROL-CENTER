@@ -3,13 +3,21 @@
 #   1-8   reuse `reusable-backend-checks.yml` (checkout → deps → static analysis
 #        → unit tests → integration tests → build → security scan → artifact)
 #   9     deploy-staging      — SSM Run Command → compose stack (or ECS), env `staging`
-#   10    smoke-test-staging   — external health + readiness + contract battery
-#   11    production approval  — `environment: production` (protected with required
+#   10    smoke-test-staging  — external health + readiness + deployment identity
+#   10b   e2e-staging         — E2E contract battery: the deployed /openapi.json
+#                               must match packages/api_contracts/openapi.json
+#   11    production approval — `environment: production` (protected with required
 #                               reviewers); on every push an approver gates release
-#   12    deploy-production    — SSM Run Command → compose stack (or ECS), env `production`
-#   13    verify-production    — post-deploy health + sha verification
-#   14    rollback-production  — automatic on ANY upstream failure (images/stacks are
+#   12    deploy-production   — SSM Run Command → compose stack (or ECS), env `production`
+#   13    verify-production   — post-deploy health + sha verification
+#   14    rollback-production — automatic on ANY upstream failure (images/stacks are
 #                               versioned by git SHA; the server self-rolls-back too)
+#
+# Branch model (see docs/deployment/BRANCHING.md):
+#   push to `develop` → battery → staging → smoke → E2E → stop (staging is the gate).
+#   push to `main`    → battery → staging → smoke → E2E → approval → production.
+# The production job `needs:` the staging jobs, so a red staging gate can never
+# be approved past — production only ever gets a SHA that already passed staging.
 #
 # Dangerous database migrations are NEVER auto-applied: the migration gate
 # blocks the deploy unless `migrate_approved` is set on a manual re-run.
@@ -17,7 +25,7 @@ name: Backend CD — deploy
 
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-cd.yml'
@@ -25,7 +33,9 @@ on:
       - 'infrastructure/scripts/aws_run_command.sh'
       - 'infrastructure/scripts/cicd_migrate.sh'
       - 'infrastructure/scripts/cicd_smoke_test.sh'
+      - 'infrastructure/scripts/cicd_contract_check.py'
       - 'infrastructure/scripts/cicd_rollback.sh'
+      - 'packages/api_contracts/**'
   workflow_dispatch:
     inputs:
       deploy_target:
@@ -51,6 +61,10 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'hyperlocal-backend' }}
+  # Branch-aware moving tag: main → `latest` (production artifact), develop →
+  # `develop` (staging artifact). The immutable `:<sha>` tag is always pushed,
+  # so a rollback can always name an exact build.
+  MOVING_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'develop' }}
 
 jobs:
   check:
@@ -104,7 +118,7 @@ jobs:
           push: true
           tags: |
             ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.MOVING_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -112,8 +126,19 @@ jobs:
     name: Deploy staging (step 9)
     runs-on: ubuntu-latest
     needs: [check, migration-gate]
-    if: ${{ vars.STAGING_DEPLOY_ENABLED == 'true' && vars.DEPLOY_TARGET != 'ecs' && github.event.inputs.deploy_target != 'ecs' }}
+    # Both long-lived branches land on staging first: `develop` (integration) and
+    # `main` (release candidate). Feature branches never deploy — they only PR.
+    if: >-
+      ${{ vars.STAGING_DEPLOY_ENABLED == 'true'
+          && vars.DEPLOY_TARGET != 'ecs'
+          && github.event.inputs.deploy_target != 'ecs'
+          && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
     environment: staging
+    # develop and main share ONE staging instance: serialize instead of racing
+    # (every compose deploy restarts the stack).
+    concurrency:
+      group: backend-staging-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials (OIDC)
@@ -167,13 +192,44 @@ jobs:
             --ssm-instance-tag "${{ vars.STAGING_INSTANCE_TAG || 'hyperlocal-staging-app' }}" \
             --region "${{ env.AWS_REGION }}"
 
+  e2e-staging:
+    name: E2E contract battery (step 10b)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, smoke-test-staging]
+    if: ${{ needs.deploy-staging.result == 'success' && needs.smoke-test-staging.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: E2E — deployed API must match the committed contract
+        if: ${{ vars.STAGING_API_URL != '' }}
+        run: |
+          python3 infrastructure/scripts/cicd_contract_check.py \
+            --url "${{ vars.STAGING_API_URL }}" \
+            --expect-env staging \
+            --sha "${{ github.sha }}" \
+            --contract packages/api_contracts/openapi.json
+      - name: E2E skipped — STAGING_API_URL is not configured
+        if: ${{ vars.STAGING_API_URL == '' }}
+        run: echo "::warning::STAGING_API_URL is unset — the E2E contract battery was skipped."
+
   deploy-production:
     name: Deploy production (steps 11-12)
     runs-on: ubuntu-latest
-    needs: [check, migration-gate]
-    if: ${{ vars.PROD_DEPLOY_ENABLED != 'false' && vars.DEPLOY_TARGET != 'ecs' }}
+    # THE STAGING GATE: `needs` the staging jobs and the condition refuses to run
+    # after ANY upstream failure — production can only receive a SHA that already
+    # passed staging. A *skipped* staging job (staging disabled) does not block a
+    # release; a FAILED one always does.
+    needs: [check, migration-gate, deploy-staging, smoke-test-staging, e2e-staging]
+    if: >-
+      ${{ !cancelled() && !failure()
+          && github.ref == 'refs/heads/main'
+          && vars.PROD_DEPLOY_ENABLED != 'false'
+          && vars.DEPLOY_TARGET != 'ecs' }}
     # Protected environment: required reviewers pause here until approval.
     environment: production
+    # Never overlap two production releases.
+    concurrency:
+      group: backend-production-release
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials (OIDC)
@@ -222,6 +278,14 @@ jobs:
             --sha "${{ github.sha }}" \
             --ssm-instance-tag "${{ vars.PROD_INSTANCE_TAG || 'hyperlocal-production-app' }}" \
             --region "${{ env.AWS_REGION }}"
+      - name: Production E2E — contract parity + dependency readiness
+        if: ${{ vars.PROD_API_URL != '' }}
+        run: |
+          python3 infrastructure/scripts/cicd_contract_check.py \
+            --url "${{ vars.PROD_API_URL }}" \
+            --expect-env production \
+            --sha "${{ github.sha }}" \
+            --contract packages/api_contracts/openapi.json
 
   rollback-production:
     name: Automatic rollback (production, step 14)

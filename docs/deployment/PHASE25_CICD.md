@@ -9,14 +9,20 @@ auto-applied without explicit approval.
 
 ## 1. Architecture
 
-A push or merge to main (or a manual dispatch) triggers:
+**Branch model** (full detail in [`BRANCHING.md`](BRANCHING.md)):
+`feature/*` → PR → `develop` (integration) → staging → E2E → PR → `main`
+(production) → approval → production. Deployment jobs only run for `develop`
+and `main`; feature branches never deploy.
+
+A push to `develop` or `main` (or a manual dispatch) triggers:
 
 1. **`reusable-backend-checks.yml`** - the quality gate (steps 1-8):
    checkout, install dependencies, static analysis, unit tests, integration
    tests (PostGIS + Redis), build, security scan, migration rehearsal.
 2. **`backend-cd.yml`** (default driver, EC2 + Docker Compose) - steps 9-14:
-   deploy staging, smoke test, then after production approval deploy
-   production, verify health, and roll back automatically on failure.
+   deploy staging, smoke test, E2E contract battery, then after production
+   approval deploy production, verify health, and roll back automatically on
+   failure. On `develop` the pipeline stops after the staging gate.
 3. **`backend-deploy.yml`** (ECS / Fargate driver, active when the repo
    variable `DEPLOY_TARGET=ecs`) - the same staged rollout using service
    images instead of an instance checkout.
@@ -40,10 +46,17 @@ All steps use GitHub OIDC to assume the scoped `hyperlocal-cicd-deploy` role
 | 8 | Artifact / image          | `push-image`: ECR tags plus `:sha` / compose git SHA |
 | 9 | Deploy staging            | `deploy-staging` (env `staging`): SSM Run Command    |
 |10 | Smoke test                | `smoke-test-staging`: /health /ready /openapi + SHA  |
+|10b| E2E contract battery      | `e2e-staging`: `infrastructure/scripts/cicd_contract_check.py` - the deployed `/openapi.json` must equal `packages/api_contracts/openapi.json` (paths, methods, schemas, version) and `/ready` must report database+redis+postgis |
 |11 | Production approval       | `environment: production` (required reviewers)      |
 |12 | Deploy production         | `deploy-production`                                 |
-|13 | Verify health             | `verify-production` against PROD_API_URL             |
+|13 | Verify health             | `verify-production` against PROD_API_URL (+ the same E2E battery) |
 |14 | Roll back automatically   | `rollback-*` jobs on `failure()` + server-side self-rollback |
+
+Branch guards: `deploy-staging` runs only for `refs/heads/develop` and
+`refs/heads/main`; `deploy-production` additionally requires `main`, the
+protected `production` environment and `needs: [..., deploy-staging,
+smoke-test-staging, e2e-staging]` with `!cancelled() && !failure()` — a red
+staging gate blocks the release (a deliberately skipped staging job does not).
 
 ## 3. Environments and approvals
 
@@ -58,6 +71,15 @@ The protected environments are configured in
 
 Only the production environment can release to production, and only after a
 human approves the exact SHA that already passed staging.
+
+The staging gate is **enforced in the workflow graph**, not by convention:
+`deploy-production` declares `needs: [check, migration-gate, deploy-staging,
+smoke-test-staging, e2e-staging]` and a `!cancelled() && !failure()` condition.
+If the staging deploy, the smoke battery or the E2E contract battery fails, the
+production job is skipped even if someone approves it. Staging and production
+deploys are also serialized with job-level `concurrency` groups
+(`backend-staging-deploy`, `backend-production-release`), so `develop` and
+`main` pipelines never race on the same instance.
 
 ## 4. Migration safety (never auto-deploy dangerous migrations)
 
@@ -106,6 +128,13 @@ Variables (with defaults - overridable):
   STAGING_INSTANCE_TAG (hyperlocal-staging-app), PROD_API_URL,
   PROD_INSTANCE_TAG (hyperlocal-production-app), WEB_SERVICE/WORKER_SERVICE/
   BEAT_SERVICE + STAGING_* for ECS, ECS_CLUSTER_NAME, PREVIOUS_IMAGE.
+- Flutter staging builds: CUSTOMER_STAGING_API_BASE_URL and
+  SHOPKEEPER_STAGING_API_BASE_URL (both default to
+  `https://staging-api.hyperlocal.in`) - the staged moveable URL for QA builds.
+
+Images are tagged per branch: `:<sha>` always, plus `:latest` for `main` and
+`:develop` for `develop` (see `MOVING_TAG` in the workflows), so a staging
+artifact can never be confused with a production one.
 
 The workflow reads them via the GitHub `vars` context; see the file
 `.github/workflows/backend-cd.yml` for every usage with its fallback value.

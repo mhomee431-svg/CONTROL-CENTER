@@ -8,11 +8,14 @@ root_volume_gb       = 20
 db_instance_class    = "db.t3.micro"
 db_allocated_storage = 20
 
-# Phase 12 — Staging API domain + HTTPS (use a staging subdomain)
-domain_name          = "api.staging.hyperlocal.in"
+# Phase 12 — Staging domains + HTTPS (use the staging-* subdomain set)
+# The API host MUST equal the Flutter apps' staging default
+# (EnvConfig.defaultBaseUrlFor(AppEnv.staging)) and the CI variable
+# STAGING_API_URL, otherwise the staging APKs cannot reach staging.
+domain_name          = "staging-api.hyperlocal.in"
 caddy_acme_email     = "admin@hyperlocal.in"
-frontend_domain      = "app.staging.hyperlocal.in"
-admin_frontend_domain = "admin.staging.hyperlocal.in"
+frontend_domain      = "staging-app.hyperlocal.in"
+admin_frontend_domain = "staging-admin.hyperlocal.in"
 dns_zone_name        = "hyperlocal.in."
 manage_dns           = true
 

@@ -35,6 +35,38 @@ apps/*  -->  packages/*  -->  (nothing - leaf packages)
   them. `packages/api_contracts/openapi.json` is regenerated from the app via
   `python backend/scripts/export_openapi.py` and CI fails on drift.
 
+## Branches and environments
+
+```
+feature/*  --PR-->  develop  --auto deploy-->  staging  --smoke + E2E-->  PR
+                      |                                                    |
+                      +------------------- main <-------------------------+
+                                            |
+                                  approval -> production (EC2/ECS + RDS + S3)
+```
+
+| Branch | Deploys to | Gate before it goes further |
+|--------|-----------|------------------------------|
+| `feature/*` | nothing (local only) | backend CI + Flutter analyze/test on the PR |
+| `develop` | **staging** automatically | quality battery → smoke battery → E2E contract battery |
+| `main` | **production** after approval | everything above + required reviewers on the `production` environment |
+
+`develop` is a *git branch* (which code); `staging` is an *environment* (where it
+runs). Full rules, required status checks, variables, runbooks and rollback
+procedures: [`docs/deployment/BRANCHING.md`](docs/deployment/BRANCHING.md).
+
+```powershell
+# start work
+git switch develop && git pull && git switch -c feature/<name>
+
+# prove a deployed environment serves the committed contract (no credentials)
+python infrastructure/scripts/cicd_contract_check.py `
+  --url https://staging-api.hyperlocal.in --expect-env staging
+
+# apply the branch protection rules (needs a PAT in $env:GITHUB_TOKEN)
+powershell -ExecutionPolicy Bypass -File scripts/setup_branch_protection.ps1 -DryRun
+```
+
 ## Quick start (local development)
 
 **Prerequisite:** Docker Desktop (runs PostgreSQL/PostGIS 16-3.4 + Redis 7).
@@ -79,7 +111,7 @@ powershell -ExecutionPolicy Bypass -File scripts/dev/test.ps1
 | Database | [`docs/database/`](docs/database/) - schema design, RDS/PostGIS, free-cloud Postgres, backup & recovery, migration automation |
 | API | [`docs/api/API_OVERVIEW.md`](docs/api/API_OVERVIEW.md) + full contract in [`packages/api_contracts/`](packages/api_contracts/) |
 | Security | [`docs/security/`](docs/security/) - secrets management, IAM foundation, Firebase phone auth |
-| Deployment | [`docs/deployment/`](docs/deployment/) - CI/CD, ECS deploy, domain/HTTPS, runbook, DR, cost guide |
+| Deployment | [`docs/deployment/`](docs/deployment/) - [branching & release gates](docs/deployment/BRANCHING.md), CI/CD, ECS deploy, domain/HTTPS, runbook, DR, cost guide |
 | Testing | [`docs/testing/`](docs/testing/) - real-device E2E protocol |
 
 Backend-specific phase docs live in [`backend/docs/`](backend/docs/).

@@ -1,24 +1,35 @@
 # Hyperlocal Product Discovery Platform — Environment Configuration
 
+> **Branch vs environment:** branches (`develop`, `main`) decide *which code* is
+> released; environments (`staging`, `production`) decide *where* it runs.
+> The full mapping, gates and runbooks live in
+> [`BRANCHING.md`](BRANCHING.md).
+
 ## Environments
 
 ### Local Development
+- **Branch**: any `feature/*` (local run, no deployment)
 - **Backend**: `http://localhost:8000`
 - **Database**: Local PostgreSQL + PostGIS (Docker)
 - **Redis**: Local Redis (Docker)
 - **Storage**: Local filesystem
 
 ### Staging
+- **Branch**: `develop` — deployed automatically on every push
 - **Backend**: `https://staging-api.hyperlocal.in`
 - **Database**: RDS PostgreSQL (staging instance)
 - **Redis**: Local container on EC2
 - **Storage**: S3 staging bucket
+- **Secrets**: SSM `/hyperlocal/staging/*`
 
 ### Production
+- **Branch**: `main` — deployed automatically after approval on the protected
+  `production` environment
 - **Backend**: `https://api.hyperlocal.in`
 - **Database**: RDS PostgreSQL (production instance)
 - **Redis**: Local container on EC2
 - **Storage**: S3 production bucket
+- **Secrets**: SSM `/hyperlocal/production/*`
 
 ## Environment Variables
 

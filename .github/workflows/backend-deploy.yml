@@ -4,6 +4,10 @@
 # failures (`|| true`) and deployed straight to production without gates.
 # It now enforces the full quality battery, staging, approval and rollback.
 #
+# Branch model (same as backend-cd.yml — see docs/deployment/BRANCHING.md):
+#   push to `develop` → battery → staging → smoke → E2E → stop.
+#   push to `main`    → battery → staging → smoke → E2E → approval → production.
+#
 # Driver routing (mutually exclusive with .github/workflows/backend-cd.yml):
 #   * DEPLOY_TARGET unset / "compose"  → backend-cd.yml (EC2 + Docker Compose) is active;
 #                                       this workflow's deploy jobs all skip.
@@ -12,13 +16,16 @@ name: Backend ECS — deploy (paid tier)
 
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
       - '.github/workflows/reusable-backend-checks.yml'
       - 'infrastructure/scripts/ecs_deploy.sh'
+      - 'infrastructure/scripts/cicd_smoke_test.sh'
+      - 'infrastructure/scripts/cicd_contract_check.py'
       - 'infrastructure/scripts/cicd_rollback.sh'
+      - 'packages/api_contracts/**'
   workflow_dispatch:
     inputs:
       migrate_approved:
@@ -38,6 +45,9 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'hyperlocal-backend' }}
+  # Branch-aware moving tag: main → `latest` (production), develop → `develop`
+  # (staging). The immutable `:<sha>` tag is always pushed for exact rollbacks.
+  MOVING_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'develop' }}
 
 jobs:
   check:
@@ -83,7 +93,7 @@ jobs:
           push: true
           tags: |
             ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.MOVING_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -91,8 +101,15 @@ jobs:
     name: Deploy staging ECS (step 9)
     runs-on: ubuntu-latest
     needs: [check, migration-gate, push-image]
-    if: ${{ vars.STAGING_DEPLOY_ENABLED == 'true' }}
+    # develop (integration) and main (release candidate) both validate on staging.
+    if: >-
+      ${{ vars.STAGING_DEPLOY_ENABLED == 'true'
+          && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') }}
     environment: staging
+    # One staging rollout at a time (develop and main share the staging services).
+    concurrency:
+      group: backend-staging-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials (OIDC)
@@ -130,12 +147,40 @@ jobs:
             --expect-env staging \
             --sha "${{ github.sha }}"
 
+  e2e-staging:
+    name: E2E contract battery (step 10b)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, smoke-staging]
+    if: ${{ needs.deploy-staging.result == 'success' && needs.smoke-staging.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: E2E — deployed API must match the committed contract
+        if: ${{ vars.STAGING_API_URL != '' }}
+        run: |
+          python3 infrastructure/scripts/cicd_contract_check.py \
+            --url "${{ vars.STAGING_API_URL }}" \
+            --expect-env staging \
+            --sha "${{ github.sha }}" \
+            --contract packages/api_contracts/openapi.json
+      - name: E2E skipped — STAGING_API_URL is not configured
+        if: ${{ vars.STAGING_API_URL == '' }}
+        run: echo "::warning::STAGING_API_URL is unset — the E2E contract battery was skipped."
+
   deploy-production:
     name: Deploy production ECS (step 12, approval gated)
     runs-on: ubuntu-latest
-    needs: [check, migration-gate, push-image]
-    if: ${{ vars.PROD_DEPLOY_ENABLED != 'false' }}
+    # THE STAGING GATE: refuses to run after any upstream failure, so production
+    # only ever receives a SHA that already passed staging. A skipped staging job
+    # (staging disabled) does not block the release; a failed one always does.
+    needs: [check, migration-gate, push-image, deploy-staging, smoke-staging, e2e-staging]
+    if: >-
+      ${{ !cancelled() && !failure()
+          && github.ref == 'refs/heads/main'
+          && vars.PROD_DEPLOY_ENABLED != 'false' }}
     environment: production
+    concurrency:
+      group: backend-production-release
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials (OIDC)
@@ -166,6 +211,14 @@ jobs:
             --url "${{ vars.PROD_API_URL }}" \
             --expect-env production \
             --sha "${{ github.sha }}"
+      - name: Production E2E — contract parity + dependency readiness
+        if: ${{ vars.PROD_API_URL != '' }}
+        run: |
+          python3 infrastructure/scripts/cicd_contract_check.py \
+            --url "${{ vars.PROD_API_URL }}" \
+            --expect-env production \
+            --sha "${{ github.sha }}" \
+            --contract packages/api_contracts/openapi.json
 
   rollback-production:
     name: Automatic rollback ECS (step 14)

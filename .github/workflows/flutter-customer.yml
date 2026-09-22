@@ -1,14 +1,30 @@
+# Branch model (docs/deployment/BRANCHING.md):
+#   pull_request → develop/main : analyze + test only (the PR gate).
+#   push to develop             : analyze + test + build the STAGING APK
+#                                 (APP_ENV=staging → https://staging-api.hyperlocal.in).
+#   push to main                : analyze + test + build the PRODUCTION APK.
+# Job `name:` values are used as required status checks in branch protection —
+# keep them stable.
 name: Flutter Customer App — Test & Build
 
 on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'apps/customer_app/**'
+      - 'packages/**'
+      - '.github/workflows/flutter-customer.yml'
   push:
-    branches: [main]
-    paths: ['apps/customer_app/**']
+    branches: [develop, main]
+    paths:
+      - 'apps/customer_app/**'
+      - 'packages/**'
+      - '.github/workflows/flutter-customer.yml'
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Test & build Android (production)
+  test-analyze:
+    name: Customer — test & analyze (PR gate)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,6 +45,72 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+  build-staging:
+    name: Customer — build Android (staging)
+    runs-on: ubuntu-latest
+    needs: test-analyze
+    if: ${{ github.ref == 'refs/heads/develop' }}
+    defaults:
+      run:
+        working-directory: apps/customer_app
+    env:
+      # Staging QA build — override with the repo variable when the domain changes.
+      API_BASE_URL: ${{ vars.CUSTOMER_STAGING_API_BASE_URL || 'https://staging-api.hyperlocal.in' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build staging APK (APP_ENV=staging)
+        env:
+          MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: >
+          flutter build apk --release
+          --dart-define=API_BASE_URL=$API_BASE_URL
+          --dart-define=APP_ENV=staging
+          --dart-define=MAPS_API_KEY=$MAPS_API_KEY
+
+      - name: Upload staging APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-app-staging
+          path: apps/customer_app/build/app/outputs/flutter-apk/app-release.apk
+
+  build-production:
+    name: Customer — build Android (production)
+    runs-on: ubuntu-latest
+    needs: test-analyze
+    if: ${{ github.ref == 'refs/heads/main' }}
+    defaults:
+      run:
+        working-directory: apps/customer_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Refuse an unconfigured production build (fail fast)
+        env:
+          API_BASE_URL: ${{ secrets.CUSTOMER_API_BASE_URL }}
+        run: |
+          if [ -z "${API_BASE_URL}" ]; then
+            echo "::error::CUSTOMER_API_BASE_URL is not configured — refusing to build a production APK without an API host."
+            exit 1
+          fi
+          echo "production API host: ${API_BASE_URL}"
 
       - name: Build release APK
         env:

@@ -4,18 +4,23 @@
 # code change: checkout → install → static analysis → unit tests → integration
 # tests (PostGIS + Redis) → build → security scan → migration rehearsal.
 # The CD workflow reuses the same battery before it deploys anything.
+#
+# Branch model (see docs/deployment/BRANCHING.md):
+#   * feature/*  → PR into `develop` or `main` — this gate must be green.
+#   * develop    → integration branch; pushes are also gated here.
+#   * main       → production branch; protected, PR-only.
 name: Backend CI — quality gates
 
 on:
   pull_request:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
       - '.github/workflows/reusable-backend-checks.yml'
       - 'infrastructure/scripts/*'
   push:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'

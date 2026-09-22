@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### CI/CD & branching
+- Added the `develop` (integration) branch model: `feature/*` → PR → `develop` →
+  staging → E2E → PR → `main` → approval → production
+- `backend-ci.yml`, `backend-cd.yml`, `backend-deploy.yml`, `flutter-*.yml` and
+  `secret-scan.yml` now trigger on `develop` as well as `main`; the Flutter
+  workflows gained a `pull_request` trigger (analyze + test gate)
+- Staging is now an enforced release gate: `deploy-production` requires
+  `deploy-staging`, `smoke-test-staging` and `e2e-staging` to succeed
+  (`!cancelled() && !failure()`) and only runs from `main`
+- New `e2e-staging` job + `infrastructure/scripts/cicd_contract_check.py`:
+  the deployed `/openapi.json` must match `packages/api_contracts/openapi.json`
+  (paths, methods, schemas, version) and `/ready` must report
+  database+redis+postgis — also run against production in `verify-production`
+- Job-level concurrency locks (`backend-staging-deploy`,
+  `backend-production-release`) stop `develop`/`main` deploys racing on one box
+- Branch-aware image tags: `:latest` on `main`, `:develop` on `develop`,
+  immutable `:<sha>` always
+- Flutter staging flavor builds (`APP_ENV=staging` →
+  `https://staging-api.hyperlocal.in`) on `develop`; production APKs now fail
+  fast when the API host secret is missing
+- New docs: `docs/deployment/BRANCHING.md` (develop vs staging, gates,
+  runbooks); `scripts/setup_branch_protection.ps1` applies the branch rules
+- terraform staging preset domains aligned with the apps' staging default
+  (`staging-api.hyperlocal.in`)
+
 ### Security
 - Replaced HMAC-SHA256 password hashing with bcrypt (work factor 12)
 - Added `.pem` and `.key` files to `.gitignore`
