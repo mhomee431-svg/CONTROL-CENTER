@@ -719,8 +719,20 @@ class AuthController extends Notifier<AuthState> {
     ref.read(supportTicketsProvider.notifier).reset();
     // Search history is per account as well: the next shopkeeper on this
     // device must not see the previous account's recent terms (and the
-    // store wipe keeps the encrypted history off the device).
-    await ref.read(recentSearchesControllerProvider.notifier).clearAll();
+    // store wipe keeps the encrypted history off the device). Best-effort
+    // like steps 1 and 2: a keystore that throws — or worse, never answers —
+    // must not trap the shopkeeper inside the account. The session is already
+    // revoked and every other cache above is already cleared, so a stuck
+    // history wipe (worst case: stale terms until the next successful wipe)
+    // may never block the sign-out itself.
+    try {
+      await ref
+          .read(recentSearchesControllerProvider.notifier)
+          .clearAll()
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // Best-effort: never block logout on the local history wipe.
+    }
     // Device sessions are per account as well — the Security screen's cached
     // device list must start empty for the next sign-in, not show who was
     // signed in before the logout.

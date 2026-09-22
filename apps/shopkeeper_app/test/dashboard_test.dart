@@ -13,6 +13,7 @@ import 'package:hyperlocal_shopkeeper_app/features/dashboard/data/dashboard_repo
 import 'package:hyperlocal_shopkeeper_app/features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/data/recent_searches_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/shops/domain/shop_models.dart';
 
 import 'fakes.dart';
@@ -344,6 +345,11 @@ void main() {
         // Real FirebaseAuthService.signOut() hangs on the test VM's platform
         // channel — inject a no-op fake so the logout flow completes.
         firebaseAuthServiceProvider.overrideWithValue(FakeFirebaseAuthService()),
+        // Logout also awaits the recent-searches wipe; the secure store's
+        // platform channel hangs under FakeAsync the same way — in-memory
+        // store so sign-out completes and the router reaches Welcome.
+        recentSearchesStoreProvider
+            .overrideWithValue(InMemoryRecentSearchesStore()),
         selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
       ]);
       addTearDown(container.dispose);

@@ -19,6 +19,7 @@ import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notificati
 import 'package:hyperlocal_shopkeeper_app/features/notifications/data/notifications_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/domain/notification_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/notifications/presentation/controllers/notification_preferences_controller.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/data/recent_searches_store.dart';
 
 import 'fakes.dart';
 
@@ -63,6 +64,12 @@ ProviderContainer buildContainer({
       // the real app gets the scriptable fake (default: refused).
       permissionServiceProvider
           .overrideWithValue(InMemoryPermissionService()),
+      // Logout awaits the recent-searches store wipe; the secure store's
+      // platform channel NEVER completes under the widget test's FakeAsync
+      // zone — sign-out would hang forever (pumpAndSettle timeout).
+      // In-memory store, same no-platform-channel doctrine as above.
+      recentSearchesStoreProvider
+          .overrideWithValue(InMemoryRecentSearchesStore()),
     ],
   );
   addTearDown(container.dispose);

@@ -42,10 +42,15 @@
   while `build()` is still running ("uninitialized provider" crash).
   `recent_searches_test.dart`: 11/11 green; dropped an unused import so
   `flutter analyze` stays clean
-- Known pre-existing (not introduced by this change): `dashboard_test`
-  sign-out → Welcome and `settings_support_test` real-router logout fail
-  against current `develop` HEAD — verified by re-running them with the
-  controller reverted to HEAD (both fail there too)
+- The two pre-existing logout failures are FIXED: `AuthController.logout()`
+  now treats the recent-searches wipe as best-effort (2s timeout + catch —
+  a keystore that never answers must not trap the shopkeeper inside the
+  account), and the `dashboard_test` / `settings_support_test` logout tests
+  override `recentSearchesStoreProvider` with the in-memory store (the secure
+  store's platform channel never completes under the widget test's FakeAsync
+  zone, so sign-out hung and `pumpAndSettle` timed out). Result:
+  `dashboard_test` 16/16, `settings_support_test` 31/31,
+  `recent_searches_test` 11/11, `flutter analyze` clean
 
 ### Security
 - Replaced HMAC-SHA256 password hashing with bcrypt (work factor 12)
