@@ -33,6 +33,20 @@
 - terraform staging preset domains aligned with the apps' staging default
   (`staging-api.hyperlocal.in`)
 
+### Shopkeeper app
+- Recent-searches controller serializes every load/mutation on one internal
+  queue: an in-flight `load()` can no longer wipe a just-submitted term
+  (the cold-start race that made the first search vanish from the dropdown),
+  `record()` always merges against the state its preceding load applied
+  (no store-history loss), and the no-shop path no longer reads `state`
+  while `build()` is still running ("uninitialized provider" crash).
+  `recent_searches_test.dart`: 11/11 green; dropped an unused import so
+  `flutter analyze` stays clean
+- Known pre-existing (not introduced by this change): `dashboard_test`
+  sign-out → Welcome and `settings_support_test` real-router logout fail
+  against current `develop` HEAD — verified by re-running them with the
+  controller reverted to HEAD (both fail there too)
+
 ### Security
 - Replaced HMAC-SHA256 password hashing with bcrypt (work factor 12)
 - Added `.pem` and `.key` files to `.gitignore`

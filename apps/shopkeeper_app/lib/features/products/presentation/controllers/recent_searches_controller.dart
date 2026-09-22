@@ -23,6 +23,10 @@ import '../../../auth/presentation/controllers/selected_shop.dart';
 ///     the list still searches.
 ///   * wiped on logout — [clearAll] is called alongside the product snapshot
 ///     wipe, so one account's terms never leak into the next session.
+///   * ordered — loads and mutations run one at a time on a single queue,
+///     in call order, so an in-flight load can never overwrite a newer
+///     record (and a record always merges against the applied state).
+
 class RecentSearchesState {
   const RecentSearchesState({
     this.terms = const [],
@@ -52,6 +56,28 @@ class RecentSearchesController extends Notifier<RecentSearchesState> {
 
   String? get _shopKey => ref.read(selectedShopProvider)?.id.toString();
 
+  /// Every load / mutation runs through this queue, strictly in call order.
+  ///
+  /// Without it two races corrupt the visible history:
+  ///   * an in-flight load() (store snapshot taken BEFORE a record) lands
+  ///     after it and wipes the just-submitted term — the "first search
+  ///     after cold start disappears" race;
+  ///   * a record() computed against state its preceding load has not
+  ///     applied yet saves an incomplete list over the store's full one.
+  ///
+  /// Queueing also guarantees load() never touches `state` synchronously
+  /// during [build] — `.then` always defers the body past the initial-state
+  /// assignment, which the no-shop path would otherwise read too early.
+  Future<void> _queue = Future<void>.value();
+
+  Future<void> _enqueue(Future<void> Function() action) {
+    final run = _queue.then((_) => action());
+    // Keep the queue usable after a failure; the caller still receives the
+    // error through `run`.
+    _queue = run.catchError((Object _) {});
+    return run;
+  }
+
   @override
   RecentSearchesState build() {
     // The shop can change under us (login / switch / logout): reload on
@@ -62,7 +88,9 @@ class RecentSearchesController extends Notifier<RecentSearchesState> {
   }
 
   /// Loads this shop's terms. Never throws — failure means "no history".
-  Future<void> load() async {
+  Future<void> load() => _enqueue(_load);
+
+  Future<void> _load() async {
     final key = _shopKey;
     if (key == null) {
       if (state.terms.isNotEmpty || state.loading) {
@@ -83,7 +111,9 @@ class RecentSearchesController extends Notifier<RecentSearchesState> {
 
   /// Records a submitted term: deduped (case-insensitively), moved to the
   /// front, capped. No-ops on blank / too-short terms and without a shop.
-  Future<void> record(String raw) async {
+  Future<void> record(String raw) => _enqueue(() => _record(raw));
+
+  Future<void> _record(String raw) async {
     final term = raw.trim();
     if (term.length < minLength) return;
     final key = _shopKey;
@@ -103,7 +133,9 @@ class RecentSearchesController extends Notifier<RecentSearchesState> {
   }
 
   /// Drops one term (the history row's dismiss action).
-  Future<void> remove(String term) async {
+  Future<void> remove(String term) => _enqueue(() => _remove(term));
+
+  Future<void> _remove(String term) async {
     final key = _shopKey;
     final lowered = term.toLowerCase();
     final next = [
@@ -125,7 +157,9 @@ class RecentSearchesController extends Notifier<RecentSearchesState> {
 
   /// Wipes every shop's terms (logout). Also resets the visible state so no
   /// stale term survives into the next session even before [load] runs.
-  Future<void> clearAll() async {
+  Future<void> clearAll() => _enqueue(_clearAll);
+
+  Future<void> _clearAll() async {
     state = const RecentSearchesState(loading: false);
     try {
       await _store.clearAll();

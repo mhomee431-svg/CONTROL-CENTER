@@ -16,7 +16,6 @@ import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers
 import 'package:hyperlocal_shopkeeper_app/features/products/data/recent_searches_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/presentation/controllers/recent_searches_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
-import 'package:hyperlocal_shopkeeper_app/core/network/api_providers.dart';
 import 'package:hyperlocal_shopkeeper_app/core/ui/debounced_search_field.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/domain/auth_models.dart';
 
