@@ -64,6 +64,14 @@ class ProfileScreen extends ConsumerWidget {
             const Divider(),
             const _SectionLabel('Account'),
             ListTile(
+              key: const Key('myOrdersTile'),
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('My Orders'),
+              subtitle: const Text('Track and review your orders'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/orders'),
+            ),
+            ListTile(
               key: const Key('addressesTile'),
               leading: const Icon(Icons.location_on_outlined),
               title: const Text('My Addresses'),

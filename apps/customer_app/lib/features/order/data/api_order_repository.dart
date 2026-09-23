@@ -35,8 +35,8 @@ class ApiOrderRepository implements OrderRepository {
     final data = await _apiClient.get(
       ApiEndpoints.myOrders,
       queryParameters: {
-        if (limit != null) 'limit': limit,
-        if (offset != null) 'offset': offset,
+        'limit': ?limit,
+        'offset': ?offset,
       },
     );
     return OrderListResponse.fromJson(Map<String, dynamic>.from(data as Map));

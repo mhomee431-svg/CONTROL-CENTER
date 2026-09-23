@@ -1,4 +1,5 @@
 import '../../../core/cache/local_cache_service.dart';
+import '../../../core/catalog/approved_categories.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../domain/home_repository.dart';
@@ -20,10 +21,7 @@ class ApiHomeRepository implements HomeRepository {
     try {
       final data = await _apiClient.get(
         ApiEndpoints.homeFeed,
-        queryParameters: {
-          'latitude': ?latitude,
-          'longitude': ?longitude,
-        },
+        queryParameters: {'latitude': ?latitude, 'longitude': ?longitude},
         requiresAuth: false,
       );
 
@@ -73,10 +71,14 @@ class ApiHomeRepository implements HomeRepository {
             .map((e) => Promotion.fromJson(e as Map<String, dynamic>))
             .toList();
 
+    final categories = (data['categories'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(Category.fromJson)
+        .where((category) => ApprovedCategories.isApproved(category.name))
+        .toList(growable: false);
+
     return HomeData(
-      categories: (data['categories'] as List<dynamic>? ?? [])
-          .map((e) => Category.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      categories: categories,
       popularProducts: parseProducts('popular_products'),
       nearbyShops: (data['nearby_shops'] as List<dynamic>? ?? [])
           .map((e) => Shop.fromJson(e as Map<String, dynamic>))

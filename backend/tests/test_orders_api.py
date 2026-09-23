@@ -26,6 +26,7 @@ from fastapi import HTTPException  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, event  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.core.dependencies import get_current_user, require_admin  # noqa: E402
@@ -179,7 +180,16 @@ def test_order_is_cancellable_only_in_active_states():
     try:
         o = order_service.create_order(db, user_id=1, data=_sample_create())
         assert o.is_cancellable is True
-        order_service.update_order_status(db, order_id=o.id, status=OrderStatus.DELIVERED.value)
+        # Walk the forward-only lifecycle: the service guard rejects a direct
+        # PENDING -> DELIVERED jump, which is exactly the behaviour under test.
+        for status in (
+            OrderStatus.CONFIRMED.value,
+            OrderStatus.PREPARING.value,
+            OrderStatus.READY_FOR_PICKUP.value,
+            OrderStatus.OUT_FOR_DELIVERY.value,
+            OrderStatus.DELIVERED.value,
+        ):
+            order_service.update_order_status(db, order_id=o.id, status=status)
         db.expire(o)
         assert o.is_cancellable is False
     finally:
@@ -193,10 +203,12 @@ def test_create_order_computes_totals_and_snapshots():
         order = order_service.create_order(db, user_id=1, data=_sample_create())
         loaded = db.get(Order, order.id)
         assert loaded.order_number.startswith("ORD-")
+        # Numeric columns come back as Decimal (SQLite/PG); compare numerically
+        # rather than relying on Decimal == float for non-binary-exact values.
         assert loaded.subtotal_amount == 24.0
         assert loaded.delivery_fee == 10.0
-        assert loaded.tax_amount == 2.98
-        assert loaded.total_amount == 36.98
+        assert float(loaded.tax_amount) == 2.98
+        assert float(loaded.total_amount) == 36.98
         assert loaded.total_items == 2
         assert loaded.status == OrderStatus.PENDING.value
         assert loaded.payment_status == "PENDING"

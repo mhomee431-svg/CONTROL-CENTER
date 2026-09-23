@@ -97,7 +97,7 @@ class Order(Base, TimestampMixin, SoftDeleteMixin):
     payment_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="PENDING", server_default="PENDING"
     )
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INRM", server_default="INR")
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR", server_default="INR")
 
     subtotal_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     delivery_fee: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
@@ -120,7 +120,9 @@ class Order(Base, TimestampMixin, SoftDeleteMixin):
     failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failure_reason: Mapped[str | None] = mapped_column(Text)
 
-    user = relationship("User")
+    # `cancelled_by` is a second FK to users.id, so the join path must be
+    # pinned explicitly or SQLAlchemy cannot resolve the relationship.
+    user = relationship("User", foreign_keys=[user_id])
     customer = relationship("Customer")
     shop = relationship("Shop")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
@@ -168,6 +170,6 @@ class OrderItem(Base, TimestampMixin):
         server_default="PENDING",
     )
 
-    order = relationship("Order", back_pulates="items")
+    order = relationship("Order", back_populates="items")
 
 

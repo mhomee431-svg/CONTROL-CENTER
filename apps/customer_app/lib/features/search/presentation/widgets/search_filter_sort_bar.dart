@@ -237,7 +237,7 @@ class _CategoryChips extends StatelessWidget {
   final ValueChanged<String?> onSelected;
   const _CategoryChips({this.selected, required this.onSelected});
 
-  static const _categories = ApprovedCategories.names;
+  static final _categories = ApprovedCategories.names;
 
   @override
   Widget build(BuildContext context) {
