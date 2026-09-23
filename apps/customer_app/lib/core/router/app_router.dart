@@ -26,6 +26,7 @@ import '../../features/customer/presentation/screens/customer_favorites_screen.d
 import '../../features/customer/presentation/screens/customer_recently_viewed_screen.dart';
 import '../../features/support/presentation/screens/help_support_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/order/presentation/order_detail_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -133,6 +134,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/help',
         builder: (context, state) => const HelpSupportScreen(),
+      ),
+            GoRoute(
+        path: '/order/:id',
+        builder: (context, state) {
+          final orderId = state.pathParameters['id'] ?? '';
+          return OrderDetailScreen(orderId: orderId);
+        },
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       StatefulShellRoute.indexedStack(

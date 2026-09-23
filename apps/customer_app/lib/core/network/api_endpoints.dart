@@ -92,7 +92,17 @@ class ApiEndpoints {
   static String customerProductShare(String productId) =>
       '/customer/products/$productId/share';
 
-  // --- Support ---
+    // --- Support ---
   static const String supportIssue = '/support/issues';
   static const String supportFaq = '/support/faq';
+
+  // --- Orders (API_CONTRACT SS 30-32) ---
+  static const String orders = '/orders';
+  static String orderById(String id) => '/orders/$id';
+  static String cancelOrder(String id) => '/orders/$id/cancel';
+  static String updateOrderStatus(String id) => '/orders/$id/status';
+  static String orderItems(String id) => '/orders/$id/items';
+  static String trackOrder(String id) => '/orders/$id/track';
+  static const String myOrders = '/orders/user';
+  static String shopOrders(String shopId) => '/orders/shop/$shopId';
 }

@@ -237,6 +237,10 @@ app.include_router(transport_routes.router, prefix=API_PREFIX)
 from app.api.routes import reviews as review_routes
 app.include_router(review_routes.router, prefix=API_PREFIX)
 
+# Orders / Cart / Checkout / Payment (Master Spec SS 30-32)
+from app.api.routes import orders as order_routes
+app.include_router(order_routes.router, prefix=API_PREFIX)
+
 # Shopkeeper Analytics & Business Intelligence
 from app.api.routes import shopkeeper_analytics as shopkeeper_analytics_routes
 app.include_router(shopkeeper_analytics_routes.router, prefix=API_PREFIX)

@@ -191,3 +191,6 @@ from app.models.verification_attempt import (
     VerificationAttemptStatus,
     VerificationProviderLog,
 )
+
+# Orders / Cart / Checkout / Payment (Master Spec SS 30-32)
+from app.models.order import Order, OrderItem, OrderStatus, OrderItemStatus
