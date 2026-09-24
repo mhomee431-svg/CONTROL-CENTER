@@ -237,6 +237,23 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     // Shared product-search history: submitted terms only, most-recent-first.
     final recents = ref.watch(recentSearchesControllerProvider).terms;
 
+    // SERVER search — the stale-catalog recovery path. The local predicate has
+    // just answered this settled query with NOTHING; one round-trip asks the
+    // backend (`view=list&search=`) for rows this payload may be missing
+    // (created on another device, or after the last load). Two guards keep
+    // "no API call for every keystroke" true: the field's 300ms debounce has
+    // already coalesced the typing, and the controller marks the query as
+    // answered before the request leaves — so repeated rebuilds with the same
+    // query schedule work that no-ops. Runs via microtask: build itself stays
+    // I/O-free.
+    if (query.search.trim().length >= 2 && page.matched == 0) {
+      Future.microtask(
+        () => ref
+            .read(productsControllerProvider.notifier)
+            .serverSearch(query.search),
+      );
+    }
+
     return LazyListView(
       padding: const EdgeInsets.all(16),
       style: LazyListStyle.card,

@@ -34,6 +34,20 @@
   (`staging-api.hyperlocal.in`)
 
 ### Shopkeeper app
+- Product search (spec §95) gained SERVER search — the missing checklist item.
+  The loaded catalog still answers every settled query locally first (300ms
+  `DebouncedSearchField` debounce + memoized `ProductQueryCache`, zero API
+  calls while typing); only a settled query the local predicate matches
+  NOTHING fires ONE `GET /inventory?view=list&search=` (2..120 chars,
+  per-query dedupe — "no API call for every keystroke" holds). Server rows
+  (backend matches name/sku ⊂ local fields, so only genuinely missing rows
+  come back) merge into the catalog by id: counter/filters/sort keep working;
+  failures are fail-soft (local no-result state stays); a reload/shop switch
+  bumps a generation counter that drops any in-flight answer. Repository:
+  `InventoryRepository.searchInventoryList` (deliberately no snapshot
+  fallback — the call exists to escape staleness). Tests:
+  `test/product_server_search_test.dart` (6) incl. keystroke coalescing and
+  the stale-answer race.
 - Recent-searches controller serializes every load/mutation on one internal
   queue: an in-flight `load()` can no longer wipe a just-submitted term
   (the cold-start race that made the first search vanish from the dropdown),

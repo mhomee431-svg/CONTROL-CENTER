@@ -104,7 +104,28 @@ class ProductsController extends Notifier<ProductsState> {
 
   int? get _shopId => ref.read(selectedShopProvider)?.id;
 
+  /// Bumped by every [load] / [reset]: a server-search response captured an
+  /// earlier generation (or an earlier shop) must never merge into the
+  /// catalog that is on screen now.
+  int _generation = 0;
+
+  /// The last settled query a server search was (or would have been) run for.
+  /// Set BEFORE the request goes out, so the at-most-once rule holds even if
+  /// the screen schedules the same query twice. Cleared by [load] / [reset]:
+  /// a fresh catalog may re-ask the server the same question.
+  String? _serverAnsweredFor;
+
+  /// Minimum submitted length worth a server round-trip — single letters are
+  /// half-typed drafts (same rule as the recent-searches history).
+  static const int _minServerQueryLength = 2;
+
+  /// The backend caps `search` at 120 chars (`Query(max_length=120)`); a
+  /// longer term would be rejected with a 422, so it is never sent.
+  static const int _maxServerQueryLength = 120;
+
   Future<void> load() async {
+    _generation++;
+    _serverAnsweredFor = null;
     final shopId = _shopId;
     if (shopId == null) {
       state = const ProductsState(
@@ -134,11 +155,79 @@ class ProductsController extends Notifier<ProductsState> {
     }
   }
 
+  /// SERVER search — the products list's stale-catalog recovery path.
+  ///
+  /// The local predicate filters the already-loaded catalog on every settled
+  /// query; this asks the backend (`view=list&search=`) ONLY when that catalog
+  /// could not answer — the screen calls it with zero local matches. Because
+  /// the server matches a subset of the local fields (name / sku), any row it
+  /// returns that we lack is a row the payload was missing entirely (created
+  /// on another device, or after the last load); matching rows already on
+  /// screen are simply not re-sent.
+  ///
+  /// Contract:
+  ///   * at MOST ONCE per settled query — [_serverAnsweredFor] is marked
+  ///     before the request leaves, so a rebuild (or a keystroke upstream of
+  ///     the field's debounce) can never queue a second call. This is what
+  ///     keeps "no API call for every keystroke" true.
+  ///   * only for queries inside the backend's length bounds (2..120).
+  ///   * fail-soft — any error (offline, 4xx/5xx, no token) leaves the local
+  ///     state untouched: the shopkeeper keeps the honest "no match" result
+  ///     and a pull-to-refresh re-arms the search.
+  ///   * generation-guarded — a response that lands after a reload or a shop
+  ///     switch is dropped, so another shop's rows can never leak in.
+  ///   * merged BY ID into the catalog — the rows are genuine listings, so
+  ///     the counter, the filters, the sort and paging keep working on them;
+  ///     the summary chips stay as-loaded until the next refresh recomputes
+  ///     them (they were already stale — that is why the row was missing).
+  Future<void> serverSearch(String raw) async {
+    final query = raw.trim();
+    if (query.length < _minServerQueryLength ||
+        query.length > _maxServerQueryLength) {
+      return;
+    }
+    // Synchronous dedupe: callers may schedule this twice before the first
+    // microtask runs; only the first scheduling of a given query proceeds.
+    if (query == _serverAnsweredFor) return;
+    _serverAnsweredFor = query;
+
+    final shopId = _shopId;
+    if (shopId == null) return;
+    final generation = _generation;
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) return;
+      final found = await _inventoryRepo.searchInventoryList(
+          shopId, token, query);
+      // A reload or shop switch while the request was in flight: this answer
+      // belongs to a catalog that is no longer on screen.
+      if (generation != _generation || shopId != _shopId) return;
+      if (state.status != ProductsStatus.ready) return;
+      if (found.isEmpty) return;
+      final known = <int>{for (final item in state.items) item.id};
+      final additions = found
+          .where((item) => !known.contains(item.id))
+          .toList(growable: false);
+      if (additions.isEmpty) return;
+      state = ProductsState(
+        status: state.status,
+        items: [...state.items, ...additions],
+        summary: state.summary,
+        message: state.message,
+        fromCache: state.fromCache,
+      );
+    } catch (_) {
+      // Best-effort: the local no-match view already rendered and stays.
+    }
+  }
+
   /// Clears ALL cached inventory data (called on logout) so the previous
   /// account's products never survive into the next session — the in-memory
   /// state AND the device's offline snapshot store (cleared through the
   /// repository that owns it).
   void reset() {
+    _generation++;
+    _serverAnsweredFor = null;
     state = ProductsState.loading();
     unawaited(_inventoryRepo.clearOfflineSnapshot());
   }
