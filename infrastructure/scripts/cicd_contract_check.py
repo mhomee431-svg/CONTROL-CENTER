@@ -40,6 +40,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import NoReturn, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONTRACT = REPO_ROOT / "packages" / "api_contracts" / "openapi.json"
@@ -60,6 +61,12 @@ _HTTP_METHODS = {
 _HARD_COMPONENTS = ("database", "redis", "postgis")
 _USER_AGENT = "hyperlocal-cicd-contract-check/1.0"
 
+# JSON as it comes off the wire, typed for strict analyzers: `json.loads`
+# hands back `Any`, so every parsed document is narrowed to these shapes
+# before anything reads it (null | scalar | list | string-keyed object).
+JsonValue = str | int | float | bool | None | list["JsonValue"] | dict[str, "JsonValue"]
+JsonObject = dict[str, JsonValue]
+
 
 class CheckFailed(Exception):
     """A release-blocking check failed."""
@@ -73,7 +80,7 @@ def warn(message: str) -> None:
     print(f"  [warn] {message}")
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise CheckFailed(message)
 
 
@@ -108,7 +115,7 @@ def request_json(url: str, timeout: float) -> tuple[int, object]:
         return status, text
 
 
-def wait_for_health(url: str, wait_seconds: int, timeout: float) -> dict:
+def wait_for_health(url: str, wait_seconds: int, timeout: float) -> JsonObject:
     """Poll /health until it answers 200 (a deploy restarts the container)."""
     deadline = time.time() + wait_seconds
     last = ""
@@ -119,7 +126,7 @@ def wait_for_health(url: str, wait_seconds: int, timeout: float) -> dict:
             last = str(exc)
             status, body = 0, None
         if status == 200 and isinstance(body, dict):
-            return body
+            return cast(JsonObject, body)
         last = last or f"/health returned {status}"
         if time.time() >= deadline:
             fail(f"/health never became reachable within {wait_seconds}s ({last})")
@@ -129,7 +136,7 @@ def wait_for_health(url: str, wait_seconds: int, timeout: float) -> dict:
 # ---------------------------------------------------------------------------
 # Checks
 # ---------------------------------------------------------------------------
-def check_health(health: dict, expect_env: str | None, sha: str | None) -> None:
+def check_health(health: JsonObject, expect_env: str | None, sha: str | None) -> None:
     section("liveness + deployment identity (/health)")
     print(f"  payload: {json.dumps(health, sort_keys=True)}")
 
@@ -145,8 +152,12 @@ def check_health(health: dict, expect_env: str | None, sha: str | None) -> None:
             fail(f"health.environment={environment!r} != expected {expect_env!r}")
         pass_(f"environment={environment}")
 
-    deployment = health.get("deployment") or {}
-    commit = (deployment.get("commit") or "").strip()
+    deployment: JsonObject = {}
+    raw_deployment = health.get("deployment")
+    if isinstance(raw_deployment, dict):
+        deployment = raw_deployment
+    commit_value = deployment.get("commit")
+    commit = commit_value.strip() if isinstance(commit_value, str) else ""
     if sha:
         short = sha[:12]
         if not commit or commit == "unknown":
@@ -164,12 +175,16 @@ def check_health(health: dict, expect_env: str | None, sha: str | None) -> None:
     pass_(f"version={version}")
 
 
-def check_ready(url: str, timeout: float) -> dict:
+def check_ready(url: str, timeout: float) -> JsonObject:
     section("readiness (/ready)")
     status, body = request_json(f"{url}/ready", timeout)
     if not isinstance(body, dict):
         fail(f"/ready returned {status} with a non-JSON body")
-    checks = body.get("checks") or {}
+    ready = cast(JsonObject, body)
+    checks_value = ready.get("checks")
+    checks: JsonObject = {}
+    if isinstance(checks_value, dict):
+        checks = checks_value
     print(f"  checks: {json.dumps(checks, sort_keys=True)}")
 
     for component in _HARD_COMPONENTS:
@@ -189,13 +204,16 @@ def check_ready(url: str, timeout: float) -> dict:
         warn("/ready is 503 (soft components offline) - hard dependencies are green")
     else:
         pass_("status=ready (200)")
-    return body
+    return ready
 
 
-def _operation_signatures(spec: dict) -> dict[str, list[str]]:
+def _operation_signatures(spec: JsonObject) -> dict[str, list[str]]:
     """Map path -> sorted HTTP methods (lower-cased) from an OpenAPI document."""
     signatures: dict[str, list[str]] = {}
-    for path, item in (spec.get("paths") or {}).items():
+    paths = spec.get("paths")
+    if not isinstance(paths, dict):
+        return signatures
+    for path, item in paths.items():
         if not isinstance(item, dict):
             continue
         methods = sorted(
@@ -207,8 +225,29 @@ def _operation_signatures(spec: dict) -> dict[str, list[str]]:
     return signatures
 
 
-def _schema_names(spec: dict) -> set[str]:
-    return set(((spec.get("components") or {}).get("schemas") or {}).keys())
+def _schema_names(spec: JsonObject) -> set[str]:
+    components = spec.get("components")
+    if not isinstance(components, dict):
+        return set()
+    schemas = components.get("schemas")
+    if not isinstance(schemas, dict):
+        return set()
+    return set(schemas.keys())
+
+
+def _nested_string(spec: JsonObject, *keys: str) -> str:
+    """Walk ``spec[key1][key2]...`` and return the string found, or ``""``.
+
+    Absent hops, non-object hops and non-string leaves all yield ``""`` —
+    exactly what ``(x or {}).get(...) or ""`` returned for missing values,
+    without the analyzer losing the type at each hop.
+    """
+    current: object = spec
+    for key in keys:
+        if not isinstance(current, dict):
+            return ""
+        current = current.get(key)
+    return current.strip() if isinstance(current, str) else ""
 
 
 def check_contract(
@@ -218,17 +257,21 @@ def check_contract(
     if not contract_path.is_file():
         fail(f"contract file not found: {contract_path}")
     try:
-        expected = json.loads(contract_path.read_text(encoding="utf-8"))
+        expected_value: object = json.loads(contract_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         fail(f"committed contract is not valid JSON: {exc}")
+    if not isinstance(expected_value, dict):
+        fail("committed contract is not a JSON object")
+    expected = cast(JsonObject, expected_value)
 
     status, live = request_json(f"{url}/openapi.json", timeout)
     if status != 200 or not isinstance(live, dict):
         fail(f"/openapi.json returned {status} (the API must serve its contract)")
+    live_spec = cast(JsonObject, live)
     pass_("openapi.json served (200)")
 
     expected_ops = _operation_signatures(expected)
-    live_ops = _operation_signatures(live)
+    live_ops = _operation_signatures(live_spec)
     print(
         f"  operations: contract {len(expected_ops)} paths / live {len(live_ops)} paths"
     )
@@ -265,7 +308,7 @@ def check_contract(
         fail("method drift: " + "; ".join(method_drift[:10]))
     pass_("HTTP methods match")
 
-    expected_schemas, live_schemas = _schema_names(expected), _schema_names(live)
+    expected_schemas, live_schemas = _schema_names(expected), _schema_names(live_spec)
     missing_schemas = sorted(expected_schemas - live_schemas)
     if missing_schemas:
         fail(
@@ -281,8 +324,8 @@ def check_contract(
         )
     pass_(f"schemas match ({len(expected_schemas)} documented)")
 
-    expected_version = ((expected.get("info") or {}).get("version") or "").strip()
-    live_version = ((live.get("info") or {}).get("version") or "").strip()
+    expected_version = _nested_string(expected, "info", "version")
+    live_version = _nested_string(live_spec, "info", "version")
     if expected_version and live_version and expected_version != live_version:
         fail(
             f"info.version drift: contract {expected_version!r} vs live {live_version!r}"
