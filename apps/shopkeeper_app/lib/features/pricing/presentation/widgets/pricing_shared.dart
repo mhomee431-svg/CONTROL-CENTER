@@ -26,16 +26,23 @@ class PricingAsyncBody extends StatelessWidget {
     required this.status,
     this.message,
     required this.onRetry,
+    this.onRefresh,
     required this.builder,
   });
 
   final ProductsStatus status;
   final String? message;
   final VoidCallback onRetry;
+
+  /// When set, the READY body is wrapped in a [RefreshIndicator]: pull is the
+  /// SILENT path (the rows stay on screen while fresh ones load), while the
+  /// first load and Retry keep their spinner.
+  final Future<void> Function()? onRefresh;
   final WidgetBuilder builder;
 
   @override
   Widget build(BuildContext context) {
+    final refresh = onRefresh;
     return switch (status) {
       ProductsStatus.loading =>
         const Center(child: CircularProgressIndicator()),
@@ -77,7 +84,9 @@ class PricingAsyncBody extends StatelessWidget {
             ),
           ),
         ),
-      ProductsStatus.ready => builder(context),
+      ProductsStatus.ready => refresh == null
+          ? builder(context)
+          : RefreshIndicator(onRefresh: refresh, child: builder(context)),
     };
   }
 }

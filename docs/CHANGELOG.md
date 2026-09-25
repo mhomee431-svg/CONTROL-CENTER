@@ -96,6 +96,41 @@
   extended for the scheduled/disabled buckets; `product_state_test.dart`
   call sites moved to `withFilters`. Full suite green (818), `flutter analyze`
   clean.
+- REFRESH (spec §97) â€” pull-to-refresh where it is useful, and the two rules
+  that keep it honest:
+  - Pull-to-refresh added to the server-fed surfaces that lacked it: the five
+    inventory scope lists, the inventory dashboard / sync status, the low-stock
+    restock workbench, the price list, the import history (rows AND empty
+    state), the POS sync history, the insights drill-down, the support ticket
+    detail and the offer buckets. All of them are ALWAYS scrollable
+    (`AlwaysScrollableScrollPhysics`), which is what makes the gesture fire on
+    a list shorter than the viewport â€” previously a short or empty list
+    silently swallowed the pull. The pulls that already existed (products,
+    dashboard, insights, notifications, sessions, shops, shop profile,
+    tickets) got the same physics fix.
+  - A pull never blanks what is on screen: new `ProductsController.refresh()`
+    (silent, re-entrancy-guarded, generation-bumping, fail-soft â€” the same
+    contract as `DashboardController.refresh` / `ShopsController.refresh`)
+    serves every catalog pull (products list, inventory scopes / dashboard /
+    sync status, low stock, price list), and the dashboard + shops pulls now
+    use their existing silent `refresh()` instead of the loud `load()`. Retry
+    buttons and the app-bar refresh icons keep the loud path (spinner, error
+    state) â€” the pull indicator is the feedback for a gesture.
+  - "Do not refresh unnecessarily" holds by construction: automatic refreshes
+    stay behind the lifecycle staleness window / reconnect throttle, the
+    lifecycle batch refreshes only the Dashboard + Shops providers, and the
+    single `ref.invalidate` in the app is the access token.
+  - After a mutation the affected rows are patched in place â€” `createProduct`
+    prepends the server's row, `_patch` / `adjustStock` swap the one row for
+    the server's own numbers; the catalog is never reloaded end-to-end.
+    `ProductsAsyncBody` / `PricingAsyncBody` gained an optional `onRefresh`
+    (ready body only, so a spinner or an error view can never be pulled), and
+    the offers list and buckets render rows AND empty state through ONE
+    `LazyListView`. Tests: new `test/refresh_test.dart` (6 â€” the silent
+    in-flight refresh, a failed refresh that keeps the rows, short-list pulls
+    driven through the real Products / Inventory screens, an EMPTY offers
+    bucket that still pulls, and a mutation that leaves the fetch count at
+    one).
 
 ### Security
 - Replaced HMAC-SHA256 password hashing with bcrypt (work factor 12)

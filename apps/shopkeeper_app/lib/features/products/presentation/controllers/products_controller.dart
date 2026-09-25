@@ -155,6 +155,49 @@ class ProductsController extends Notifier<ProductsState> {
     }
   }
 
+  bool _refreshInFlight = false;
+
+  /// Silent re-fetch used by pull-to-refresh: the list keeps showing the
+  /// current rows while fresh ones load, and a failure keeps the current view
+  /// instead of throwing an error over working data. Re-entrant calls are
+  /// dropped, never queued.
+  ///
+  /// [load] stays the LOUD path (spinner, error state) for the first load and
+  /// for Retry buttons; this is the one for a gesture whose progress the
+  /// shopkeeper already sees in the pull indicator.
+  Future<void> refresh() async {
+    if (_refreshInFlight) return;
+    final shopId = _shopId;
+    if (shopId == null) return;
+    _refreshInFlight = true;
+    // A refresh replaces the whole catalog: a server-search response from the
+    // previous generation must not merge into the new rows, and the same
+    // query may be asked again against the fresh catalog.
+    _generation++;
+    _serverAnsweredFor = null;
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      // Signed out mid-flight → keep the current view; logout resets state.
+      if (token == null) return;
+      final overview =
+          await _inventoryRepo.fetchInventoryOverview(shopId, token);
+      // The shop switched while the request was in flight: this answer
+      // belongs to a catalog that is no longer on screen.
+      if (shopId != _shopId) return;
+      state = ProductsState(
+        status: ProductsStatus.ready,
+        items: overview.items,
+        summary: overview.summary,
+        fromCache: overview.fromCache,
+      );
+    } catch (_) {
+      // Silent: a failed pull keeps the rows on screen — the next pull tries
+      // again.
+    } finally {
+      _refreshInFlight = false;
+    }
+  }
+
   /// SERVER search — the products list's stale-catalog recovery path.
   ///
   /// The local predicate filters the already-loaded catalog on every settled

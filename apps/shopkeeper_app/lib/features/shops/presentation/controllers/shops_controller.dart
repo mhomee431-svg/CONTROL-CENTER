@@ -70,10 +70,11 @@ class ShopsController extends Notifier<ShopsState> {
   bool _refreshInFlight = false;
 
   /// Silent re-fetch used by background resume/reconnect refreshes (see
-  /// `features/shell/app_lifecycle_controller.dart`): keeps the current
-  /// (possibly `ready`) state visible the whole time and only replaces it on
-  /// success — the Shops screen must never flash a spinner for a background
-  /// refresh it did not ask for. Re-entrant calls are dropped, never queued.
+  /// `features/shell/app_lifecycle_controller.dart`) AND by the Shops screen's
+  /// pull-to-refresh: keeps the current (possibly `ready`) state visible the
+  /// whole time and only replaces it on success — the Shops screen must never
+  /// flash a spinner for a background refresh it did not ask for. Re-entrant
+  /// calls are dropped, never queued.
   Future<void> refresh() async {
     if (_refreshInFlight) return;
     _refreshInFlight = true;

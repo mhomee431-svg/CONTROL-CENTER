@@ -112,10 +112,17 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
               message: catalog.message,
               onRetry: () =>
                   ref.read(productsControllerProvider.notifier).load(),
+              // Pull is the silent path: the price rows stay on screen while
+              // fresh ones load (Retry keeps the loud spinner).
+              onRefresh: () =>
+                  ref.read(productsControllerProvider.notifier).refresh(),
               builder: (context) => LazyListView(
                 // Rows are built lazily, like the products and inventory
                 // lists — a keystroke re-filters the catalog, only the rows
                 // near the viewport rebuild.
+                // Always scrollable: pull-to-refresh must fire even when the
+                // price book fits on one screen.
+                physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: page.rows.length,
                 // Provenance first: a stale cached PRICE that looks live is
                 // the most dangerous case of all, so it is labelled loudly.

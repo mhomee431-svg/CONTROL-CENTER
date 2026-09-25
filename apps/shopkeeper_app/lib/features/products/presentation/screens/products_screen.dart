@@ -120,8 +120,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           onRetry: () => ref.read(productsControllerProvider.notifier).load(),
           onSwitchShop: () => context.go(Routes.shops),
           builder: (_) => RefreshIndicator(
+            // Pull is the SILENT path: the rows stay on screen while fresh
+            // ones load (ProductsController.refresh). Retry and the first
+            // load keep their spinner.
             onRefresh: () =>
-                ref.read(productsControllerProvider.notifier).load(),
+                ref.read(productsControllerProvider.notifier).refresh(),
             child: _ReadyBody(
               allItems: state.items,
               summary: state.summary,
@@ -244,6 +247,10 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     return LazyListView(
       padding: const EdgeInsets.all(16),
       style: LazyListStyle.card,
+      // Always scrollable: pull-to-refresh must fire even when the list is
+      // shorter than the viewport (a filter that matched nothing, a handful
+      // of rows).
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: items.length,
       // Eager header: the summary, the search box and the filter/sort row are a
       // fixed handful of widgets, so they live outside the lazy row builder and

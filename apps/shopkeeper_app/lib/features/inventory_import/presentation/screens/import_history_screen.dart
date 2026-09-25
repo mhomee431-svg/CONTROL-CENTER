@@ -74,42 +74,48 @@ class _ImportHistoryScreenState extends ConsumerState<ImportHistoryScreen> {
           ),
         ],
       ),
-      body: jobs.isEmpty
-          ? const _EmptyHistory()
+      body: RefreshIndicator(
+        onRefresh: () =>
+            ref.read(importControllerProvider.notifier).loadJobs(),
+        child: LazyListView(
           // The history is PAGED BY THE BACKEND (`limit`/`offset`): only the
           // jobs already fetched are rendered, and the footer reveals the next
           // page. `total` is the server's own count, so "Load more" appears
           // exactly when further jobs exist.
-          : LazyListView(
-              padding: const EdgeInsets.all(16),
-              itemCount: jobs.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, i) =>
-                  _JobTile(job: jobs[i], onTap: () => _openJob(jobs[i])),
-              footer: [
-                if (hasMore)
-                  LoadMoreTile(
-                    key: const Key('import-history-load-more'),
-                    hidden: total - jobs.length,
-                    onTap: loadingMore
-                        ? () {}
-                        : () => ref
-                            .read(importControllerProvider.notifier)
-                            .loadMoreJobs(),
+          // Always scrollable: pull-to-refresh works even with a single job,
+          // and the empty state IS the list, so it can be pulled too.
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: jobs.length,
+          separatorBuilder: (_, _) => const Divider(height: 1),
+          itemBuilder: (context, i) =>
+              _JobTile(job: jobs[i], onTap: () => _openJob(jobs[i])),
+          footer: [
+            if (hasMore)
+              LoadMoreTile(
+                key: const Key('import-history-load-more'),
+                hidden: total - jobs.length,
+                onTap: loadingMore
+                    ? () {}
+                    : () => ref
+                        .read(importControllerProvider.notifier)
+                        .loadMoreJobs(),
+              ),
+            if (loadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                if (loadingMore)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                ),
+              ),
+          ],
+          emptyPlaceholder: const _EmptyHistory(),
+        ),
+      ),
     );
   }
 }

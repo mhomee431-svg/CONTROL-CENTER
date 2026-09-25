@@ -102,8 +102,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ref.read(dashboardControllerProvider.notifier).load(),
           ),
           DashboardStatus.ready => RefreshIndicator(
+            // Pull is the SILENT path (DashboardController.refresh): the
+            // numbers stay on screen while fresh ones load.
             onRefresh: () =>
-                ref.read(dashboardControllerProvider.notifier).load(),
+                ref.read(dashboardControllerProvider.notifier).refresh(),
             child: _DashboardBody(
               data: state.data!,
               alerts: state.alerts,
@@ -145,6 +147,9 @@ class _DashboardBody extends StatelessWidget {
         // (fixed ratios overflowed on wide screens).
         final ratio = math.max(1.35, tileWidth / 112);
         return ListView(
+          // Always scrollable: pull-to-refresh must fire even when the cards
+          // fit on one screen.
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
             // Shopkeeper Home header — greeting + shop summary + quick actions.

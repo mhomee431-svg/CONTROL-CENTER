@@ -179,7 +179,10 @@ class _ReportBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Always scrollable: pull-to-refresh must fire even when the report fits
+    // on one screen.
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         Text(

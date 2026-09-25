@@ -223,16 +223,25 @@ class ProductsAsyncBody extends StatelessWidget {
     required this.status,
     this.message,
     required this.onRetry,
+    this.onRefresh,
     required this.builder,
   });
 
   final ProductsStatus status;
   final String? message;
   final VoidCallback onRetry;
+
+  /// When set, the READY body is wrapped in a [RefreshIndicator]: pull is the
+  /// SILENT path (see `ProductsController.refresh` — the rows stay on screen
+  /// while fresh ones load), while the first load and Retry keep their
+  /// spinner. The body's own scrollable must be always-scrollable for the
+  /// gesture to fire on a list shorter than the viewport.
+  final Future<void> Function()? onRefresh;
   final WidgetBuilder builder;
 
   @override
   Widget build(BuildContext context) {
+    final refresh = onRefresh;
     return SystemStateBody(
       isLoading: status == ProductsStatus.loading,
       failure: switch (status) {
@@ -250,7 +259,11 @@ class ProductsAsyncBody extends StatelessWidget {
         _ => null,
       },
       onRetry: onRetry,
-      builder: builder,
+      // The READY body only: a spinner or an error view has nothing to pull.
+      builder: refresh == null
+          ? builder
+          : (context) =>
+              RefreshIndicator(onRefresh: refresh, child: builder(context)),
     );
   }
 }

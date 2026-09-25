@@ -44,6 +44,10 @@ class _InventorySyncStatusScreenState
         status: state.status,
         message: state.message,
         onRetry: () => ref.read(productsControllerProvider.notifier).load(),
+        // Pull is the silent path: the sync cards stay on screen while fresh
+        // source data loads.
+        onRefresh: () =>
+            ref.read(productsControllerProvider.notifier).refresh(),
         builder: (context) => _SyncStatusBody(items: state.items),
       ),
     );
@@ -93,7 +97,10 @@ class _SyncStatusBody extends StatelessWidget {
     final groups = _bySource.entries.toList()
       ..sort((a, b) => b.value.length.compareTo(a.value.length));
 
+    // Always scrollable: pull-to-refresh must fire even when the summary
+    // cards fit on one screen.
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         // ── Overall sync card ───────────────────────────────────────────────

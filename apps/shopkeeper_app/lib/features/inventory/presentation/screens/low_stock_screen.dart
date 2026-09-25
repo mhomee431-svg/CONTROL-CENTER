@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/lazy_list.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../../../products/presentation/widgets/product_details_sheet.dart';
@@ -77,6 +78,10 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
         status: state.status,
         message: state.message,
         onRetry: () => ref.read(productsControllerProvider.notifier).load(),
+        // Pull is the silent path: the restock cards stay on screen while the
+        // fresh catalog loads (the FAB above keeps the loud spinner).
+        onRefresh: () =>
+            ref.read(productsControllerProvider.notifier).refresh(),
         builder: (context) => Column(
           children: [
             // Warning banner — only when something actually needs restocking.
@@ -98,20 +103,22 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
               ),
             ),
             Expanded(
-              child: restock.isEmpty
-                  ? _WellStockedView(query: _query)
-                  : ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 96),
-                      itemCount: restock.length,
-                      separatorBuilder: (_, _) =>
-                          const Divider(height: 1, indent: 16),
-                      itemBuilder: (context, i) => _RestockCard(
-                        item: restock[i],
-                        onUpdateStock: () =>
-                            _openStockSheet(context, restock[i]),
-                        onOpenProduct: () => _openDetails(context, restock[i]),
-                      ),
-                    ),
+              // ONE lazy list for the rows and the empty state: with
+              // AlwaysScrollable physics the pull gesture works even when a
+              // full shelf leaves nothing to scroll.
+              child: LazyListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 96),
+                itemCount: restock.length,
+                separatorBuilder: (_, _) =>
+                    const Divider(height: 1, indent: 16),
+                itemBuilder: (context, i) => _RestockCard(
+                  item: restock[i],
+                  onUpdateStock: () => _openStockSheet(context, restock[i]),
+                  onOpenProduct: () => _openDetails(context, restock[i]),
+                ),
+                emptyPlaceholder: _WellStockedView(query: _query),
+              ),
             ),
           ],
         ),
