@@ -315,6 +315,33 @@ void main() {
 
       expect(find.text('No disabled offers'), findsOneWidget);
     });
+
+    testWidgets('the Scheduled chip shows scheduled offers only',
+        (tester) async {
+      final repo = FakeOffersRepo(
+        page: OfferListPage(
+          items: [
+            offerSummary(id: 1, status: 'ACTIVE', title: 'Live deal'),
+            offerSummary(id: 2, status: 'SCHEDULED', title: 'Diwali deal'),
+          ],
+          count: 2,
+        ),
+      );
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      // Active must NOT contain the future-window offer…
+      expect(find.text('Live deal'), findsOneWidget);
+      expect(find.text('Diwali deal'), findsNothing);
+
+      await tester.tap(find.text('Scheduled'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Diwali deal'), findsOneWidget);
+      expect(find.text('Live deal'), findsNothing);
+      // Chip label + the row's own status label.
+      expect(find.text('Scheduled'), findsNWidgets(2));
+    });
   });
 
   group('OfferSummary lifecycle rules', () {

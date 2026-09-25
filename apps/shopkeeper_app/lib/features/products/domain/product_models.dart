@@ -1,3 +1,20 @@
+/// Distinct, case-insensitely sorted non-blank values of [pick] across
+/// [items] — the option list behind a filter sheet's Category / Brand
+/// pickers. Sourced from real rows so a filter can never be offered that
+/// matches nothing; an empty result tells the sheet to hide that picker.
+List<String> distinctFilterValues(
+  Iterable<ShopProductItem> items,
+  String? Function(ShopProductItem) pick,
+) {
+  final values = <String>{};
+  for (final item in items) {
+    final value = pick(item)?.trim();
+    if (value != null && value.isNotEmpty) values.add(value);
+  }
+  return values.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+}
+
 /// A product listed under the shopkeeper's own shop
 /// (shop_products + inventory projection).
 ///

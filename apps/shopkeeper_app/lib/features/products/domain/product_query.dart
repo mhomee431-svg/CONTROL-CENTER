@@ -44,6 +44,7 @@ class ProductQuery {
     this.minPrice,
     this.maxPrice,
     this.recentlyUpdated = false,
+    this.freshness,
     this.sort = ProductSort.recentlyUpdated,
   });
 
@@ -77,6 +78,16 @@ class ProductQuery {
   /// rows are separated out.
   static const stockDiscontinued = 'discontinued';
 
+  /// Only rows the backend reported fresh (`RECENTLY_UPDATED` or `FRESH`).
+  static const freshnessFresh = 'fresh';
+
+  /// Only rows the backend reported `STALE` ("needs update").
+  ///
+  /// Rows with NO freshness tier match NEITHER value: an unknown row is not
+  /// confirmed fresh, and calling it stale would invent a fact the server
+  /// never reported.
+  static const freshnessStale = 'stale';
+
   /// Free text matched against name, brand, SKU and variant (see
   /// [ProductSearch]). A blank string filters nothing.
   final String search;
@@ -101,6 +112,13 @@ class ProductQuery {
   /// says "recently updated", so a row with no update cannot satisfy it.
   final bool recentlyUpdated;
 
+  /// One of [freshnessFresh], [freshnessStale] (`null` = any).
+  ///
+  /// The inventory screens' freshness filter — the same server tiers the
+  /// freshness chips render, mapped by the same rule (fresh = `RECENTLY_UPDATED`
+  /// or `FRESH`, stale = `STALE`).
+  final String? freshness;
+
   final ProductSort sort;
 
   /// True when a FILTER narrows the catalog (search is reported separately, so
@@ -112,7 +130,8 @@ class ProductQuery {
       brand != null ||
       minPrice != null ||
       maxPrice != null ||
-      recentlyUpdated;
+      recentlyUpdated ||
+      freshness != null;
 
   /// True when the search box has usable text.
   bool get hasSearch => search.trim().isNotEmpty;
@@ -130,6 +149,7 @@ class ProductQuery {
     minPrice: minPrice,
     maxPrice: maxPrice,
     recentlyUpdated: recentlyUpdated,
+    freshness: freshness,
     sort: sort,
   );
 
@@ -143,6 +163,7 @@ class ProductQuery {
     minPrice: minPrice,
     maxPrice: maxPrice,
     recentlyUpdated: recentlyUpdated,
+    freshness: freshness,
     sort: sort,
   );
 
@@ -156,6 +177,7 @@ class ProductQuery {
     minPrice: minPrice,
     maxPrice: maxPrice,
     recentlyUpdated: recentlyUpdated,
+    freshness: freshness,
     sort: value,
   );
 
@@ -173,6 +195,7 @@ class ProductQuery {
     required double? minPrice,
     required double? maxPrice,
     required bool recentlyUpdated,
+    required String? freshness,
   }) => ProductQuery(
     search: search,
     stock: stock,
@@ -182,6 +205,7 @@ class ProductQuery {
     minPrice: minPrice,
     maxPrice: maxPrice,
     recentlyUpdated: recentlyUpdated,
+    freshness: freshness,
     sort: sort,
   );
 
@@ -193,6 +217,7 @@ class ProductQuery {
     minPrice: null,
     maxPrice: null,
     recentlyUpdated: false,
+    freshness: null,
   );
 
   /// The rows of [items] this query keeps, in the order it asks for.
@@ -229,6 +254,15 @@ class ProductQuery {
           }
           if (category != null && item.category != category) return false;
           if (brand != null && item.brand != brand) return false;
+          if (freshness == freshnessFresh &&
+              item.freshnessStatus != 'RECENTLY_UPDATED' &&
+              item.freshnessStatus != 'FRESH') {
+            return false;
+          }
+          if (freshness == freshnessStale &&
+              item.freshnessStatus != 'STALE') {
+            return false;
+          }
           if (minPrice != null && item.price < minPrice!) return false;
           if (maxPrice != null && item.price > maxPrice!) return false;
           if (recentlyUpdated && item.lastUpdated == null) return false;
@@ -280,6 +314,7 @@ class ProductQuery {
       other.minPrice == minPrice &&
       other.maxPrice == maxPrice &&
       other.recentlyUpdated == recentlyUpdated &&
+      other.freshness == freshness &&
       other.sort == sort;
 
   @override
@@ -292,6 +327,7 @@ class ProductQuery {
     minPrice,
     maxPrice,
     recentlyUpdated,
+    freshness,
     sort,
   );
 }

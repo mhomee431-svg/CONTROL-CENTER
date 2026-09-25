@@ -4,15 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/debounced_search_field.dart';
+import '../../../../core/ui/filter_ui.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
+import '../../../products/domain/product_query.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../../../products/presentation/controllers/recent_searches_controller.dart';
 import '../../domain/inventory_scope.dart';
 import '../controllers/inventory_scope_controller.dart';
+import '../widgets/inventory_filter_sheet.dart';
 import '../widgets/inventory_shared.dart';
 
 /// Inventory List / Low Stock / Out of Stock / Discontinued / Inventory
@@ -53,6 +57,28 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
         ref.read(productsControllerProvider.notifier).load();
       }
     });
+  }
+
+  /// Opens the filter sheet (Category / Freshness). The sheet gets the USER
+  /// query and hands it back with only its own facets replaced — search,
+  /// stock chips and the scope's slice ride along untouched.
+  void _openFilters() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => InventoryFilterSheet(
+        initial:
+            ref.read(inventoryScopeControllerProvider(widget.scope)).query,
+        categories: distinctFilterValues(
+          ref.read(productsControllerProvider).items,
+          (item) => item.category,
+        ),
+        onApply: (applied) => ref
+            .read(inventoryScopeControllerProvider(widget.scope).notifier)
+            .setFilters(applied),
+      ),
+    );
   }
 
   @override
@@ -106,19 +132,74 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
                   .remove(term),
             ),
           ),
+          // Quick STOCK facets — the same chips as the products list. Hidden
+          // on the low / out / discontinued slices: their query already pins
+          // the stock answer, so a second stock facet could only contradict
+          // it (the sheet hides its stock section for the same reason).
+          if (catalog.status == ProductsStatus.ready && !_controller.pinsStock)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: FilterChipBar<String>(
+                options: const [
+                  FilterChoice(label: 'All', value: ProductQuery.stockAll),
+                  FilterChoice(
+                    label: 'In Stock',
+                    value: ProductQuery.stockInStock,
+                  ),
+                  FilterChoice(
+                    label: 'Low Stock',
+                    value: ProductQuery.stockLow,
+                  ),
+                  FilterChoice(
+                    label: 'Out of Stock',
+                    value: ProductQuery.stockOutOfStock,
+                  ),
+                ],
+                selected: query.stock,
+                onSelected: _controller.setStock,
+              ),
+            ),
+          // Counter + Clear + Filters: what the list currently answers, and
+          // the two ways to change the question. The Clear button and the
+          // icon tint track the facets the SHOPKEEPER applied — the scope's
+          // own slice never lights them up, because it cannot be cleared.
           if (catalog.status == ProductsStatus.ready)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${page.matched} of ${page.total} products',
-                  key: const Key('inventory-count'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.outline,
+              padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${page.matched} of ${page.total} products',
+                      key: const Key('inventory-count'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
                   ),
-                ),
+                  if (query.hasActiveFilters)
+                    TextButton.icon(
+                      key: const Key('inventory-clear-filters'),
+                      onPressed: _controller.clear,
+                      icon: const Icon(
+                        Icons.filter_alt_off_outlined,
+                        size: 18,
+                      ),
+                      label: const Text('Clear'),
+                    ),
+                  IconButton(
+                    key: const Key('inventory-filters-button'),
+                    tooltip: 'Filters',
+                    onPressed: _openFilters,
+                    icon: Icon(
+                      Icons.filter_alt_outlined,
+                      color: query.hasActiveFilters
+                          ? AppTheme.brandSeed
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
           Expanded(
@@ -158,10 +239,9 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
                 // copy stays with the feature.
                 emptyPlaceholder: _EmptyScope(
                   scope: widget.scope,
-                  query: query.search,
-                                    onClearSearch: () {
-                    _controller.clear();
-                  },
+                  query: query,
+                  catalogIsEmpty: page.isEmptyCatalog,
+                  onClear: _controller.clear,
                 ),
               ),
             ),
@@ -176,28 +256,51 @@ class _EmptyScope extends StatelessWidget {
   const _EmptyScope({
     required this.scope,
     required this.query,
-    required this.onClearSearch,
+    required this.catalogIsEmpty,
+    required this.onClear,
   });
 
   final InventoryScope scope;
-  final String query;
-  final VoidCallback onClearSearch;
+
+  /// The shopkeeper's OWN question (search text + filter facets) — the
+  /// slice itself is never the reason a non-empty catalog shows no rows.
+  final ProductQuery query;
+
+  /// True when the shop has no listings at all, not merely no visible ones.
+  final bool catalogIsEmpty;
+
+  /// Clears the search text AND every filter facet (never the scope's slice).
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
     final outline = Theme.of(context).colorScheme.outline;
-    // A filter that matched nothing is different from an empty catalog —
-    // each branch keeps its own copy, the layout is the shared empty state.
-    if (query.trim().isNotEmpty) {
-      return SystemStateView.empty(
-        title: 'No products match your search',
-        icon: Icons.search_off_outlined,
-        iconColor: outline,
-        action: OutlinedButton(
-          onPressed: onClearSearch,
-          child: const Text('Clear search'),
-        ),
-      );
+    // Three distinct explanations: an empty catalog, a search that matched
+    // nothing, and a filter that matched nothing — each keeps its own copy,
+    // and both no-match branches hand over the one clear action.
+    if (!catalogIsEmpty) {
+      if (query.hasSearch) {
+        return SystemStateView.empty(
+          title: 'No products match your search',
+          icon: Icons.search_off_outlined,
+          iconColor: outline,
+          action: OutlinedButton(
+            onPressed: onClear,
+            child: const Text('Clear search'),
+          ),
+        );
+      }
+      if (query.hasActiveFilters) {
+        return SystemStateView.empty(
+          title: 'No products match your filters',
+          icon: Icons.filter_alt_off_outlined,
+          iconColor: outline,
+          action: OutlinedButton(
+            onPressed: onClear,
+            child: const Text('Clear filters'),
+          ),
+        );
+      }
     }
     return SystemStateView.empty(
       title: scope.emptyCopy,

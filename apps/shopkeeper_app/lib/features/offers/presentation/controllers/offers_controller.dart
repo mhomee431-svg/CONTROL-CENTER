@@ -100,11 +100,27 @@ String _friendlyOfferError(ApiException e, {String? forbidden}) {
 /// Lifecycle of the offers list.
 enum OffersListStatus { loading, ready, error, noShop }
 
+/// Which slice of the fetched offers the screen shows — the offers screen's
+/// filter (spec: Active / Scheduled / Expired, plus Disabled so a paused
+/// offer always has a home).
+enum OfferFilter {
+  active('Active'),
+  scheduled('Scheduled'),
+  expired('Expired'),
+  disabled('Disabled');
+
+  const OfferFilter(this.label);
+
+  /// Chip label — also the word tests and assistive tech see.
+  final String label;
+}
+
 class OffersListState {
   const OffersListState({
     required this.status,
     this.items = const [],
     this.message,
+    this.filter = OfferFilter.active,
   });
 
   final OffersListStatus status;
@@ -113,31 +129,56 @@ class OffersListState {
   /// Error copy when [status] is [OffersListStatus.error].
   final String? message;
 
-  factory OffersListState.loading() =>
-      const OffersListState(status: OffersListStatus.loading);
+  /// Which slice of [items] the screen shows.
+  ///
+  /// Lives in the STATE (not widget state) so it survives rebuilds, sheet
+  /// detours and reloads; changing it never re-hits the network — ONE fetch
+  /// serves every filter, so the slices can never disagree with each other
+  /// or with the backend.
+  final OfferFilter filter;
 
-  /// Offers still running **or** starting in the future — the "Active" tab.
-  /// Drafts are included so a just-created offer is never invisible.
-  List<OfferSummary> get openOffers =>
-      items.where((o) => !o.isExpired && !o.isDisabled).toList(growable: false);
+  factory OffersListState.loading({OfferFilter filter = OfferFilter.active}) =>
+      OffersListState(status: OffersListStatus.loading, filter: filter);
 
-  /// Offers whose window already closed — the "Expired" tab.
+  /// Live offers **and** drafts — the "Active" filter. Drafts are included
+  /// so a just-created offer is never invisible; scheduled offers are their
+  /// own slice ([scheduledOffers]), and an unrecognised display status
+  /// (e.g. a newer backend state) lands here rather than vanishing.
+  List<OfferSummary> get openOffers => items
+      .where((o) => !o.isExpired && !o.isDisabled && !o.isScheduled)
+      .toList(growable: false);
+
+  /// Offers whose window has not started yet — the "Scheduled" filter.
+  List<OfferSummary> get scheduledOffers =>
+      items.where((o) => o.isScheduled).toList(growable: false);
+
+  /// Offers whose window already closed — the "Expired" filter.
   List<OfferSummary> get expiredOffers =>
       items.where((o) => o.isExpired).toList(growable: false);
 
   /// Disabled offers — hidden from customers until re-enabled.
   List<OfferSummary> get disabledOffers =>
       items.where((o) => o.isDisabled).toList(growable: false);
+
+  /// The slice [filter] selects right now. Every offer lands in exactly one
+  /// bucket (the four predicates partition the list), so switching filters
+  /// never duplicates or drops a row.
+  List<OfferSummary> get visibleOffers => switch (filter) {
+        OfferFilter.active => openOffers,
+        OfferFilter.scheduled => scheduledOffers,
+        OfferFilter.expired => expiredOffers,
+        OfferFilter.disabled => disabledOffers,
+      };
 }
 
 final offersListControllerProvider =
     NotifierProvider<OffersListController, OffersListState>(
         OffersListController.new);
 
-/// Drives the offers tabs.
+/// Drives the offers list and its filter.
 ///
-/// ONE fetch serves both tabs — the state slices the result locally, so
-/// switching tabs never re-hits the network and the two lists can never
+/// ONE fetch serves every filter — the state slices the result locally, so
+/// switching filters never re-hits the network and the slices can never
 /// disagree with each other or with the backend.
 class OffersListController extends Notifier<OffersListState> {
   @override
@@ -151,13 +192,16 @@ class OffersListController extends Notifier<OffersListState> {
   Future<void> load() async {
     final shopId = _shopId;
     if (shopId == null) {
-      state = const OffersListState(
+      state = OffersListState(
         status: OffersListStatus.noShop,
         message: 'No shop selected',
+        filter: state.filter,
       );
       return;
     }
-    state = OffersListState.loading();
+    // The filter is the shopkeeper's view preference — it rides through the
+    // reload (and through shop switches) instead of snapping back to Active.
+    state = OffersListState.loading(filter: state.filter);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw const ApiException(message: 'Not signed in');
@@ -165,6 +209,7 @@ class OffersListController extends Notifier<OffersListState> {
       state = OffersListState(
         status: OffersListStatus.ready,
         items: page.items,
+        filter: state.filter,
       );
     } on ApiException catch (e) {
       state = OffersListState(
@@ -173,21 +218,39 @@ class OffersListController extends Notifier<OffersListState> {
           e,
           forbidden: 'You do not have access to offers for this shop.',
         ),
+        filter: state.filter,
       );
     } catch (_) {
-      state = const OffersListState(
+      state = OffersListState(
         status: OffersListStatus.error,
         message: 'Could not load offers.',
+        filter: state.filter,
       );
     }
   }
 
+  /// Switches which slice of the fetched rows the screen shows.
+  ///
+  /// Pure view state: no network round trip, no re-fetch — and because the
+  /// filter lives in [OffersListState], it survives reloads, sheet detours
+  /// and rebuilds instead of evaporating with the widget that picked it.
+  void setFilter(OfferFilter value) {
+    if (state.filter == value) return;
+    state = OffersListState(
+      status: state.status,
+      items: state.items,
+      message: state.message,
+      filter: value,
+    );
+  }
+
   /// Activate / pause / disable / cancel one offer, then reload the list so
-  /// every tab reflects the server-derived status bucket. Returns true when
-  /// the backend accepted the transition.
+  /// every filter reflects the server-derived status bucket. Returns true
+  /// when the backend accepted the transition.
   Future<bool> setStatus(int offerId, String status) async {
     final shopId = _shopId;
     final currentItems = state.items;
+    final currentFilter = state.filter;
     if (shopId == null) return false;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
@@ -203,6 +266,7 @@ class OffersListController extends Notifier<OffersListState> {
           e,
           forbidden: 'Only shop owners can change offer status.',
         ),
+        filter: currentFilter,
       );
       return false;
     } catch (_) {
@@ -210,6 +274,7 @@ class OffersListController extends Notifier<OffersListState> {
         status: OffersListStatus.error,
         items: currentItems,
         message: 'Could not update the offer. Please retry.',
+        filter: currentFilter,
       );
       return false;
     }
