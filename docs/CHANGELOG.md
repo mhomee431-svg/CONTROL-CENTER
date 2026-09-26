@@ -34,6 +34,20 @@
   (`staging-api.hyperlocal.in`)
 
 ### Shopkeeper app
+- Product search (spec §95) gained SERVER search — the missing checklist item.
+  The loaded catalog still answers every settled query locally first (300ms
+  `DebouncedSearchField` debounce + memoized `ProductQueryCache`, zero API
+  calls while typing); only a settled query the local predicate matches
+  NOTHING fires ONE `GET /inventory?view=list&search=` (2..120 chars,
+  per-query dedupe — "no API call for every keystroke" holds). Server rows
+  (backend matches name/sku ⊂ local fields, so only genuinely missing rows
+  come back) merge into the catalog by id: counter/filters/sort keep working;
+  failures are fail-soft (local no-result state stays); a reload/shop switch
+  bumps a generation counter that drops any in-flight answer. Repository:
+  `InventoryRepository.searchInventoryList` (deliberately no snapshot
+  fallback — the call exists to escape staleness). Tests:
+  `test/product_server_search_test.dart` (6) incl. keystroke coalescing and
+  the stale-answer race.
 - Recent-searches controller serializes every load/mutation on one internal
   queue: an in-flight `load()` can no longer wipe a just-submitted term
   (the cold-start race that made the first search vanish from the dropdown),
@@ -51,6 +65,37 @@
   zone, so sign-out hung and `pumpAndSettle` timed out). Result:
   `dashboard_test` 16/16, `settings_support_test` 31/31,
   `recent_searches_test` 11/11, `flutter analyze` clean
+- FILTER / SORT spec section implemented as ONE shared filter vocabulary —
+  new `lib/core/ui/filter_ui.dart` with three primitives and a single state
+  protocol: `FilterChipBar` (quick single-select chips, selected state exposed
+  to assistive tech, 44dp touch targets), `FilterSection` + `FilterDropdown`
+  (sheet facets; every dropdown carries an explicit "Any" so clearing is one
+  tap, never a hidden gesture) and `FilterSheet` (the frame owning Reset /
+  Apply — **Reset** clears the draft AND re-applies the empty filter WITHOUT
+  closing, so the list behind updates immediately and sheet + list can never
+  disagree; **Apply** commits the draft atomically and pops). Applied per
+  module:
+  - Products list: the stock chips and the filter sheet (Availability,
+    Category, Brand, Price range, Recently updated) now build on the shared
+    vocabulary; the sheet is handed the live `ProductQuery` and returns it
+    via `withFilters` (every facet required — `null` CLEARS, unlike a
+    `copyWith`), so search and sort survive untouched.
+  - Inventory scopes: quick STOCK chips outside the sheet (hidden on the
+    slices that already pin stock — low / out-of-stock / discontinued, via
+    the controller's `pinsStock`) + new `InventoryFilterSheet`
+    (Category / Freshness; a picker that could match nothing is not offered).
+    `InventoryScopeController.setFilters` merges the sheet's facets with the
+    scope's identity query; Clear drops only what the shopkeeper applied —
+    the slice can never be cleared.
+  - Offers: Active / Scheduled / Expired (+ Disabled) buckets as
+    `FilterChipBar` chips replacing the tab controller — `OfferFilter` lives
+    in the list state, ONE unfiltered fetch serves every bucket, and the four
+    predicates partition the rows exactly (nothing duplicated, nothing lost).
+  Tests: new `test/inventory_filters_test.dart` (11 — chip slicing, sheet
+  facets, Reset/Apply/Clear protocol, pinned-slice guards); `offers_test.dart`
+  extended for the scheduled/disabled buckets; `product_state_test.dart`
+  call sites moved to `withFilters`. Full suite green (818), `flutter analyze`
+  clean.
 
 ### Security
 - Replaced HMAC-SHA256 password hashing with bcrypt (work factor 12)

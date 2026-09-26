@@ -19,8 +19,11 @@ class InventoryScopeState {
     this.visibleCount = productsPageSize,
   });
 
-  /// Only the search facet is user-editable here — the stock slice and the
-  /// order come from the scope.
+  /// The shopkeeper's OWN question: the search text plus every filter facet
+  /// they applied (category, freshness, and — when the scope does not pin a
+  /// stock slice — the stock chips). The scope's own slice and order are NOT
+  /// in here: they are the family key the provider is scoped by, so a filter
+  /// can narrow the slice but never rewrite it.
   final ProductQuery query;
 
   /// How many matching rows the list currently reveals — grows by
@@ -57,8 +60,38 @@ class InventoryScopeController extends Notifier<InventoryScopeState> {
   @override
   InventoryScopeState build() => const InventoryScopeState();
 
-  /// The scope's question, with the shopkeeper's search text added.
-  ProductQuery get query => arg.query.withSearch(state.query.search);
+  /// True when the scope's OWN query already pins the stock slice (the low /
+  /// out-of-stock / discontinued screens). The stock chips and any stock
+  /// facet are hidden there — a second stock answer could only contradict
+  /// the one this screen exists to show.
+  bool get pinsStock => arg.query.stock != ProductQuery.stockAll;
+
+  /// The scope's question, narrowed by the shopkeeper's facets and search —
+  /// THE predictability contract:
+  ///
+  ///  1. The scope's slice and order are IDENTITY: they come from [arg],
+  ///     are never user-editable and are never dropped by [clear].
+  ///  2. Search and the facet set come from [state.query]; a facet the scope
+  ///     already pins (stock on a pinned slice) is IGNORED rather than
+  ///     intersected, so the screen can never drift from the dashboard
+  ///     counter it mirrors.
+  ///  3. Everything the shopkeeper added is dropped together by [clear] —
+  ///     no half-cleared leftovers.
+  ProductQuery get query {
+    final user = state.query;
+    final merged = arg.query
+        .withSearch(user.search)
+        .withFilters(
+          availability: user.availability,
+          category: user.category,
+          brand: user.brand,
+          minPrice: user.minPrice,
+          maxPrice: user.maxPrice,
+          recentlyUpdated: user.recentlyUpdated,
+          freshness: user.freshness,
+        );
+    return pinsStock ? merged : merged.withStock(user.stock);
+  }
 
   /// The page this scope should render right now for [items].
   ProductPage pageFor(List<ShopProductItem> items) => ProductPage.of(
@@ -75,8 +108,18 @@ class InventoryScopeController extends Notifier<InventoryScopeState> {
   /// Narrows by typed text.
   void setSearch(String value) => _setQuery(state.query.withSearch(value));
 
-  /// Clears the search text. The SLICE cannot be cleared — it is the screen's
-  /// identity, not a filter the shopkeeper applied.
+  /// Narrows to one stock scope from the quick chips. Meaningful only when
+  /// [pinsStock] is false — the merge ignores it otherwise.
+  void setStock(String scope) => _setQuery(state.query.withStock(scope));
+
+  /// Applies the filter sheet's result. The sheet is handed the live USER
+  /// query and returns it with only the facets it owns replaced, so the
+  /// search text, the stock chips and the scope's slice survive untouched.
+  void setFilters(ProductQuery query) => _setQuery(query);
+
+  /// Drops everything the SHOPKEEPER added — the search text and every
+  /// filter facet. The SLICE cannot be cleared: it is the screen's identity,
+  /// not a filter the shopkeeper applied.
   void clear() => _setQuery(const ProductQuery());
 
   /// Reveals the next page of the current slice.

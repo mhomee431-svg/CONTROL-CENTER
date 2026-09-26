@@ -19,6 +19,25 @@ abstract class InventoryRepository {
   /// (`view=list` also carries freshness + source per row).
   Future<InventoryOverview> fetchInventoryOverview(int shopId, String token);
 
+  /// SERVER search over the shop's inventory list
+  /// (`GET /shops/{shopId}/inventory?view=list&search=<query>`).
+  ///
+  /// The one server-side search path behind the products screen: the local
+  /// predicate ([ProductSearch]) answers from the already-loaded catalog, and
+  /// this endpoint is asked ONLY when that catalog cannot — a settled query
+  /// that matched nothing locally. The backend matches `name` / `sku`
+  /// (normalized substring), a SUBSET of the local predicate's fields, so a
+  /// server hit can only add rows the loaded payload does not contain at all:
+  /// a listing created on another device, or one that appeared after the last
+  /// load. Callers merge the result back into the catalog by id.
+  ///
+  /// Deliberately NO offline-snapshot fallback (unlike
+  /// [fetchInventoryOverview]): this call exists precisely to escape a stale
+  /// local copy — answering it from the same snapshot would defeat its purpose.
+  /// A failure therefore throws and the caller stays on its local result.
+  Future<List<ShopProductItem>> searchInventoryList(
+      int shopId, String token, String query);
+
   /// Delta stock adjustment with a full backend audit trail
   /// (`POST /shops/{shopId}/products/{productId}/stock-adjustments`).
   Future<StockAdjustmentResult> adjustStock(int shopId, int productId,
@@ -98,6 +117,24 @@ class ApiInventoryRepository implements InventoryRepository {
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<List<ShopProductItem>> searchInventoryList(
+      int shopId, String token, String query) async {
+    // Same `view=list` payload shape as the overview read, narrowed by the
+    // server's own `search` (name / sku contains). Rows parse through the
+    // same ShopProductItem.fromJson, so a merge into the loaded catalog is
+    // field-for-field identical.
+    final data = await _api.get(
+      ApiEndpoints.inventory('$shopId'),
+      token: token,
+      query: {'view': 'list', 'search': query},
+    ) as Map<String, dynamic>;
+    return ((data['items'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(ShopProductItem.fromJson)
+        .toList(growable: false);
   }
 
   @override

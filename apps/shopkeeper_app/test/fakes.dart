@@ -999,10 +999,24 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     this.allHistoryEntries,
     this.onLowStockThreshold,
     this.onAdjustments,
+    this.serverOnly = const [],
+    this.onSearch,
   });
 
   /// Items returned by [fetchInventoryOverview].
   final List<ShopProductItem> items;
+
+  /// Rows ONLY the server knows — the stale-catalog fixture behind the
+  /// products screen's server-search path (a listing added after the last
+  /// load / on another device). The default search matches over
+  /// `items + serverOnly`, exactly like the backend searches its own table.
+  final List<ShopProductItem> serverOnly;
+
+  /// Optional override for [searchInventoryList]: returns the server's answer
+  /// (or throws to model a failed round-trip). When null the fake mirrors the
+  /// backend rule — name / sku contains, case-insensitive — over
+  /// `items + serverOnly`.
+  final Future<List<ShopProductItem>> Function(String query)? onSearch;
 
   /// Optional hooks overriding the create/update response.
   final ShopProductItem? Function(Map<String, dynamic> payload)? onCreate;
@@ -1014,6 +1028,11 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   Map<String, dynamic>? lastCreatePayload;
   int? lastUpdatedId;
   Map<String, dynamic>? lastUpdateFields;
+
+  /// Server-search observability: how often the screen reached the backend,
+  /// and with which term — asserted by the server-search tests.
+  int searchCalls = 0;
+  String? lastSearchQuery;
 
   ShopProductItem _itemFromPayload(Map<String, dynamic> payload) =>
       ShopProductItem(
@@ -1043,6 +1062,24 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
       totalUnits: items.fold(0, (sum, i) => sum + i.quantity),
     );
     return InventoryOverview(items: items, summary: summary);
+  }
+
+  @override
+  Future<List<ShopProductItem>> searchInventoryList(
+      int shopId, String token, String query) async {
+    searchCalls++;
+    lastSearchQuery = query;
+    lastShopId = shopId;
+    final hooked = onSearch;
+    if (hooked != null) return hooked(query);
+    // Mirror the backend: normalized substring over name / sku.
+    final needle = query.trim().toLowerCase();
+    return [
+      for (final item in [...items, ...serverOnly])
+        if (item.name.toLowerCase().contains(needle) ||
+            (item.sku ?? '').toLowerCase().contains(needle))
+          item,
+    ];
   }
 
   int clearSnapshotCalls = 0;

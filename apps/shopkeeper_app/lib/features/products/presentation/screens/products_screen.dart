@@ -8,6 +8,7 @@ import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/debounced_search_field.dart';
+import '../../../../core/ui/filter_ui.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../../core/ui/numeric_input.dart';
@@ -174,20 +175,6 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     });
   }
 
-  /// Distinct, case-insensitively sorted values present in the loaded catalog
-  /// — the option lists behind the filter sheet's Category / Brand pickers.
-  /// Sourced from real rows so a filter can never be offered that matches
-  /// nothing.
-  List<String> _distinctValues(String? Function(ShopProductItem) pick) {
-    final values = <String>{};
-    for (final item in widget.allItems) {
-      final value = pick(item)?.trim();
-      if (value != null && value.isNotEmpty) values.add(value);
-    }
-    return values.toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-  }
-
   /// Clears ONLY the search text — the search box's own clear button.
   void _clearSearch() {
     ref.read(productsListControllerProvider.notifier).setSearch('');
@@ -207,8 +194,8 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
       showDragHandle: true,
       builder: (_) => ProductFilterSheet(
         initial: query,
-        categories: _distinctValues((i) => i.category),
-        brands: _distinctValues((i) => i.brand),
+        categories: distinctFilterValues(widget.allItems, (i) => i.category),
+        brands: distinctFilterValues(widget.allItems, (i) => i.brand),
         // The sheet returns the live query with only the filter facets
         // replaced: `withFilters` takes every facet explicitly (and a `null`
         // CLEARS it), so clearing Availability or tapping Reset can never be
@@ -236,6 +223,23 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     final items = page.rows;
     // Shared product-search history: submitted terms only, most-recent-first.
     final recents = ref.watch(recentSearchesControllerProvider).terms;
+
+    // SERVER search — the stale-catalog recovery path. The local predicate has
+    // just answered this settled query with NOTHING; one round-trip asks the
+    // backend (`view=list&search=`) for rows this payload may be missing
+    // (created on another device, or after the last load). Two guards keep
+    // "no API call for every keystroke" true: the field's 300ms debounce has
+    // already coalesced the typing, and the controller marks the query as
+    // answered before the request leaves — so repeated rebuilds with the same
+    // query schedule work that no-ops. Runs via microtask: build itself stays
+    // I/O-free.
+    if (query.search.trim().length >= 2 && page.matched == 0) {
+      Future.microtask(
+        () => ref
+            .read(productsControllerProvider.notifier)
+            .serverSearch(query.search),
+      );
+    }
 
     return LazyListView(
       padding: const EdgeInsets.all(16),
@@ -274,35 +278,20 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
               .remove(term),
         ),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _FilterChip(
-                label: 'All',
-                selected: query.stock == ProductQuery.stockAll,
-                onTap: () => _setStock(ProductQuery.stockAll),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'In Stock',
-                selected: query.stock == ProductQuery.stockInStock,
-                onTap: () => _setStock(ProductQuery.stockInStock),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Low Stock',
-                selected: query.stock == ProductQuery.stockLow,
-                onTap: () => _setStock(ProductQuery.stockLow),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Out of Stock',
-                selected: query.stock == ProductQuery.stockOutOfStock,
-                onTap: () => _setStock(ProductQuery.stockOutOfStock),
-              ),
-            ],
-          ),
+        // Quick stock facets — one tap commits immediately (the sheet owns
+        // the form-style facets below).
+        FilterChipBar<String>(
+          options: const [
+            FilterChoice(label: 'All', value: ProductQuery.stockAll),
+            FilterChoice(label: 'In Stock', value: ProductQuery.stockInStock),
+            FilterChoice(label: 'Low Stock', value: ProductQuery.stockLow),
+            FilterChoice(
+              label: 'Out of Stock',
+              value: ProductQuery.stockOutOfStock,
+            ),
+          ],
+          selected: query.stock,
+          onSelected: _setStock,
         ),
 
         const SizedBox(height: 8),
@@ -462,18 +451,12 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          Text('Filter products', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          _FilterSection(
+    return FilterSheet(
+      title: 'Filter products',
+      onReset: _reset,
+      onApply: _apply,
+      children: [
+          FilterSection(
             label: 'Availability',
             child: SegmentedButton<bool>(
               emptySelectionAllowed: true,
@@ -490,24 +473,24 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             ),
           ),
           if (widget.categories.isNotEmpty)
-            _FilterSection(
+            FilterSection(
               label: 'Category',
-              child: _picker(
+              child: FilterDropdown(
                 options: widget.categories,
                 value: _category,
                 onChanged: (value) => setState(() => _category = value),
               ),
             ),
           if (widget.brands.isNotEmpty)
-            _FilterSection(
+            FilterSection(
               label: 'Brand',
-              child: _picker(
+              child: FilterDropdown(
                 options: widget.brands,
                 value: _brand,
                 onChanged: (value) => setState(() => _brand = value),
               ),
             ),
-          _FilterSection(
+          FilterSection(
             label: 'Recently updated',
             child: SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -517,7 +500,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
               onChanged: (v) => setState(() => _recentlyUpdated = v),
             ),
           ),
-          _FilterSection(
+          FilterSection(
             label: 'Price range',
             child: Row(
               children: [
@@ -553,47 +536,8 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: _reset,
-                child: const Text('Reset'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(onPressed: _apply, child: const Text('Apply')),
-            ],
-          ),
         ],
-      ),
-    );
-  }
-
-  /// Single-choice picker with an explicit "Any" (no filter) option, so
-  /// clearing a selection is one tap instead of a hidden gesture.
-  Widget _picker({
-    required List<String> options,
-    required String? value,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String?>(
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        isDense: true,
-        border: OutlineInputBorder(),
-      ),
-      items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('Any')),
-        for (final option in options)
-          DropdownMenuItem<String?>(
-            value: option,
-            child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-      ],
-      onChanged: onChanged,
-    );
+      );
   }
 
   /// Clears every picker *and* applies the empty filter in one step, so the
@@ -617,6 +561,9 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       category: _category,
       brand: _brand,
       recentlyUpdated: _recentlyUpdated,
+      // The sheet never edits freshness — it rides along untouched, exactly
+      // like search / stock / sort.
+      freshness: widget.initial.freshness,
       minPrice: double.tryParse(_minController.text.trim()),
       maxPrice: double.tryParse(_maxController.text.trim()),
     ));
@@ -624,30 +571,6 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
   }
 }
 
-
-class _FilterSection extends StatelessWidget {
-  const _FilterSection({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.primary)),
-          const SizedBox(height: 4),
-          child,
-        ],
-      ),
-    );
-  }
-}
 
 /// One row's slice of the single card the products list paints — see
 /// [LazyCardSliver] in `core/ui/lazy_list.dart`, which owns this chrome so every
@@ -987,44 +910,6 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // `selected` is exposed to assistive tech so the active filter is not
-    // communicated by colour alone, and the vertical padding lifts the chip to
-    // a 44dp touch target (it was ~33dp).
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: selected ? scheme.primary : scheme.outlineVariant),
-        ),
-          child: Text(label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? scheme.onPrimary : scheme.onSurface,
-              )),
-        ),
-      ),
-    );
-  }
-}
 
 

@@ -200,6 +200,7 @@ void main() {
         minPrice: 10,
         maxPrice: 90,
         recentlyUpdated: true,
+        freshness: ProductQuery.freshnessStale,
       );
       expect(filtered.hasActiveFilters, isTrue);
 
@@ -210,6 +211,7 @@ void main() {
         minPrice: null,
         maxPrice: null,
         recentlyUpdated: false,
+        freshness: null,
       );
       expect(cleared.hasActiveFilters, isFalse);
     });
@@ -227,6 +229,7 @@ void main() {
         minPrice: null,
         maxPrice: null,
         recentlyUpdated: false,
+        freshness: live.freshness,
       );
       expect(applied.search, 'amul');
       expect(applied.stock, ProductQuery.stockLow);

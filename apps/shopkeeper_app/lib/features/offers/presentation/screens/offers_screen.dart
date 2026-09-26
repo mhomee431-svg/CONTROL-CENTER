@@ -4,13 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/filter_ui.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/offer_models.dart';
 import '../controllers/offers_controller.dart';
 import '../widgets/offer_create_sheet.dart';
 import '../widgets/offer_details_sheet.dart';
 
-/// Offers management — active, expired, and create new offers.
+/// Offers management — filter across active, scheduled, expired and disabled
+/// offers, and create new ones.
 class OffersScreen extends ConsumerStatefulWidget {
   const OffersScreen({super.key});
 
@@ -18,22 +20,12 @@ class OffersScreen extends ConsumerStatefulWidget {
   ConsumerState<OffersScreen> createState() => _OffersScreenState();
 }
 
-class _OffersScreenState extends ConsumerState<OffersScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
+class _OffersScreenState extends ConsumerState<OffersScreen> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     Future.microtask(
         () => ref.read(offersListControllerProvider.notifier).load());
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   /// Opens the create sheet, then refreshes ONLY when an offer was actually
@@ -63,17 +55,39 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
 
     final state = ref.watch(offersListControllerProvider);
 
+    // Each filter owns its empty copy — the layout is shared, the wording
+    // answers the question that filter asks.
+    final (emptyTitle, emptyMessage, emptyIcon, showCreateCta) =
+        switch (state.filter) {
+      OfferFilter.active => (
+          'No active offers',
+          'Create an offer to attract more customers',
+          Icons.local_offer_outlined,
+          true,
+        ),
+      OfferFilter.scheduled => (
+          'No scheduled offers',
+          'Offers waiting for their start time appear here',
+          Icons.schedule_outlined,
+          false,
+        ),
+      OfferFilter.expired => (
+          'No expired offers',
+          'Expired offers will appear here',
+          Icons.history_outlined,
+          false,
+        ),
+      OfferFilter.disabled => (
+          'No disabled offers',
+          'Offers you disable appear here and can be re-activated',
+          Icons.visibility_off_outlined,
+          false,
+        ),
+    };
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Offers & pricing'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Active'),
-            Tab(text: 'Expired'),
-            Tab(text: 'Disabled'),
-          ],
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -83,34 +97,40 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
         ],
       ),
       body: SafeArea(
-        child: TabBarView(
-          controller: _tabController,
+        child: Column(
           children: [
-            _OffersTab(
-              offers: state.openOffers,
-              state: state,
-              emptyTitle: 'No active offers',
-              emptyMessage: 'Create an offer to attract more customers',
-              emptyIcon: Icons.local_offer_outlined,
-              showCreateCta: true,
-              onCreate: _openCreateSheet,
+            // The filter — single-select chips from the shared filter UI,
+            // the same interaction model as the products / inventory screens.
+            // State lives in the controller (not in a TabController), so it
+            // survives rebuilds and reloads.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: FilterChipBar<OfferFilter>(
+                options: const [
+                  FilterChoice(value: OfferFilter.active, label: 'Active'),
+                  FilterChoice(
+                    value: OfferFilter.scheduled,
+                    label: 'Scheduled',
+                  ),
+                  FilterChoice(value: OfferFilter.expired, label: 'Expired'),
+                  FilterChoice(value: OfferFilter.disabled, label: 'Disabled'),
+                ],
+                selected: state.filter,
+                onSelected: (value) => ref
+                    .read(offersListControllerProvider.notifier)
+                    .setFilter(value),
+              ),
             ),
-            _OffersTab(
-              offers: state.expiredOffers,
-              state: state,
-              emptyTitle: 'No expired offers',
-              emptyMessage: 'Expired offers will appear here',
-              emptyIcon: Icons.history_outlined,
-              onCreate: _openCreateSheet,
-            ),
-            _OffersTab(
-              offers: state.disabledOffers,
-              state: state,
-              emptyTitle: 'No disabled offers',
-              emptyMessage:
-                  'Offers you disable appear here and can be re-activated',
-              emptyIcon: Icons.visibility_off_outlined,
-              onCreate: _openCreateSheet,
+            Expanded(
+              child: _OffersTab(
+                offers: state.visibleOffers,
+                state: state,
+                emptyTitle: emptyTitle,
+                emptyMessage: emptyMessage,
+                emptyIcon: emptyIcon,
+                showCreateCta: showCreateCta,
+                onCreate: _openCreateSheet,
+              ),
             ),
           ],
         ),
@@ -119,8 +139,9 @@ class _OffersScreenState extends ConsumerState<OffersScreen>
   }
 }
 
-/// One tab of the offers screen. Both tabs read from the SAME
-/// [OffersListState] (one fetch), so they can never disagree.
+/// The offers screen's list body — one instance per screen; the filter chips
+/// swap WHICH slice it renders. It always reads the SAME [OffersListState]
+/// (one fetch), so no two views of the list can ever disagree.
 class _OffersTab extends ConsumerWidget {
   const _OffersTab({
     required this.offers,
@@ -135,7 +156,7 @@ class _OffersTab extends ConsumerWidget {
   final List<OfferSummary> offers;
   final OffersListState state;
 
-  /// Empty-list copy — each tab owns its own wording.
+  /// Empty-list copy — each filter owns its own wording.
   final String emptyTitle;
   final String emptyMessage;
   final IconData emptyIcon;
