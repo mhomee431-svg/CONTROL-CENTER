@@ -41,7 +41,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-    final success = await ref.read(profileControllerProvider.notifier).updateProfile(
+    final success = await ref
+        .read(profileControllerProvider.notifier)
+        .updateProfile(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           phoneNumber: _phoneController.text.trim(),

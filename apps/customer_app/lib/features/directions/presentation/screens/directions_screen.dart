@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../controllers/directions_controller.dart';
 import '../../../../core/maps/map_adapter.dart';
 import '../../domain/models/location_models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 
 class DirectionsScreen extends ConsumerWidget {
   final String shopId;
@@ -23,12 +25,13 @@ class DirectionsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Route to Shop')),
-      body: _buildBody(context, state, controller, mapAdapter),
+      body: _buildBody(context, ref, state, controller, mapAdapter),
     );
   }
 
   Widget _buildBody(
     BuildContext context,
+    WidgetRef ref,
     DirectionsState state,
     DirectionsController controller,
     MapAdapter mapAdapter,
@@ -96,12 +99,19 @@ class DirectionsScreen extends ConsumerWidget {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.info_outline, size: 18, color: AppColors.error),
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'This shop is currently closed. You can still navigate to it.',
-                            style: TextStyle(fontSize: 12, color: AppColors.error),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.error,
+                            ),
                           ),
                         ),
                       ],
@@ -154,7 +164,15 @@ class DirectionsScreen extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => controller.launchExternalMaps(shopName),
+                    onPressed: () async {
+                      final allowed = await requireAuthentication(
+                        context,
+                        ref,
+                        actionLabel: 'start navigation',
+                      );
+                      if (!allowed || !context.mounted) return;
+                      await controller.launchExternalMaps(shopName);
+                    },
                     icon: const Icon(Icons.navigation),
                     label: const Text('Open External Navigation'),
                     style: ElevatedButton.styleFrom(
@@ -191,15 +209,13 @@ class DirectionsScreen extends ConsumerWidget {
       case LocationErrorType.permissionDenied:
         icon = Icons.location_off;
         title = 'Permission Denied';
-        message =
-            'We need location access to show you the route to the shop.';
+        message = 'We need location access to show you the route to the shop.';
         buttonText = 'Allow Location';
         break;
       case LocationErrorType.permissionPermanentlyDenied:
         icon = Icons.location_disabled;
         title = 'Permission Blocked';
-        message =
-            'Location permission is permanently blocked. Please enable it in system settings.';
+        message = 'Location permission is permanently blocked. Please enable it in system settings.';
         buttonText = 'Open Settings';
         break;
       case LocationErrorType.invalidCoordinates:

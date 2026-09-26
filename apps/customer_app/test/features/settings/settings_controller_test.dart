@@ -16,9 +16,7 @@ void main() {
     setUp(() {
       driver = InMemoryStorageDriver();
       container = ProviderContainer(
-        overrides: [
-          localStorageDriverProvider.overrideWithValue(driver),
-        ],
+        overrides: [localStorageDriverProvider.overrideWithValue(driver)],
       );
     });
 
@@ -42,15 +40,18 @@ void main() {
     });
 
     test('setThemeMode updates and persists themeMode', () async {
-      container.read(settingsControllerProvider.notifier).setThemeMode(ThemeMode.dark);
+      container
+          .read(settingsControllerProvider.notifier)
+          .setThemeMode(ThemeMode.dark);
       await settle();
 
       expect(
         container.read(settingsControllerProvider).themeMode,
         ThemeMode.dark,
       );
-      final persisted =
-          AppSettings.fromJson(jsonDecode(await driver.getString(appSettingsStorageKey) ?? '{}'));
+      final persisted = AppSettings.fromJson(
+        jsonDecode(await driver.getString(appSettingsStorageKey) ?? '{}'),
+      );
       expect(persisted.themeMode, ThemeMode.dark);
     });
 
@@ -65,19 +66,24 @@ void main() {
       expect(persisted.languageCode, 'hi');
     });
 
-    test('toggleNotifications updates push notifications and persists', () async {
-      container.read(settingsControllerProvider.notifier).toggleNotifications(false);
-      await settle();
+    test(
+      'toggleNotifications updates push notifications and persists',
+      () async {
+        container
+            .read(settingsControllerProvider.notifier)
+            .toggleNotifications(false);
+        await settle();
 
-      expect(
-        container.read(settingsControllerProvider).pushNotificationsEnabled,
-        isFalse,
-      );
-      final persisted = AppSettings.fromJson(
-        jsonDecode(await driver.getString(appSettingsStorageKey) ?? '{}'),
-      );
-      expect(persisted.pushNotificationsEnabled, isFalse);
-    });
+        expect(
+          container.read(settingsControllerProvider).pushNotificationsEnabled,
+          isFalse,
+        );
+        final persisted = AppSettings.fromJson(
+          jsonDecode(await driver.getString(appSettingsStorageKey) ?? '{}'),
+        );
+        expect(persisted.pushNotificationsEnabled, isFalse);
+      },
+    );
 
     test('privacy toggles persist', () async {
       final controller = container.read(settingsControllerProvider.notifier);
@@ -102,11 +108,13 @@ void main() {
       // Simulate a previous session's choices.
       await driver.setString(
         appSettingsStorageKey,
-        jsonEncode(const AppSettings(
-          themeMode: ThemeMode.dark,
-          languageCode: 'hi',
-          analyticsEnabled: true,
-        ).toJson()),
+        jsonEncode(
+          const AppSettings(
+            themeMode: ThemeMode.dark,
+            languageCode: 'hi',
+            analyticsEnabled: true,
+          ).toJson(),
+        ),
       );
 
       final restoredContainer = ProviderContainer(
@@ -132,7 +140,10 @@ void main() {
       await container.pump();
       await Future<void>.delayed(Duration.zero);
 
-      expect(container.read(settingsControllerProvider).themeMode, ThemeMode.system);
+      expect(
+        container.read(settingsControllerProvider).themeMode,
+        ThemeMode.system,
+      );
     });
 
     test('appStringsProvider reflects selected language', () {

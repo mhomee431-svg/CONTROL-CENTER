@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../providers/product_details_providers.dart';
 import '../../../../features/customer/presentation/controllers/customer_controller.dart';
 import '../../domain/models/product_details_models.dart';
@@ -32,9 +33,7 @@ class ProductDetailsScreen extends ConsumerWidget {
     ref.listen(productDetailsProvider(productId), (previous, next) {
       final pid = int.tryParse(productId);
       if (next.hasValue && pid != null) {
-        ref.read(recordRecentViewProvider(
-          RecentViewRequest(pid),
-        ));
+        ref.read(recordRecentViewProvider(RecentViewRequest(pid)));
       }
     });
 
@@ -81,7 +80,11 @@ class ProductDetailsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, ProductDetails details) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    ProductDetails details,
+  ) {
     return RefreshIndicator(
       onRefresh: () => ref.refresh(productDetailsProvider(productId).future),
       child: SingleChildScrollView(
@@ -121,9 +124,7 @@ class _ProductLoadingView extends StatelessWidget {
         Container(
           height: 240,
           color: Colors.grey.shade200,
-          child: const Center(
-            child: CircularProgressIndicator.adaptive(),
-          ),
+          child: const Center(child: CircularProgressIndicator.adaptive()),
         ),
         Padding(
           padding: const EdgeInsets.all(AppSpacing.md),

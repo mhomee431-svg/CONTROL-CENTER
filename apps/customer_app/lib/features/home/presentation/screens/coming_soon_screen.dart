@@ -29,11 +29,7 @@ class ComingSoonScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.rocket_launch,
-              size: 90,
-              color: AppColors.primary,
-            ),
+            const Icon(Icons.rocket_launch, size: 90, color: AppColors.primary),
             const SizedBox(height: AppSpacing.lg),
             Text(
               'Coming Soon!',
@@ -101,7 +97,7 @@ class ComingSoonScreen extends ConsumerWidget {
                 controller: pinController,
                 keyboardType: const TextInputType.numberWithOptions(),
                 maxLength: 6,
-                                decoration: const InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'e.g. 560001',
                   counterText: '',
                   border: OutlineInputBorder(),

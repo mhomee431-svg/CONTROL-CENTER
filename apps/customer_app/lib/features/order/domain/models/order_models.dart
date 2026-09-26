@@ -18,9 +18,9 @@ enum OrderStatus {
   const OrderStatus(this.value);
 
   static OrderStatus fromValue(String? value) => values.firstWhere(
-        (status) => status.value == value,
-        orElse: () => OrderStatus.pending,
-      );
+    (status) => status.value == value,
+    orElse: () => OrderStatus.pending,
+  );
 }
 
 enum PaymentStatus {
@@ -34,9 +34,9 @@ enum PaymentStatus {
   const PaymentStatus(this.value);
 
   static PaymentStatus fromValue(String? value) => values.firstWhere(
-        (status) => status.value == value,
-        orElse: () => PaymentStatus.pending,
-      );
+    (status) => status.value == value,
+    orElse: () => PaymentStatus.pending,
+  );
 }
 
 class OrderItem {
@@ -69,19 +69,19 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-        id: _asInt(json['id']),
-        orderId: _asInt(json['order_id']),
-        productMasterId: _asInt(json['product_master_id']),
-        productName: json['product_name'] as String? ?? '',
-        variantId: _asNullableInt(json['variant_id']),
-        variantName: json['variant_name'] as String?,
-        shopProductId: _asNullableInt(json['shop_product_id']),
-        quantity: _asInt(json['quantity']),
-        price: _asDouble(json['price']),
-        totalPrice: _asDouble(json['total_price']),
-        imageUrl: json['image_url'] as String?,
-        itemStatus: json['item_status'] as String? ?? 'PENDING',
-      );
+    id: _asInt(json['id']),
+    orderId: _asInt(json['order_id']),
+    productMasterId: _asInt(json['product_master_id']),
+    productName: json['product_name'] as String? ?? '',
+    variantId: _asNullableInt(json['variant_id']),
+    variantName: json['variant_name'] as String?,
+    shopProductId: _asNullableInt(json['shop_product_id']),
+    quantity: _asInt(json['quantity']),
+    price: _asDouble(json['price']),
+    totalPrice: _asDouble(json['total_price']),
+    imageUrl: json['image_url'] as String?,
+    itemStatus: json['item_status'] as String? ?? 'PENDING',
+  );
 }
 
 class Order {
@@ -148,42 +148,43 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
-        id: _asInt(json['id']),
-        orderNumber: json['order_number'] as String? ?? '',
-        userId: _asInt(json['user_id']),
-        customerId: _asNullableInt(json['customer_id']),
-        shopId: _asInt(json['shop_id']),
-        status: OrderStatus.fromValue(json['status'] as String?),
-        paymentMethod: json['payment_method'] as String?,
-        paymentStatus:
-            PaymentStatus.fromValue(json['payment_status'] as String?),
-        currency: json['currency'] as String? ?? 'INR',
-        subtotalAmount: _asDouble(json['subtotal_amount']),
-        deliveryFee: _asDouble(json['delivery_fee']),
-        discountAmount: _asDouble(json['discount_amount']),
-        taxAmount: _asDouble(json['tax_amount']),
-        totalAmount: _asDouble(json['total_amount']),
-        totalItems: _asInt(json['total_items']),
-        notes: json['notes'] as String?,
-        shippingAddressJson: json['shipping_address_json'] as String?,
-        placedAt: _asDateTime(json['placed_at']),
-        confirmedAt: _asDateTime(json['confirmed_at']),
-        preparingAt: _asDateTime(json['preparing_at']),
-        readyAt: _asDateTime(json['ready_at']),
-        outForDeliveryAt: _asDateTime(json['out_for_delivery_at']),
-        deliveredAt: _asDateTime(json['delivered_at']),
-        cancelledAt: _asDateTime(json['cancelled_at']),
-        cancelledBy: _asNullableInt(json['cancelled_by']),
-        cancelReason: json['cancel_reason'] as String?,
-        createdAt: _asDateTime(json['created_at']) ??
-            DateTime.fromMillisecondsSinceEpoch(0),
-        updatedAt: _asDateTime(json['updated_at']) ??
-            DateTime.fromMillisecondsSinceEpoch(0),
-        items: (json['items'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(OrderItem.fromJson)
-            .toList(growable: false),
-      );
+    id: _asInt(json['id']),
+    orderNumber: json['order_number'] as String? ?? '',
+    userId: _asInt(json['user_id']),
+    customerId: _asNullableInt(json['customer_id']),
+    shopId: _asInt(json['shop_id']),
+    status: OrderStatus.fromValue(json['status'] as String?),
+    paymentMethod: json['payment_method'] as String?,
+    paymentStatus: PaymentStatus.fromValue(json['payment_status'] as String?),
+    currency: json['currency'] as String? ?? 'INR',
+    subtotalAmount: _asDouble(json['subtotal_amount']),
+    deliveryFee: _asDouble(json['delivery_fee']),
+    discountAmount: _asDouble(json['discount_amount']),
+    taxAmount: _asDouble(json['tax_amount']),
+    totalAmount: _asDouble(json['total_amount']),
+    totalItems: _asInt(json['total_items']),
+    notes: json['notes'] as String?,
+    shippingAddressJson: json['shipping_address_json'] as String?,
+    placedAt: _asDateTime(json['placed_at']),
+    confirmedAt: _asDateTime(json['confirmed_at']),
+    preparingAt: _asDateTime(json['preparing_at']),
+    readyAt: _asDateTime(json['ready_at']),
+    outForDeliveryAt: _asDateTime(json['out_for_delivery_at']),
+    deliveredAt: _asDateTime(json['delivered_at']),
+    cancelledAt: _asDateTime(json['cancelled_at']),
+    cancelledBy: _asNullableInt(json['cancelled_by']),
+    cancelReason: json['cancel_reason'] as String?,
+    createdAt:
+        _asDateTime(json['created_at']) ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+    updatedAt:
+        _asDateTime(json['updated_at']) ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+    items: (json['items'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(OrderItem.fromJson)
+        .toList(growable: false),
+  );
 }
 
 class OrderCreate {
@@ -206,15 +207,15 @@ class OrderCreate {
   });
 
   Map<String, dynamic> toJson() => {
-        'shop_id': shopId,
-        if (shippingAddressJson != null)
-          'shipping_address_json': shippingAddressJson,
-        if (notes != null) 'notes': notes,
-        'delivery_fee': deliveryFee,
-        'discount_amount': discountAmount,
-        'tax_amount': taxAmount,
-        'items': items.map((item) => item.toJson()).toList(growable: false),
-      };
+    'shop_id': shopId,
+    if (shippingAddressJson != null)
+      'shipping_address_json': shippingAddressJson,
+    if (notes != null) 'notes': notes,
+    'delivery_fee': deliveryFee,
+    'discount_amount': discountAmount,
+    'tax_amount': taxAmount,
+    'items': items.map((item) => item.toJson()).toList(growable: false),
+  };
 }
 
 class OrderItemCreate {
@@ -239,15 +240,15 @@ class OrderItemCreate {
   });
 
   Map<String, dynamic> toJson() => {
-        'product_master_id': productMasterId,
-        'product_name': productName,
-        if (variantId != null) 'variant_id': variantId,
-        if (variantName != null) 'variant_name': variantName,
-        if (shopProductId != null) 'shop_product_id': shopProductId,
-        'quantity': quantity,
-        'price': price,
-        if (imageUrl != null) 'image_url': imageUrl,
-      };
+    'product_master_id': productMasterId,
+    'product_name': productName,
+    if (variantId != null) 'variant_id': variantId,
+    if (variantName != null) 'variant_name': variantName,
+    if (shopProductId != null) 'shop_product_id': shopProductId,
+    'quantity': quantity,
+    'price': price,
+    if (imageUrl != null) 'image_url': imageUrl,
+  };
 }
 
 class OrderStatusUpdate {
@@ -258,10 +259,10 @@ class OrderStatusUpdate {
   const OrderStatusUpdate({required this.status, this.note, this.processedBy});
 
   Map<String, dynamic> toJson() => {
-        'status': status,
-        if (note != null) 'note': note,
-        if (processedBy != null) 'processed_by': processedBy,
-      };
+    'status': status,
+    if (note != null) 'note': note,
+    if (processedBy != null) 'processed_by': processedBy,
+  };
 }
 
 class OrderListResponse {

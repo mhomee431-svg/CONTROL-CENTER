@@ -43,7 +43,9 @@ Future<void> shareProduct(
   }
   if (shopName != null && shopName.isNotEmpty) {
     buffer.write(' at $shopName');
-    if (distanceInKm != null) buffer.write(' (${distanceInKm.toStringAsFixed(1)} km)');
+    if (distanceInKm != null) {
+      buffer.write(' (${distanceInKm.toStringAsFixed(1)} km)');
+    }
   }
   if (brand != null && brand.isNotEmpty) {
     buffer.write(' · $brand');
@@ -51,9 +53,6 @@ Future<void> shareProduct(
   buffer.write(' — find it near you on Hyperlocal!');
 
   await SharePlus.instance.share(
-    ShareParams(
-      text: buffer.toString(),
-      subject: 'Product: $productName',
-    ),
+    ShareParams(text: buffer.toString(), subject: 'Product: $productName'),
   );
 }

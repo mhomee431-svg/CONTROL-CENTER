@@ -40,14 +40,12 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final notifier = _TestPaginatedNotifier(
-        Dio(),
-        pageSize: 2,
-      );
+      final notifier = _TestPaginatedNotifier(Dio(), pageSize: 2);
 
-      final provider = NotifierProvider<_TestPaginatedNotifier, PaginatedState<int>>(
-        () => notifier,
-      );
+      final provider =
+          NotifierProvider<_TestPaginatedNotifier, PaginatedState<int>>(
+            () => notifier,
+          );
 
       container.listen(provider, (_, _) {});
       await Future<void>.delayed(const Duration(milliseconds: 50));

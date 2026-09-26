@@ -62,6 +62,7 @@ from app.models.shop import (
     ShopVerification,
     VerificationStatus,
 )
+from app.models.merchant_category import MerchantCategoryCode
 from app.models.subscription import Subscription
 from app.models.user import User, UserStatus
 from app.services import shop_service
@@ -88,6 +89,22 @@ MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY = {
     "TRANSPORT": "OTHER",
     "PERSONAL_TRANSPORT_TRAVEL": "OTHER",
 }
+
+# ONE source of truth guards for the migration map above. It must (a) cover
+# EXACTLY the 11 approved MerchantCategoryCode values and (b) never map an
+# approved category onto a legacy grocery / general-food enum member
+# (GROCERY, DAIRY, MEAT, VEGETABLES, BAKERY), which would silently let Grocery
+# flow through as a business category. The authoritative merchant code itself is
+# persisted on the merchant-onboarding record, never on Shop.category alone.
+_FOREIGN_GROCERY_LEGACY = {"GROCERY", "DAIRY", "MEAT", "VEGETABLES", "BAKERY"}
+assert set(MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY) == {
+    c.value for c in MerchantCategoryCode
+}, "MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY must map exactly the 11 MerchantCategoryCode values"
+assert not {
+    legacy.upper() for legacy in MERCHANT_CATEGORY_TO_LEGACY_SHOP_CATEGORY.values()
+} & _FOREIGN_GROCERY_LEGACY, (
+    "category map must never map an approved category to a grocery legacy category"
+)
 
 logger = get_logger("app.services.shopkeeper")
 # ── Access resolution ────────────────────────────────────────────────────

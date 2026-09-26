@@ -5,8 +5,8 @@ import '../../domain/notification_repository.dart';
 
 final notificationsControllerProvider =
     AsyncNotifierProvider<NotificationsController, List<AppNotification>>(
-  NotificationsController.new,
-);
+      NotificationsController.new,
+    );
 
 /// Derived unread badge count for the shell / app bar.
 final unreadCountProvider = Provider<int>((ref) {
@@ -37,10 +37,12 @@ class NotificationsController extends AsyncNotifier<List<AppNotification>> {
   /// Optimistically marks one notification as read, then syncs.
   /// A failed sync keeps the optimistic state (idempotent retry later).
   Future<void> markAsRead(String id) async {
-    _mutateCurrent((notifications) => [
-          for (final n in notifications)
-            if (n.id == id && !n.isRead) n.copyWith(isRead: true) else n,
-        ]);
+    _mutateCurrent(
+      (notifications) => [
+        for (final n in notifications)
+          if (n.id == id && !n.isRead) n.copyWith(isRead: true) else n,
+      ],
+    );
     try {
       await ref.read(notificationsRepositoryProvider).markAsRead(id);
     } catch (_) {

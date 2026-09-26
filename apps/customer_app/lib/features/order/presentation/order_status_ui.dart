@@ -18,35 +18,35 @@ const List<OrderStatus> orderFulfilmentChain = <OrderStatus>[
 /// mapping in one place so the list card and the detail tracker never drift.
 extension OrderStatusUi on OrderStatus {
   String get label => switch (this) {
-        OrderStatus.pending => 'Pending',
-        OrderStatus.confirmed => 'Confirmed',
-        OrderStatus.preparing => 'Preparing',
-        OrderStatus.readyForPickup => 'Ready for pickup',
-        OrderStatus.outForDelivery => 'Out for delivery',
-        OrderStatus.delivered => 'Delivered',
-        OrderStatus.cancelled => 'Cancelled',
-        OrderStatus.refunded => 'Refunded',
-        OrderStatus.failed => 'Failed',
-      };
+    OrderStatus.pending => 'Pending',
+    OrderStatus.confirmed => 'Confirmed',
+    OrderStatus.preparing => 'Preparing',
+    OrderStatus.readyForPickup => 'Ready for pickup',
+    OrderStatus.outForDelivery => 'Out for delivery',
+    OrderStatus.delivered => 'Delivered',
+    OrderStatus.cancelled => 'Cancelled',
+    OrderStatus.refunded => 'Refunded',
+    OrderStatus.failed => 'Failed',
+  };
 
   IconData get icon => switch (this) {
-        OrderStatus.pending => Icons.schedule,
-        OrderStatus.confirmed => Icons.verified_outlined,
-        OrderStatus.preparing => Icons.inventory_2_outlined,
-        OrderStatus.readyForPickup => Icons.shopping_bag_outlined,
-        OrderStatus.outForDelivery => Icons.local_shipping_outlined,
-        OrderStatus.delivered => Icons.check_circle_outline,
-        OrderStatus.cancelled => Icons.cancel_outlined,
-        OrderStatus.refunded => Icons.currency_exchange,
-        OrderStatus.failed => Icons.error_outline,
-      };
+    OrderStatus.pending => Icons.schedule,
+    OrderStatus.confirmed => Icons.verified_outlined,
+    OrderStatus.preparing => Icons.inventory_2_outlined,
+    OrderStatus.readyForPickup => Icons.shopping_bag_outlined,
+    OrderStatus.outForDelivery => Icons.local_shipping_outlined,
+    OrderStatus.delivered => Icons.check_circle_outline,
+    OrderStatus.cancelled => Icons.cancel_outlined,
+    OrderStatus.refunded => Icons.currency_exchange,
+    OrderStatus.failed => Icons.error_outline,
+  };
 
   Color get color => switch (this) {
-        OrderStatus.delivered => AppColors.secondary,
-        OrderStatus.cancelled || OrderStatus.failed => AppColors.error,
-        OrderStatus.refunded => AppColors.textMuted,
-        _ => AppColors.primary,
-      };
+    OrderStatus.delivered => AppColors.secondary,
+    OrderStatus.cancelled || OrderStatus.failed => AppColors.error,
+    OrderStatus.refunded => AppColors.textMuted,
+    _ => AppColors.primary,
+  };
 
   /// True when the order will never progress further along the happy path.
   bool get isTerminal =>
@@ -62,18 +62,18 @@ extension OrderStatusUi on OrderStatus {
 /// Presentation helpers for [PaymentStatus].
 extension PaymentStatusUi on PaymentStatus {
   String get label => switch (this) {
-        PaymentStatus.pending => 'Payment pending',
-        PaymentStatus.paid => 'Paid',
-        PaymentStatus.failed => 'Payment failed',
-        PaymentStatus.refunded => 'Refunded',
-        PaymentStatus.partiallyRefunded => 'Partially refunded',
-      };
+    PaymentStatus.pending => 'Payment pending',
+    PaymentStatus.paid => 'Paid',
+    PaymentStatus.failed => 'Payment failed',
+    PaymentStatus.refunded => 'Refunded',
+    PaymentStatus.partiallyRefunded => 'Partially refunded',
+  };
 
   Color get color => switch (this) {
-        PaymentStatus.paid => AppColors.secondary,
-        PaymentStatus.failed => AppColors.error,
-        PaymentStatus.refunded || PaymentStatus.partiallyRefunded =>
-          AppColors.textMuted,
-        PaymentStatus.pending => AppColors.primary,
-      };
+    PaymentStatus.paid => AppColors.secondary,
+    PaymentStatus.failed => AppColors.error,
+    PaymentStatus.refunded ||
+    PaymentStatus.partiallyRefunded => AppColors.textMuted,
+    PaymentStatus.pending => AppColors.primary,
+  };
 }

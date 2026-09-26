@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/user_profile.dart';
 import '../controllers/profile_controller.dart';
 
@@ -35,8 +36,11 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_off_outlined,
-                  size: 64, color: AppColors.error),
+              const Icon(
+                Icons.person_off_outlined,
+                size: 64,
+                color: AppColors.error,
+              ),
               const SizedBox(height: AppSpacing.md),
               const Text(
                 'Couldn\'t load your profile',
@@ -102,9 +106,18 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ],
             ListTile(
+              key: const Key('notificationsSettingsTile'),
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('Notifications'),
+              subtitle: const Text('Push alerts, offers and order updates'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/settings?section=notifications'),
+            ),
+            ListTile(
+              key: const Key('appSettingsTile'),
               leading: const Icon(Icons.settings_outlined),
               title: const Text('App Settings'),
-              subtitle: const Text('Notifications, privacy, preferences'),
+              subtitle: const Text('Language, theme, location & preferences'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/settings'),
             ),
@@ -120,11 +133,45 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => context.push('/help'),
             ),
             ListTile(
+              key: const Key('privacyTile'),
               leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Privacy & Data'),
+              title: const Text('Privacy'),
+              subtitle: const Text('What we collect and how we use it'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/help'),
+              onTap: () => context.push('/privacy'),
             ),
+            ListTile(
+              key: const Key('termsTile'),
+              leading: const Icon(Icons.gavel_outlined),
+              title: const Text('Terms of Service'),
+              subtitle: const Text('Rules for using Hyperlocal'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/terms'),
+            ),
+            if (!isGuest) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const Divider(),
+              const _SectionLabel('Danger zone'),
+              ListTile(
+                key: const Key('deleteAccountTile'),
+                leading: const Icon(
+                  Icons.delete_forever,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  'Delete account',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                subtitle: const Text(
+                  'Permanently remove your account and synced data',
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.error,
+                ),
+                onTap: () => _confirmDeleteAccount(context, ref),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton.icon(
               key: const Key('logoutButton'),
@@ -152,6 +199,66 @@ class ProfileScreen extends ConsumerWidget {
       case AccountStatus.suspended:
         return 'Your account is suspended. Contact support.';
     }
+  }
+
+  /// Explains the impact, then deletes and signs out.
+  ///
+  /// Deletion is a destructive, irreversible action, so the confirmation
+  /// spells out exactly what is lost. `profileController.deleteAccount()`
+  /// calls the backend's `DELETE /users/me`; on success the session is closed
+  /// so no stale token survives on the device.
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your account from our servers and '
+          'cannot be undone.\n\n'
+          'You will lose:\n'
+          '• Your profile and saved addresses\n'
+          '• Saved products and shops\n'
+          '• Notification preferences\n\n'
+          'Browsing history already cleared on this device stays cleared.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('confirmDeleteAccount'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete forever'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final deleted = await ref
+        .read(profileControllerProvider.notifier)
+        .deleteAccount();
+    if (!context.mounted) return;
+
+    if (!deleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not delete your account. Please try again shortly.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // The account is gone — close the session so nothing stale is reused.
+    await ref.read(authControllerProvider.notifier).logout();
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
@@ -188,6 +295,12 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The avatar is shown only when the profile actually has one. Note that
+    // no internal identifier (user id, session id, etc.) is ever rendered —
+    // only the fields the customer recognises as their own.
+    final avatarUrl = profile.avatarUrl;
+    final hasAvatar = avatarUrl != null && avatarUrl.trim().isNotEmpty;
+
     return Column(
       children: [
         const SizedBox(height: AppSpacing.sm),
@@ -195,22 +308,34 @@ class _ProfileHeader extends StatelessWidget {
           child: CircleAvatar(
             radius: 40,
             backgroundColor: AppColors.primary,
-            child: Text(
-              profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
-              style: const TextStyle(
-                fontSize: 32,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: hasAvatar
+                // A ClipRRect inside the CircleAvatar crops the photo to the
+                // circle; NetworkImageView bounds the decoded size to the slot.
+                ? ClipOval(
+                    child: NetworkImageView(
+                      imageUrl: avatarUrl,
+                      width: 80,
+                      height: 80,
+                      borderRadius: 0,
+                    ),
+                  )
+                : Text(
+                    profile.name.isNotEmpty
+                        ? profile.name[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         Center(
           child: Text(
             profile.name,
-            style:
-                const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ),
         if (profile.email.isNotEmpty) ...[
@@ -247,7 +372,11 @@ class _GuestHeader extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           children: [
-            const Icon(Icons.person_outline, size: 44, color: AppColors.primary),
+            const Icon(
+              Icons.person_outline,
+              size: 44,
+              color: AppColors.primary,
+            ),
             const SizedBox(height: AppSpacing.sm),
             const Text(
               'You are browsing as a guest',

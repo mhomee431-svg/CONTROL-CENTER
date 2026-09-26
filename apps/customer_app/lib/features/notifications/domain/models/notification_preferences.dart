@@ -71,14 +71,14 @@ class NotificationPreferences {
 
   /// Fields understood by the current backend contract.
   Map<String, dynamic> toApiJson() => {
-        'push_enabled': pushEnabled,
-        'email_enabled': emailEnabled,
-        'sms_enabled': smsEnabled,
-        'price_alerts': priceAlerts,
-        'availability_alerts': availabilityAlerts,
-        'promotional': promotional,
-        'deal_alerts': dealAlerts,
-      };
+    'push_enabled': pushEnabled,
+    'email_enabled': emailEnabled,
+    'sms_enabled': smsEnabled,
+    'price_alerts': priceAlerts,
+    'availability_alerts': availabilityAlerts,
+    'promotional': promotional,
+    'deal_alerts': dealAlerts,
+  };
 
   factory NotificationPreferences.fromApiJson(Map<String, dynamic> json) {
     return NotificationPreferences(
@@ -96,9 +96,9 @@ class NotificationPreferences {
 
   /// Full local serialisation (superset of the API fields).
   Map<String, dynamic> toLocalJson() => {
-        ...toApiJson(),
-        'shop_updates': shopUpdates,
-      };
+    ...toApiJson(),
+    'shop_updates': shopUpdates,
+  };
 
   factory NotificationPreferences.fromLocalJson(Map<String, dynamic> json) {
     return NotificationPreferences(
@@ -126,6 +126,14 @@ class NotificationPreferences {
       other.shopUpdates == shopUpdates;
 
   @override
-  int get hashCode => Object.hash(pushEnabled, emailEnabled, smsEnabled,
-      priceAlerts, availabilityAlerts, promotional, dealAlerts, shopUpdates);
+  int get hashCode => Object.hash(
+    pushEnabled,
+    emailEnabled,
+    smsEnabled,
+    priceAlerts,
+    availabilityAlerts,
+    promotional,
+    dealAlerts,
+    shopUpdates,
+  );
 }

@@ -27,7 +27,9 @@ void main() {
       // Trigger build + microtask load, then poll until the load lands.
       container.read(notificationPreferencesControllerProvider);
       for (var i = 0; i < 100; i++) {
-        if (!container.read(notificationPreferencesControllerProvider).isLoading) {
+        if (!container
+            .read(notificationPreferencesControllerProvider)
+            .isLoading) {
           break;
         }
         await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -48,8 +50,10 @@ void main() {
 
       expect(prefs().smsEnabled, isTrue);
       expect(prefs().promotional, isTrue);
-      expect(container.read(notificationPreferencesControllerProvider).isLoading,
-          isFalse);
+      expect(
+        container.read(notificationPreferencesControllerProvider).isLoading,
+        isFalse,
+      );
     });
 
     test('type/channel updates persist through the repository', () async {
@@ -67,7 +71,10 @@ void main() {
       final failing = ProviderContainer(
         overrides: [
           notificationsRepositoryProvider.overrideWithValue(
-            MockNotificationRepository(delay: Duration.zero, failureMode: MockFailureMode.preferences),
+            MockNotificationRepository(
+              delay: Duration.zero,
+              failureMode: MockFailureMode.preferences,
+            ),
           ),
         ],
       );
@@ -76,7 +83,9 @@ void main() {
       // Initial load fails -> defaults are kept.
       failing.read(notificationPreferencesControllerProvider);
       for (var i = 0; i < 100; i++) {
-        if (!failing.read(notificationPreferencesControllerProvider).isLoading) {
+        if (!failing
+            .read(notificationPreferencesControllerProvider)
+            .isLoading) {
           break;
         }
         await Future<void>.delayed(const Duration(milliseconds: 5));

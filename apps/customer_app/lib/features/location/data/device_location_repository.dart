@@ -140,6 +140,14 @@ class DeviceLocationRepository implements LocationRepository {
     }
   }
 
+  /// True when a GPS accuracy reading is too coarse to call "precise".
+  ///
+  /// A non-positive accuracy means the device did not report one — that is
+  /// "unknown", which is not the same as perfect, so it is never precise.
+  static bool _isCoarse(double accuracyMeters) =>
+      accuracyMeters <= 0 ||
+      accuracyMeters > UserLocation.poorAccuracyThresholdMeters;
+
   /// Reverse-geocodes [position] into a rich [UserLocation] (area / city /
   /// pincode). Uses Nominatim (OpenStreetMap) as the primary geocoder because
   /// it is free, needs no API key, and works in India — so the app delivers
@@ -217,8 +225,10 @@ class DeviceLocationRepository implements LocationRepository {
         pincode: pincode,
         label: label,
         isManual: false,
-        isApproximate: false,
-        accuracyMeters: 0,
+        // Carry the device's real accuracy through, and downgrade to
+        // "approximate" when the fix is too coarse to call precise.
+        isApproximate: _isCoarse(position.accuracy),
+        accuracyMeters: position.accuracy > 0 ? position.accuracy : 0,
         capturedAt: DateTime.now(),
       );
     } catch (e, stack) {
@@ -247,6 +257,7 @@ class DeviceLocationRepository implements LocationRepository {
         response.data,
         position.latitude,
         position.longitude,
+        accuracyMeters: position.accuracy,
       );
     } catch (e, stack) {
       SafeLogger.warning('Google reverse geocoder failed: $e');
@@ -260,8 +271,9 @@ class DeviceLocationRepository implements LocationRepository {
   UserLocation? _reverseGeocodeFromJson(
     Map<String, dynamic> json,
     double latitude,
-    double longitude,
-  ) {
+    double longitude, {
+    double accuracyMeters = 0,
+  }) {
     if (json['status'] != 'OK') return null;
     final results = json['results'];
     if (results is! List || results.isEmpty) return null;
@@ -329,8 +341,11 @@ class DeviceLocationRepository implements LocationRepository {
       pincode: pincode,
       label: label,
       isManual: false,
-      isApproximate: false,
-      accuracyMeters: 0,
+      // The geocoder refines the *address*, never the GPS fix itself — so the
+      // device's accuracy carries through unchanged and the result is marked
+      // approximate when that fix was coarse.
+      isApproximate: _isCoarse(accuracyMeters),
+      accuracyMeters: accuracyMeters > 0 ? accuracyMeters : 0,
       capturedAt: DateTime.now(),
     );
   }

@@ -6,8 +6,8 @@ import '../../domain/profile_repository.dart';
 
 final profileControllerProvider =
     AsyncNotifierProvider<ProfileController, UserProfile?>(
-  ProfileController.new,
-);
+      ProfileController.new,
+    );
 
 class ProfileController extends AsyncNotifier<UserProfile?> {
   @override

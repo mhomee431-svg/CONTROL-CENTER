@@ -326,6 +326,7 @@ def test_resolve_sort():
     assert _resolve_sort("lowest_price") == SearchSort.PRICE_ASC
     assert _resolve_sort("highest_rated") == SearchSort.RATING
     assert _resolve_sort("recently_updated") == SearchSort.FRESHNESS
+    assert _resolve_sort("offers") == SearchSort.OFFERS
     assert _resolve_sort("unknown") == SearchSort.RELEVANCE
 
 
@@ -509,6 +510,7 @@ class MockSearchIndexEntry:
             "category_name": "Snacks",
             "variant_name": None,
             "search_text": "lays classic pepsico snacks",
+            "discovery_text": "lays classic pepsico snacks 8901234567890 sku123",
             "search_vector": "lays classic pepsico snacks",
             "barcode": "8901234567890",
             "sku": "SKU123",
@@ -577,6 +579,7 @@ def test_barcode_lookup_works():
 
     # Mock a SearchIndex entry for barcode lookup
     class MockEntry:
+        id = 1
         shop_product_id = 1
         product_id = 1
         product_name = "Lays Classic"
@@ -587,6 +590,7 @@ def test_barcode_lookup_works():
         is_available = True
         stock_status = "IN_STOCK"
         freshness_status = "RECENTLY_UPDATED"
+        last_inventory_update = datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc)
         shop_id = 1
         shop_name = "Neighbour Market"
         distance_km = None
@@ -603,6 +607,8 @@ def test_barcode_lookup_works():
 
     class MockDBC:
         def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
             return MockQueryWrap()
 
     db = MockDBC()
@@ -610,6 +616,100 @@ def test_barcode_lookup_works():
     assert len(result) == 1
     assert result[0]["product_name"] == "Lays Classic"
     assert result[0]["shop_name"] == "Neighbour Market"
+
+
+def test_barcode_lookup_reports_freshness_timestamp():
+    """A scanned product must be dated exactly like a typed one.
+
+    Without `last_inventory_update` the client has no evidence for its
+    freshness copy and can only render "Unknown" — so the barcode path would
+    silently disagree with the text-search path about the same listing.
+    """
+    from app.search.engine import barcode_lookup
+
+    stamp = datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc)
+
+    class MockEntry:
+        id = 1
+        shop_product_id = 1
+        product_id = 1
+        product_name = "Amul Butter"
+        brand_name = "Amul"
+        category_name = "Dairy"
+        price = 55.0
+        mrp = 60.0
+        is_available = True
+        stock_status = "IN_STOCK"
+        freshness_status = "STALE"
+        last_inventory_update = stamp
+        shop_id = 1
+        shop_name = "Local Mart"
+        shop_rating = 4.2
+        latitude = 25.5941
+        longitude = 85.1376
+
+    class MockQueryWrap:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return [MockEntry()]
+
+    class MockDBC:
+        def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
+            return MockQueryWrap()
+
+    result = barcode_lookup(MockDBC(), "8901234567890")
+
+    assert len(result) == 1
+    assert result[0]["last_inventory_update"] == stamp
+    assert result[0]["freshness_status"] == "STALE"
+
+
+def test_barcode_lookup_tolerates_row_without_timestamp():
+    """A partial row must not crash the lookup — freshness is simply unknown."""
+
+    from app.search.engine import barcode_lookup
+
+    class MockEntry:
+        id = 1
+        shop_product_id = 1
+        product_id = 1
+        product_name = "Colgate MaxFresh"
+        brand_name = "Colgate"
+        category_name = "Oral Care"
+        price = 95.0
+        mrp = None
+        is_available = True
+        stock_status = "IN_STOCK"
+        freshness_status = None
+        shop_id = 2
+        shop_name = "Apothecary"
+        shop_rating = 4.0
+        latitude = 25.5941
+        longitude = 85.1376
+        # No last_inventory_update attribute at all.
+
+    class MockQueryWrap:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return [MockEntry()]
+
+    class MockDBC:
+        def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
+            return MockQueryWrap()
+
+    result = barcode_lookup(MockDBC(), "8901234567890")
+
+    assert len(result) == 1
+    assert result[0]["last_inventory_update"] is None
+    assert result[0]["freshness_status"] is None
 
 
 def test_barcode_lookup_empty():

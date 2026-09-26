@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failures.dart';
+import '../../domain/auth_repository.dart';
 import '../../domain/auth_service.dart';
 
 enum AuthStatus {
@@ -13,17 +15,36 @@ enum AuthStatus {
   error,
 }
 
+/// Coarse classification of the last auth failure.
+///
+/// Lets the UI pick the right recovery affordance (e.g. enable "Resend OTP"
+/// the moment a code expires) without parsing message strings.
+enum AuthErrorKind {
+  invalidPhoneNumber,
+  invalidOtp,
+  expiredOtp,
+  rateLimited,
+  network,
+  cancelled,
+  sessionExpired,
+  unknown,
+}
+
 class AuthState {
   final AuthStatus status;
   final String? errorMessage;
   final bool isFirstTimeUser;
   final String? phoneNumber;
 
+  /// Set when [status] is [AuthStatus.error] — see [AuthErrorKind].
+  final AuthErrorKind? errorKind;
+
   const AuthState({
     required this.status,
     this.errorMessage,
     this.isFirstTimeUser = false,
     this.phoneNumber,
+    this.errorKind,
   });
 
   factory AuthState.initial() => const AuthState(status: AuthStatus.initial);
@@ -37,8 +58,8 @@ class AuthState {
       const AuthState(status: AuthStatus.unauthenticated);
   factory AuthState.sessionExpired() =>
       const AuthState(status: AuthStatus.sessionExpired);
-  factory AuthState.error(String msg) =>
-      AuthState(status: AuthStatus.error, errorMessage: msg);
+  factory AuthState.error(String msg, {AuthErrorKind? kind}) =>
+      AuthState(status: AuthStatus.error, errorMessage: msg, errorKind: kind);
 }
 
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(
@@ -102,7 +123,7 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState.otpSent(phoneNumber);
       return true;
     } catch (e) {
-      state = AuthState.error(authErrorMessage(e));
+      state = AuthState.error(authErrorMessage(e), kind: _errorKindFor(e));
       return false;
     }
   }
@@ -131,9 +152,69 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState.authenticated();
       return true;
     } catch (e) {
-      state = AuthState.error(authErrorMessage(e));
+      state = AuthState.error(authErrorMessage(e), kind: _errorKindFor(e));
       return false;
     }
+  }
+
+  /// Sign in with Google and transition to [AuthStatus.authenticated].
+  ///
+  /// Returns true on success. A user-dismissed Google sheet is not treated as
+  /// an error — the previous browsing state is restored silently.
+  Future<bool> signInWithGoogle() async {
+    final previous = state;
+    state = AuthState.loading();
+    try {
+      final service = ref.read(authServiceProvider);
+      final session = await service.signInWithGoogle();
+
+      if (session.isValid) {
+        await service.markOnboarded();
+      }
+
+      state = AuthState.authenticated();
+      return true;
+    } on GoogleSignInCancelledFailure {
+      state = previous.status == AuthStatus.authenticated
+          ? previous
+          : AuthState.guest();
+      return false;
+    } catch (e) {
+      state = AuthState.error(authErrorMessage(e), kind: _errorKindFor(e));
+      return false;
+    }
+  }
+
+  /// Abandons an in-flight phone-OTP verification.
+  ///
+  /// Called when the customer backs out of the OTP screen (cancelled flow):
+  /// the pending verification is dropped and the app returns to guest
+  /// browsing without any error or "waiting for OTP" state left behind.
+  Future<void> cancelOtpVerification() async {
+    try {
+      await ref.read(phoneAuthServiceProvider).cancelPendingVerification();
+      if (state.status != AuthStatus.authenticated) {
+        state = AuthState.guest();
+      }
+    } catch (_) {
+      // Best-effort cleanup — must never block navigation back to browsing.
+    }
+  }
+
+  /// Classify a failure so the UI can pick the right recovery affordance.
+  AuthErrorKind _errorKindFor(Object error) {
+    if (error is InvalidPhoneNumberFailure) {
+      return AuthErrorKind.invalidPhoneNumber;
+    }
+    if (error is InvalidOtpFailure) return AuthErrorKind.invalidOtp;
+    if (error is ExpiredOtpFailure) return AuthErrorKind.expiredOtp;
+    if (error is TooManyAttemptsFailure || error is OtpRateLimitFailure) {
+      return AuthErrorKind.rateLimited;
+    }
+    if (error is NetworkFailure) return AuthErrorKind.network;
+    if (error is GoogleSignInCancelledFailure) return AuthErrorKind.cancelled;
+    if (error is SessionExpiredFailure) return AuthErrorKind.sessionExpired;
+    return AuthErrorKind.unknown;
   }
 
   Future<void> continueAsGuest() async {

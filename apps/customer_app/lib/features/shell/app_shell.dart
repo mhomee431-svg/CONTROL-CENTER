@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class AppShell extends StatelessWidget {
+import '../../core/network/connectivity_service.dart';
+import 'offline_banner.dart';
+
+class AppShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const AppShell({super.key, required this.navigationShell});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Loading / error states default to "connected" so a missing connectivity
+    // plugin (tests, edge platforms) never blocks the shell from rendering.
+    final isConnected = ref.watch(isConnectedProvider).value ?? true;
+
     return Scaffold(
-      body: navigationShell,
+      body: Column(
+        children: [
+          OfflineBanner(isConnected: isConnected),
+          Expanded(child: navigationShell),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) {

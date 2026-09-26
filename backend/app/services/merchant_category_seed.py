@@ -6,6 +6,7 @@ Run this after the migration is applied.
 from sqlalchemy.orm import Session
 
 from app.models.merchant_category import (
+    MERCHANT_CATEGORY_NAMES,
     MerchantCategory,
     MerchantCategoryCode,
     MerchantVerificationRequirement,
@@ -16,8 +17,8 @@ from app.models.merchant_category import (
 # ── Category Definitions ──────────────────────────────────────────────────
 CATEGORIES = [
     {
-        "code": "PHARMACY_HEALTHCARE",
-        "name": "Pharmacy & Healthcare",
+                        "code": "PHARMACY_HEALTHCARE",
+        "name": MERCHANT_CATEGORY_NAMES["PHARMACY_HEALTHCARE"],
         "description": "Pharmacies, medical stores, clinics, and healthcare providers",
         "sort_order": 1,
         "requirements": [
@@ -28,8 +29,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "BEAUTY_PERSONAL_CARE",
-        "name": "Beauty & Personal Care",
+                        "code": "BEAUTY_PERSONAL_CARE",
+        "name": MERCHANT_CATEGORY_NAMES["BEAUTY_PERSONAL_CARE"],
         "description": "Beauty salons, spas, personal care services",
         "sort_order": 2,
         "requirements": [
@@ -39,8 +40,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "FURNITURE_HOME_CARE",
-        "name": "Furniture & Home Care",
+                        "code": "FURNITURE_HOME_CARE",
+        "name": MERCHANT_CATEGORY_NAMES["FURNITURE_HOME_CARE"],
         "description": "Furniture stores, home decor, interior design",
         "sort_order": 3,
         "requirements": [
@@ -50,8 +51,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "HOUSEHOLD_GOODS",
-        "name": "Household Goods",
+                        "code": "HOUSEHOLD_GOODS",
+        "name": MERCHANT_CATEGORY_NAMES["HOUSEHOLD_GOODS"],
         "description": "Household items, cleaning supplies, kitchenware",
         "sort_order": 4,
         "requirements": [
@@ -61,8 +62,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "SPORTS_FITNESS_OUTDOOR",
-        "name": "Sports, Fitness & Outdoor",
+                "code": "SPORTS_FITNESS_OUTDOOR",
+        "name": MERCHANT_CATEGORY_NAMES["SPORTS_FITNESS_OUTDOOR"],
         "description": "Sports equipment, fitness gear, outdoor supplies",
         "sort_order": 5,
         "requirements": [
@@ -72,8 +73,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "BOOKS_MEDIA_STATIONERY",
-        "name": "Books, Media & Stationery",
+                        "code": "BOOKS_MEDIA_STATIONERY",
+        "name": MERCHANT_CATEGORY_NAMES["BOOKS_MEDIA_STATIONERY"],
         "description": "Bookstores, media, stationery, office supplies",
         "sort_order": 6,
         "requirements": [
@@ -83,8 +84,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "AUTOMOTIVE_PARTS_TOOLS",
-        "name": "Automotive Parts & Tools",
+                        "code": "AUTOMOTIVE_PARTS_TOOLS",
+        "name": MERCHANT_CATEGORY_NAMES["AUTOMOTIVE_PARTS_TOOLS"],
         "description": "Auto parts, accessories, tools, equipment",
         "sort_order": 7,
         "requirements": [
@@ -94,8 +95,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "HARDWARE",
-        "name": "Hardware",
+                        "code": "HARDWARE",
+        "name": MERCHANT_CATEGORY_NAMES["HARDWARE"],
         "description": "Hardware stores, building materials, tools",
         "sort_order": 8,
         "requirements": [
@@ -105,8 +106,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "RESTAURANTS",
-        "name": "Restaurants",
+                        "code": "RESTAURANTS",
+        "name": MERCHANT_CATEGORY_NAMES["RESTAURANTS"],
         "description": "Restaurants, cafes, food outlets",
         "sort_order": 9,
         "requirements": [
@@ -117,8 +118,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "TRANSPORT",
-        "name": "Transport",
+                        "code": "TRANSPORT",
+        "name": MERCHANT_CATEGORY_NAMES["TRANSPORT"],
         "description": "Transport services, logistics, freight",
         "sort_order": 10,
         "requirements": [
@@ -130,8 +131,8 @@ CATEGORIES = [
         ],
     },
     {
-        "code": "PERSONAL_TRANSPORT_TRAVEL",
-        "name": "Personal Transport / Personal Travel",
+                "code": "PERSONAL_TRANSPORT_TRAVEL",
+        "name": MERCHANT_CATEGORY_NAMES["PERSONAL_TRANSPORT_TRAVEL"],
         "description": "Personal transport, taxi, travel services",
         "sort_order": 11,
         "requirements": [

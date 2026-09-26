@@ -41,8 +41,10 @@ class ApiShopDetailsRepository implements ShopDetailsRepository {
           phone: data['phone']?.toString() ?? '',
           about: data['description']?.toString() ?? '',
           lastInventoryUpdate:
-              DateTime.tryParse(data['last_inventory_update']?.toString() ?? '') ??
-                  DateTime.now(),
+              DateTime.tryParse(
+                data['last_inventory_update']?.toString() ?? '',
+              ) ??
+              DateTime.now(),
           activeOffers: (data['active_offers'] as List<dynamic>? ?? [])
               .map((e) => e.toString())
               .toList(),

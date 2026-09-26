@@ -30,13 +30,16 @@ class DeepLinkResolution {
   const DeepLinkResolution._(this.action, this.path, this.message);
 
   const DeepLinkResolution.navigate(String path)
-      : this._(DeepLinkAction.navigate, path, null);
+    : this._(DeepLinkAction.navigate, path, null);
 
   const DeepLinkResolution.unavailable(String message)
-      : this._(DeepLinkAction.unavailable, null, message);
+    : this._(DeepLinkAction.unavailable, null, message);
 
-  static const DeepLinkResolution none =
-      DeepLinkResolution._(DeepLinkAction.none, null, null);
+  static const DeepLinkResolution none = DeepLinkResolution._(
+    DeepLinkAction.none,
+    null,
+    null,
+  );
 }
 
 /// Pure mapping from a notification to a navigation outcome.
@@ -85,9 +88,9 @@ class NotificationTapHandler {
     BuildContext context,
     AppNotification notification,
   ) async {
-    await _ref.read(notificationsControllerProvider.notifier).markAsRead(
-          notification.id,
-        );
+    await _ref
+        .read(notificationsControllerProvider.notifier)
+        .markAsRead(notification.id);
 
     final resolution = resolveNotificationDeepLink(notification);
     switch (resolution.action) {

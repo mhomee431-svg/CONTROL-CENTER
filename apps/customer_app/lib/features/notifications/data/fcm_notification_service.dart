@@ -47,7 +47,7 @@ class MockFcmNotificationService implements PushNotificationService {
 /// subscribe, token refresh, and notification-tap routing.
 class FcmNotificationService implements PushNotificationService {
   FcmNotificationService({FirebaseMessaging? messaging})
-      : _injected = messaging;
+    : _injected = messaging;
 
   final FirebaseMessaging? _injected;
   final StreamController<String> _tokenRefresh =
@@ -104,9 +104,7 @@ class FcmNotificationService implements PushNotificationService {
       });
 
       _foregroundSub = FirebaseMessaging.onMessage.listen((message) {
-        SafeLogger.debug(
-          'FCM foreground message ${message.messageId ?? ''}',
-        );
+        SafeLogger.debug('FCM foreground message ${message.messageId ?? ''}');
       });
     }
   }
@@ -165,7 +163,9 @@ class FcmNotificationService implements PushNotificationService {
   }
 }
 
-final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
+final pushNotificationServiceProvider = Provider<PushNotificationService>((
+  ref,
+) {
   if (!EnvConfig.hasApiBaseUrl || Firebase.apps.isEmpty) {
     return MockFcmNotificationService();
   }

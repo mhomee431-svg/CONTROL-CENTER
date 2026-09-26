@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/category_card.dart';
 import '../../domain/models/home_data.dart';
@@ -19,9 +20,14 @@ class CategorySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.sm),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
           child: Text(
-            'Shop by Category',
+            'Popular Categories',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),

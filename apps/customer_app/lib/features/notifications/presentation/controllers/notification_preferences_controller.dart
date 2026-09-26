@@ -30,10 +30,11 @@ class NotificationPreferencesState {
   }
 }
 
-final notificationPreferencesControllerProvider = NotifierProvider<
-    NotificationPreferencesController, NotificationPreferencesState>(
-  NotificationPreferencesController.new,
-);
+final notificationPreferencesControllerProvider =
+    NotifierProvider<
+      NotificationPreferencesController,
+      NotificationPreferencesState
+    >(NotificationPreferencesController.new);
 
 /// Loads and updates per-type/per-channel notification delivery
 /// preferences through the repository abstraction.
@@ -85,9 +86,12 @@ class NotificationPreferencesController
   }
 
   // ── Channel toggles ────────────────────────────────────────────────
-  Future<void> setPush(bool value) => update((p) => p.copyWith(pushEnabled: value));
-  Future<void> setEmail(bool value) => update((p) => p.copyWith(emailEnabled: value));
-  Future<void> setSms(bool value) => update((p) => p.copyWith(smsEnabled: value));
+  Future<void> setPush(bool value) =>
+      update((p) => p.copyWith(pushEnabled: value));
+  Future<void> setEmail(bool value) =>
+      update((p) => p.copyWith(emailEnabled: value));
+  Future<void> setSms(bool value) =>
+      update((p) => p.copyWith(smsEnabled: value));
 
   // ── Type toggles ───────────────────────────────────────────────────
   Future<void> setPriceAlerts(bool value) =>
@@ -96,7 +100,8 @@ class NotificationPreferencesController
       update((p) => p.copyWith(availabilityAlerts: value));
   Future<void> setPromotional(bool value) =>
       update((p) => p.copyWith(promotional: value));
-  Future<void> setDealAlerts(bool value) => update((p) => p.copyWith(dealAlerts: value));
+  Future<void> setDealAlerts(bool value) =>
+      update((p) => p.copyWith(dealAlerts: value));
   Future<void> setShopUpdates(bool value) =>
       update((p) => p.copyWith(shopUpdates: value));
 }

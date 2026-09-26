@@ -41,28 +41,32 @@ void main() {
       return s.value ?? [];
     }
 
-    test('loads seed notifications covering all customer-facing types', () async {
-      final notifications = await waitForLoad();
+    test(
+      'loads seed notifications covering all customer-facing types',
+      () async {
+        final notifications = await waitForLoad();
 
-      expect(notifications.length, 5);
-      expect(
-        notifications.map((n) => n.type).toSet(),
-        equals({
-          NotificationType.priceDrop,
-          NotificationType.productAvailable,
-          NotificationType.offer,
-          NotificationType.shopUpdate,
-          NotificationType.system,
-        }),
-      );
-      // Unread badge: 4 unread + 1 pre-read welcome message.
-      expect(container.read(unreadCountProvider), 4);
-    });
+        expect(notifications.length, 5);
+        expect(
+          notifications.map((n) => n.type).toSet(),
+          equals({
+            NotificationType.priceDrop,
+            NotificationType.productAvailable,
+            NotificationType.offer,
+            NotificationType.shopUpdate,
+            NotificationType.system,
+          }),
+        );
+        // Unread badge: 4 unread + 1 pre-read welcome message.
+        expect(container.read(unreadCountProvider), 4);
+      },
+    );
 
     test('markAsRead updates item state optimistically and persists', () async {
       await waitForLoad();
-      final controller =
-          container.read(notificationsControllerProvider.notifier);
+      final controller = container.read(
+        notificationsControllerProvider.notifier,
+      );
 
       await controller.markAsRead('n1');
 
@@ -77,8 +81,9 @@ void main() {
 
     test('markAllAsRead clears the unread badge', () async {
       await waitForLoad();
-      final controller =
-          container.read(notificationsControllerProvider.notifier);
+      final controller = container.read(
+        notificationsControllerProvider.notifier,
+      );
 
       await controller.markAllAsRead();
 
@@ -89,8 +94,9 @@ void main() {
 
     test('markAsRead on unknown id is a safe no-op', () async {
       await waitForLoad();
-      final controller =
-          container.read(notificationsControllerProvider.notifier);
+      final controller = container.read(
+        notificationsControllerProvider.notifier,
+      );
 
       await controller.markAsRead('does-not-exist');
 
@@ -102,35 +108,42 @@ void main() {
       expect(container.read(unreadCountProvider), 4);
 
       await repository.markAllAsRead();
-      await container
-          .read(notificationsControllerProvider.notifier)
-          .refresh();
+      await container.read(notificationsControllerProvider.notifier).refresh();
       await settle(container);
 
       expect(container.read(unreadCountProvider), 0);
     });
 
-    test('load failure surfaces an error state (not a fake empty list)', () async {
-      final failing = ProviderContainer(
-        overrides: [
-          notificationsRepositoryProvider.overrideWithValue(
-            MockNotificationRepository(delay: Duration.zero, failureMode: MockFailureMode.load),
-          ),
-        ],
-      );
-      addTearDown(failing.dispose);
+    test(
+      'load failure surfaces an error state (not a fake empty list)',
+      () async {
+        final failing = ProviderContainer(
+          overrides: [
+            notificationsRepositoryProvider.overrideWithValue(
+              MockNotificationRepository(
+                delay: Duration.zero,
+                failureMode: MockFailureMode.load,
+              ),
+            ),
+          ],
+        );
+        addTearDown(failing.dispose);
 
-      final state = await settle(failing);
+        final state = await settle(failing);
 
-      expect(state.hasError, isTrue);
-      expect(state.value, isNull);
-    });
+        expect(state.hasError, isTrue);
+        expect(state.value, isNull);
+      },
+    );
 
     test('mark-read failures keep the optimistic update', () async {
       final optimistic = ProviderContainer(
         overrides: [
           notificationsRepositoryProvider.overrideWithValue(
-            MockNotificationRepository(delay: Duration.zero, failureMode: MockFailureMode.markRead),
+            MockNotificationRepository(
+              delay: Duration.zero,
+              failureMode: MockFailureMode.markRead,
+            ),
           ),
         ],
       );

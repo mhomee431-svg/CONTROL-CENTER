@@ -48,12 +48,10 @@ final googleMapsDioProvider = Provider<Dio>((ref) {
     ),
   );
 });
+
 /// Google Maps Geocoding + Directions REST implementation of [MapService].
 class GoogleMapService implements MapService {
-  GoogleMapService({
-    required this._dio,
-    required this.polylineDecoder,
-  });
+  GoogleMapService({required this._dio, required this.polylineDecoder});
 
   final Dio _dio;
   final PolylineDecoder polylineDecoder;
@@ -75,8 +73,7 @@ class GoogleMapService implements MapService {
           'key': EnvConfig.mapsApiKey,
           'language': 'en',
           'region': 'IN',
-          'result_type':
-              'street_address|route|sublocality|locality|administrative_area_level_2|administrative_area_level_1|postal_code',
+          'result_type': 'street_address|route|sublocality|locality|administrative_area_level_2|administrative_area_level_1|postal_code',
         },
       );
       final data = response.data;
@@ -212,7 +209,6 @@ UserLocation? reverseGeocodeFromJson(
     }
   }
 
-
   String componentFor(String type) {
     for (final c in components) {
       if ((c['types'] ?? '').split(_typesSeparator).contains(type)) {
@@ -221,7 +217,6 @@ UserLocation? reverseGeocodeFromJson(
     }
     return '';
   }
-
 
   final streetNumber = componentFor('street_number');
   final route = componentFor('route');
@@ -233,7 +228,6 @@ UserLocation? reverseGeocodeFromJson(
   final state = componentFor('administrative_area_level_1');
   final pincode = componentFor('postal_code');
   final formatted = place['formatted_address']?.toString() ?? '';
-
 
   final addressParts = <String>[
     if (streetNumber.isNotEmpty) streetNumber,
@@ -249,12 +243,10 @@ UserLocation? reverseGeocodeFromJson(
     address = formatted.split(',').first.trim();
   }
 
-
   final city = locality.isNotEmpty
       ? locality
       : (district.isNotEmpty ? district : subLocality1);
   final label = city.isNotEmpty ? city : 'Pinned location';
-
 
   return UserLocation.withCapturedAt(
     latitude: latitude,
@@ -274,22 +266,20 @@ UserLocation? reverseGeocodeFromJson(
 ///
 /// Returns `null` when the API status is not `OK`, no route exists, or the
 /// overview polyline cannot be decoded.
-MapRoute? directionsFromJson(Map<String, dynamic> json, PolylineDecoder decoder) {
-
+MapRoute? directionsFromJson(
+  Map<String, dynamic> json,
+  PolylineDecoder decoder,
+) {
   if (json['status'] != 'OK') return null;
   final routes = json['routes'];
   if (routes is! List || routes.isEmpty) return null;
 
-
   final route = routes.first;
-
-
 
   if (route is! Map) return null;
 
-
   var distanceMetres = 0.0;
-  var durationSeconds =  0.0;
+  var durationSeconds = 0.0;
   final legs = route['legs'];
   if (legs is List) {
     for (final leg in legs) {
@@ -303,12 +293,10 @@ MapRoute? directionsFromJson(Map<String, dynamic> json, PolylineDecoder decoder)
     }
   }
 
-
   final overview = route['overview_polyline'];
-  final encoded = overview is Map ? (overview['points'] ?? '' ).toString() : '';
+  final encoded = overview is Map ? (overview['points'] ?? '').toString() : '';
   final points = decoder.decodePolyline(encoded);
   if (points.isEmpty) return null;
-
 
   return MapRoute(
     points: points,

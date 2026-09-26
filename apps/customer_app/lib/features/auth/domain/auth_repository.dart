@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/env/env_config.dart';
 import '../../../core/network/api_client.dart';
 import '../data/phone_auth_service.dart';
+import '../data/google_auth_service.dart';
 import '../data/api_auth_repository.dart';
 import '../data/mock_auth_repository.dart';
 
@@ -20,6 +21,15 @@ final phoneAuthServiceProvider = Provider<PhoneAuthService>((ref) {
   return FirebasePhoneAuthService();
 });
 
+/// Firebase Google Sign-In service. Uses the offline [FakeGoogleAuthService]
+/// while mock auth is enabled so Google flows work without a Firebase project.
+final googleAuthServiceProvider = Provider<GoogleAuthService>((ref) {
+  if (kUseMockAuth) {
+    return FakeGoogleAuthService();
+  }
+  return FirebaseGoogleAuthService();
+});
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   // Backend-integration seam: when an API base URL is configured at build
   // time (`--dart-define=API_BASE_URL=...`), use the real repository.
@@ -29,6 +39,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     return ApiAuthRepository(
       ref.watch(apiClientProvider),
       ref.watch(phoneAuthServiceProvider),
+      ref.watch(googleAuthServiceProvider),
     );
   }
   return MockAuthRepository();
@@ -53,6 +64,18 @@ abstract class AuthRepository {
   Future<AuthResult> verifyOtp({
     required String phoneNumber,
     required String otpCode,
+    String? deviceId,
+    String? deviceName,
+    String? deviceType,
+    String? appVersion,
+  });
+
+  /// Sign in with Google and exchange the Firebase ID token for a backend
+  /// session.
+  ///
+  /// Throws [Failure] subclasses on error — notably
+  /// [GoogleSignInCancelledFailure] when the user dismisses the Google sheet.
+  Future<AuthResult> signInWithGoogle({
     String? deviceId,
     String? deviceName,
     String? deviceType,
@@ -95,6 +118,7 @@ class AuthResult {
   final String? phoneNumber;
   final String? name;
   final String? role;
+
   /// Whether this is the user's first login (used for onboarding).
   final bool isNewUser;
 
@@ -133,14 +157,14 @@ class AuthSession {
   });
 
   factory AuthSession.fromAuthResult(AuthResult result) => AuthSession(
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        sessionId: result.sessionId,
-        userId: result.userId,
-        phoneNumber: result.phoneNumber,
-        name: result.name,
-        role: result.role,
-      );
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    sessionId: result.sessionId,
+    userId: result.userId,
+    phoneNumber: result.phoneNumber,
+    name: result.name,
+    role: result.role,
+  );
 
   bool get isValid => accessToken.isNotEmpty && sessionId.isNotEmpty;
 }

@@ -37,7 +37,7 @@ jobs:
 
   customer:
     name: Customer app checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/customer_app
@@ -56,7 +56,7 @@ jobs:
 
   shopkeeper:
     name: Shopkeeper app checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/shopkeeper_app
@@ -75,7 +75,7 @@ jobs:
 
   admin:
     name: Admin panel checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/admin_panel
@@ -94,7 +94,7 @@ jobs:
 
   shared-models:
     name: Shared Dart package checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: packages/shared_models

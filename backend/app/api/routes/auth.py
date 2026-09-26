@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, Request
-from sqlalchemy.orm import Session
-
+import asyncio
 from typing import Optional
+
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_session_id, get_current_user
 from app.core.exceptions import UnauthorizedError
@@ -15,6 +17,7 @@ from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
     CustomerFirebaseAuthRequest,
+    CustomerGoogleAuthRequest,
     LogoutRequest,
     RefreshTokenRequest,
     SendOTPRequest,
@@ -32,6 +35,7 @@ from app.services import shopkeeper_service
 from app.services.firebase_verification import (
     FirebaseVerificationError,
     verify_firebase_id_token,
+    verify_firebase_id_token_claims,
 )
 
 logger = get_logger("app.api.auth")
@@ -39,18 +43,27 @@ logger = get_logger("app.api.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _verify_customer_firebase_token(payload: CustomerFirebaseAuthRequest, operation: str):
-    """Verify the Firebase ID token → return (phone, None) or (None, error_response)."""
+def _verify_customer_firebase_token(
+    payload: CustomerFirebaseAuthRequest, operation: str
+):
+    """Verify a Firebase token and return ``(uid, phone, error_response)``."""
     try:
-        phone = verify_firebase_id_token(payload.firebase_id_token)
+        firebase_uid, phone = verify_firebase_id_token(payload.firebase_id_token)
     except FirebaseVerificationError as exc:
         record_auth_result(operation, False, "firebase_verification_failed")
-        return None, error_response(
+        return None, None, error_response(
             message=exc.message,
             error_code=exc.error_code,
             status_code=exc.status_code,
         )
-    return phone, None
+    if not phone:
+        record_auth_result(operation, False, "provider_not_phone")
+        return None, None, error_response(
+            message="Use the phone verification flow for phone authentication",
+            error_code="PHONE_PROVIDER_REQUIRED",
+            status_code=400,
+        )
+    return firebase_uid, phone, None
 
 
 def _default_role(db: Session) -> Role | None:
@@ -116,13 +129,23 @@ async def send_otp(
 
 
 def _create_customer_account(
-    db: Session, phone: str, name: str | None, firebase_uid: str | None = None
+    db: Session,
+    phone: str | None,
+    name: str | None,
+    firebase_uid: str | None = None,
+    *,
+    email: str | None = None,
+    avatar_url: str | None = None,
+    google_id: str | None = None,
 ) -> User:
     """Create a new customer user (+ profile) with the default 'customer' role."""
     default_role = _default_role(db)
     user = User(
         phone_number=phone,
         firebase_uid=firebase_uid,
+        google_id=google_id,
+        email=email,
+        avatar_url=avatar_url,
         name=(name.strip() if name and name.strip() else None),
         role_id=default_role.id if default_role else None,
         status=UserStatus.ACTIVE,
@@ -141,7 +164,7 @@ def _create_customer_account(
 def _issue_customer_tokens(
     db: Session,
     user: User,
-    payload: CustomerFirebaseAuthRequest,
+    payload: CustomerFirebaseAuthRequest | CustomerGoogleAuthRequest,
     request: Request,
 ) -> dict:
     """Issue access + refresh tokens bound to a new session."""
@@ -181,11 +204,15 @@ async def firebase_login(
 
     This "login on first use" pattern is the standard for phone-auth apps.
     """
-    phone, err = _verify_customer_firebase_token(payload, "customer_firebase_login")
+    firebase_uid, phone, err = _verify_customer_firebase_token(
+        payload, "customer_firebase_login"
+    )
     if err is not None:
         return err
 
-    user = db.query(User).filter(User.phone_number == phone).first()
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    if user is None:
+        user = db.query(User).filter(User.phone_number == phone).first()
 
     if user is None:
         if not payload.name or not payload.name.strip():
@@ -194,7 +221,12 @@ async def firebase_login(
                 error_code="NAME_REQUIRED",
                 status_code=400,
             )
-        user = _create_customer_account(db, phone, payload.name)
+        user = _create_customer_account(
+            db,
+            phone,
+            payload.name,
+            firebase_uid=firebase_uid,
+        )
         is_new_account = True
         record_auth_result("customer_firebase_login", True, "auto_registered")
     else:
@@ -210,6 +242,9 @@ async def firebase_login(
         if user.customer_profile is None:
             db.add(Customer(user_id=user.id))
             db.flush()
+        # Backfill the durable Firebase identity for legacy phone accounts.
+        if not user.firebase_uid:
+            user.firebase_uid = firebase_uid
         record_auth_result("customer_firebase_login", True, "login_success")
 
     token_data = _issue_customer_tokens(db, user, payload, request)
@@ -220,6 +255,175 @@ async def firebase_login(
             **token_data,
             "is_new_account": is_new_account,
         },
+        message="Account created and logged in" if is_new_account else "Login successful",
+    )
+
+
+@router.post("/google-login")
+@auth_rate_limit()
+async def google_login(
+    payload: CustomerGoogleAuthRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Verify a Firebase Google ID token and login-or-register a customer.
+
+    Email is accepted only as a linking key when Firebase says it is verified.
+    UID, Google-subject, and email identity conflicts are never auto-merged.
+    """
+    operation = "customer_google_login"
+    try:
+        claims = await asyncio.to_thread(
+            verify_firebase_id_token_claims,
+            payload.firebase_id_token,
+        )
+    except FirebaseVerificationError as exc:
+        record_auth_result(operation, False, "firebase_verification_failed")
+        return error_response(exc.message, exc.error_code, exc.status_code)
+
+    if claims.get("provider") != "google.com":
+        record_auth_result(operation, False, "provider_not_google")
+        return error_response(
+            message="Please continue with Google Sign-In",
+            error_code="GOOGLE_PROVIDER_REQUIRED",
+            status_code=403,
+        )
+
+    firebase_uid = claims.get("uid")
+    google_id = claims.get("google_id") or None
+    email = (claims.get("email") or "").strip().lower() or None
+    if not firebase_uid:
+        record_auth_result(operation, False, "uid_missing")
+        return error_response(
+            "Google token did not contain a Firebase user ID",
+            "GOOGLE_IDENTITY_MISSING",
+            403,
+        )
+    if not email:
+        record_auth_result(operation, False, "email_missing")
+        return error_response(
+            "A Google account email is required",
+            "GOOGLE_EMAIL_REQUIRED",
+            403,
+        )
+    if claims.get("email_verified") is not True:
+        record_auth_result(operation, False, "email_unverified")
+        return error_response(
+            "Please use a Google account with a verified email address",
+            "GOOGLE_EMAIL_NOT_VERIFIED",
+            403,
+        )
+
+    # Resolve the durable UID first, then use the provider subject only as a
+    # compatibility link. A verified email is never an unconditional match.
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    google_user = None
+    if google_id:
+        google_user = db.query(User).filter(User.google_id == google_id).first()
+    email_users = db.query(User).filter(func.lower(User.email) == email).all()
+
+    if len(email_users) > 1 or (
+        user is not None
+        and any(candidate.id != user.id for candidate in email_users)
+    ) or (
+        user is None
+        and google_user is not None
+        and any(candidate.id != google_user.id for candidate in email_users)
+    ):
+        record_auth_result(operation, False, "identity_conflict")
+        return error_response(
+            "This Google account is linked to more than one account. Please sign in with your phone number.",
+            "ACCOUNT_LINK_CONFLICT",
+            409,
+        )
+
+    if user is not None and google_user is not None and user.id != google_user.id:
+        record_auth_result(operation, False, "uid_google_id_conflict")
+        return error_response(
+            "Google identity conflict. Please sign in with your phone number.",
+            "ACCOUNT_LINK_CONFLICT",
+            409,
+        )
+    if google_user is not None:
+        if google_user.firebase_uid and google_user.firebase_uid != firebase_uid:
+            record_auth_result(operation, False, "google_uid_conflict")
+            return error_response(
+                "Google identity conflict. Please sign in with your phone number.",
+                "ACCOUNT_LINK_CONFLICT",
+                409,
+            )
+        if user is None:
+            user = google_user
+    if user is None and email_users:
+        user = email_users[0]
+        if user.firebase_uid and user.firebase_uid != firebase_uid:
+            record_auth_result(operation, False, "email_uid_conflict")
+            return error_response(
+                "Google identity conflict. Please sign in with your phone number.",
+                "ACCOUNT_LINK_CONFLICT",
+                409,
+            )
+        if google_id and user.google_id and user.google_id != google_id:
+            record_auth_result(operation, False, "email_google_id_conflict")
+            return error_response(
+                "Google identity conflict. Please sign in with your phone number.",
+                "ACCOUNT_LINK_CONFLICT",
+                409,
+            )
+
+    is_new_account = user is None
+    if user is None:
+        display_name = (
+            (claims.get("name") or "").strip()
+            or (email.split("@", 1)[0] if email else None)
+        )
+        user = _create_customer_account(
+            db,
+            None,
+            display_name,
+            firebase_uid=firebase_uid,
+            email=email,
+            avatar_url=claims.get("picture") or None,
+            google_id=google_id,
+        )
+    else:
+        if user.role is not None and getattr(user.role, "name", None) != "customer":
+            record_auth_result(operation, False, "account_not_customer")
+            return error_response(
+                "This account cannot use customer Google Sign-In",
+                "ACCOUNT_ROLE_MISMATCH",
+                403,
+            )
+        if not is_account_allowed(user):
+            record_auth_result(operation, False, "account_inactive")
+            return error_response(
+                "Account is not active",
+                "ACCOUNT_NOT_ACTIVE",
+                403,
+            )
+        if not user.firebase_uid:
+            user.firebase_uid = firebase_uid
+        if google_id and not user.google_id:
+            user.google_id = google_id
+        if not user.email:
+            user.email = email
+        if not user.name and claims.get("name"):
+            user.name = claims["name"].strip()
+        if not user.avatar_url and claims.get("picture"):
+            user.avatar_url = claims["picture"]
+        if user.customer_profile is None:
+            db.add(Customer(user_id=user.id))
+            db.flush()
+
+    token_data = _issue_customer_tokens(db, user, payload, request)
+    db.commit()
+    record_auth_result(
+        operation,
+        True,
+        "auto_registered" if is_new_account else "login_success",
+    )
+    return success_response(
+        data={**token_data, "is_new_account": is_new_account},
         message="Account created and logged in" if is_new_account else "Login successful",
     )
 
@@ -238,11 +442,15 @@ async def verify_otp_endpoint(
     the phone number and look up the user. New users must register via
     /register or /firebase-login instead.
     """
-    phone, err = _verify_customer_firebase_token(payload, "customer_login")
+    firebase_uid, phone, err = _verify_customer_firebase_token(
+        payload, "customer_login"
+    )
     if err is not None:
         return err
 
-    user = db.query(User).filter(User.phone_number == phone).first()
+    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    if user is None:
+        user = db.query(User).filter(User.phone_number == phone).first()
 
     if user is None:
         record_auth_result("customer_login", False, "account_not_found")
@@ -260,10 +468,12 @@ async def verify_otp_endpoint(
             status_code=403,
         )
 
-    # Refresh profile on re-login
+    # Refresh profile on re-login and backfill the stable Firebase identity.
     if user.customer_profile is None:
         db.add(Customer(user_id=user.id))
         db.flush()
+    if not user.firebase_uid:
+        user.firebase_uid = firebase_uid
 
     token_data = _issue_customer_tokens(db, user, payload, request)
     db.commit()

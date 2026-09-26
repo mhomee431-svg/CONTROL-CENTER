@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../data/phone_utils.dart';
 import '../controllers/auth_controller.dart';
@@ -33,11 +34,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (success && mounted) {
       context.push(
         '/otp',
-        extra: {
-          'phone': phone,
-          'name': name,
-          'isNewUser': true,
-        },
+        extra: {'phone': phone, 'name': name, 'isNewUser': true},
       );
     }
   }
@@ -86,10 +83,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty
-                          ? 'Please enter your name'
-                          : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Please enter your name'
+                      : null,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
@@ -101,21 +97,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     prefixText: '+91 ',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
-                  validator: (value) =>
-                      value != null && value.length >= 10
-                          ? null
-                          : 'Enter a valid 10-digit mobile number',
+                  validator: (value) => value != null && value.length >= 10
+                      ? null
+                      : 'Enter a valid 10-digit mobile number',
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 ElevatedButton(
-                  onPressed:
-                      authState.status == AuthStatus.loading
-                          ? null
-                          : _handleContinue,
-                  child:
-                      authState.status == AuthStatus.loading
-                          ? const CircularProgressIndicator.adaptive()
-                          : const Text('Continue'),
+                  onPressed: authState.status == AuthStatus.loading
+                      ? null
+                      : _handleContinue,
+                  child: authState.status == AuthStatus.loading
+                      ? const CircularProgressIndicator.adaptive()
+                      : const Text('Continue'),
                 ),
               ],
             ),

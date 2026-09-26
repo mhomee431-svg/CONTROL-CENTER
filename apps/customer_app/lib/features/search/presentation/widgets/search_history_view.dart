@@ -44,18 +44,29 @@ class SearchHistoryView extends ConsumerWidget {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: recent
-                      .map((search) => _SearchChip(
-                            label: search,
-                            icon: Icons.history,
-                            onTap: () => _select(ref, context, search),
-                          ))
+                      .map(
+                        (search) => _SearchChip(
+                          label: search,
+                          icon: Icons.history,
+                          onTap: () => _select(ref, context, search),
+                          onDelete: () async {
+                            // Clear just this entry, then re-render the list.
+                            await ref
+                                .read(searchHistoryStoreProvider)
+                                .remove(search);
+                            ref
+                                .read(recentSearchesVersionProvider.notifier)
+                                .bump();
+                          },
+                        ),
+                      )
                       .toList(),
                 ),
           loading: () => const LinearProgressIndicator(),
           error: (err, stack) => Text(
-                friendlyErrorMessage(err),
-                style: const TextStyle(color: AppColors.textMuted),
-              ),
+            friendlyErrorMessage(err),
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         const _SectionHeader(title: 'Popular Searches'),
@@ -65,32 +76,31 @@ class SearchHistoryView extends ConsumerWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: popular
-                .map((search) => _SearchChip(
-                      label: search,
-                      icon: Icons.trending_up,
-                      onTap: () => _select(ref, context, search),
-                    ))
+                .map(
+                  (search) => _SearchChip(
+                    label: search,
+                    icon: Icons.trending_up,
+                    onTap: () => _select(ref, context, search),
+                  ),
+                )
                 .toList(),
           ),
           loading: () => const LinearProgressIndicator(),
           error: (err, stack) => Text(
-                friendlyErrorMessage(err),
-                style: const TextStyle(color: AppColors.textMuted),
-              ),
+            friendlyErrorMessage(err),
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
         ),
       ],
     );
   }
 
   void _select(WidgetRef ref, BuildContext context, String search) {
-    ref.read(searchEventTrackerProvider).track(SearchSubmittedEvent(
-          query: search,
-          source: 'history',
-        ));
+    ref
+        .read(searchEventTrackerProvider)
+        .track(SearchSubmittedEvent(query: search, source: 'history'));
     onSearchSelected?.call(search);
-    context.push(
-      '/search/results?q=${Uri.encodeComponent(search)}',
-    );
+    context.push('/search/results?q=${Uri.encodeComponent(search)}');
   }
 }
 
@@ -120,10 +130,16 @@ class _SearchChip extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
+  /// When supplied, renders a per-chip remove affordance ("clear one").
+  /// Only recent searches pass this — popular searches are platform-owned and
+  /// are not individually deletable.
+  final VoidCallback? onDelete;
+
   const _SearchChip({
     required this.label,
     required this.icon,
     required this.onTap,
+    this.onDelete,
   });
 
   @override
@@ -132,7 +148,9 @@ class _SearchChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
@@ -147,6 +165,28 @@ class _SearchChip extends StatelessWidget {
               label,
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
+            if (onDelete != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              // Nested detector: removing the chip must not run its onTap,
+              // which would immediately navigate to that same search.
+              GestureDetector(
+                key: Key('removeRecentSearch:$label'),
+                onTap: onDelete,
+                behavior: HitTestBehavior.opaque,
+                child: Semantics(
+                  button: true,
+                  label: 'Remove $label from recent searches',
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 2),
+                    child: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

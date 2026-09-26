@@ -47,10 +47,11 @@ class FilterSortBar extends ConsumerWidget {
     final controller = ref.read(searchResultsProvider(query).notifier);
 
     const options = <(SortOption, String, IconData)>[
-      (SortOption.nearest, 'Nearest', Icons.near_me),
+      (SortOption.nearest, 'Nearest (Distance)', Icons.near_me),
       (SortOption.lowestPrice, 'Lowest Price', Icons.currency_rupee),
       (SortOption.highestRated, 'Highest Rated', Icons.star),
       (SortOption.availability, 'Availability', Icons.check_circle),
+      (SortOption.offers, 'Offers & Deals', Icons.local_offer),
       (SortOption.relevance, 'Relevance', Icons.trending_up),
       (SortOption.recentlyUpdated, 'Recently Updated', Icons.update),
     ];
@@ -92,7 +93,10 @@ class FilterSortBar extends ConsumerWidget {
     final state = ref.read(searchResultsProvider(query));
 
     var inStockOnly = state.inStockOnly;
+    var offersOnly = state.offersOnly;
+    var openNow = state.openNow;
     var maxDistance = state.maxDistance;
+    var minPrice = state.minPrice;
     var maxPrice = state.maxPrice;
     var minRating = state.minRating;
     var selectedCategory = state.categoryFilter;
@@ -114,39 +118,71 @@ class FilterSortBar extends ConsumerWidget {
                     children: [
                       const Text(
                         'Filters',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      // Availability
+                      // Availability & Operations
                       SwitchListTile(
                         title: const Text('In Stock Only'),
+                        subtitle: const Text('Hide items that are out of stock'),
                         value: inStockOnly,
-                        onChanged: (value) => setState(() => inStockOnly = value),
+                        onChanged: (value) =>
+                            setState(() => inStockOnly = value),
+                      ),
+                      SwitchListTile(
+                        title: const Text('Offers Only'),
+                        subtitle: const Text('Items with active discounts or deals'),
+                        value: offersOnly,
+                        onChanged: (value) =>
+                            setState(() => offersOnly = value),
+                      ),
+                      SwitchListTile(
+                        title: const Text('Open Now'),
+                        subtitle: const Text('Shops currently open and accepting orders'),
+                        value: openNow,
+                        onChanged: (value) =>
+                            setState(() => openNow = value),
                       ),
                       const Divider(),
 
                       // Distance filter
-                      Text('Max Distance: ${maxDistance.toStringAsFixed(1)} km'),
+                      Text(
+                        'Max Distance: ${maxDistance.toStringAsFixed(1)} km',
+                      ),
                       Slider(
                         value: maxDistance,
                         min: 1,
                         max: 15,
                         divisions: 28,
                         label: '${maxDistance.toStringAsFixed(1)} km',
-                        onChanged: (value) => setState(() => maxDistance = value),
+                        onChanged: (value) =>
+                            setState(() => maxDistance = value),
                       ),
                       const Divider(),
 
-                      // Price filter
-                      Text('Max Price: ₹${maxPrice.toStringAsFixed(0)}'),
-                      Slider(
-                        value: maxPrice,
-                        min: 50,
+                      // Price Range filter
+                      Text(
+                        'Price Range: ₹${minPrice.toStringAsFixed(0)} - ₹${maxPrice.toStringAsFixed(0)}',
+                      ),
+                      RangeSlider(
+                        values: RangeValues(minPrice, maxPrice),
+                        min: 0,
                         max: 5000,
-                        divisions: 99,
-                        label: '₹${maxPrice.toStringAsFixed(0)}',
-                        onChanged: (value) => setState(() => maxPrice = value),
+                        divisions: 100,
+                        labels: RangeLabels(
+                          '₹${minPrice.toStringAsFixed(0)}',
+                          '₹${maxPrice.toStringAsFixed(0)}',
+                        ),
+                        onChanged: (RangeValues values) {
+                          setState(() {
+                            minPrice = values.start;
+                            maxPrice = values.end;
+                          });
+                        },
                       ),
                       const Divider(),
 
@@ -160,7 +196,8 @@ class FilterSortBar extends ConsumerWidget {
                               (r) => ChoiceChip(
                                 label: Text(r == 0 ? 'Any' : '$r+'),
                                 selected: minRating == r,
-                                onSelected: (_) => setState(() => minRating = r),
+                                onSelected: (_) =>
+                                    setState(() => minRating = r),
                               ),
                             )
                             .toList(),
@@ -206,7 +243,10 @@ class FilterSortBar extends ConsumerWidget {
                                 onPressed: () {
                                   controller.updateFilters({
                                     'in_stock': inStockOnly,
+                                    'offers_only': offersOnly,
+                                    'open_now': openNow,
                                     'max_distance': maxDistance,
+                                    if (minPrice > 0) 'min_price': minPrice,
                                     'max_price': maxPrice,
                                     if (minRating != 0) 'min_rating': minRating,
                                     'category': ?selectedCategory,
@@ -314,7 +354,9 @@ class _SortOption extends StatelessWidget {
           fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      trailing: selected ? const Icon(Icons.check, color: AppColors.primary) : null,
+      trailing: selected
+          ? const Icon(Icons.check, color: AppColors.primary)
+          : null,
       onTap: onTap,
     );
   }
@@ -340,7 +382,9 @@ class _ActionChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         decoration: BoxDecoration(
           color: active
@@ -348,7 +392,8 @@ class _ActionChip extends StatelessWidget {
               : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: active ? AppColors.primary : Colors.grey.shade300),
+            color: active ? AppColors.primary : Colors.grey.shade300,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -358,9 +403,10 @@ class _ActionChip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: color),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
             ),
           ],
         ),

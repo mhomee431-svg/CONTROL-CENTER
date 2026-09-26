@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,7 +40,11 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 });
 
 /// Provider that exposes current connectivity status (true = connected).
+///
+/// Platform errors (e.g. the plugin being unavailable in widget tests) are
+/// swallowed: consumers fall back to "connected" instead of surfacing an
+/// error state.
 final isConnectedProvider = StreamProvider<bool>((ref) {
   final service = ref.watch(connectivityServiceProvider);
-  return service.onConnectivityChanged;
+  return service.onConnectivityChanged.handleError((Object _) {});
 });

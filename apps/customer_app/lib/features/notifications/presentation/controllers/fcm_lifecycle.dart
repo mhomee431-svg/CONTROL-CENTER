@@ -29,9 +29,9 @@ class FcmLifecycle {
       if (auth.status != AuthStatus.authenticated) return;
       final settings = _ref.read(settingsControllerProvider);
       unawaited(
-        _ref.read(deviceTokenCoordinatorProvider).syncAfterLogin(
-              pushEnabled: settings.pushNotificationsEnabled,
-            ),
+        _ref
+            .read(deviceTokenCoordinatorProvider)
+            .syncAfterLogin(pushEnabled: settings.pushNotificationsEnabled),
       );
     });
   }

@@ -49,11 +49,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _FaqTab(),
-          _ContactTab(),
-          _ReportIssueTab(),
-        ],
+        children: const [_FaqTab(), _ContactTab(), _ReportIssueTab()],
       ),
     );
   }
@@ -143,7 +139,8 @@ class _FaqTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       itemCount: _faqs.length,
-      separatorBuilder: (_, _) => const Divider(height: 1, indent: AppSpacing.md),
+      separatorBuilder: (_, _) =>
+          const Divider(height: 1, indent: AppSpacing.md),
       itemBuilder: (context, index) {
         final faq = _faqs[index];
         return ExpansionTile(
@@ -154,15 +151,15 @@ class _FaqTab extends StatelessWidget {
           ),
           title: Text(
             faq.question,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, 0, AppSpacing.md, AppSpacing.md,
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
               ),
               child: Text(
                 faq.answer,
@@ -209,7 +206,11 @@ class _ContactTab extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.support_agent, size: 44, color: AppColors.primary),
+            child: const Icon(
+              Icons.support_agent,
+              size: 44,
+              color: AppColors.primary,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -236,7 +237,8 @@ class _ContactTab extends StatelessWidget {
           icon: Icons.email_outlined,
           label: 'Email Support',
           value: 'support@hyperlocal.app',
-          onTap: () => _launch('mailto:support@hyperlocal.app?subject=App Support'),
+          onTap: () =>
+              _launch('mailto:support@hyperlocal.app?subject=App Support'),
         ),
         const SizedBox(height: AppSpacing.md),
 
@@ -324,7 +326,11 @@ class _LegalTile extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: AppColors.textMuted),
       title: Text(label),
-      trailing: const Icon(Icons.open_in_new, size: 18, color: AppColors.textMuted),
+      trailing: const Icon(
+        Icons.open_in_new,
+        size: 18,
+        color: AppColors.textMuted,
+      ),
       onTap: onTap,
     );
   }
@@ -362,7 +368,9 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
 
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(supportRepositoryProvider).submitIssue(
+      await ref
+          .read(supportRepositoryProvider)
+          .submitIssue(
             category: _selectedCategory,
             description: _descController.text.trim(),
             contactEmail: _emailController.text.trim(),
@@ -416,13 +424,13 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
               initialValue: _selectedCategory,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 12,
+                ),
               ),
               items: SupportIssueCategory.values
-                  .map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c.label)),
-                  )
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c.label)))
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _selectedCategory = v);
@@ -522,8 +530,11 @@ class _SuccessView extends StatelessWidget {
                 color: AppColors.secondary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_outline,
-                  size: 48, color: AppColors.secondary),
+              child: const Icon(
+                Icons.check_circle_outline,
+                size: 48,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(

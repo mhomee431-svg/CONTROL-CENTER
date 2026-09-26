@@ -8,6 +8,8 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 import re
 
+from app.models.merchant_category import MerchantCategoryCode
+
 
 # ── Category Configuration ───────────────────────────────────────────────
 class MerchantCategoryResponse(BaseModel):
@@ -119,14 +121,13 @@ class MerchantOnboardingRequest(BaseModel):
     @field_validator("category_code")
     @classmethod
     def validate_category(cls, v):
-        valid_codes = {
-            "PHARMACY_HEALTHCARE", "BEAUTY_PERSONAL_CARE", "FURNITURE_HOME_CARE",
-            "HOUSEHOLD_GOODS", "SPORTS_FITNESS_OUTDOOR", "BOOKS_MEDIA_STATIONERY",
-            "AUTOMOTIVE_PARTS_TOOLS", "HARDWARE", "RESTAURANTS",
-            "TRANSPORT", "PERSONAL_TRANSPORT_TRAVEL",
-        }
+        # Single source of truth: the 11 approved codes from MerchantCategoryCode.
+        valid_codes = {c.value for c in MerchantCategoryCode}
         if v.upper() not in valid_codes:
-            raise ValueError(f"Invalid category code. Must be one of: {valid_codes}")
+            raise ValueError(
+                "Invalid category code. Must be one of: "
+                + ", ".join(sorted(valid_codes))
+            )
         return v.upper()
 
 

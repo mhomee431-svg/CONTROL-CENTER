@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/section_header.dart';
 
@@ -42,11 +43,18 @@ class RecentSearchesSection extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.history, size: 16, color: AppColors.textMuted),
+                          const Icon(
+                            Icons.history,
+                            size: 16,
+                            color: AppColors.textMuted,
+                          ),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             search,
-                            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                       ),

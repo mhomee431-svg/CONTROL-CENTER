@@ -23,6 +23,16 @@ abstract class AddressBookRepository {
     required UserLocation location,
   });
 
+  /// Updates an existing address's label and/or coordinates.
+  ///
+  /// Returns the updated list. A missing [id] is a no-op rather than an error
+  /// so a stale screen can never crash the address book.
+  Future<List<SavedAddress>> updateAddress({
+    required String id,
+    required String label,
+    required UserLocation location,
+  });
+
   /// Removes an address by id.
   Future<List<SavedAddress>> removeAddress(String id);
 
@@ -85,6 +95,26 @@ class LocalAddressBookRepository implements AddressBookRepository {
       savedAt: DateTime.now(),
     );
     addresses.add(address);
+    await _persist(addresses);
+    return addresses;
+  }
+
+  @override
+  Future<List<SavedAddress>> updateAddress({
+    required String id,
+    required String label,
+    required UserLocation location,
+  }) async {
+    final addresses = await getAddresses();
+    final index = addresses.indexWhere((a) => a.id == id);
+    if (index == -1) return addresses;
+
+    final existing = addresses[index];
+    // Keep the selected flag and original save time stable across an edit.
+    addresses[index] = existing.copyWith(
+      label: label,
+      location: existing.isSelected ? location.select() : location,
+    );
     await _persist(addresses);
     return addresses;
   }

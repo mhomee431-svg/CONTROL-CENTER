@@ -169,6 +169,7 @@ Search should be optimized primarily around real product naming.
 # 5. CURRENT AUTHENTICATION
 
 ==================================================
+but yaad rakhna customer ke liye  first login or register ki jarurat nhi hai jab tak koi event use  nhi krta like rating dena, shopkeepr ka profile dekhna with details  , nevigation map location direction start krna . 
 
 CUSTOMER AUTHENTICATION:
 
@@ -210,6 +211,7 @@ DO NOT create a second OTP provider unless explicitly required by backend archit
 
 ==================================================
 
+ 
 Support:
 
 Enter mobile number
@@ -218,6 +220,12 @@ Enter mobile number
 → 6-digit OTP
 → verification
 → authenticated state
+
+Or 
+
+Google login Auth 
+click on google login , sign in, signup,  agr koi bhi google account se login krta hai to uska id ban jayega  us gmail se and fir app profile setting me apna number verify krega .
+
 
 Handle:
 
@@ -238,6 +246,8 @@ Never expose technical Firebase errors directly.
 # 7. OTP SECURITY
 
 ==================================================
+
+
 
 Never store:
 
@@ -344,7 +354,7 @@ Core visual:
 
 local shop
 +
-location pin
+location pin or auto detect customer location 
 +
 search concept
 

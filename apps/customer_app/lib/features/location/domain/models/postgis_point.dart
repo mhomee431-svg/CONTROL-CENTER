@@ -19,19 +19,19 @@ class PostGisPoint {
 
   /// GeoJSON Point — `{"type":"Point","coordinates":[lng,lat]}`.
   Map<String, dynamic> toGeoJson() => {
-        'type': 'Point',
-        'coordinates': [longitude, latitude],
-      };
+    'type': 'Point',
+    'coordinates': [longitude, latitude],
+  };
 
   /// Simple query params for REST endpoints expecting lat/lng.
-  Map<String, dynamic> toQueryParams() => {
-        'lat': latitude,
-        'lng': longitude,
-      };
+  Map<String, dynamic> toQueryParams() => {'lat': latitude, 'lng': longitude};
 
   /// Validates that coordinates are within real-world bounds.
   bool get isValid =>
-      latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180;
 
   @override
   bool operator ==(Object other) =>

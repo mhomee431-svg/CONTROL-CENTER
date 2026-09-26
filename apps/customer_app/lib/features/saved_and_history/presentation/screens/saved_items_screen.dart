@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../controllers/saved_and_history_controllers.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -84,12 +85,24 @@ class _SavedProductsTab extends ConsumerWidget {
                         height: 50,
                         borderRadius: 8,
                       ),
-                      title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${item.brand} • Starts at ₹${item.lowestPrice.toInt()}'),
+                      title: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${item.brand} • Starts at ₹${item.lowestPrice.toInt()}',
+                      ),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: AppColors.error,
+                        ),
+                        tooltip: 'Remove from saved',
                         onPressed: () {
-                          ref.read(savedProductsNotifierProvider.notifier).toggleSave(item);
+                          ref
+                              .read(savedProductsNotifierProvider.notifier)
+                              .toggleSave(item);
                         },
                       ),
                       onTap: () => context.push('/product/${item.productId}'),
@@ -102,9 +115,7 @@ class _SavedProductsTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-      error: (err, _) => Center(
-            child: Text(friendlyErrorMessage(err)),
-          ),
+      error: (err, _) => Center(child: Text(friendlyErrorMessage(err))),
     );
   }
 }
@@ -122,7 +133,8 @@ class _SavedShopsTab extends ConsumerWidget {
           return const _EmptyStateView(
             icon: Icons.storefront_outlined,
             title: 'No Saved Shops',
-            message: 'Favorite nearby stores to stay updated on their inventory.',
+            message:
+                'Favorite nearby stores to stay updated on their inventory.',
           );
         }
         return Column(
@@ -155,9 +167,15 @@ class _SavedShopsTab extends ConsumerWidget {
                       title: Text(shop.name),
                       subtitle: Text('${shop.address} • ⭐ ${shop.rating}'),
                       trailing: IconButton(
-                        icon: const Icon(Icons.favorite, color: AppColors.error),
+                        icon: const Icon(
+                          Icons.favorite,
+                          color: AppColors.error,
+                        ),
+                        tooltip: 'Remove from favorites',
                         onPressed: () {
-                          ref.read(savedShopsNotifierProvider.notifier).toggleSave(shop);
+                          ref
+                              .read(savedShopsNotifierProvider.notifier)
+                              .toggleSave(shop);
                         },
                       ),
                       onTap: () => context.push('/shop/${shop.shopId}'),
@@ -176,7 +194,11 @@ class _SavedShopsTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textMuted),
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 friendlyErrorMessage(err),
@@ -232,15 +254,27 @@ class _RecentSearchesTab extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   final item = searches[index];
                   return ListTile(
-                    leading: const Icon(Icons.history, color: AppColors.textMuted),
+                    leading: const Icon(
+                      Icons.history,
+                      color: AppColors.textMuted,
+                    ),
                     title: Text(item.query),
                     trailing: IconButton(
-                      icon: const Icon(Icons.close, size: 20, color: AppColors.textMuted),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 20,
+                        color: AppColors.textMuted,
+                      ),
+                      tooltip: 'Remove search history',
                       onPressed: () {
-                        ref.read(recentSearchesNotifierProvider.notifier).removeQuery(item.query);
+                        ref
+                            .read(recentSearchesNotifierProvider.notifier)
+                            .removeQuery(item.query);
                       },
                     ),
-                    onTap: () => context.push('/search/results?q=${Uri.encodeComponent(item.query)}'),
+                    onTap: () => context.push(
+                      '/search/results?q=${Uri.encodeComponent(item.query)}',
+                    ),
                   );
                 },
               ),
@@ -255,7 +289,11 @@ class _RecentSearchesTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textMuted),
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 friendlyErrorMessage(err),
@@ -319,10 +357,19 @@ class _RecentlyViewedTab extends ConsumerWidget {
                         height: 50,
                         borderRadius: 8,
                       ),
-                      title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      title: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       subtitle: Text('₹${item.price.toInt()}'),
                       trailing: IconButton(
-                        icon: const Icon(Icons.close, size: 20, color: AppColors.textMuted),
+                        icon: const Icon(
+                          Icons.close,
+                          size: 20,
+                          color: AppColors.textMuted,
+                        ),
+                        tooltip: 'Remove from recently viewed',
                         onPressed: () {
                           ref
                               .read(recentlyViewedNotifierProvider.notifier)
@@ -345,7 +392,11 @@ class _RecentlyViewedTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 48, color: AppColors.textMuted),
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 friendlyErrorMessage(err),
@@ -388,7 +439,9 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
-                  ref.read(recentlyViewedShopsNotifierProvider.notifier).clearAll();
+                  ref
+                      .read(recentlyViewedShopsNotifierProvider.notifier)
+                      .clearAll();
                 },
                 icon: const Icon(Icons.delete_sweep_outlined, size: 18),
                 label: const Text('Clear All'),
@@ -409,13 +462,24 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
                         height: 50,
                         borderRadius: 8,
                       ),
-                      title: Text(shop.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      title: Text(
+                        shop.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       subtitle: Text('${shop.address} • ⭐ ${shop.rating}'),
                       trailing: IconButton(
-                        icon: const Icon(Icons.close, size: 20, color: AppColors.textMuted),
+                        icon: const Icon(
+                          Icons.close,
+                          size: 20,
+                          color: AppColors.textMuted,
+                        ),
+                        tooltip: 'Remove from recently viewed',
                         onPressed: () {
                           ref
-                              .read(recentlyViewedShopsNotifierProvider.notifier)
+                              .read(
+                                recentlyViewedShopsNotifierProvider.notifier,
+                              )
                               .removeShop(shop.shopId);
                         },
                       ),
@@ -429,7 +493,8 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-      error: (err, _) => Center(child: Text('Error loading recently viewed shops: $err')),
+      error: (err, _) =>
+          Center(child: Text('Error loading recently viewed shops: $err')),
     );
   }
 }
@@ -439,7 +504,11 @@ class _EmptyStateView extends StatelessWidget {
   final String title;
   final String message;
 
-  const _EmptyStateView({required this.icon, required this.title, required this.message});
+  const _EmptyStateView({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -451,9 +520,16 @@ class _EmptyStateView extends StatelessWidget {
           children: [
             Icon(icon, size: 64, color: AppColors.textMuted),
             const SizedBox(height: AppSpacing.md),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
           ],
         ),
       ),

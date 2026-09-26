@@ -6,12 +6,15 @@ import 'package:hyperlocal_app/features/shop_details/domain/shop_details_reposit
 import 'package:hyperlocal_app/features/shop_details/presentation/screens/shop_details_screen.dart';
 
 void main() {
-  testWidgets('ShopDetailsScreen renders full shop profile with new fields',
-      (WidgetTester tester) async {
+  testWidgets('ShopDetailsScreen renders full shop profile with new fields', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          shopDetailsRepositoryProvider.overrideWithValue(MockShopDetailsRepository()),
+          shopDetailsRepositoryProvider.overrideWithValue(
+            MockShopDetailsRepository(),
+          ),
         ],
         child: const MaterialApp(
           home: ShopDetailsScreen(shopId: 'test_shop_1'),
@@ -59,16 +62,17 @@ void main() {
     expect(find.text('Smart Device Model 0'), findsOneWidget);
   });
 
-  testWidgets('ShopDetailsScreen shows closed shop warning when not open',
-      (WidgetTester tester) async {
+  testWidgets('ShopDetailsScreen shows closed shop warning when not open', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          shopDetailsRepositoryProvider.overrideWithValue(MockShopDetailsRepository()),
+          shopDetailsRepositoryProvider.overrideWithValue(
+            MockShopDetailsRepository(),
+          ),
         ],
-        child: const MaterialApp(
-          home: ShopDetailsScreen(shopId: 'closed'),
-        ),
+        child: const MaterialApp(home: ShopDetailsScreen(shopId: 'closed')),
       ),
     );
 
@@ -83,16 +87,17 @@ void main() {
     expect(find.text('Closed Corner Store'), findsOneWidget);
   });
 
-  testWidgets('ShopDetailsScreen shows coordinates unavailable warning',
-      (WidgetTester tester) async {
+  testWidgets('ShopDetailsScreen shows coordinates unavailable warning', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          shopDetailsRepositoryProvider.overrideWithValue(MockShopDetailsRepository()),
+          shopDetailsRepositoryProvider.overrideWithValue(
+            MockShopDetailsRepository(),
+          ),
         ],
-        child: const MaterialApp(
-          home: ShopDetailsScreen(shopId: 'nocoords'),
-        ),
+        child: const MaterialApp(home: ShopDetailsScreen(shopId: 'nocoords')),
       ),
     );
 
@@ -106,12 +111,15 @@ void main() {
     expect(find.text('No Coordinates Shop'), findsOneWidget);
   });
 
-  testWidgets('ShopDetailsScreen handles error state',
-      (WidgetTester tester) async {
+  testWidgets('ShopDetailsScreen handles error state', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          shopDetailsRepositoryProvider.overrideWithValue(MockShopDetailsRepository()),
+          shopDetailsRepositoryProvider.overrideWithValue(
+            MockShopDetailsRepository(),
+          ),
         ],
         child: const MaterialApp(
           home: ShopDetailsScreen(shopId: 'error'), // Triggers mock exception
@@ -123,5 +131,31 @@ void main() {
 
     expect(find.textContaining('Unable to load shop'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('ShopDetailsScreen icon buttons expose accessible tooltips', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          shopDetailsRepositoryProvider.overrideWithValue(
+            MockShopDetailsRepository(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: ShopDetailsScreen(shopId: 'test_shop_1'),
+        ),
+      ),
+    );
+
+    // Initial state: loading indicator is shown while shop data loads.
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // After mock loads, the save and share buttons render in the app bar.
+    expect(find.byTooltip('Save shop'), findsOneWidget);
+    expect(find.byTooltip('Share shop'), findsOneWidget);
   });
 }

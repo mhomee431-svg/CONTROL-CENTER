@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../auth/presentation/controllers/auth_controller.dart';
-import '../location/presentation/controllers/location_controller.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -17,15 +17,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // Check auth status on startup; the router redirect will handle navigation
     Future.microtask(() {
       ref.read(authControllerProvider.notifier).checkAuthStatus();
-            // Auto-detect location on app start (force: true to bypass throttle)
-      ref.read(locationControllerProvider.notifier).fetchCurrentLocation(force: true);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-             body: Center(
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -35,10 +33,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) => const Text(
                 'Hyperlocal',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
             ),
             // Always render the brand name so the app is identifiable even

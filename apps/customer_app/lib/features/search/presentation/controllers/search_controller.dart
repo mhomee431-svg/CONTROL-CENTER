@@ -58,7 +58,9 @@ class SearchQueryState {
 }
 
 final searchQueryProvider =
-    NotifierProvider<SearchQueryNotifier, SearchQueryState>(SearchQueryNotifier.new);
+    NotifierProvider<SearchQueryNotifier, SearchQueryState>(
+      SearchQueryNotifier.new,
+    );
 
 class SearchQueryNotifier extends Notifier<SearchQueryState> {
   @override
@@ -90,10 +92,12 @@ class SearchQueryNotifier extends Notifier<SearchQueryState> {
 // --- SUGGESTIONS STATE ---
 /// Watches ONLY the debounce-settled query. Selecting the single string field
 /// means keystrokes that merely echo text do not re-trigger this provider.
-final suggestionsProvider =
-    FutureProvider.autoDispose<List<SearchSuggestion>>((ref) async {
-  final query =
-      ref.watch(searchQueryProvider.select((s) => s.debouncedQuery)).trim();
+final suggestionsProvider = FutureProvider.autoDispose<List<SearchSuggestion>>((
+  ref,
+) async {
+  final query = ref
+      .watch(searchQueryProvider.select((s) => s.debouncedQuery))
+      .trim();
   if (query.length < 2) return [];
   return ref.watch(searchRepositoryProvider).getSuggestions(query);
 });
@@ -143,7 +147,6 @@ final searchHistoryStoreProvider = Provider<SearchHistoryStore>((ref) {
   return SearchHistoryStore(ref.watch(savedAndHistoryRepositoryProvider));
 });
 
-
 /// Version counter used to invalidate the cached [recentSearchesProvider].
 class RecentSearchesVersion extends Notifier<int> {
   @override
@@ -156,8 +159,9 @@ final recentSearchesVersionProvider =
     NotifierProvider<RecentSearchesVersion, int>(RecentSearchesVersion.new);
 
 /// Loads persisted recent searches. Re-runs whenever the version bumps.
-final recentSearchesProvider =
-    FutureProvider.autoDispose<List<String>>((ref) async {
+final recentSearchesProvider = FutureProvider.autoDispose<List<String>>((
+  ref,
+) async {
   ref.watch(recentSearchesVersionProvider);
   return ref.watch(searchHistoryStoreProvider).load();
 });
@@ -169,9 +173,32 @@ Future<void> saveRecentSearch(WidgetRef ref, String query) async {
   ref.read(recentSearchesVersionProvider.notifier).bump();
 }
 
+// --- BARCODE LOOKUP ---
+/// Looks up the shops selling a scanned/entered barcode.
+///
+/// Passes the customer's coordinates when known so the backend can rank hits
+/// by proximity. An unknown barcode resolves to an empty list (a real "not
+/// found"), never a placeholder product.
+final barcodeLookupProvider = FutureProvider.autoDispose
+    .family<List<ShopProductResult>, String>((ref, barcode) async {
+      final trimmed = barcode.trim();
+      if (trimmed.isEmpty) return const [];
+
+      final location = ref.watch(locationControllerProvider).location;
+      final hasCoords = location != null && location.hasValidCoordinates;
+      return ref
+          .watch(searchRepositoryProvider)
+          .lookupBarcode(
+            trimmed,
+            latitude: hasCoords ? location.latitude : null,
+            longitude: hasCoords ? location.longitude : null,
+          );
+    });
+
 // --- POPULAR SEARCHES ---
-final popularSearchesProvider =
-    FutureProvider.autoDispose<List<String>>((ref) async {
+final popularSearchesProvider = FutureProvider.autoDispose<List<String>>((
+  ref,
+) async {
   return ref.watch(searchRepositoryProvider).getPopularSearches();
 });
 
@@ -195,7 +222,7 @@ class SearchPaginationState {
     this.isFetchingMore = false,
     this.hasReachedMax = false,
     this.error,
-    this.sort = SortOption.nearest,
+    this.sort = kDefaultSortOption,
     this.currentPage = 1,
     this.totalResults = 0,
     this.filters = const {},
@@ -231,15 +258,24 @@ class SearchPaginationState {
   /// Whether the current applied filters are anything other than defaults.
   bool get hasActiveFilters =>
       _isFilterActive('in_stock') ||
-      _isFilterActive('max_distance') ||
-      _isFilterActive('max_price') ||
+      _isFilterActive('offers_only') ||
+      _isFilterActive('open_now') ||
+      (_isFilterActive('max_distance') && maxDistance != 10.0) ||
+      minPrice > 0 ||
+      (_isFilterActive('max_price') && maxPrice < 5000.0) ||
       _getFilterDouble('min_rating', 0) > 0 ||
       _getFilterString('category') != null ||
       _getFilterString('brand') != null;
 
   bool get inStockOnly => _getFilterBool('in_stock', false);
 
+  bool get offersOnly => _getFilterBool('offers_only', false);
+
+  bool get openNow => _getFilterBool('open_now', false);
+
   double get maxDistance => _getFilterDouble('max_distance', 10.0);
+
+  double get minPrice => _getFilterDouble('min_price', 0.0);
 
   double get maxPrice => _getFilterDouble('max_price', 5000.0);
 
@@ -273,9 +309,11 @@ class SearchPaginationState {
 }
 
 final searchResultsProvider =
-    NotifierProvider.family<SearchResultsController, SearchPaginationState, String>(
-  SearchResultsController.new,
-);
+    NotifierProvider.family<
+      SearchResultsController,
+      SearchPaginationState,
+      String
+    >(SearchResultsController.new);
 
 class SearchResultsController extends Notifier<SearchPaginationState> {
   SearchResultsController(this.query);
@@ -283,14 +321,21 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   final String query;
   int _page = 1;
   static const int _limit = 10;
-  SortOption _currentSort = SortOption.nearest;
+  SortOption _currentSort = kDefaultSortOption;
   Map<String, dynamic>? _currentFilters;
+
+  static final Map<String, Map<String, dynamic>> _retainedFilters = {};
+  static final Map<String, SortOption> _retainedSorts = {};
 
   @override
   SearchPaginationState build() {
+    _currentSort = _retainedSorts[query] ?? kDefaultSortOption;
+    _currentFilters = _retainedFilters[query];
     _fetchInitial();
-    return const SearchPaginationState(
+    return SearchPaginationState(
       stage: SearchStage.loading,
+      sort: _currentSort,
+      filters: _currentFilters ?? const {},
     );
   }
 
@@ -307,8 +352,10 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   }
 
   Future<void> _fetchInitial() async {
-    state = const SearchPaginationState(
+    state = SearchPaginationState(
       stage: SearchStage.loading,
+      sort: _currentSort,
+      filters: _currentFilters ?? const {},
     );
     try {
       final coords = _coords;
@@ -329,15 +376,20 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
         sort: _currentSort,
         currentPage: _page,
         totalResults: results.length,
+        filters: _currentFilters ?? const {},
       );
-      _tracker.track(ResultsShownEvent(
-        query: query,
-        resultCount: results.length,
-        sort: _currentSort,
-      ));
+      _tracker.track(
+        ResultsShownEvent(
+          query: query,
+          resultCount: results.length,
+          sort: _currentSort,
+        ),
+      );
     } catch (e) {
       state = SearchPaginationState(
         stage: SearchStage.error,
+        sort: _currentSort,
+        filters: _currentFilters ?? const {},
         // User-safe copy; raw exception text never reaches the UI.
         error: friendlyErrorMessage(e),
       );
@@ -369,6 +421,7 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
         sort: _currentSort,
         currentPage: _page,
         totalResults: allResults.length,
+        filters: _currentFilters ?? const {},
       );
       _tracker.track(PaginationLoadedEvent(query: query, page: _page));
     } catch (e) {
@@ -383,12 +436,14 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   void updateSort(SortOption sort) {
     if (_currentSort == sort) return;
     _currentSort = sort;
+    _retainedSorts[query] = sort;
     _page = 1;
     _fetchInitial();
   }
 
   void updateFilters(Map<String, dynamic> filters) {
-    _currentFilters = filters;
+    _currentFilters = Map<String, dynamic>.from(filters);
+    _retainedFilters[query] = _currentFilters!;
     _page = 1;
     _fetchInitial();
   }
@@ -402,10 +457,10 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   void cancel() {
     ref.read(searchQueryProvider.notifier).clear();
     _page = 1;
-    _currentSort = SortOption.nearest;
+    _currentSort = kDefaultSortOption;
     _currentFilters = null;
-    state = const SearchPaginationState(
-      stage: SearchStage.idle,
-    );
+    _retainedSorts.remove(query);
+    _retainedFilters.remove(query);
+    state = const SearchPaginationState(stage: SearchStage.idle);
   }
 }

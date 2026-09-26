@@ -23,8 +23,7 @@ class CustomerRecentlyViewedScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: () =>
-                ref.invalidate(customerRecentlyViewedProvider),
+            onPressed: () => ref.invalidate(customerRecentlyViewedProvider),
           ),
         ],
       ),
@@ -38,8 +37,7 @@ class CustomerRecentlyViewedScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            onRefresh: () =>
-                ref.refresh(customerRecentlyViewedProvider.future),
+            onRefresh: () => ref.refresh(customerRecentlyViewedProvider.future),
             child: ListView.separated(
               padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: items.length,
@@ -51,7 +49,8 @@ class CustomerRecentlyViewedScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+        loading: () =>
+            const Center(child: CircularProgressIndicator.adaptive()),
         error: (err, st) => const Center(
           child: EmptyStateView(
             icon: Icons.error_outline,
@@ -82,17 +81,16 @@ class _RecentCard extends StatelessWidget {
           width: 52,
           height: 52,
           child: item.imageUrl != null
-              ? NetworkImageView(
-                  imageUrl: item.imageUrl!,
-                  borderRadius: 8,
-                )
+              ? NetworkImageView(imageUrl: item.imageUrl!, borderRadius: 8)
               : Container(
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.inventory_2_outlined,
-                      color: AppColors.primary),
+                  child: const Icon(
+                    Icons.inventory_2_outlined,
+                    color: AppColors.primary,
+                  ),
                 ),
         ),
         title: Text(

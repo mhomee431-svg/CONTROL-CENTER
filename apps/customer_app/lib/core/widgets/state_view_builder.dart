@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../network/api_error_handler.dart';
 import '../theme/app_theme.dart';
 
@@ -33,7 +34,10 @@ class StateViewBuilder<T> extends StatelessWidget {
           children: [
             CircularProgressIndicator.adaptive(),
             SizedBox(height: AppSpacing.md),
-            Text('Loading details...', style: TextStyle(color: AppColors.textMuted)),
+            Text(
+              'Loading details...',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
           ],
         ),
       );
@@ -52,9 +56,19 @@ class StateViewBuilder<T> extends StatelessWidget {
             children: [
               Icon(emptyIcon, size: 64, color: AppColors.textMuted),
               const SizedBox(height: AppSpacing.md),
-              Text(emptyTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                emptyTitle,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
-              Text(emptyMessage, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted)),
+              Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
               const SizedBox(height: AppSpacing.lg),
               OutlinedButton.icon(
                 onPressed: onRetry,
@@ -99,7 +113,10 @@ class StateViewBuilder<T> extends StatelessWidget {
           children: [
             Icon(icon, size: 64, color: AppColors.error),
             const SizedBox(height: AppSpacing.md),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               apiError.message,
@@ -115,7 +132,7 @@ class StateViewBuilder<T> extends StatelessWidget {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
               ),
-            )
+            ),
           ],
         ),
       ),

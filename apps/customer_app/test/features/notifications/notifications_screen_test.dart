@@ -26,7 +26,8 @@ class _FakeNotificationRepository implements NotificationRepository {
   @override
   Future<void> markAsRead(String id) async {
     items = [
-      for (final n in items) if (n.id == id && !n.isRead) n.copyWith(isRead: true) else n,
+      for (final n in items)
+        if (n.id == id && !n.isRead) n.copyWith(isRead: true) else n,
     ];
   }
 
@@ -134,22 +135,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders notifications with unread badge and read styling',
-      (tester) async {
+  testWidgets('renders notifications with unread badge and read styling', (
+    tester,
+  ) async {
     await pumpAndSettleScreen(tester, _FakeNotificationRepository(_seed()));
 
     expect(find.text('Alerts'), findsOneWidget);
     expect(find.text('Price drop alert'), findsOneWidget);
     // Unread badge shows the 4 unread items.
     expect(find.text('4'), findsOneWidget);
-    
+
     expect(find.byKey(const Key('markAllReadButton')), findsOneWidget);
     // Read item (none in seed) — verify unread dot exists on unread rows.
     expect(find.byKey(const Key('notification_n1')), findsOneWidget);
   });
 
-  testWidgets('tapping a product notification navigates and marks it read',
-      (tester) async {
+  testWidgets('tapping a product notification navigates and marks it read', (
+    tester,
+  ) async {
     final repository = _FakeNotificationRepository(_seed());
     await pumpAndSettleScreen(tester, repository);
 
@@ -157,14 +160,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ProductPage prod_1'), findsOneWidget);
-    expect(
-      repository.items.firstWhere((n) => n.id == 'n1').isRead,
-      isTrue,
-    );
+    expect(repository.items.firstWhere((n) => n.id == 'n1').isRead, isTrue);
   });
 
-  testWidgets('expired offer notification degrades safely with a message',
-      (tester) async {
+  testWidgets('expired offer notification degrades safely with a message', (
+    tester,
+  ) async {
     await pumpAndSettleScreen(tester, _FakeNotificationRepository(_seed()));
 
     await tester.tap(find.byKey(const Key('notification_n3')));
@@ -180,8 +181,9 @@ void main() {
     expect(items.firstWhere((n) => n.id == 'n3').isRead, isTrue);
   });
 
-  testWidgets('mark all read clears the badge and hides the action',
-      (tester) async {
+  testWidgets('mark all read clears the badge and hides the action', (
+    tester,
+  ) async {
     await pumpAndSettleScreen(tester, _FakeNotificationRepository(_seed()));
 
     await tester.tap(find.byKey(const Key('markAllReadButton')));
@@ -191,8 +193,9 @@ void main() {
     expect(find.text('4'), findsNothing);
   });
 
-  testWidgets('shows empty state when there are no notifications',
-      (tester) async {
+  testWidgets('shows empty state when there are no notifications', (
+    tester,
+  ) async {
     await pumpAndSettleScreen(tester, _FakeNotificationRepository([]));
 
     expect(find.text('No notifications yet'), findsOneWidget);
@@ -225,4 +228,3 @@ void main() {
     expect(find.text("Couldn't load notifications"), findsNothing);
   });
 }
-

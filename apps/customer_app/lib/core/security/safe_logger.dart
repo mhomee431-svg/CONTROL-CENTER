@@ -7,9 +7,23 @@ import 'package:flutter/foundation.dart';
 /// - Never logs full request/response bodies in production
 class SafeLogger {
   static const Set<String> _sensitiveKeys = {
-    'password', 'token', 'authorization', 'jwt', 'otp', 'secret',
-    'access_token', 'refresh_token', 'api_key', 'apikey', 'auth',
-    'bearer', 'ssn', 'aadhaar', 'pan', 'credit_card', 'cvv',
+    'password',
+    'token',
+    'authorization',
+    'jwt',
+    'otp',
+    'secret',
+    'access_token',
+    'refresh_token',
+    'api_key',
+    'apikey',
+    'auth',
+    'bearer',
+    'ssn',
+    'aadhaar',
+    'pan',
+    'credit_card',
+    'cvv',
   };
 
   /// Log a debug message. Only prints in non-release mode.
@@ -49,17 +63,11 @@ class SafeLogger {
     // Redact sensitive key-value pairs (e.g., token=abc123, Authorization: Bearer xyz)
     for (final key in _sensitiveKeys) {
       // Match patterns like: key=value, key: value, "key": "value"
-      final regex = RegExp(
-        '$key[:=]\\s*[^\\s,\\]\\}"]+',
-        caseSensitive: false,
-      );
+      final regex = RegExp('$key[:=]\\s*[^\\s,\\]\\}"]+', caseSensitive: false);
       sanitized = sanitized.replaceAll(regex, '$key=[REDACTED]');
 
       // Match JSON-style patterns: "key": "value"
-      final jsonRegex = RegExp(
-        '"$key"\\s*:\\s*"[^"]+"',
-        caseSensitive: false,
-      );
+      final jsonRegex = RegExp('"$key"\\s*:\\s*"[^"]+"', caseSensitive: false);
       sanitized = sanitized.replaceAll(jsonRegex, '"$key": "[REDACTED]"');
     }
 

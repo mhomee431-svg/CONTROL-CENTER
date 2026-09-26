@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../domain/models/product_details_models.dart';
+import '../../../search/domain/models/search_models.dart';
+import '../../../search/presentation/widgets/freshness_disclaimer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
@@ -39,7 +42,10 @@ class ShopInventorySection extends StatelessWidget {
               ),
               Text(
                 '${offers.length} found',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -55,23 +61,27 @@ class ShopInventorySection extends StatelessWidget {
             const EmptyStateView(
               icon: Icons.storefront_outlined,
               title: 'No nearby shops found',
-              message: 'This product is not currently available at any nearby shop.',
+              message:
+                  'This product is not currently available at any nearby shop.',
             )
           else ...[
             // ── Shop Offer Cards ─────────────────────────────────────────
-            ...offers.map((offer) => _ShopInventoryCard(
-                  productId: productId,
-                  offer: offer,
-                )),
+            ...offers.map(
+              (offer) => _ShopInventoryCard(productId: productId, offer: offer),
+            ),
+
+            // ── Availability Disclaimer ─────────────────────────────────
+            // Each price/availability figure is the shop's last report, not a
+            // promise about what will be on the shelf on arrival.
+            const FreshnessDisclaimer(),
+            const SizedBox(height: AppSpacing.sm),
 
             // ── View All Nearby Shops ────────────────────────────────────
             const SizedBox(height: AppSpacing.sm),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => context.push(
-                  '/product/$productId/shops',
-                ),
+                onPressed: () => context.push('/product/$productId/shops'),
                 icon: const Icon(Icons.storefront_outlined),
                 label: const Text('View All Nearby Shops'),
               ),
@@ -87,20 +97,31 @@ class _ShopInventoryCard extends StatelessWidget {
   final String productId;
   final ShopInventoryOffer offer;
 
-  const _ShopInventoryCard({
-    required this.productId,
-    required this.offer,
-  });
+  const _ShopInventoryCard({required this.productId, required this.offer});
 
   String _formatFreshness(DateTime lastUpdated) {
-    final diff = DateTime.now().difference(lastUpdated);
-    if (diff.inMinutes < 60) return 'Updated ${diff.inMinutes} mins ago';
-    if (diff.inHours < 24) return 'Updated ${diff.inHours} hours ago';
-    return 'Updated ${diff.inDays} days ago (Stale)';
+    // Shared canonical formatter — identical wording to the search result card
+    // and the Nearby Shops list, so the same data never reads differently.
+    return formatFreshnessText(
+      lastUpdated,
+      backendStatus: offer.freshnessStatus,
+    );
   }
 
   bool _isStale(DateTime lastUpdated) {
-    return DateTime.now().difference(lastUpdated).inHours > 24;
+    return isFreshnessWarning(_formatFreshness(lastUpdated));
+  }
+
+  /// Availability label derived from the shop's own reported data.
+  ///
+  /// Stale inventory is never presented as a confident "In Stock" — the shop
+  /// last reported that status more than a day ago, so the customer is told to
+  /// check instead. Mirrors the wording on the Nearby Shops screen so the two
+  /// price-comparison surfaces never disagree about the same data.
+  String _availabilityLabel() {
+    if (!offer.isAvailable) return 'Out of Stock';
+    if (_isStale(offer.lastUpdated)) return 'Check stock';
+    return 'In Stock';
   }
 
   @override
@@ -145,12 +166,18 @@ class _ShopInventoryCard extends StatelessWidget {
                   children: [
                     Text(
                       offer.shopName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -161,7 +188,10 @@ class _ShopInventoryCard extends StatelessWidget {
                 children: [
                   Text(
                     '₹${offer.price.toInt()}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   if (offer.mrp != null && offer.mrp! > offer.price) ...[
                     Text(
@@ -175,19 +205,28 @@ class _ShopInventoryCard extends StatelessWidget {
                   ],
                   const SizedBox(height: 2),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: offer.isAvailable
-                          ? AppColors.secondary.withValues(alpha: 0.1)
-                          : AppColors.error.withValues(alpha: 0.1),
+                      color: !offer.isAvailable
+                          ? AppColors.error.withValues(alpha: 0.1)
+                          : stale
+                          ? Colors.orange.withValues(alpha: 0.1)
+                          : AppColors.secondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      offer.isAvailable ? 'In Stock' : 'Out of Stock',
+                      _availabilityLabel(),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: offer.isAvailable ? AppColors.secondary : AppColors.error,
+                        color: !offer.isAvailable
+                            ? AppColors.error
+                            : stale
+                            ? Colors.orange.shade800
+                            : AppColors.secondary,
                       ),
                     ),
                   ),
@@ -207,7 +246,11 @@ class _ShopInventoryCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.local_offer, size: 14, color: AppColors.primary),
+                  const Icon(
+                    Icons.local_offer,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -254,7 +297,10 @@ class _ShopInventoryCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => context.push('/shop/${offer.shopId}'),
                     icon: const Icon(Icons.storefront, size: 16),
-                    label: const Text('View Shop', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'View Shop',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   ElevatedButton.icon(
@@ -262,7 +308,10 @@ class _ShopInventoryCard extends StatelessWidget {
                       '/directions?shopId=${offer.shopId}&name=${Uri.encodeComponent(offer.shopName)}',
                     ),
                     icon: const Icon(Icons.directions, size: 16),
-                    label: const Text('Directions', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'Directions',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
               ),

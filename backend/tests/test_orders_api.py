@@ -79,10 +79,38 @@ app.dependency_overrides[get_db] = override_get_db
 
 CUSTOMER = SimpleNamespace(id=1, role=SimpleNamespace(name="customer"))
 ADMIN = SimpleNamespace(id=1, role=SimpleNamespace(name="admin"))
-app.dependency_overrides[get_current_user] = lambda: CUSTOMER
-app.dependency_overrides[require_admin] = lambda: ADMIN
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _pin_orders_overrides():
+    """Install this module's dependency wiring for exactly one test.
+
+    The FastAPI ``app`` is a single process-global object shared by every test
+    module. These overrides must therefore be applied *per test* rather than at
+    import time:
+
+    * other modules (e.g. test_admin_moderation_flow) call
+      ``app.dependency_overrides.clear()`` on teardown, which would strip
+      wiring installed at import time and send these requests to the real
+      PostgreSQL engine (401s / connection stalls);
+    * conversely, a fake ``customer``/``admin`` identity left on the global app
+      at import time leaks into every module collected afterwards, making real
+      RBAC checks return 403 for genuinely-admin users.
+
+    Installing here and restoring the previous snapshot afterwards makes this
+    module order-independent in both directions.
+    """
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: CUSTOMER
+    app.dependency_overrides[require_admin] = lambda: ADMIN
+    try:
+        yield
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
 
 
 def _make_tables():

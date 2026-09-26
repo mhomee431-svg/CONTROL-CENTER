@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../domain/location_service.dart';
 import '../../domain/models/location_models.dart';
 import '../../../../features/shop_details/domain/shop_details_repository.dart';
@@ -24,8 +25,8 @@ class DirectionsState {
 
 final directionsControllerProvider = NotifierProvider.autoDispose
     .family<DirectionsController, DirectionsState, String>(
-  DirectionsController.new,
-);
+      DirectionsController.new,
+    );
 
 class DirectionsController extends Notifier<DirectionsState> {
   DirectionsController(this.shopId);
@@ -106,7 +107,10 @@ class DirectionsController extends Notifier<DirectionsState> {
   Future<void> launchExternalMaps(String shopName) async {
     if (state.shopLocation != null) {
       final locationService = ref.read(locationServiceProvider);
-      await locationService.openExternalNavigation(state.shopLocation!, shopName);
+      await locationService.openExternalNavigation(
+        state.shopLocation!,
+        shopName,
+      );
     }
   }
 }

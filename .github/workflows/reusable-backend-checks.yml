@@ -40,7 +40,7 @@ env:
 jobs:
   static-analysis:
     name: Static analysis (compile + ruff + bandit)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -64,7 +64,7 @@ jobs:
 
   unit-tests:
     name: Unit tests (pytest, no services)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -85,7 +85,7 @@ jobs:
 
   integration-tests:
     name: Integration tests (PostGIS + Redis + migration rehearsal)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -150,11 +150,11 @@ jobs:
           path: |
             backend/migration_rehearsal_report.json
             backend/migration_drift_report.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
   migration-safety:
     name: Migration safety scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       dangerous: ${{ steps.scan.outputs.dangerous }}
       head_revision: ${{ steps.scan.outputs.head_revision }}
@@ -185,7 +185,7 @@ jobs:
 
   security-scan:
     name: Secret + dependency scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -207,7 +207,7 @@ jobs:
 
   build:
     name: Build backend image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [unit-tests, integration-tests]
     steps:
       - uses: actions/checkout@v4

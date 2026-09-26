@@ -32,7 +32,9 @@ class _FakeNotificationRepository implements NotificationRepository {
   Future<void> updatePreferences(NotificationPreferences preferences) async {}
 
   @override
-  Future<void> registerDeviceToken(DeviceTokenRegistration registration) async {}
+  Future<void> registerDeviceToken(
+    DeviceTokenRegistration registration,
+  ) async {}
 
   @override
   Future<void> unregisterDeviceToken(String token) async {}
@@ -54,24 +56,23 @@ AppNotification _row({
   required String id,
   required String title,
   required NotificationType type,
-}) =>
-    AppNotification(
-      id: id,
-      title: title,
-      body: 'body',
-      timestamp: DateTime(2026, 9, 18, 21, 19),
-      type: type,
-    );
+}) => AppNotification(
+  id: id,
+  title: title,
+  body: 'body',
+  timestamp: DateTime(2026, 9, 18, 21, 19),
+  type: type,
+);
 
 /// One row per customer-facing type — no `productAvailable` row, so the
 /// Availability filter is exercised as a legitimately empty category.
 List<AppNotification> _seed() => [
-      _row(id: 'n1', title: 'Price drop alert', type: NotificationType.priceDrop),
-      _row(id: 'n2', title: 'Shop update', type: NotificationType.shopUpdate),
-      _row(id: 'n3', title: 'Weekend deal', type: NotificationType.offer),
-      _row(id: 'n4', title: 'Welcome', type: NotificationType.system),
-      _row(id: 'n5', title: 'Order shipped', type: NotificationType.orderUpdate),
-    ];
+  _row(id: 'n1', title: 'Price drop alert', type: NotificationType.priceDrop),
+  _row(id: 'n2', title: 'Shop update', type: NotificationType.shopUpdate),
+  _row(id: 'n3', title: 'Weekend deal', type: NotificationType.offer),
+  _row(id: 'n4', title: 'Welcome', type: NotificationType.system),
+  _row(id: 'n5', title: 'Order shipped', type: NotificationType.orderUpdate),
+];
 
 void main() {
   Future<void> pumpScreen(
@@ -81,8 +82,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          notificationsRepositoryProvider
-              .overrideWithValue(_FakeNotificationRepository(items)),
+          notificationsRepositoryProvider.overrideWithValue(
+            _FakeNotificationRepository(items),
+          ),
         ],
         child: MaterialApp.router(routerConfig: _router()),
       ),
@@ -108,7 +110,8 @@ void main() {
         expect(
           owners.length,
           1,
-          reason: 'expected exactly one filter to own $type, got '
+          reason:
+              'expected exactly one filter to own $type, got '
               '${owners.map((f) => f.name).toList()}',
         );
       }
@@ -123,7 +126,11 @@ void main() {
       );
       expect(
         NotificationFilter.priceDrops.matches(
-          _row(id: 'y', title: 'Price drop alert', type: NotificationType.system),
+          _row(
+            id: 'y',
+            title: 'Price drop alert',
+            type: NotificationType.system,
+          ),
         ),
         isFalse,
       );
@@ -151,16 +158,8 @@ void main() {
       );
       for (final filter in NotificationFilter.values) {
         final chip = find.byKey(Key('notification-filter-${filter.name}'));
-        await tester.scrollUntilVisible(
-          chip,
-          120,
-          scrollable: barScrollable,
-        );
-        expect(
-          chip,
-          findsOneWidget,
-          reason: 'missing chip for ${filter.name}',
-        );
+        await tester.scrollUntilVisible(chip, 120, scrollable: barScrollable);
+        expect(chip, findsOneWidget, reason: 'missing chip for ${filter.name}');
       }
     });
 
@@ -203,8 +202,9 @@ void main() {
     testWidgets('a category with no rows explains itself', (tester) async {
       await pumpScreen(tester, _seed());
 
-      await tester
-          .tap(find.byKey(const Key('notification-filter-availability')));
+      await tester.tap(
+        find.byKey(const Key('notification-filter-availability')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('No Availability notifications'), findsOneWidget);
@@ -221,8 +221,9 @@ void main() {
       expect(find.text('5'), findsOneWidget);
     });
 
-    testWidgets('an empty inbox keeps the original copy (no filter bar)',
-        (tester) async {
+    testWidgets('an empty inbox keeps the original copy (no filter bar)', (
+      tester,
+    ) async {
       await pumpScreen(tester, const <AppNotification>[]);
 
       expect(find.text('No notifications yet'), findsOneWidget);

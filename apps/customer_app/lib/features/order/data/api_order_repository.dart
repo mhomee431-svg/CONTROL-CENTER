@@ -28,22 +28,19 @@ class ApiOrderRepository implements OrderRepository {
   }
 
   @override
-  Future<OrderListResponse> listOrders({
-    int? limit,
-    int? offset,
-  }) async {
+  Future<OrderListResponse> listOrders({int? limit, int? offset}) async {
     final data = await _apiClient.get(
       ApiEndpoints.myOrders,
-      queryParameters: {
-        'limit': ?limit,
-        'offset': ?offset,
-      },
+      queryParameters: {'limit': ?limit, 'offset': ?offset},
     );
     return OrderListResponse.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
   @override
-  Future<Order> updateOrderStatus(String orderId, OrderStatusUpdate update) async {
+  Future<Order> updateOrderStatus(
+    String orderId,
+    OrderStatusUpdate update,
+  ) async {
     final data = await _apiClient.put(
       ApiEndpoints.updateOrderStatus(orderId),
       data: update.toJson(),

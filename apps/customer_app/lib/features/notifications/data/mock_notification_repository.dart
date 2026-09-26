@@ -31,10 +31,10 @@ class MockNotificationRepository implements NotificationRepository {
     this.delay = const Duration(milliseconds: 150),
     List<AppNotification>? seed,
     NotificationPreferences? preferences,
-  })  : _store = seed != null
-            ? List.of(seed)
-            : List.of(_defaultSeed(now: DateTime.now())),
-        _preferences = preferences ?? NotificationPreferences.defaults;
+  }) : _store = seed != null
+           ? List.of(seed)
+           : List.of(_defaultSeed(now: DateTime.now())),
+       _preferences = preferences ?? NotificationPreferences.defaults;
 
   Future<void> _pause() async {
     if (delay > Duration.zero) await Future<void>.delayed(delay);
@@ -43,61 +43,61 @@ class MockNotificationRepository implements NotificationRepository {
   /// Demo dataset covering every customer-facing type, deep-link targets
   /// (product / shop / expired offer) and mixed read state.
   static List<AppNotification> _defaultSeed({required DateTime now}) => [
-        AppNotification(
-          id: 'n1',
-          title: 'Price drop alert',
-          body: 'Samsung Galaxy S24 is now ₹25.50 less at Gupta Electronics!',
-          timestamp: now.subtract(const Duration(hours: 2)),
-          type: NotificationType.priceDrop,
-          deepLink: const NotificationDeepLink(
-            targetType: DeepLinkTargetType.product,
-            targetId: 'prod_1',
-          ),
-        ),
-        AppNotification(
-          id: 'n2',
-          title: 'Back in stock',
-          body: 'Paracetamol 500mg is available again at Patna Medical Store.',
-          timestamp: now.subtract(const Duration(hours: 5)),
-          type: NotificationType.productAvailable,
-          deepLink: const NotificationDeepLink(
-            targetType: DeepLinkTargetType.product,
-            targetId: 'prod_2',
-          ),
-        ),
-        AppNotification(
-          id: 'n3',
-          title: 'Flat 20% off today',
-          body: 'Digital World Hub is running a monsoon deal on accessories.',
-          timestamp: now.subtract(const Duration(hours: 26)),
-          type: NotificationType.offer,
-          deepLink: NotificationDeepLink(
-            targetType: DeepLinkTargetType.offer,
-            targetId: 'offer_9',
-            // Already ended -> tapping must degrade safely.
-            expiresAt: now.subtract(const Duration(hours: 1)),
-          ),
-        ),
-        AppNotification(
-          id: 'n4',
-          title: 'Gupta Electronics updated timings',
-          body: 'Now open until 10 PM on weekdays.',
-          timestamp: now.subtract(const Duration(days: 2)),
-          type: NotificationType.shopUpdate,
-          deepLink: const NotificationDeepLink(
-            targetType: DeepLinkTargetType.shop,
-            targetId: 'shop_3',
-          ),
-        ),
-        AppNotification(
-          id: 'n5',
-          title: 'Welcome to Hyperlocal',
-          body: 'Your account is ready. Discover shops around you!',
-          timestamp: now.subtract(const Duration(days: 3)),
-          isRead: true,
-          type: NotificationType.system,
-        ),
-      ];
+    AppNotification(
+      id: 'n1',
+      title: 'Price drop alert',
+      body: 'Samsung Galaxy S24 is now ₹25.50 less at Gupta Electronics!',
+      timestamp: now.subtract(const Duration(hours: 2)),
+      type: NotificationType.priceDrop,
+      deepLink: const NotificationDeepLink(
+        targetType: DeepLinkTargetType.product,
+        targetId: 'prod_1',
+      ),
+    ),
+    AppNotification(
+      id: 'n2',
+      title: 'Back in stock',
+      body: 'Paracetamol 500mg is available again at Patna Medical Store.',
+      timestamp: now.subtract(const Duration(hours: 5)),
+      type: NotificationType.productAvailable,
+      deepLink: const NotificationDeepLink(
+        targetType: DeepLinkTargetType.product,
+        targetId: 'prod_2',
+      ),
+    ),
+    AppNotification(
+      id: 'n3',
+      title: 'Flat 20% off today',
+      body: 'Digital World Hub is running a monsoon deal on accessories.',
+      timestamp: now.subtract(const Duration(hours: 26)),
+      type: NotificationType.offer,
+      deepLink: NotificationDeepLink(
+        targetType: DeepLinkTargetType.offer,
+        targetId: 'offer_9',
+        // Already ended -> tapping must degrade safely.
+        expiresAt: now.subtract(const Duration(hours: 1)),
+      ),
+    ),
+    AppNotification(
+      id: 'n4',
+      title: 'Gupta Electronics updated timings',
+      body: 'Now open until 10 PM on weekdays.',
+      timestamp: now.subtract(const Duration(days: 2)),
+      type: NotificationType.shopUpdate,
+      deepLink: const NotificationDeepLink(
+        targetType: DeepLinkTargetType.shop,
+        targetId: 'shop_3',
+      ),
+    ),
+    AppNotification(
+      id: 'n5',
+      title: 'Welcome to Hyperlocal',
+      body: 'Your account is ready. Discover shops around you!',
+      timestamp: now.subtract(const Duration(days: 3)),
+      isRead: true,
+      type: NotificationType.system,
+    ),
+  ];
 
   @override
   Future<List<AppNotification>> getNotifications() async {

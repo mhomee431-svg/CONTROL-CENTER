@@ -27,8 +27,10 @@ void main() {
 
   group('EnvConfig.normalizeBaseUrl', () {
     test('trims whitespace and trailing slashes', () {
-      expect(EnvConfig.normalizeBaseUrl('  https://api.hyperlocal.in/// '),
-          'https://api.hyperlocal.in');
+      expect(
+        EnvConfig.normalizeBaseUrl('  https://api.hyperlocal.in/// '),
+        'https://api.hyperlocal.in',
+      );
     });
 
     test('strips a stray /v1 suffix', () {

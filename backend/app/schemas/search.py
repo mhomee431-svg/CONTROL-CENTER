@@ -93,6 +93,9 @@ class BarcodeResultSchema(BaseModel):
     is_available: bool = False
     stock_status: Optional[str] = None
     freshness_status: Optional[str] = None
+    # When the shop last reported this item's stock. Drives the customer-facing
+    # freshness wording so a scanned product is dated exactly like a typed one.
+    last_inventory_update: Optional[datetime] = None
     shop_id: int
     shop_name: str
     distance_km: Optional[float] = None

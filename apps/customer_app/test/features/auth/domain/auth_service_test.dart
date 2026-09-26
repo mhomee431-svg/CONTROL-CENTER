@@ -34,14 +34,16 @@ void main() {
       // Step 1: Login and persist
       when(mockStorage.getDeviceId()).thenAnswer((_) async => null);
       when(mockStorage.saveDeviceId(any)).thenAnswer((_) async => {});
-      when(mockRepo.verifyOtp(
-        phoneNumber: '9999999999',
-        otpCode: '123456',
-        deviceId: anyNamed('deviceId'),
-        deviceName: anyNamed('deviceName'),
-        deviceType: anyNamed('deviceType'),
-        appVersion: anyNamed('appVersion'),
-      )).thenAnswer(
+      when(
+        mockRepo.verifyOtp(
+          phoneNumber: '9999999999',
+          otpCode: '123456',
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenAnswer(
         (_) async => const AuthResult(
           accessToken: 'persisted-token',
           refreshToken: 'persisted-refresh',
@@ -52,7 +54,8 @@ void main() {
           role: 'customer',
         ),
       );
-      when(mockStorage.saveToken('persisted-token')).thenAnswer((_) async => {});
+      when(mockStorage.saveToken('persisted-token'))
+          .thenAnswer((_) async => {});
       when(mockStorage.saveRefreshToken('persisted-refresh'))
           .thenAnswer((_) async => {});
       when(mockStorage.saveSessionId('persisted-session'))
@@ -90,7 +93,8 @@ void main() {
     });
 
     test('surfaces InvalidPhoneNumberFailure', () async {
-      when(mockRepo.sendOtp('123')).thenThrow(const InvalidPhoneNumberFailure());
+      when(mockRepo.sendOtp('123'))
+          .thenThrow(const InvalidPhoneNumberFailure());
       expect(
         () => service.sendOtp('123'),
         throwsA(isA<InvalidPhoneNumberFailure>()),
@@ -126,7 +130,8 @@ void main() {
 
   group('AuthService - first-time user flag', () {
     test('isFirstTimeUser true when flag not set', () async {
-      when(mockStorage.read(key: 'has_onboarded')).thenAnswer((_) async => null);
+      when(mockStorage.read(key: 'has_onboarded'))
+          .thenAnswer((_) async => null);
       expect(await service.isFirstTimeUser(), isTrue);
     });
 
@@ -134,8 +139,51 @@ void main() {
       when(mockStorage.write(key: 'has_onboarded', value: 'true'))
           .thenAnswer((_) async => {});
       await service.markOnboarded();
-      when(mockStorage.read(key: 'has_onboarded')).thenAnswer((_) async => 'true');
+      when(mockStorage.read(key: 'has_onboarded'))
+          .thenAnswer((_) async => 'true');
       expect(await service.isFirstTimeUser(), isFalse);
+    });
+  });
+
+  group('AuthService - Google Sign-In', () {
+    test('persists the session returned by the repository', () async {
+      when(mockStorage.getDeviceId()).thenAnswer((_) async => 'dev-google');
+      when(
+        mockRepo.signInWithGoogle(
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenAnswer(
+        (_) async => const AuthResult(
+          accessToken: 'google-at',
+          refreshToken: 'google-rt',
+          sessionId: 'google-sid',
+          userId: 9,
+          name: 'Google Customer',
+          role: 'customer',
+        ),
+      );
+      when(mockStorage.saveToken('google-at')).thenAnswer((_) async => {});
+      when(mockStorage.saveRefreshToken('google-rt'))
+          .thenAnswer((_) async => {});
+      when(mockStorage.saveSessionId('google-sid')).thenAnswer((_) async => {});
+      when(mockStorage.setGuestMode(false)).thenAnswer((_) async => {});
+
+      final session = await service.signInWithGoogle();
+
+      expect(session.isValid, isTrue);
+      expect(session.accessToken, 'google-at');
+      expect(session.sessionId, 'google-sid');
+      verify(
+        mockRepo.signInWithGoogle(
+          deviceId: 'dev-google',
+          deviceName: authDeviceName,
+          deviceType: authDeviceType,
+          appVersion: authAppVersion,
+        ),
+      ).called(1);
     });
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../location/domain/address_book_repository.dart';
 import '../../../location/domain/models/saved_address.dart';
+import '../../../location/domain/models/user_location.dart';
 import '../../../location/presentation/controllers/location_controller.dart';
 
 /// Exposes the customer's address book to the account area.
@@ -13,8 +14,8 @@ import '../../../location/presentation/controllers/location_controller.dart';
 /// immediately use the new default.
 final addressesControllerProvider =
     AsyncNotifierProvider<AddressesController, List<SavedAddress>>(
-  AddressesController.new,
-);
+      AddressesController.new,
+    );
 
 class AddressesController extends AsyncNotifier<List<SavedAddress>> {
   @override
@@ -29,9 +30,28 @@ class AddressesController extends AsyncNotifier<List<SavedAddress>> {
   Future<bool> addFromCurrentLocation(String label) async {
     final location = ref.read(locationControllerProvider).location;
     if (location == null) return false;
-    await _mutate(
-      (repo) => repo.addAddress(label: label, location: location),
+    await _mutate((repo) => repo.addAddress(label: label, location: location));
+    return true;
+  }
+
+  /// Edits an existing address. Returns false when it no longer exists.
+  Future<bool> updateAddress({
+    required String id,
+    required String label,
+    UserLocation? location,
+  }) async {
+    final repository = ref.read(addressBookRepositoryProvider);
+    final current = await repository.getAddresses();
+    final match = current.where((address) => address.id == id).firstOrNull;
+    if (match == null) return false;
+
+    // Default to the stored coordinates when the edit only changed the label.
+    final updated = await repository.updateAddress(
+      id: id,
+      label: label,
+      location: location ?? match.location,
     );
+    state = AsyncData(updated);
     return true;
   }
 
@@ -63,7 +83,9 @@ class AddressesController extends AsyncNotifier<List<SavedAddress>> {
   Future<void> refresh() async {
     state = const AsyncLoading();
     try {
-      state = AsyncData(await ref.read(addressBookRepositoryProvider).getAddresses());
+      state = AsyncData(
+        await ref.read(addressBookRepositoryProvider).getAddresses(),
+      );
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
     }

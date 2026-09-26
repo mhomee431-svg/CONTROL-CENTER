@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controllers/search_controller.dart';
+import '../widgets/barcode_lookup_sheet.dart';
 import '../widgets/search_history_view.dart';
 import '../widgets/search_input_field.dart';
 import '../widgets/search_suggestions_list.dart';
@@ -37,13 +38,11 @@ class SearchScreen extends ConsumerWidget {
               // Persist search into history then navigate to results.
               await saveRecentSearch(ref, value);
               if (context.mounted) {
-                context.push(
-                  '/search/results?q=${Uri.encodeComponent(value)}',
-                );
+                context.push('/search/results?q=${Uri.encodeComponent(value)}');
               }
             },
-            // Barcode scan is hidden until the backend lookup endpoint exists.
-            // Passing null keeps the scanner icon off (spec: disable gracefully).
+            // Barcode lookup is backed by GET /search/v2/barcodes/{barcode}.
+            onBarcodeTap: () => _openBarcodeLookup(context),
           ),
         ),
         actions: [
@@ -57,6 +56,15 @@ class SearchScreen extends ConsumerWidget {
         ],
       ),
       body: body,
+    );
+  }
+
+  /// Opens the barcode sheet over the current route.
+  void _openBarcodeLookup(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const BarcodeLookupSheet(),
     );
   }
 }

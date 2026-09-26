@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/home_data.dart';
@@ -31,6 +32,21 @@ class _PromotionBannerState extends State<PromotionBanner> {
 
     return Column(
       children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Latest Offers',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
         SizedBox(
           height: 160,
           child: PageView.builder(
@@ -58,7 +74,9 @@ class _PromotionBannerState extends State<PromotionBanner> {
                 width: _currentPage == index ? 18 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: _currentPage == index ? AppColors.primary : Colors.grey.shade300,
+                  color: _currentPage == index
+                      ? AppColors.primary
+                      : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -87,10 +105,7 @@ class _PromotionCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          NetworkImageView(
-            imageUrl: promotion.imageUrl,
-            borderRadius: 12,
-          ),
+          NetworkImageView(imageUrl: promotion.imageUrl, borderRadius: 12),
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -127,10 +142,14 @@ class _PromotionCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
-                if (promotion.ctaLabel != null && promotion.ctaLabel!.isNotEmpty) ...[
+                if (promotion.ctaLabel != null &&
+                    promotion.ctaLabel!.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(20),

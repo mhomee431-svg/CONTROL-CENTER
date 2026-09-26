@@ -12,11 +12,13 @@ from pathlib import Path
 
 import pytest
 
-# Make db_seed importable
+# Make db_seed (seed data) AND backend (canonical category registry) importable.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DB_SEED = REPO_ROOT / "db_seed"
-if str(DB_SEED) not in sys.path:
-    sys.path.insert(0, str(DB_SEED))
+BACKEND_DIR = REPO_ROOT / "backend"
+for _p in (DB_SEED, BACKEND_DIR):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from seed_business_domains import (  # noqa: E402
     BRAND_NAMES,
@@ -26,21 +28,11 @@ from seed_business_domains import (  # noqa: E402
     build_domain_catalog,
     count_products,
 )
+# Canonical source of truth — the 11 approved names must NOT be re-typed here.
+from app.models.merchant_category import MERCHANT_CATEGORY_NAMES  # noqa: E402
 
 
-APPROVED_DOMAINS = {
-    "Pharmacy & Healthcare",
-    "Beauty & Personal Care",
-    "Furniture & Home Care",
-    "Household Goods",
-    "Sports, Fitness & Outdoor",
-    "Books, Media & Stationery",
-    "Automotive Parts & Tools",
-    "Hardware",
-    "Restaurants",
-    "Transport",
-    "Personal Transport & Travel",
-}
+APPROVED_DOMAINS = set(MERCHANT_CATEGORY_NAMES.values())
 
 # Spec rule 13: grocery RETAIL is out of scope (packaged staples like
 # "Basmati Rice 1 kg"). Restaurant dishes (e.g. "Veg Fried Rice") are in scope

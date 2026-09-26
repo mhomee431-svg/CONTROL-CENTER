@@ -92,10 +92,7 @@ class ApiClient {
   }
 
   /// Performs a DELETE request and returns the `data` field of the envelope.
-  Future<dynamic> delete(
-    String path, {
-    bool requiresAuth = true,
-  }) async {
+  Future<dynamic> delete(String path, {bool requiresAuth = true}) async {
     try {
       final response = await _dio.delete(
         ApiEndpoints.apiPath(path),
@@ -109,7 +106,10 @@ class ApiClient {
 
   Future<Options> _buildOptions(bool requiresAuth) async {
     final options = Options(
-      headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
     );
     if (requiresAuth) {
       final token = await _storage.getToken();
@@ -153,11 +153,7 @@ class TokenRefreshInterceptor extends Interceptor {
   /// Shared, in-flight refresh future (single-flight guard).
   Future<bool>? _refreshing;
 
-  TokenRefreshInterceptor(
-    this._dio,
-    this._storage,
-    this._onSessionExpired,
-  );
+  TokenRefreshInterceptor(this._dio, this._storage, this._onSessionExpired);
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
@@ -206,24 +202,25 @@ class TokenRefreshInterceptor extends Interceptor {
 
     // A bare Dio instance without interceptors: a failing refresh must never
     // recurse into this interceptor again.
-    final authDio = Dio(BaseOptions(
-      baseUrl: EnvConfig.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      responseType: ResponseType.json,
-    ));
+    final authDio = Dio(
+      BaseOptions(
+        baseUrl: EnvConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        responseType: ResponseType.json,
+      ),
+    );
 
     try {
       final response = await authDio.post(
         ApiEndpoints.apiPath(ApiEndpoints.refreshToken),
-        data: {
-          'refresh_token': refreshToken,
-          'device_id': deviceId,
-        },
-        options: Options(headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }),
+        data: {'refresh_token': refreshToken, 'device_id': deviceId},
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       final body = response.data;
@@ -290,11 +287,15 @@ final apiClientProvider = Provider<ApiClient>((ref) {
         return handler.next(options);
       },
       onResponse: (response, handler) {
-        SafeLogger.debug('HTTP Inbound: [${response.statusCode}] ${response.requestOptions.path}');
+        SafeLogger.debug(
+          'HTTP Inbound: [${response.statusCode}] ${response.requestOptions.path}',
+        );
         return handler.next(response);
       },
       onError: (DioException e, handler) {
-        SafeLogger.error('HTTP Error: [${e.response?.statusCode}] ${e.requestOptions.path}');
+        SafeLogger.error(
+          'HTTP Error: [${e.response?.statusCode}] ${e.requestOptions.path}',
+        );
         return handler.next(e);
       },
     ),
@@ -304,11 +305,9 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
   // Registered last so it sees errors only after logging/retry decided not
   // to handle them (Dio runs error interceptors in registration order).
-  dio.interceptors.add(TokenRefreshInterceptor(
-    dio,
-    storage,
-    client.notifySessionExpired,
-  ));
+  dio.interceptors.add(
+    TokenRefreshInterceptor(dio, storage, client.notifySessionExpired),
+  );
 
   ref.onDispose(client._sessionExpiredController.close);
   return client;

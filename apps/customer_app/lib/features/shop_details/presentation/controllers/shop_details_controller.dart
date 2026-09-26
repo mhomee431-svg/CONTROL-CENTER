@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../saved_and_history/domain/models/storage_models.dart';
 import '../../../saved_and_history/domain/saved_and_history_repository.dart';
 import '../../../saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
@@ -9,14 +10,15 @@ import '../../domain/models/shop_details_models.dart';
 
 final shopDetailsProvider = FutureProvider.autoDispose
     .family<ShopProfile, String>((ref, shopId) async {
-  final shopProfile =
-      await ref.watch(shopDetailsRepositoryProvider).getShopProfile(shopId);
-  // Keep the saved state in sync
-  ref.read(shopIsSavedProvider(shopId).notifier).set(shopProfile.isSaved);
-  // Phase 9: record this visit in the customer's local history.
-  _recordRecentlyViewedShop(ref, shopProfile);
-  return shopProfile;
-});
+      final shopProfile = await ref
+          .watch(shopDetailsRepositoryProvider)
+          .getShopProfile(shopId);
+      // Keep the saved state in sync
+      ref.read(shopIsSavedProvider(shopId).notifier).set(shopProfile.isSaved);
+      // Phase 9: record this visit in the customer's local history.
+      _recordRecentlyViewedShop(ref, shopProfile);
+      return shopProfile;
+    });
 
 /// Fire-and-forget recording of the shop into "recently viewed shops".
 /// Failures are swallowed so history never breaks the details screen.
@@ -25,24 +27,24 @@ void _recordRecentlyViewedShop(Ref ref, ShopProfile shop) {
     try {
       await ref
           .read(recentlyViewedShopsNotifierProvider.notifier)
-          .addShop(RecentlyViewedShopItem(
-            shopId: shop.id,
-            name: shop.name,
-            address: shop.address,
-            imageUrl: shop.imageUrl,
-            rating: shop.rating,
-            viewedAt: DateTime.now(),
-          ));
+          .addShop(
+            RecentlyViewedShopItem(
+              shopId: shop.id,
+              name: shop.name,
+              address: shop.address,
+              imageUrl: shop.imageUrl,
+              rating: shop.rating,
+              viewedAt: DateTime.now(),
+            ),
+          );
     } catch (_) {
       // History recording must never break the user flow.
     }
   }());
 }
 
-final shopIsSavedProvider =
-    NotifierProvider.autoDispose.family<ShopIsSavedNotifier, bool, String>(
-  ShopIsSavedNotifier.new,
-);
+final shopIsSavedProvider = NotifierProvider.autoDispose
+    .family<ShopIsSavedNotifier, bool, String>(ShopIsSavedNotifier.new);
 
 class ShopIsSavedNotifier extends Notifier<bool> {
   ShopIsSavedNotifier(this.shopId);
@@ -68,14 +70,16 @@ class ShopIsSavedNotifier extends Notifier<bool> {
         await repo.removeShop(shopId);
       } else {
         final profile = ref.read(shopDetailsProvider(shopId)).value;
-        await repo.saveShop(SavedShopItem(
-          shopId: shopId,
-          name: profile?.name ?? '',
-          address: profile?.address ?? '',
-          imageUrl: profile?.imageUrl ?? '',
-          rating: profile?.rating ?? 0,
-          savedAt: DateTime.now(),
-        ));
+        await repo.saveShop(
+          SavedShopItem(
+            shopId: shopId,
+            name: profile?.name ?? '',
+            address: profile?.address ?? '',
+            imageUrl: profile?.imageUrl ?? '',
+            rating: profile?.rating ?? 0,
+            savedAt: DateTime.now(),
+          ),
+        );
       }
       // Keep the Saved tab list consistent with this change.
       ref.invalidate(savedShopsNotifierProvider);

@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:dio/dio.dart';
+
 import '../security/safe_logger.dart';
 
 /// Interceptor that automatically retries failed **idempotent** requests
@@ -20,13 +22,18 @@ class ExponentialRetryInterceptor extends Interceptor {
   });
 
   @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     final requestOptions = err.requestOptions;
     final retries = requestOptions.extra['retry_count'] ?? 0;
 
     if (shouldRetry(err) && retries < maxRetries) {
       requestOptions.extra['retry_count'] = retries + 1;
-      final delay = initialDelay * (1 << retries); // Exponential backoff: 800ms, 1600ms, 3200ms
+      final delay =
+          initialDelay *
+          (1 << retries); // Exponential backoff: 800ms, 1600ms, 3200ms
 
       SafeLogger.warning(
         'Retrying request [${requestOptions.path}] (Attempt ${retries + 1}/$maxRetries) in ${delay.inMilliseconds}ms...',
@@ -53,8 +60,7 @@ class ExponentialRetryInterceptor extends Interceptor {
   static const Set<String> _idempotentMethods = {'GET', 'HEAD'};
 
   bool shouldRetry(DioException err) {
-    if (!_idempotentMethods
-        .contains(err.requestOptions.method.toUpperCase())) {
+    if (!_idempotentMethods.contains(err.requestOptions.method.toUpperCase())) {
       return false;
     }
     if (err.type == DioExceptionType.cancel) return false;

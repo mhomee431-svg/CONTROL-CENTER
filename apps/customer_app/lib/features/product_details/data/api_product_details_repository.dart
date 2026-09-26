@@ -76,8 +76,9 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
     bool fromCache = false,
   }) {
     // ── PRODUCT MASTER (global static info) ─────────────────────────────
-    final productJson = (json['product'] ?? json['product_details'] ?? json)
-        as Map<String, dynamic>;
+    final productJson =
+        (json['product'] ?? json['product_details'] ?? json)
+            as Map<String, dynamic>;
 
     final images = <String>[
       if (productJson['image_url'] != null) productJson['image_url'].toString(),
@@ -96,7 +97,8 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
     ];
 
     final identifiers = <ProductIdentifier>[
-      ...?((productJson['identifiers'] ?? json['identifiers']) as List<dynamic>?)
+      ...?((productJson['identifiers'] ?? json['identifiers'])
+              as List<dynamic>?)
           ?.map((e) => _mapIdentifier(e as Map<String, dynamic>)),
     ];
 
@@ -125,8 +127,9 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
         ? <ShopInventoryOffer>[]
         : <ShopInventoryOffer>[
             ...?((json['shop_inventories'] ??
-                    json['nearby_shops_offers'] ??
-                    json['shop_offers']) as List<dynamic>?)
+                        json['nearby_shops_offers'] ??
+                        json['shop_offers'])
+                    as List<dynamic>?)
                 ?.map((e) => _mapShopOffer(e as Map<String, dynamic>)),
           ];
 
@@ -159,18 +162,23 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
     return ProductAttribute(
       name: json['name']?.toString() ?? '',
       values: [
-        ...?((json['values'] ?? json['value']) as List<dynamic>?)
-            ?.map((e) => e is Map<String, dynamic>
-                ? e['value']?.toString() ?? ''
-                : e.toString()),
+        ...?((json['values'] ?? json['value']) as List<dynamic>?)?.map(
+          (e) => e is Map<String, dynamic>
+              ? e['value']?.toString() ?? ''
+              : e.toString(),
+        ),
       ],
     );
   }
 
   ProductIdentifier _mapIdentifier(Map<String, dynamic> json) {
     return ProductIdentifier(
-      type: json['identifier_type']?.toString() ?? json['type']?.toString() ?? '',
-      value: json['identifier_value']?.toString() ?? json['value']?.toString() ?? '',
+      type:
+          json['identifier_type']?.toString() ?? json['type']?.toString() ?? '',
+      value:
+          json['identifier_value']?.toString() ??
+          json['value']?.toString() ??
+          '',
       isPrimary: json['is_primary'] == true,
     );
   }
@@ -185,7 +193,8 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
       distanceInKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
       rating: (json['shop_rating'] as num?)?.toDouble() ?? 0,
       isAvailable: json['is_available'] == true,
-      lastUpdated: DateTime.tryParse(json['last_updated']?.toString() ?? '') ??
+      lastUpdated:
+          DateTime.tryParse(json['last_updated']?.toString() ?? '') ??
           DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
           DateTime.now(),
       stockStatus: json['stock_status']?.toString(),

@@ -31,9 +31,7 @@ class EnvConfig {
   );
 
   /// Explicit environment selector (`--dart-define=APP_ENV=staging` etc.).
-  static const String _explicitEnvironment = String.fromEnvironment(
-    'APP_ENV',
-  );
+  static const String _explicitEnvironment = String.fromEnvironment('APP_ENV');
 
   /// True in AOT release builds (`flutter build apk --release`...).
   static const bool _isRelease = bool.fromEnvironment(
@@ -48,7 +46,7 @@ class EnvConfig {
       'staging' => AppEnv.staging,
       'production' => AppEnv.production,
       'development' => AppEnv.development,
-      _ => _isRelease? AppEnv.production : AppEnv.development,
+      _ => _isRelease ? AppEnv.production : AppEnv.development,
     };
   }
 
@@ -56,8 +54,9 @@ class EnvConfig {
   /// prepended centrally by the API client.). An explicit `API_BASE_URL` always
   /// wins; otherwise the environment's default is used.
   static String get apiBaseUrl {
-    final url =
-        _explicitApiBaseUrl.isNotEmpty ? _explicitApiBaseUrl : defaultBaseUrlFor(environment);
+    final url = _explicitApiBaseUrl.isNotEmpty
+        ? _explicitApiBaseUrl
+        : defaultBaseUrlFor(environment);
     return normalizeBaseUrl(url);
   }
 
@@ -110,8 +109,8 @@ class EnvConfig {
     required String baseUrl,
   }) {
     final isHttps = baseUrl.startsWith('https://');
-    final schemeOk = (environment == AppEnv.production ||
-            environment == AppEnv.staging)
+    final schemeOk =
+        (environment == AppEnv.production || environment == AppEnv.staging)
         ? isHttps
         : true;
     if (!schemeOk || baseUrl.isEmpty) {

@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'postgis_point.dart';
 
 part 'user_location.freezed.dart';
@@ -45,14 +46,52 @@ abstract class UserLocation with _$UserLocation {
     @Default(false) bool isSelected,
 
     /// Epoch milliseconds when this location was captured.
-    @JsonKey(name: 'capturedAtMs')
-    @Default(0)
-    int capturedAtMs,
+    @JsonKey(name: 'capturedAtMs') @Default(0) int capturedAtMs,
   }) = _UserLocation;
 
   const UserLocation._();
 
-  factory UserLocation.fromJson(Map<String, dynamic> json) => _$UserLocationFromJson(json);
+  /// Fixes worse than this are treated as **approximate** — good enough to
+  /// show nearby shops, not precise enough to describe as exact.
+  static const double poorAccuracyThresholdMeters = 100;
+
+  /// A fix coarser than this is too vague to be useful for nearby discovery.
+  static const double unusableAccuracyThresholdMeters = 2000;
+
+  /// Whether the device actually reported an accuracy figure.
+  ///
+  /// A negative or zero value means "unknown", never "perfect".
+  bool get hasReportedAccuracy => accuracyMeters > 0;
+
+  /// True when the reported fix is too coarse to treat as precise.
+  bool get isLowAccuracy =>
+      hasReportedAccuracy && accuracyMeters > poorAccuracyThresholdMeters;
+
+  /// True when the fix is so coarse it should not drive discovery at all.
+  bool get isUnusableAccuracy =>
+      hasReportedAccuracy && accuracyMeters > unusableAccuracyThresholdMeters;
+
+  /// Honest, human-readable accuracy for the UI.
+  ///
+  /// Never claims exactness: when the device reports no accuracy we say so
+  /// rather than implying precision we do not have.
+  String get accuracySummary {
+    if (!hasReportedAccuracy) {
+      return isApproximate
+          ? 'Approximate location'
+          : 'Accuracy not reported by the device';
+    }
+    final metres = accuracyMeters.round();
+    final magnitude = metres < 1000
+        ? '$metres m'
+        : '${(metres / 1000).toStringAsFixed(1)} km';
+    return isLowAccuracy
+        ? 'Approximate (~$magnitude)'
+        : 'Accurate to ~$magnitude';
+  }
+
+  factory UserLocation.fromJson(Map<String, dynamic> json) =>
+      _$UserLocationFromJson(json);
 
   /// Convenience constructor with an ISO-8601 `DateTime` for `capturedAt`.
   factory UserLocation.withCapturedAt({
@@ -68,34 +107,38 @@ abstract class UserLocation with _$UserLocation {
     double accuracyMeters = 0,
     bool isSelected = false,
     DateTime? capturedAt,
-  }) =>
-      UserLocation(
-        latitude: latitude,
-        longitude: longitude,
-        address: address,
-        city: city,
-        state: state,
-        pincode: pincode,
-        label: label,
-        isManual: isManual,
-        isApproximate: isApproximate,
-        accuracyMeters: accuracyMeters,
-        isSelected: isSelected,
-        capturedAtMs: capturedAt?.millisecondsSinceEpoch ?? 0,
-      );
+  }) => UserLocation(
+    latitude: latitude,
+    longitude: longitude,
+    address: address,
+    city: city,
+    state: state,
+    pincode: pincode,
+    label: label,
+    isManual: isManual,
+    isApproximate: isApproximate,
+    accuracyMeters: accuracyMeters,
+    isSelected: isSelected,
+    capturedAtMs: capturedAt?.millisecondsSinceEpoch ?? 0,
+  );
 
   /// PostGIS-compatible representation for backend integration.
-  PostGisPoint get postgis => PostGisPoint(latitude: latitude, longitude: longitude);
+  PostGisPoint get postgis =>
+      PostGisPoint(latitude: latitude, longitude: longitude);
 
   /// Validates coordinates are within real-world bounds.
   bool get hasValidCoordinates =>
-      latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180;
 
   /// Whether this location is usable for nearby-shop discovery.
   bool get isValidLocation => hasValidCoordinates && !isApproximate;
 
   /// Display label that falls back to city or "Unknown".
-  String get displayLabel => label.isNotEmpty ? label : (city.isNotEmpty ? city : 'Unknown');
+  String get displayLabel =>
+      label.isNotEmpty ? label : (city.isNotEmpty ? city : 'Unknown');
 
   /// Reverse geocoding summary: `address, city, state pincode`.
   String get displayAddress {
@@ -109,7 +152,9 @@ abstract class UserLocation with _$UserLocation {
   }
 
   /// Time the location was captured (null if never set).
-  DateTime? get capturedAt => capturedAtMs == 0 ? null : DateTime.fromMillisecondsSinceEpoch(capturedAtMs);
+  DateTime? get capturedAt => capturedAtMs == 0
+      ? null
+      : DateTime.fromMillisecondsSinceEpoch(capturedAtMs);
 
   /// Creates a copy marked as the selected/current location.
   UserLocation select() => copyWith(isSelected: true);

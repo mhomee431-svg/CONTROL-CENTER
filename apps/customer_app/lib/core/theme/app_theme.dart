@@ -62,10 +62,9 @@ class AppTheme {
         onSurface: AppColors.textDark,
       ),
       scaffoldBackgroundColor: AppColors.backgroundDark,
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).apply(
-        bodyColor: AppColors.textDark,
-        displayColor: AppColors.textDark,
-      ),
+      textTheme: GoogleFonts.interTextTheme(
+        ThemeData.dark().textTheme,
+      ).apply(bodyColor: AppColors.textDark, displayColor: AppColors.textDark),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.surfaceDark,
         elevation: 0,

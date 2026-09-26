@@ -183,8 +183,10 @@ def verify_firebase_id_token_claims(id_token: str) -> dict:
       - Phone OTP (future) → ``phone_number`` claim
 
     Returns a dict with keys: ``uid``, ``phone``, ``email``, ``name``,
-    ``picture``, ``provider`` (Firebase sign-in provider id), and the raw
-    ``claims`` mapping. ``phone`` is always a string (empty when absent).
+    ``picture``, ``email_verified``, ``provider`` (Firebase sign-in provider
+    id), ``google_id`` (the provider subject when Google supplies it), and the
+    raw ``claims`` mapping. ``phone`` is always a string (empty when absent)
+    and ``email_verified`` is always a boolean.
 
     Raises FirebaseVerificationError on any failure.
     """
@@ -259,9 +261,14 @@ def verify_firebase_id_token_claims(id_token: str) -> dict:
 
     # firebase["firebase"]["sign_in_provider"] — e.g. "google.com", "phone"
     provider = ""
+    google_id = ""
     firebase_section = decoded.get("firebase")
     if isinstance(firebase_section, dict):
         provider = firebase_section.get("sign_in_provider") or ""
+        identities = firebase_section.get("identities") or {}
+        google_identities = identities.get("google.com") or []
+        if google_identities and isinstance(google_identities[0], str):
+            google_id = google_identities[0]
 
     claims = {
         "uid": firebase_uid,
@@ -269,7 +276,9 @@ def verify_firebase_id_token_claims(id_token: str) -> dict:
         "email": decoded.get("email") or "",
         "name": decoded.get("name") or "",
         "picture": decoded.get("picture") or "",
+        "email_verified": decoded.get("email_verified") is True,
         "provider": provider,
+        "google_id": google_id,
         "claims": decoded,
     }
 

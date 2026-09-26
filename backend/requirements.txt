@@ -9,6 +9,8 @@ alembic>=1.14.0
 psycopg[binary]>=3.2.10
 asyncpg>=0.30.0
 GeoAlchemy2>=0.15.0
+# sqlite+aiosqlite async engine (app/database/session.py, phase20/21 tests)
+aiosqlite>=0.21.0
 
 # â”€â”€ Validation / Settings (cp314-compatible pydantic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pydantic>=2.11.0

@@ -24,10 +24,12 @@ class NetworkImageView extends StatelessWidget {
     // photo decoded into a 100px card can cost ~60MB of RAM per image and
     // quickly OOMs image-heavy screens.
     final dpr = MediaQuery.of(context).devicePixelRatio;
-    final int? memCacheWidth =
-        width.isFinite && width > 0 ? (width * dpr).round() : null;
-    final int? memCacheHeight =
-        height.isFinite && height > 0 ? (height * dpr).round() : null;
+    final int? memCacheWidth = width.isFinite && width > 0
+        ? (width * dpr).round()
+        : null;
+    final int? memCacheHeight = height.isFinite && height > 0
+        ? (height * dpr).round()
+        : null;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),

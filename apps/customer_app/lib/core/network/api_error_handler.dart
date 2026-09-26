@@ -52,7 +52,8 @@ class ApiException implements Exception {
         return ApiException(
           type: ApiErrorType.unauthorized,
           statusCode: code,
-          message: 'Session expired or unauthorized access. Please log in again.',
+          message:
+              'Session expired or unauthorized access. Please log in again.',
         );
       } else if (code == 404) {
         return ApiException(
@@ -64,7 +65,8 @@ class ApiException implements Exception {
         return ApiException(
           type: ApiErrorType.serverError,
           statusCode: code,
-          message: 'Server error encountered ($code). Our team has been notified.',
+          message:
+              'Server error encountered ($code). Our team has been notified.',
         );
       }
     }
@@ -77,7 +79,8 @@ class ApiException implements Exception {
   }
 
   @override
-  String toString() => 'ApiException [$type]: $message (Status Code: $statusCode)';
+  String toString() =>
+      'ApiException [$type]: $message (Status Code: $statusCode)';
 }
 
 /// Maps any thrown error into a user-safe message suitable for display.

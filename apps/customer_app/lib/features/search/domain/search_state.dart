@@ -25,7 +25,7 @@ class SearchParams {
     required this.query,
     required this.page,
     required this.limit,
-    this.sort = SortOption.nearest,
+    this.sort = kDefaultSortOption,
     this.filters,
   });
 

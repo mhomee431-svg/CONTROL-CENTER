@@ -36,12 +36,15 @@ void main() {
   });
 
   group('ApiEndpoints endpoints', () {
-    test('all endpoint paths are bare relative (client applies the prefix)', () {
-      expect(ApiEndpoints.sendOtp, '/auth/send-otp');
-      expect(ApiEndpoints.refreshToken, '/auth/refresh');
-      expect(ApiEndpoints.savedProducts, '/saved-products');
-      expect(ApiEndpoints.searchProducts, '/search/v2/products');
-    });
+    test(
+      'all endpoint paths are bare relative (client applies the prefix)',
+      () {
+        expect(ApiEndpoints.sendOtp, '/auth/send-otp');
+        expect(ApiEndpoints.refreshToken, '/auth/refresh');
+        expect(ApiEndpoints.savedProducts, '/saved-products');
+        expect(ApiEndpoints.searchProducts, '/search/v2/products');
+      },
+    );
 
     test('parameterised endpoints stay bare relative too', () {
       expect(ApiEndpoints.product('p1'), '/products/p1');

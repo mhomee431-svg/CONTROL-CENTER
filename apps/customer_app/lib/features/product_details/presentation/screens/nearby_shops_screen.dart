@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../providers/product_details_providers.dart';
 import '../../domain/models/product_details_models.dart';
+import '../../../search/domain/models/search_models.dart';
+import '../../../search/presentation/widgets/freshness_disclaimer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
@@ -30,53 +33,62 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
     final productAsync = ref.watch(productDetailsProvider(widget.productId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nearby Shops'),
-      ),
+      appBar: AppBar(title: const Text('Nearby Shops')),
       body: productAsync.when(
         data: (details) => _buildBody(context, details),
-        loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+        loading: () =>
+            const Center(child: CircularProgressIndicator.adaptive()),
         error: (err, stack) => EmptyStateView(
           icon: Icons.error_outline,
           title: 'Failed to load nearby shops',
           message: '$err',
           actionLabel: 'Try Again',
-          onActionTap: () => ref.refresh(productDetailsProvider(widget.productId)),
+          onActionTap: () =>
+              ref.refresh(productDetailsProvider(widget.productId)),
         ),
       ),
     );
   }
 
   Widget _buildBody(BuildContext context, ProductDetails details) {
-    final offers = details.shopOffers.where((offer) {
-      return !_inStockOnly || offer.isAvailable;
-    }).toList()
-      ..sort((a, b) {
-        switch (_sort) {
-          case _ShopSort.lowestPrice:
-            return a.price.compareTo(b.price);
-          case _ShopSort.highestRated:
-            return b.rating.compareTo(a.rating);
-          case _ShopSort.nearest:
-            return a.distanceInKm.compareTo(b.distanceInKm);
-        }
-      });
+    final offers =
+        details.shopOffers.where((offer) {
+          return !_inStockOnly || offer.isAvailable;
+        }).toList()..sort((a, b) {
+          switch (_sort) {
+            case _ShopSort.lowestPrice:
+              return a.price.compareTo(b.price);
+            case _ShopSort.highestRated:
+              return b.rating.compareTo(a.rating);
+            case _ShopSort.nearest:
+              return a.distanceInKm.compareTo(b.distanceInKm);
+          }
+        });
 
     if (offers.isEmpty) {
       return EmptyStateView(
         icon: Icons.storefront_outlined,
-        title: _inStockOnly ? 'No shops report this item in stock' : 'No nearby shops found',
+        title: _inStockOnly
+            ? 'No shops report this item in stock'
+            : 'No nearby shops found',
         message: _inStockOnly
             ? 'Try showing all shops or refresh before visiting. Inventory can change quickly.'
             : 'This product is not currently available at any nearby shop.',
         actionLabel: _inStockOnly ? 'Show all shops' : null,
-        onActionTap: _inStockOnly ? () => setState(() => _inStockOnly = false) : null,
+        onActionTap: _inStockOnly
+            ? () => setState(() => _inStockOnly = false)
+            : null,
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-      itemCount: offers.length + 1,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      itemCount: offers.length + 2,
       itemBuilder: (context, index) {
         if (index == 0) {
           return Padding(
@@ -93,12 +105,14 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
                 ChoiceChip(
                   label: const Text('Lowest price'),
                   selected: _sort == _ShopSort.lowestPrice,
-                  onSelected: (_) => setState(() => _sort = _ShopSort.lowestPrice),
+                  onSelected: (_) =>
+                      setState(() => _sort = _ShopSort.lowestPrice),
                 ),
                 ChoiceChip(
                   label: const Text('Top rated'),
                   selected: _sort == _ShopSort.highestRated,
-                  onSelected: (_) => setState(() => _sort = _ShopSort.highestRated),
+                  onSelected: (_) =>
+                      setState(() => _sort = _ShopSort.highestRated),
                 ),
                 FilterChip(
                   label: const Text('In stock only'),
@@ -109,7 +123,15 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
             ),
           );
         }
-        final offer = offers[index - 1];
+        // A stock reading is a snapshot, not a reservation — say so once,
+        // directly above the list the customer is about to act on.
+        if (index == 1) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.md),
+            child: FreshnessDisclaimer(),
+          );
+        }
+        final offer = offers[index - 2];
         return _NearbyShopCard(offer: offer);
       },
     );
@@ -123,14 +145,16 @@ class _NearbyShopCard extends StatelessWidget {
   const _NearbyShopCard({required this.offer});
 
   String _formatFreshness(DateTime lastUpdated) {
-    final diff = DateTime.now().difference(lastUpdated);
-    if (diff.inMinutes < 60) return 'Updated ${diff.inMinutes} mins ago';
-    if (diff.inHours < 24) return 'Updated ${diff.inHours} hours ago';
-    return 'Updated ${diff.inDays} days ago (Stale)';
+    // Shared canonical formatter — identical wording to the search result card
+    // and the Shop Inventory section, so the same data never reads differently.
+    return formatFreshnessText(
+      lastUpdated,
+      backendStatus: offer.freshnessStatus,
+    );
   }
 
   bool _isStale(DateTime lastUpdated) {
-    return DateTime.now().difference(lastUpdated).inHours > 24;
+    return isFreshnessWarning(_formatFreshness(lastUpdated));
   }
 
   String _availabilityLabel() {
@@ -166,12 +190,18 @@ class _NearbyShopCard extends StatelessWidget {
                     children: [
                       Text(
                         offer.shopName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -181,7 +211,10 @@ class _NearbyShopCard extends StatelessWidget {
                   children: [
                     Text(
                       '₹${offer.price.toInt()}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     if (offer.mrp != null && offer.mrp! > offer.price) ...[
                       Text(
@@ -195,13 +228,16 @@ class _NearbyShopCard extends StatelessWidget {
                     ],
                     const SizedBox(height: 2),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: !offer.isAvailable
                             ? AppColors.error.withValues(alpha: 0.1)
                             : stale
-                                ? Colors.orange.withValues(alpha: 0.1)
-                                : AppColors.secondary.withValues(alpha: 0.1),
+                            ? Colors.orange.withValues(alpha: 0.1)
+                            : AppColors.secondary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -212,8 +248,8 @@ class _NearbyShopCard extends StatelessWidget {
                           color: !offer.isAvailable
                               ? AppColors.error
                               : stale
-                                  ? Colors.orange.shade800
-                                  : AppColors.secondary,
+                              ? Colors.orange.shade800
+                              : AppColors.secondary,
                         ),
                       ),
                     ),
@@ -231,7 +267,11 @@ class _NearbyShopCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.local_offer, size: 14, color: AppColors.primary),
+                    const Icon(
+                      Icons.local_offer,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -274,7 +314,10 @@ class _NearbyShopCard extends StatelessWidget {
                     TextButton.icon(
                       onPressed: () => context.push('/shop/${offer.shopId}'),
                       icon: const Icon(Icons.storefront, size: 16),
-                      label: const Text('View Shop', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'View Shop',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     ElevatedButton.icon(
@@ -282,7 +325,10 @@ class _NearbyShopCard extends StatelessWidget {
                         '/directions?shopId=${offer.shopId}&name=${Uri.encodeComponent(offer.shopName)}',
                       ),
                       icon: const Icon(Icons.directions, size: 16),
-                      label: const Text('Directions', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'Directions',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),

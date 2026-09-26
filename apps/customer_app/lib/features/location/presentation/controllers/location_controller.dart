@@ -70,7 +70,16 @@ class LocationController extends Notifier<LocationState> {
   static const _locationKey = 'user_saved_location';
   static const _savedAddressesKey = 'user_saved_addresses';
   static const _lastFetchKey = 'last_location_fetch_ms';
+  static const _recentLocationsKey = 'user_recent_locations';
   static const _minRefreshIntervalMs = 5 * 60 * 1000;
+
+  /// Most-recent-first cap for the recent-locations strip.
+  static const int maxRecentLocations = 5;
+
+  /// Coordinates closer than this (degrees, ~11 m) are treated as the same
+  /// place so re-picking one spot does not flood the list.
+  static const double _dedupeEpsilon = 0.0001;
+
   @override
   LocationState build() => LocationState.initial();
 
@@ -81,6 +90,63 @@ class LocationController extends Notifier<LocationState> {
       state = LocationState.success(saved);
     }
   }
+
+  // ── Recent locations ────────────────────────────────────────────────────
+
+  /// Recently used locations, most recent first (deduped, capped).
+  Future<List<UserLocation>> loadRecentLocations() async {
+    final raw = await _storage().read(key: _recentLocationsKey);
+    if (raw == null) return const [];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(UserLocation.fromJson)
+          .where((location) => location.hasValidCoordinates)
+          .toList();
+    } catch (_) {
+      // Corrupt payload — treat as empty rather than crashing the UI.
+      return const [];
+    }
+  }
+
+  /// Records [location] as the most recent one, then persists the list.
+  Future<List<UserLocation>> recordRecentLocation(UserLocation location) async {
+    if (!location.hasValidCoordinates) return loadRecentLocations();
+
+    final existing = await loadRecentLocations();
+    final deduped = <UserLocation>[
+      location,
+      for (final previous in existing)
+        if (!_isSamePlace(previous, location)) previous,
+    ];
+    final capped = deduped.take(maxRecentLocations).toList();
+
+    try {
+      await _storage().write(
+        key: _recentLocationsKey,
+        value: jsonEncode(capped.map((l) => l.toJson()).toList()),
+      );
+    } catch (_) {
+      // Recent locations are a convenience; never fail the selection flow.
+    }
+    return capped;
+  }
+
+  /// Wipes the recent-locations history (e.g. from Settings → clear history).
+  Future<void> clearRecentLocations() async {
+    try {
+      await _storage().delete(key: _recentLocationsKey);
+    } catch (_) {
+      // Best effort — the strip is non-critical.
+    }
+  }
+
+  static bool _isSamePlace(UserLocation a, UserLocation b) =>
+      (a.latitude - b.latitude).abs() < _dedupeEpsilon &&
+      (a.longitude - b.longitude).abs() < _dedupeEpsilon;
+
+  SecureStorageService _storage() => ref.read(secureStorageProvider);
 
   Future<void> fetchCurrentLocation({bool force = false}) async {
     SafeLogger.debug('Location fetch requested; force=$force');
@@ -125,6 +191,7 @@ class LocationController extends Notifier<LocationState> {
       await _saveLocation(location);
       await _markFetched();
       state = LocationState.success(location);
+      await recordRecentLocation(location);
     } on LocationException catch (e) {
       switch (e.type) {
         case LocationErrorType.permissionPermanentlyDenied:
@@ -155,6 +222,7 @@ class LocationController extends Notifier<LocationState> {
     await _saveLocation(selected);
     await _markFetched();
     state = LocationState.success(selected);
+    await recordRecentLocation(selected);
   }
 
   Future<List<SavedAddress>> loadSavedAddresses() async {
@@ -204,6 +272,7 @@ class LocationController extends Notifier<LocationState> {
     final selected = address.select();
     await _saveLocation(selected.location);
     state = LocationState.success(selected.location);
+    await recordRecentLocation(selected.location);
   }
 
   Future<bool> _isRecentlyFetched() async {

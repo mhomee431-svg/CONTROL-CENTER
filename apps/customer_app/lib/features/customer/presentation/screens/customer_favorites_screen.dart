@@ -29,8 +29,7 @@ class _CustomerFavoritesScreenState
 
   @override
   Widget build(BuildContext context) {
-    final favoritesAsync =
-        ref.watch(customerFavoritesProvider(_selectedType));
+    final favoritesAsync = ref.watch(customerFavoritesProvider(_selectedType));
 
     return Scaffold(
       appBar: AppBar(
@@ -89,6 +88,7 @@ class _CustomerFavoritesScreenState
       ),
     );
   }
+
   Widget _buildTypeFilter() {
     final types = ['PRODUCT', 'SHOP', 'BRAND', 'CATEGORY', 'SHOP_PRODUCT'];
     final labels = {
@@ -100,7 +100,10 @@ class _CustomerFavoritesScreenState
     };
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 8,
+      ),
       child: Row(
         children: [
           ChoiceChip(
@@ -122,16 +125,14 @@ class _CustomerFavoritesScreenState
   }
 
   Future<void> _remove(CustomerFavorite fav) async {
-    final nowFavorited =
-        await ref.read(customerFavoriteToggleControllerProvider.notifier).toggle(
-              fav.itemType,
-              fav.itemId,
-            );
+    final nowFavorited = await ref
+        .read(customerFavoriteToggleControllerProvider.notifier)
+        .toggle(fav.itemType, fav.itemId);
     if (!mounted) return;
     if (!nowFavorited) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Removed from favourites')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Removed from favourites')));
     } else {
       ref.invalidate(customerFavoritesProvider);
     }
@@ -159,10 +160,7 @@ class _FavoriteCard extends StatelessWidget {
           width: 52,
           height: 52,
           child: item?.imageUrl != null
-              ? NetworkImageView(
-                  imageUrl: item!.imageUrl!,
-                  borderRadius: 8,
-                )
+              ? NetworkImageView(imageUrl: item!.imageUrl!, borderRadius: 8)
               : Container(
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.1),
@@ -194,11 +192,11 @@ class _FavoriteCard extends StatelessWidget {
   }
 
   String _typeLabel(String type) => switch (type) {
-        'PRODUCT' => 'Product',
-        'SHOP' => 'Shop',
-        'BRAND' => 'Brand',
-        'CATEGORY' => 'Category',
-        'SHOP_PRODUCT' => 'Shop listing',
-        _ => type,
-      };
+    'PRODUCT' => 'Product',
+    'SHOP' => 'Shop',
+    'BRAND' => 'Brand',
+    'CATEGORY' => 'Category',
+    'SHOP_PRODUCT' => 'Shop listing',
+    _ => type,
+  };
 }

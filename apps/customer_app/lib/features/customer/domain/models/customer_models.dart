@@ -49,11 +49,11 @@ class FavouriteItem {
   });
 
   factory FavouriteItem.fromJson(Map<String, dynamic> json) => FavouriteItem(
-        id: json['id'] as int? ?? 0,
-        name: json['name'] as String? ?? '',
-        slug: json['slug'] as String?,
-        imageUrl: json['image_url'] as String?,
-      );
+    id: json['id'] as int? ?? 0,
+    name: json['name'] as String? ?? '',
+    slug: json['slug'] as String?,
+    imageUrl: json['image_url'] as String?,
+  );
 }
 
 /// A product the customer recently viewed.
@@ -79,15 +79,15 @@ class RecentProduct {
   });
 
   factory RecentProduct.fromJson(Map<String, dynamic> json) => RecentProduct(
-        productMasterId: json['product_master_id'] as int? ?? 0,
-        name: json['name'] as String? ?? '',
-        slug: json['slug'] as String?,
-        imageUrl: json['image_url'] as String?,
-        variantId: json['variant_id'] as int?,
-        shopProductId: json['shop_product_id'] as int?,
-        viewCount: json['view_count'] as int?,
-        lastViewedAt: json['last_viewed_at'] as String?,
-      );
+    productMasterId: json['product_master_id'] as int? ?? 0,
+    name: json['name'] as String? ?? '',
+    slug: json['slug'] as String?,
+    imageUrl: json['image_url'] as String?,
+    variantId: json['variant_id'] as int?,
+    shopProductId: json['shop_product_id'] as int?,
+    viewCount: json['view_count'] as int?,
+    lastViewedAt: json['last_viewed_at'] as String?,
+  );
 }
 
 /// Share payload for a product (live price range + shop count).
@@ -134,7 +134,7 @@ class PriceRange {
   const PriceRange({required this.min, required this.max});
 
   factory PriceRange.fromJson(Map<String, dynamic> json) => PriceRange(
-        min: (json['min'] as num?)?.toDouble() ?? 0,
-        max: (json['max'] as num?)?.toDouble() ?? 0,
-      );
+    min: (json['min'] as num?)?.toDouble() ?? 0,
+    max: (json['max'] as num?)?.toDouble() ?? 0,
+  );
 }

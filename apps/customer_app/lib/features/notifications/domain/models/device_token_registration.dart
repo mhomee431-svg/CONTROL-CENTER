@@ -25,9 +25,9 @@ class DeviceTokenRegistration {
   });
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'device_type': deviceType,
-        if (platform != null) 'platform': platform,
-        if (appVersion != null) 'app_version': appVersion,
-      };
+    'token': token,
+    'device_type': deviceType,
+    if (platform != null) 'platform': platform,
+    if (appVersion != null) 'app_version': appVersion,
+  };
 }

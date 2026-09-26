@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_theme.dart';
 
 /// Reusable search state views for loading / empty / error.
@@ -17,10 +18,7 @@ class SearchLoadingView extends StatelessWidget {
           const CircularProgressIndicator.adaptive(),
           if (message != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(
-              message!,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
+            Text(message!, style: const TextStyle(color: AppColors.textMuted)),
           ],
         ],
       ),

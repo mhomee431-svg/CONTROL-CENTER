@@ -1,5 +1,8 @@
 /// Lifecycle state of a customer account.
-enum AccountStatus { active, pendingVerification, suspended;
+enum AccountStatus {
+  active,
+  pendingVerification,
+  suspended;
 
   static AccountStatus fromApi(String? raw) {
     switch (raw) {

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/local_storage_driver.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
@@ -64,7 +65,9 @@ abstract class SavedAndHistoryRepository {
 final savedAndHistoryRepositoryProvider = Provider<SavedAndHistoryRepository>((
   ref,
 ) {
-  final local = LocalSavedAndHistoryRepository(ref.watch(localStorageDriverProvider));
+  final local = LocalSavedAndHistoryRepository(
+    ref.watch(localStorageDriverProvider),
+  );
   final authStatus = ref.watch(authControllerProvider).status;
 
   // Logged-in users get the backend-synced repository; guests and signed-out

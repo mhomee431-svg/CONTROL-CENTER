@@ -47,13 +47,43 @@ def tokenize(text: str | None) -> list[str]:
     return [t for t in tokens if t not in STOP_WORDS and len(t) >= 2]
 
 
+def build_discovery_text(
+    product_name: str | None,
+    *,
+    brand: str | None = None,
+    category: str | None = None,
+    subcategory: str | None = None,
+    variant: str | None = None,
+    sku: str | None = None,
+    identifiers: list[str | None] | tuple[str | None, ...] | None = None,
+) -> str:
+    """Build the canonical product-discovery document.
+
+    Normal matching understands how customers name products: product name,
+    brand, category/subcategory, variant, SKU, and active identifiers such as
+    EAN/UPC. Description, material, and detailed specifications are excluded so
+    ordinary product-name search never depends on attribute-level metadata.
+    """
+    parts: list[str | None] = [
+        product_name,
+        brand,
+        category,
+        subcategory,
+        variant,
+        sku,
+    ]
+    parts.extend(identifiers or ())
+    return " ".join(
+        normalized
+        for normalized in (normalize_text(part) for part in parts if part)
+        if normalized
+    )
+
+
 def build_search_text(product_name: str | None, brand: str | None = None, category: str | None = None,
                       variant: str | None = None, subcategory: str | None = None, sku: str | None = None,
                       barcode: str | None = None, description: str | None = None) -> str:
-    """
-    Build a single denormalized search_text string from all searchable fields.
-    Each field contributes normalized text separated by spaces.
-    """
+    """Build the legacy all-field projection kept for compatibility."""
     parts = [
         product_name,
         brand,

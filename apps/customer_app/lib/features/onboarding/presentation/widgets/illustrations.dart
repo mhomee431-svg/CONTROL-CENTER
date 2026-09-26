@@ -170,10 +170,7 @@ class RegistrationIllustration extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             hint,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
           ),
         ],
       ),
@@ -313,12 +310,16 @@ class ListScreenIllustration extends StatelessWidget {
               children: [
                 Icon(heroIcon, color: accent, size: 22),
                 const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                 ),
               ],
@@ -389,5 +390,3 @@ class ListScreenIllustration extends StatelessWidget {
     );
   }
 }
-
-

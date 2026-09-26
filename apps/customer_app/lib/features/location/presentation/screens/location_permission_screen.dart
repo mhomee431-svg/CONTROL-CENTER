@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../controllers/location_controller.dart';
 import '../../domain/location_repository.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -16,12 +17,14 @@ class LocationPermissionScreen extends ConsumerWidget {
       if (next.status == LocationStatus.success) {
         context.go('/'); // Navigate to Home on success
       } else if (next.status == LocationStatus.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage ?? 'Error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.errorMessage ?? 'Error')));
       } else if (next.status == LocationStatus.permissionDenied) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage ?? 'Location permission denied')),
+          SnackBar(
+            content: Text(next.errorMessage ?? 'Location permission denied'),
+          ),
         );
       } else if (next.status == LocationStatus.permissionPermanentlyDenied) {
         _showPermanentlyDeniedDialog(context, ref);
@@ -57,8 +60,8 @@ class LocationPermissionScreen extends ConsumerWidget {
                   onPressed: locationState.status == LocationStatus.loading
                       ? null
                       : () => ref
-                          .read(locationControllerProvider.notifier)
-                          .fetchCurrentLocation(),
+                            .read(locationControllerProvider.notifier)
+                            .fetchCurrentLocation(),
                   child: locationState.status == LocationStatus.loading
                       ? const CircularProgressIndicator.adaptive()
                       : const Text('Allow Location Access'),

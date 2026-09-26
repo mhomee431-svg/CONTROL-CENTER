@@ -19,7 +19,8 @@ void main() {
           onRetry: onRetry ?? () {},
           onSuccess: (context, items) => ListView.builder(
             itemCount: items.length,
-            itemBuilder: (context, index) => ListTile(title: Text(items[index])),
+            itemBuilder: (context, index) =>
+                ListTile(title: Text(items[index])),
           ),
         ),
       ),
@@ -27,7 +28,9 @@ void main() {
   }
 
   testWidgets('shows loading spinner when isLoading is true', (tester) async {
-    await tester.pumpWidget(buildTestWidget(isLoading: true, error: null, data: null));
+    await tester.pumpWidget(
+      buildTestWidget(isLoading: true, error: null, data: null),
+    );
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('Loading details...'), findsOneWidget);
   });
@@ -49,16 +52,25 @@ void main() {
   });
 
   testWidgets('shows empty state when data is empty', (tester) async {
-    await tester.pumpWidget(buildTestWidget(isLoading: false, error: null, data: []));
+    await tester.pumpWidget(
+      buildTestWidget(isLoading: false, error: null, data: []),
+    );
 
     expect(find.text('No Items Found'), findsOneWidget);
-    expect(find.text('There are no items available right now.'), findsOneWidget);
+    expect(
+      find.text('There are no items available right now.'),
+      findsOneWidget,
+    );
     expect(find.text('Refresh'), findsOneWidget);
   });
 
   testWidgets('shows success content when data is present', (tester) async {
     await tester.pumpWidget(
-      buildTestWidget(isLoading: false, error: null, data: const ['Item 1', 'Item 2']),
+      buildTestWidget(
+        isLoading: false,
+        error: null,
+        data: const ['Item 1', 'Item 2'],
+      ),
     );
 
     expect(find.text('Item 1'), findsOneWidget);
@@ -72,7 +84,8 @@ void main() {
         isLoading: false,
         error: const ApiException(
           type: ApiErrorType.serverError,
-          message: 'Server error encountered (500). Our team has been notified.',
+          message:
+              'Server error encountered (500). Our team has been notified.',
         ),
         data: null,
         onRetry: () => retryCount++,

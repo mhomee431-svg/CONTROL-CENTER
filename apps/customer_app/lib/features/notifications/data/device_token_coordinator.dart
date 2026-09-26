@@ -34,8 +34,9 @@ class DeviceTokenCoordinator {
     try {
       final storage = _ref.read(secureStorageProvider);
       final pushService = _ref.read(pushNotificationServiceProvider);
-      final NotificationRepository repository =
-          _ref.read(notificationsRepositoryProvider);
+      final NotificationRepository repository = _ref.read(
+        notificationsRepositoryProvider,
+      );
 
       if (!pushEnabled) {
         await _unregisterExisting(storage, repository);
@@ -67,8 +68,9 @@ class DeviceTokenCoordinator {
   Future<void> handleLogout() async {
     try {
       final storage = _ref.read(secureStorageProvider);
-      final NotificationRepository repository =
-          _ref.read(notificationsRepositoryProvider);
+      final NotificationRepository repository = _ref.read(
+        notificationsRepositoryProvider,
+      );
       await _unregisterExisting(storage, repository);
     } catch (_) {
       // Best effort.
@@ -105,4 +107,3 @@ class DeviceTokenCoordinator {
 final deviceTokenCoordinatorProvider = Provider<DeviceTokenCoordinator>(
   (ref) => DeviceTokenCoordinator(ref),
 );
-

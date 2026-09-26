@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../features/home/domain/models/home_data.dart';
 import '../theme/app_theme.dart';
 import 'network_image_view.dart';

@@ -13,6 +13,7 @@ class SearchSort(str, Enum):
     RATING = "rating"
     AVAILABILITY = "availability"
     FRESHNESS = "freshness"
+    OFFERS = "offers"
 
 
 # ── Weight config ──────────────────────────────────────────────────────────
@@ -107,23 +108,45 @@ def text_match_score(query_tokens: list[str], search_text: str) -> float:
     return ratio
 
 
-def default_sort_key(mode: SearchSort):
+def default_sort_key(mode: SearchSort | str):
     """Return a key-function factory for sorting search results by mode."""
+    if isinstance(mode, str) and not isinstance(mode, SearchSort):
+        try:
+            mode = SearchSort(mode)
+        except ValueError:
+            mode = SearchSort.RELEVANCE
+
     def key(item: dict):
         if mode == SearchSort.DISTANCE:
-            return ("distance", item.get("distance_km") if item.get("distance_km") is not None else float("inf"))
+            d = item.get("distance_km")
+            return ("distance", d if d is not None else float("inf"))
         if mode == SearchSort.PRICE_ASC:
-            return ("price", item.get("price") if item.get("price") is not None else float("inf"))
+            p = item.get("price")
+            return ("price", p if p is not None else float("inf"))
         if mode == SearchSort.PRICE_DESC:
-            return ("price", -(item.get("price") if item.get("price") is not None else float("inf")))
+            p = item.get("price")
+            return ("price", -p if p is not None else float("inf"))
         if mode == SearchSort.RATING:
-            return ("rating", -item.get("shop_rating", 0.0))
+            r = item.get("shop_rating")
+            return ("rating", -(r if r is not None else 0.0))
         if mode == SearchSort.AVAILABILITY:
-            return ("avail", not item.get("is_available", False))
+            return ("avail", not bool(item.get("is_available", False)))
         if mode == SearchSort.FRESHNESS:
             # Ascending sort puts False first — map fresh→False, stale→True
             # so recently-updated inventory ranks before stale.
             return ("fresh", (item.get("freshness_status") or "") == "STALE")
+        if mode == SearchSort.OFFERS:
+            has_offer = bool(
+                item.get("offer_text")
+                or (
+                    item.get("mrp") is not None
+                    and item.get("price") is not None
+                    and item["mrp"] > item["price"]
+                )
+            )
+            rel = item.get("relevance_score")
+            return ("offer", 0 if has_offer else 1, -(rel if rel is not None else 0.0))
         # RELEVANCE
-        return ("rel", -item.get("relevance_score", 0.0))
+        rel = item.get("relevance_score")
+        return ("rel", -(rel if rel is not None else 0.0))
     return key

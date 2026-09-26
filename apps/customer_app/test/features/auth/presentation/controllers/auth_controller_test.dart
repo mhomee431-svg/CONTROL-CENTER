@@ -92,7 +92,10 @@ void main() {
 
     final restored = await controller.checkAuthStatus();
     expect(restored, isTrue);
-    expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
+    expect(
+      container.read(authControllerProvider).status,
+      AuthStatus.authenticated,
+    );
   });
 
   test('checkAuthStatus: expired session -> guest (no login wall)', () async {
@@ -141,14 +144,16 @@ void main() {
       name: 'Test',
       role: 'customer',
     );
-    when(mockRepo.verifyOtp(
-      phoneNumber: '9999999999',
-      otpCode: '123456',
-      deviceId: anyNamed('deviceId'),
-      deviceName: anyNamed('deviceName'),
-      deviceType: anyNamed('deviceType'),
-      appVersion: anyNamed('appVersion'),
-    )).thenAnswer((_) async => result);
+    when(
+      mockRepo.verifyOtp(
+        phoneNumber: '9999999999',
+        otpCode: '123456',
+        deviceId: anyNamed('deviceId'),
+        deviceName: anyNamed('deviceName'),
+        deviceType: anyNamed('deviceType'),
+        appVersion: anyNamed('appVersion'),
+      ),
+    ).thenAnswer((_) async => result);
 
     final ok = await controller.verifyOtp(
       phoneNumber: '9999999999',
@@ -157,21 +162,26 @@ void main() {
     );
 
     expect(ok, isTrue);
-    expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
+    expect(
+      container.read(authControllerProvider).status,
+      AuthStatus.authenticated,
+    );
     verify(mockStorage.saveToken('access')).called(1);
     verify(mockStorage.saveRefreshToken('refresh')).called(1);
     verify(mockStorage.saveSessionId('sid')).called(1);
   });
 
   test('verifyOtp: invalid OTP -> error with message', () async {
-    when(mockRepo.verifyOtp(
-      phoneNumber: '9999999999',
-      otpCode: '000000',
-      deviceId: anyNamed('deviceId'),
-      deviceName: anyNamed('deviceName'),
-      deviceType: anyNamed('deviceType'),
-      appVersion: anyNamed('appVersion'),
-    )).thenThrow(const InvalidOtpFailure());
+    when(
+      mockRepo.verifyOtp(
+        phoneNumber: '9999999999',
+        otpCode: '000000',
+        deviceId: anyNamed('deviceId'),
+        deviceName: anyNamed('deviceName'),
+        deviceType: anyNamed('deviceType'),
+        appVersion: anyNamed('appVersion'),
+      ),
+    ).thenThrow(const InvalidOtpFailure());
 
     final ok = await controller.verifyOtp(
       phoneNumber: '9999999999',
@@ -186,14 +196,16 @@ void main() {
   });
 
   test('verifyOtp: expired OTP -> error with message', () async {
-    when(mockRepo.verifyOtp(
-      phoneNumber: '9999999999',
-      otpCode: '111111',
-      deviceId: anyNamed('deviceId'),
-      deviceName: anyNamed('deviceName'),
-      deviceType: anyNamed('deviceType'),
-      appVersion: anyNamed('appVersion'),
-    )).thenThrow(const ExpiredOtpFailure());
+    when(
+      mockRepo.verifyOtp(
+        phoneNumber: '9999999999',
+        otpCode: '111111',
+        deviceId: anyNamed('deviceId'),
+        deviceName: anyNamed('deviceName'),
+        deviceType: anyNamed('deviceType'),
+        appVersion: anyNamed('appVersion'),
+      ),
+    ).thenThrow(const ExpiredOtpFailure());
 
     final ok = await controller.verifyOtp(
       phoneNumber: '9999999999',
@@ -208,14 +220,16 @@ void main() {
   });
 
   test('verifyOtp: too many attempts -> error', () async {
-    when(mockRepo.verifyOtp(
-      phoneNumber: '9999999999',
-      otpCode: '222222',
-      deviceId: anyNamed('deviceId'),
-      deviceName: anyNamed('deviceName'),
-      deviceType: anyNamed('deviceType'),
-      appVersion: anyNamed('appVersion'),
-    )).thenThrow(const TooManyAttemptsFailure());
+    when(
+      mockRepo.verifyOtp(
+        phoneNumber: '9999999999',
+        otpCode: '222222',
+        deviceId: anyNamed('deviceId'),
+        deviceName: anyNamed('deviceName'),
+        deviceType: anyNamed('deviceType'),
+        appVersion: anyNamed('appVersion'),
+      ),
+    ).thenThrow(const TooManyAttemptsFailure());
 
     final ok = await controller.verifyOtp(
       phoneNumber: '9999999999',
@@ -228,15 +242,17 @@ void main() {
   });
 
   test('verifyOtp: new user -> register flow used', () async {
-    when(mockRepo.register(
-      phoneNumber: '9999999999',
-      otpCode: '444444',
-      name: anyNamed('name'),
-      deviceId: anyNamed('deviceId'),
-      deviceName: anyNamed('deviceName'),
-      deviceType: anyNamed('deviceType'),
-      appVersion: anyNamed('appVersion'),
-    )).thenAnswer(
+    when(
+      mockRepo.register(
+        phoneNumber: '9999999999',
+        otpCode: '444444',
+        name: anyNamed('name'),
+        deviceId: anyNamed('deviceId'),
+        deviceName: anyNamed('deviceName'),
+        deviceType: anyNamed('deviceType'),
+        appVersion: anyNamed('appVersion'),
+      ),
+    ).thenAnswer(
       (_) async => const AuthResult(
         accessToken: 'at',
         refreshToken: 'rt',
@@ -256,29 +272,35 @@ void main() {
     );
 
     expect(ok, isTrue);
-    expect(container.read(authControllerProvider).status, AuthStatus.authenticated);
-    verify(mockRepo.register(
-      phoneNumber: '9999999999',
-      otpCode: '444444',
-      name: anyNamed('name'),
-      deviceId: anyNamed('deviceId'),
-      deviceName: anyNamed('deviceName'),
-      deviceType: anyNamed('deviceType'),
-      appVersion: anyNamed('appVersion'),
-    )).called(1);
+    expect(
+      container.read(authControllerProvider).status,
+      AuthStatus.authenticated,
+    );
+    verify(
+      mockRepo.register(
+        phoneNumber: '9999999999',
+        otpCode: '444444',
+        name: anyNamed('name'),
+        deviceId: anyNamed('deviceId'),
+        deviceName: anyNamed('deviceName'),
+        deviceType: anyNamed('deviceType'),
+        appVersion: anyNamed('appVersion'),
+      ),
+    ).called(1);
   });
 
   test('logout: clears session -> unauthenticated', () async {
     when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'rt');
     when(mockStorage.getSessionId()).thenAnswer((_) async => 'sid');
-    when(mockRepo.logout(
-      refreshToken: 'rt',
-      sessionId: 'sid',
-    )).thenAnswer((_) async => {});
+    when(mockRepo.logout(refreshToken: 'rt', sessionId: 'sid'))
+        .thenAnswer((_) async => {});
 
     await controller.logout();
 
-    expect(container.read(authControllerProvider).status, AuthStatus.unauthenticated);
+    expect(
+      container.read(authControllerProvider).status,
+      AuthStatus.unauthenticated,
+    );
     verify(mockStorage.clearAll()).called(1);
   });
 
@@ -286,5 +308,205 @@ void main() {
     await controller.continueAsGuest();
     expect(container.read(authControllerProvider).status, AuthStatus.guest);
     verify(mockStorage.setGuestMode(true)).called(1);
+  });
+
+  group('signInWithGoogle', () {
+    test('success -> authenticated and session persisted', () async {
+      when(
+        mockRepo.signInWithGoogle(
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenAnswer(
+        (_) async => const AuthResult(
+          accessToken: 'google-at',
+          refreshToken: 'google-rt',
+          sessionId: 'google-sid',
+          userId: 5,
+          name: 'Google User',
+          role: 'customer',
+        ),
+      );
+
+      final ok = await controller.signInWithGoogle();
+
+      expect(ok, isTrue);
+      expect(
+        container.read(authControllerProvider).status,
+        AuthStatus.authenticated,
+      );
+      verify(mockStorage.saveToken('google-at')).called(1);
+      verify(mockStorage.setGuestMode(false)).called(1);
+    });
+
+    test('cancelled -> guest, no error message', () async {
+      when(
+        mockRepo.signInWithGoogle(
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenThrow(const GoogleSignInCancelledFailure());
+
+      final ok = await controller.signInWithGoogle();
+
+      expect(ok, isFalse);
+      final state = container.read(authControllerProvider);
+      expect(state.status, AuthStatus.guest);
+      expect(state.errorMessage, isNull);
+    });
+
+    test('backend rejection -> error state with message', () async {
+      when(
+        mockRepo.signInWithGoogle(
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenThrow(const ServerFailure('Google account link conflict'));
+
+      final ok = await controller.signInWithGoogle();
+
+      expect(ok, isFalse);
+      final state = container.read(authControllerProvider);
+      expect(state.status, AuthStatus.error);
+      expect(state.errorMessage, contains('link conflict'));
+    });
+  });
+
+  group('error classification (UI recovery affordances)', () {
+    Future<void> stubVerifyFailure(Object failure, String otp) async {
+      when(
+        mockRepo.verifyOtp(
+          phoneNumber: '9999999999',
+          otpCode: otp,
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenThrow(failure);
+      await controller.verifyOtp(
+        phoneNumber: '9999999999',
+        otpCode: otp,
+        isNewUser: false,
+      );
+    }
+
+    test('invalid OTP -> AuthErrorKind.invalidOtp', () async {
+      await stubVerifyFailure(const InvalidOtpFailure(), '000000');
+      expect(
+        container.read(authControllerProvider).errorKind,
+        AuthErrorKind.invalidOtp,
+      );
+    });
+
+    test('expired OTP -> AuthErrorKind.expiredOtp', () async {
+      await stubVerifyFailure(const ExpiredOtpFailure(), '111111');
+      expect(
+        container.read(authControllerProvider).errorKind,
+        AuthErrorKind.expiredOtp,
+      );
+    });
+
+    test('too many attempts -> AuthErrorKind.rateLimited', () async {
+      await stubVerifyFailure(const TooManyAttemptsFailure(), '222222');
+      expect(
+        container.read(authControllerProvider).errorKind,
+        AuthErrorKind.rateLimited,
+      );
+    });
+
+    test('network failure -> AuthErrorKind.network', () async {
+      await stubVerifyFailure(const NetworkFailure(), '333333');
+      expect(
+        container.read(authControllerProvider).errorKind,
+        AuthErrorKind.network,
+      );
+    });
+
+    test('unclassified failure -> AuthErrorKind.unknown', () async {
+      await stubVerifyFailure(const ServerFailure('boom'), '444444');
+      expect(
+        container.read(authControllerProvider).errorKind,
+        AuthErrorKind.unknown,
+      );
+    });
+
+    test('resend rate limit -> AuthErrorKind.rateLimited', () async {
+      when(mockRepo.sendOtp('9999999999'))
+          .thenThrow(const OtpRateLimitFailure());
+      final ok = await controller.sendOtp('9999999999');
+      expect(ok, isFalse);
+      final state = container.read(authControllerProvider);
+      expect(state.status, AuthStatus.error);
+      expect(state.errorKind, AuthErrorKind.rateLimited);
+    });
+  });
+
+  group('cancelOtpVerification (cancelled flow)', () {
+    test('clears the pending otpSent state back to guest', () async {
+      when(mockRepo.sendOtp('9999999999')).thenAnswer((_) async => {});
+      await controller.sendOtp('9999999999');
+      expect(container.read(authControllerProvider).status, AuthStatus.otpSent);
+
+      await controller.cancelOtpVerification();
+
+      expect(container.read(authControllerProvider).status, AuthStatus.guest);
+    });
+
+    test(
+      'also clears an error state left behind by a failed attempt',
+      () async {
+        when(mockRepo.sendOtp('9999999999')).thenThrow(const NetworkFailure());
+        await controller.sendOtp('9999999999');
+        expect(container.read(authControllerProvider).status, AuthStatus.error);
+
+        await controller.cancelOtpVerification();
+
+        final state = container.read(authControllerProvider);
+        expect(state.status, AuthStatus.guest);
+        expect(state.errorMessage, isNull);
+      },
+    );
+
+    test('never downgrades an authenticated session', () async {
+      when(
+        mockRepo.verifyOtp(
+          phoneNumber: '9999999999',
+          otpCode: '123456',
+          deviceId: anyNamed('deviceId'),
+          deviceName: anyNamed('deviceName'),
+          deviceType: anyNamed('deviceType'),
+          appVersion: anyNamed('appVersion'),
+        ),
+      ).thenAnswer(
+        (_) async => const AuthResult(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          sessionId: 'sid',
+        ),
+      );
+      await controller.verifyOtp(
+        phoneNumber: '9999999999',
+        otpCode: '123456',
+        isNewUser: false,
+      );
+      expect(
+        container.read(authControllerProvider).status,
+        AuthStatus.authenticated,
+      );
+
+      await controller.cancelOtpVerification();
+
+      expect(
+        container.read(authControllerProvider).status,
+        AuthStatus.authenticated,
+      );
+    });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/search_models.dart';
@@ -29,7 +30,10 @@ class ShopProductCard extends StatelessWidget {
     final outOfStock = result.isOutOfStock;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
       elevation: 0,
       color: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
@@ -86,7 +90,9 @@ class ShopProductCard extends StatelessWidget {
                         left: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(4),
@@ -108,7 +114,9 @@ class ShopProductCard extends StatelessWidget {
                         left: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.secondary,
                             borderRadius: BorderRadius.circular(4),
@@ -155,7 +163,11 @@ class ShopProductCard extends StatelessWidget {
                       onTap: onShopTap,
                       child: Row(
                         children: [
-                          const Icon(Icons.storefront, size: 14, color: AppColors.textMuted),
+                          const Icon(
+                            Icons.storefront,
+                            size: 14,
+                            color: AppColors.textMuted,
+                          ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -168,6 +180,10 @@ class ShopProductCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (result.isOpenNow != null) ...[
+                            const SizedBox(width: 6),
+                            _OpenClosedBadge(result: result),
+                          ],
                         ],
                       ),
                     ),
@@ -213,18 +229,28 @@ class ShopProductCard extends StatelessWidget {
                     // Trust signals row: distance, rating, availability
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textMuted),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: AppColors.textMuted,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           '${result.distanceInKm.toStringAsFixed(1)} km',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         const Icon(Icons.star, size: 14, color: Colors.amber),
                         const SizedBox(width: 2),
                         Text(
                           result.shopRating.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         _AvailabilityBadge(result: result),
@@ -233,11 +259,119 @@ class ShopProductCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     // Freshness signal
                     _FreshnessRow(result: result),
+                    const SizedBox(height: AppSpacing.sm),
+                    // Offer copy is shown only when the backend supplied one.
+                    if (result.offerText != null &&
+                        result.offerText!.isNotEmpty) ...[
+                      Text(
+                        result.offerText!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    // Shop is the primary CTA: a result is "this product, at
+                    // this nearby shop". Product is the secondary action.
+                    _CardActions(onShopTap: onShopTap, onProductTap: onTap),
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Primary/secondary actions for a result card.
+///
+/// Each button renders only when its handler is supplied, so a card never
+/// offers an action that does nothing.
+class _CardActions extends StatelessWidget {
+  final VoidCallback? onShopTap;
+  final VoidCallback? onProductTap;
+
+  const _CardActions({this.onShopTap, this.onProductTap});
+
+  @override
+  Widget build(BuildContext context) {
+    if (onShopTap == null && onProductTap == null) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      children: [
+        if (onShopTap != null)
+          Expanded(
+            flex: 2,
+            child: FilledButton(
+              key: const Key('viewShopButton'),
+              onPressed: onShopTap,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 34),
+                padding: EdgeInsets.zero,
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: const Text('View Shop'),
+            ),
+          ),
+        if (onShopTap != null && onProductTap != null)
+          const SizedBox(width: AppSpacing.sm),
+        if (onProductTap != null)
+          Expanded(
+            flex: 1,
+            child: OutlinedButton(
+              key: const Key('viewProductButton'),
+              onPressed: onProductTap,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 34),
+                padding: EdgeInsets.zero,
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+              child: const Text('View Product'),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _OpenClosedBadge extends StatelessWidget {
+  final ShopProductResult result;
+  const _OpenClosedBadge({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    // Only ever rendered when isOpenNow != null (guarded by the caller), so a
+    // missing reading can never be presented as "Open".
+    final open = result.isOpenNow == true;
+    // Open-but-not-accepting is a distinct, honest state: the shop is trading
+    // but can't take orders right now.
+    final label = open
+        ? (result.isAcceptingOrders == false ? 'Open · No orders' : 'Open')
+        : 'Closed';
+    final color = open ? AppColors.secondary : AppColors.error;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );
@@ -251,7 +385,8 @@ class _AvailabilityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Never present stale/unknown inventory as guaranteed real-time stock.
-    final stale = result.freshness == FreshnessLevel.stale ||
+    final stale =
+        result.freshness == FreshnessLevel.stale ||
         result.freshness == FreshnessLevel.unknown;
     final outOfStock = result.isOutOfStock;
 
@@ -314,50 +449,42 @@ class _FreshnessRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stale = result.freshness == FreshnessLevel.stale;
-    final text = _formatFreshness(result.lastUpdated);
+    // Rendered from the shared canonical formatter so this card, the product
+    // details sheet and the nearby-shops list can never disagree.
+    final label = formatFreshnessText(
+      result.lastUpdated,
+      backendStatus: result.freshnessStatusRaw,
+    );
+    final warn = isFreshnessWarning(label);
 
     return Row(
       children: [
         Icon(
           Icons.access_time,
           size: 13,
-          color: stale ? AppColors.error : AppColors.textMuted,
+          color: warn ? AppColors.error : AppColors.textMuted,
         ),
         const SizedBox(width: 4),
         Text(
-          text,
+          label,
           style: TextStyle(
             fontSize: 10,
-            color: stale ? AppColors.error : AppColors.textMuted,
-            fontWeight: stale ? FontWeight.bold : FontWeight.normal,
+            color: warn ? AppColors.error : AppColors.textMuted,
+            fontWeight: warn ? FontWeight.bold : FontWeight.normal,
           ),
         ),
-        if (stale) ...[
+        if (warn) ...[
           const SizedBox(width: 4),
-          const Text(
-            '— stock info may be outdated',
-            style: TextStyle(fontSize: 10, color: AppColors.error),
+          const Expanded(
+            child: Text(
+              '— stock info may be outdated',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: AppColors.error),
+            ),
           ),
         ],
       ],
     );
-  }
-
-  String _formatFreshness(DateTime dateTime) {
-    final difference = DateTime.now().difference(dateTime);
-    switch (result.freshness) {
-      case FreshnessLevel.fresh:
-        return 'Fresh · updated just now';
-      case FreshnessLevel.recent:
-        if (difference.inMinutes < 60) return 'Updated ${difference.inMinutes}m ago';
-        if (difference.inHours < 24) return 'Updated ${difference.inHours}h ago';
-        return 'Updated ${difference.inDays}d ago';
-      case FreshnessLevel.stale:
-        if (difference.inHours < 24) return 'Updated ${difference.inHours}h ago';
-        return 'Updated ${difference.inDays}d ago';
-      case FreshnessLevel.unknown:
-        return 'Freshness unknown';
-    }
   }
 }

@@ -9,11 +9,47 @@ import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../saved_and_history/domain/saved_and_history_repository.dart';
 import '../controllers/settings_controller.dart';
 
-class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends ConsumerStatefulWidget {
+  const SettingsScreen({super.key, this.initialSection});
+
+  /// Optional section to scroll to on open, so profile entries such as
+  /// "Notifications" can deep-link to the relevant part of this long page.
+  /// Supported: `notifications`, `privacy`.
+  final String? initialSection;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _notificationsKey = GlobalKey();
+  final _privacyKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSection());
+  }
+
+  void _scrollToSection() {
+    if (!mounted) return;
+    final target = switch (widget.initialSection) {
+      'notifications' => _notificationsKey,
+      'privacy' => _privacyKey,
+      _ => null,
+    };
+    final targetContext = target?.currentContext;
+    if (targetContext == null) return;
+    Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // `ref` is provided by ConsumerState.
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
     final authState = ref.watch(authControllerProvider);
@@ -40,7 +76,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           // ── Notifications ────────────────────────────────────────────
-          const _SectionHeader('Notifications'),
+          _SectionHeader('Notifications', key: _notificationsKey),
           SwitchListTile(
             secondary: Icon(
               Icons.notifications_active,
@@ -92,7 +128,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(indent: AppSpacing.md),
 
           // ── Privacy ─────────────────────────────────────────────────
-          const _SectionHeader('Privacy & data'),
+          _SectionHeader('Privacy & data', key: _privacyKey),
           SwitchListTile(
             secondary: const Icon(Icons.analytics_outlined),
             title: const Text('Usage analytics'),
@@ -148,8 +184,7 @@ class SettingsScreen extends ConsumerWidget {
           if (!isGuest)
             ListTile(
               key: const Key('deleteAccountTile'),
-              leading:
-                  const Icon(Icons.delete_forever, color: AppColors.error),
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
               title: const Text(
                 'Delete account',
                 style: TextStyle(color: AppColors.error),
@@ -160,6 +195,14 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(indent: AppSpacing.md),
 
           // ── About ───────────────────────────────────────────────────
+          ListTile(
+            key: const Key('settingsAppTourTile'),
+            leading: const Icon(Icons.tour_outlined),
+            title: const Text('App tour'),
+            subtitle: const Text('See how Hyperlocal works, step by step'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/onboarding'),
+          ),
           ListTile(
             leading: const Icon(Icons.help_outline),
             title: const Text('Help & Support'),
@@ -231,8 +274,9 @@ class SettingsScreen extends ConsumerWidget {
                         ? Icons.radio_button_checked
                         : Icons.radio_button_off,
                     size: 20,
-                    color:
-                        current == mode ? AppColors.primary : AppColors.textMuted,
+                    color: current == mode
+                        ? AppColors.primary
+                        : AppColors.textMuted,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(switch (mode) {
@@ -297,8 +341,10 @@ class SettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Privacy & Data',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Privacy & Data',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: AppSpacing.sm),
             const Text(
               'Hyperlocal stores your saved addresses, favorites and '
@@ -381,8 +427,9 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (confirmed != true) return;
 
-    final deleted =
-        await ref.read(profileControllerProvider.notifier).deleteAccount();
+    final deleted = await ref
+        .read(profileControllerProvider.notifier)
+        .deleteAccount();
     if (!context.mounted) return;
     if (!deleted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -399,16 +446,22 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 /// Uppercase group label used between setting sections.
+///
+/// Accepts a [key] so callers can anchor a deep-link scroll position to a
+/// specific section.
 class _SectionHeader extends StatelessWidget {
   final String title;
 
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {super.key});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.xs,
       ),
       child: Text(
         title.toUpperCase(),
@@ -433,8 +486,9 @@ class _NotificationPreferencesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(notificationPreferencesControllerProvider);
-    final controller =
-        ref.read(notificationPreferencesControllerProvider.notifier);
+    final controller = ref.read(
+      notificationPreferencesControllerProvider.notifier,
+    );
     final prefs = state.preferences;
 
     if (state.isLoading) {

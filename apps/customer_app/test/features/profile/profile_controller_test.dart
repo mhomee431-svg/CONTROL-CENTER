@@ -23,7 +23,9 @@ ProviderContainer _container(
   return ProviderContainer(
     overrides: [
       profileRepositoryProvider.overrideWithValue(repository),
-      authControllerProvider.overrideWith(() => _StubAuthController(authStatus)),
+      authControllerProvider.overrideWith(
+        () => _StubAuthController(authStatus),
+      ),
     ],
   );
 }
@@ -46,20 +48,22 @@ void main() {
       }
     }
 
-    test('authenticated user gets the mock profile with active account state',
-        () async {
-      final container = _container(repository, AuthStatus.authenticated);
-      addTearDown(container.dispose);
+    test(
+      'authenticated user gets the mock profile with active account state',
+      () async {
+        final container = _container(repository, AuthStatus.authenticated);
+        addTearDown(container.dispose);
 
-      await waitLoaded(container);
+        await waitLoaded(container);
 
-      final profile = container.read(profileControllerProvider).value;
-      expect(profile, isNotNull);
-      expect(profile!.name, 'Rahul Sharma');
-      expect(profile.email, 'rahul.sharma@example.com');
-      expect(profile.phoneNumber, '+91 98765 43210');
-      expect(profile.accountStatus, AccountStatus.active);
-    });
+        final profile = container.read(profileControllerProvider).value;
+        expect(profile, isNotNull);
+        expect(profile!.name, 'Rahul Sharma');
+        expect(profile.email, 'rahul.sharma@example.com');
+        expect(profile.phoneNumber, '+91 98765 43210');
+        expect(profile.accountStatus, AccountStatus.active);
+      },
+    );
 
     test('guests get no server profile (null state)', () async {
       final container = _container(repository, AuthStatus.guest);
@@ -104,8 +108,9 @@ void main() {
       await waitLoaded(container);
       expect(container.read(profileControllerProvider).value, isNotNull);
 
-      final ok =
-          await container.read(profileControllerProvider.notifier).deleteAccount();
+      final ok = await container
+          .read(profileControllerProvider.notifier)
+          .deleteAccount();
 
       expect(ok, isTrue);
       expect(repository.isDeleted, isTrue);

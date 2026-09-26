@@ -23,7 +23,7 @@ from app.models.search import (
     SearchIndexSyncStatus,
 )
 from app.models.shop import Shop
-from app.search.normalizer import build_search_text
+from app.search.normalizer import build_discovery_text, build_search_text
 
 logger = get_logger("app.search.indexer")
 
@@ -89,19 +89,26 @@ def build_shop_product_index(
     elif sp.freshness_status:
         freshness_status = sp.freshness_status.value
 
-    # Barcode (first active one)
-    barcode = None
-    if sp.sku:
-        barcode = sp.sku
-    else:
-        for ident in product.identifiers:
-            if ident.is_active:
-                barcode = ident.identifier_value
-                break
-    for br in product.barcode_relationships:
-        if br.is_active and not barcode:
-            barcode = br.barcode
-            break
+    # Keep every active identifier in the canonical search document. The
+    # singular ``barcode`` remains the preferred scanner target for the fast
+    # dedicated barcode endpoint, while general product search can match any
+    # supported EAN/UPC/other identifier.
+    identifier_values = [
+        ident.identifier_value.strip()
+        for ident in product.identifiers
+        if ident.is_active and ident.identifier_value and ident.identifier_value.strip()
+    ]
+    identifier_values.extend(
+        relationship.barcode.strip()
+        for relationship in product.barcode_relationships
+        if relationship.is_active and relationship.barcode and relationship.barcode.strip()
+    )
+    # Preserve stable order while avoiding duplicate normalized source values.
+    identifier_values = list(dict.fromkeys(identifier_values))
+
+    # Barcode (preferred scanner target: SKU, first active product identifier,
+    # then the first active barcode relationship).
+    barcode = sp.sku or next(iter(identifier_values), None)
 
     # Shop geo
     longitude, latitude = _extract_coords_from_location(shop.location)
@@ -121,6 +128,15 @@ def build_shop_product_index(
         sku=sp.sku,
         barcode=barcode,
         description=product.short_description or product.description,
+    )
+    discovery_text = build_discovery_text(
+        product.name,
+        brand=brand_name,
+        category=category_name,
+        subcategory=subcategory_name,
+        variant=variant_name,
+        sku=sp.sku,
+        identifiers=identifier_values,
     )
 
     last_inventory_update = None
@@ -146,6 +162,7 @@ def build_shop_product_index(
         "subcategory_name": subcategory_name,
         "variant_name": variant_name,
         "search_text": search_text,
+        "discovery_text": discovery_text,
         "search_vector": search_text,
         "barcode": barcode,
         "sku": sp.sku,

@@ -453,7 +453,7 @@ class TestAuthRoutes:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
 
-        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"), \
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value=("test-firebase-uid", "+919999999999")), \
              patch("app.api.routes.auth.issue_tokens") as mock_issue:
 
             mock_issue.return_value = self._issue_mock()
@@ -471,7 +471,7 @@ class TestAuthRoutes:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
 
-        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"):
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value=("test-firebase-uid", "+919999999999")):
             response = run_async(firebase_login(
                 self._firebase_payload(),  # no name
                 request=MagicMock(),
@@ -500,7 +500,7 @@ class TestAuthRoutes:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = None  # user not found
 
-        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"):
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value=("test-firebase-uid", "+919999999999")):
             response = run_async(verify_otp_endpoint(
                 self._firebase_payload(),
                 request=MagicMock(),
@@ -516,7 +516,7 @@ class TestAuthRoutes:
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = mock_user
 
-        with patch("app.api.routes.auth.verify_firebase_id_token", return_value="+919999999999"), \
+        with patch("app.api.routes.auth.verify_firebase_id_token", return_value=("test-firebase-uid", "+919999999999")), \
              patch("app.api.routes.auth.is_account_allowed", return_value=True), \
              patch("app.api.routes.auth.issue_tokens") as mock_issue:
 

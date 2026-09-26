@@ -58,6 +58,26 @@ class CustomerFirebaseAuthRequest(BaseModel):
     app_version: str | None = None
 
 
+class CustomerGoogleAuthRequest(BaseModel):
+    """Firebase Google sign-in payload for the Customer App.
+
+    Profile values are intentionally absent: the backend derives the Firebase
+    UID, provider, email, name, and picture from its server-side token
+    verification rather than trusting client-supplied identity data.
+    """
+
+    firebase_id_token: str = Field(
+        ...,
+        min_length=20,
+        description="Firebase ID token returned after Google Sign-In",
+    )
+    device_id: str | None = Field(None, description="Stable device identifier")
+    device_name: str | None = None
+    device_type: str | None = Field(None, description="android, ios, web")
+    platform: str | None = Field(None, description="OS version / platform info")
+    app_version: str | None = None
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
     device_id: str | None = None
@@ -71,7 +91,7 @@ class LogoutRequest(BaseModel):
 
 class AuthUserInfo(BaseModel):
     id: int
-    phone_number: str
+    phone_number: str | None = None
     name: str | None = None
     role: str | None = None
 

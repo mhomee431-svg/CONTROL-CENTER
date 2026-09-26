@@ -34,67 +34,88 @@ class LocationHeader extends ConsumerWidget {
 
     final bool isLoading = locationState.status == LocationStatus.loading;
 
-    return GestureDetector(
-      onTap: () => context.push('/select-location'),
-      child: Row(
-        children: [
-          // Current-location indicator (spinner while loading)
-          if (isLoading)
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-            )
-          else
-            const Icon(Icons.my_location, color: AppColors.primary, size: 28),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      children: [
+        // Location takes the remaining width; the profile entry is fixed-size.
+        Expanded(
+          child: GestureDetector(
+            onTap: () => context.push('/select-location'),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        headline,
+                // Current-location indicator (spinner while loading)
+                if (isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+                  )
+                else
+                  const Icon(
+                    Icons.my_location,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              headline,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.keyboard_arrow_down, size: 20),
+                        ],
+                      ),
+                      Text(
+                        subtitle,
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          color: AppColors.textMuted,
+                          fontSize: 12,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const Icon(Icons.keyboard_arrow_down, size: 20),
-                  ],
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
+                // Refresh button (only when a location is already set)
+                if (locationState.status == LocationStatus.success)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.refresh,
+                      size: 20,
+                      color: AppColors.textMuted,
+                    ),
+                    tooltip: 'Refresh location',
+                    onPressed: () => ref
+                        .read(locationControllerProvider.notifier)
+                        .refreshLocation(),
+                  ),
               ],
             ),
           ),
-          // Refresh button (only when a location is already set)
-          if (locationState.status == LocationStatus.success)
-            IconButton(
-              icon: const Icon(
-                Icons.refresh,
-                size: 20,
-                color: AppColors.textMuted,
-              ),
-              tooltip: 'Refresh location',
-              onPressed: () => ref
-                  .read(locationControllerProvider.notifier)
-                  .refreshLocation(),
-            ),
-        ],
-      ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        // Header profile entry (the shell also has a Profile tab; this is the
+        // always-reachable shortcut beside the location).
+        IconButton(
+          key: const Key('homeProfileButton'),
+          icon: const Icon(Icons.account_circle_outlined),
+          color: AppColors.textMuted,
+          tooltip: 'Profile',
+          onPressed: () => context.go('/profile'),
+        ),
+      ],
     );
   }
 }

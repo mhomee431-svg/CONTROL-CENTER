@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import '../../../core/storage/local_storage_driver.dart';
 import '../domain/models/storage_models.dart';
 import '../domain/saved_and_history_repository.dart';
@@ -38,8 +39,9 @@ class LocalSavedAndHistoryRepository implements SavedAndHistoryRepository {
   @override
   Future<List<SavedProductItem>> getSavedProducts() async {
     final raw = await _readList(_kSavedProductsKey);
-    final items =
-        raw.map((e) => SavedProductItem.fromJson(jsonDecode(e))).toList();
+    final items = raw
+        .map((e) => SavedProductItem.fromJson(jsonDecode(e)))
+        .toList();
     // Newest saves first.
     items.sort((a, b) => b.savedAt.compareTo(a.savedAt));
     return items;
@@ -72,12 +74,13 @@ class LocalSavedAndHistoryRepository implements SavedAndHistoryRepository {
   @override
   Future<void> clearSavedProducts() => _storage.remove(_kSavedProductsKey);
 
-
   // --- SAVED SHOPS ---
   @override
   Future<List<SavedShopItem>> getSavedShops() async {
     final raw = await _readList(_kSavedShopsKey);
-    final items = raw.map((e) => SavedShopItem.fromJson(jsonDecode(e))).toList();
+    final items = raw
+        .map((e) => SavedShopItem.fromJson(jsonDecode(e)))
+        .toList();
     items.sort((a, b) => b.savedAt.compareTo(a.savedAt));
     return items;
   }
@@ -108,13 +111,13 @@ class LocalSavedAndHistoryRepository implements SavedAndHistoryRepository {
   @override
   Future<void> clearSavedShops() => _storage.remove(_kSavedShopsKey);
 
-
   // --- RECENT SEARCHES ---
   @override
   Future<List<RecentSearchItem>> getRecentSearches() async {
     final raw = await _readList(_kRecentSearchesKey);
-    final items =
-        raw.map((e) => RecentSearchItem.fromJson(jsonDecode(e))).toList();
+    final items = raw
+        .map((e) => RecentSearchItem.fromJson(jsonDecode(e)))
+        .toList();
     items.sort((a, b) => b.searchedAt.compareTo(a.searchedAt));
     return items;
   }
@@ -149,13 +152,13 @@ class LocalSavedAndHistoryRepository implements SavedAndHistoryRepository {
   @override
   Future<void> clearRecentSearches() => _storage.remove(_kRecentSearchesKey);
 
-
   // --- RECENTLY VIEWED PRODUCTS ---
   @override
   Future<List<RecentlyViewedItem>> getRecentlyViewed() async {
     final raw = await _readList(_kRecentlyViewedKey);
-    final items =
-        raw.map((e) => RecentlyViewedItem.fromJson(jsonDecode(e))).toList();
+    final items = raw
+        .map((e) => RecentlyViewedItem.fromJson(jsonDecode(e)))
+        .toList();
     items.sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
     return items;
   }

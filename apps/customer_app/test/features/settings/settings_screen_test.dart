@@ -35,13 +35,15 @@ Future<void> _pumpSettings(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  final container = ProviderContainer(overrides: [
-    localStorageDriverProvider.overrideWithValue(driver),
-    authControllerProvider.overrideWith(() => auth),
-    notificationsRepositoryProvider.overrideWithValue(
-      MockNotificationRepository(),
-    ),
-  ]);
+  final container = ProviderContainer(
+    overrides: [
+      localStorageDriverProvider.overrideWithValue(driver),
+      authControllerProvider.overrideWith(() => auth),
+      notificationsRepositoryProvider.overrideWithValue(
+        MockNotificationRepository(),
+      ),
+    ],
+  );
   addTearDown(container.dispose);
 
   await tester.pumpWidget(
@@ -75,8 +77,9 @@ void main() {
     expect(find.byKey(const Key('deleteAccountTile')), findsOneWidget);
   });
 
-  testWidgets('privacy toggles persist through the storage driver',
-      (tester) async {
+  testWidgets('privacy toggles persist through the storage driver', (
+    tester,
+  ) async {
     final driver = InMemoryStorageDriver();
     await _pumpSettings(
       tester,
@@ -87,8 +90,7 @@ void main() {
     await tester.tap(find.text('Usage analytics'));
     await tester.pumpAndSettle();
 
-    final persisted =
-        await driver.getString(appSettingsStorageKey);
+    final persisted = await driver.getString(appSettingsStorageKey);
     expect(persisted, isNotNull);
     expect(persisted!.contains('"analyticsEnabled":true'), isTrue);
   });
@@ -109,14 +111,11 @@ void main() {
     expect(find.text('सेटिंग्स'), findsOneWidget);
   });
 
-  testWidgets('sign out requires confirmation and calls the auth controller',
-      (tester) async {
+  testWidgets('sign out requires confirmation and calls the auth controller', (
+    tester,
+  ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
-    await _pumpSettings(
-      tester,
-      driver: InMemoryStorageDriver(),
-      auth: auth,
-    );
+    await _pumpSettings(tester, driver: InMemoryStorageDriver(), auth: auth);
 
     await tester.tap(find.byKey(const Key('settingsLogoutTile')));
     await tester.pumpAndSettle();
@@ -130,8 +129,9 @@ void main() {
     expect(auth.logoutCalled, isTrue);
   });
 
-  testWidgets('guests do not see delete-account or edit-profile entries',
-      (tester) async {
+  testWidgets('guests do not see delete-account or edit-profile entries', (
+    tester,
+  ) async {
     await _pumpSettings(
       tester,
       driver: InMemoryStorageDriver(),
@@ -160,15 +160,10 @@ void main() {
     await tester.tap(find.byKey(const Key('clearHistoryTile')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Clear browsing history?'),
-      findsOneWidget,
-    );
+    expect(find.text('Clear browsing history?'), findsOneWidget);
     // Cancel keeps everything intact.
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('Browsing history cleared.'), findsNothing);
   });
-
-
 }
