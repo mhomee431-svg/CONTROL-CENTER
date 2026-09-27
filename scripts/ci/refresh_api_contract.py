@@ -34,9 +34,17 @@ CONTRACT = REPO_ROOT / "packages" / "api_contracts" / "openapi.json"
 
 def build_spec() -> dict:
     """Import the FastAPI app and return its OpenAPI document."""
-    # Import-time config must not require a live database or Redis.
-    os.environ.setdefault("ENVIRONMENT", "test")
-    os.environ.setdefault("SKIP_DB_ON_IMPORT", "1")
+    # The contract is environment-INDEPENDENT by definition: it describes the
+    # routes the API exposes, which must not differ between a laptop, a CI
+    # runner and production. So the environment is PINNED rather than
+    # `setdefault`-ed -- an inherited ENVIRONMENT (a repository variable, a
+    # developer's shell) would otherwise change which routers register and make
+    # this check fail for reasons unrelated to the contract.
+    os.environ["ENVIRONMENT"] = "test"
+    os.environ["SKIP_DB_ON_IMPORT"] = "1"
+    # A dummy JWT secret so config validation can never turn a contract check
+    # into a crash. Not a real secret and never used to sign anything.
+    os.environ.setdefault("JWT_SECRET_KEY", "contract-check-not-a-real-secret")
     os.environ.setdefault("PYTHONPATH", str(BACKEND))
     if str(BACKEND) not in sys.path:
         sys.path.insert(0, str(BACKEND))
