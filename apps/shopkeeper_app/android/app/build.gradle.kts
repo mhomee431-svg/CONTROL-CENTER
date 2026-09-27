@@ -26,8 +26,11 @@ val mapsApiKey: String =
 
 android {
     namespace = "com.hyperlocal.hyperlocal_shopkeeper_app"
-    // 37 required by permission_handler_android 14.x (was 36 for
-    // flutter_plugin_android_lifecycle / flutter_secure_storage deps)
+    // 37 is required by permission_handler_android 14.x, which declares
+    // `compileSdk = 37`. Building against 36 fails the release with
+    // "The plugin permission_handler_android requires Android SDK version 37
+    // or higher" — the app could not produce an APK at all. AGP was raised to
+    // 9.2.1 in android/settings.gradle.kts because 9.1.0 caps at compileSdk 36.
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 

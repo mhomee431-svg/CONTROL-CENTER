@@ -12,7 +12,7 @@
           "auth"
         ],
         "summary": "Send Otp",
-        "description": "Acknowledge an OTP request.\n\nOTP delivery is handled by Firebase Phone Auth on the client — the Flutter\napp calls ``firebase_auth`` directly and Google sends the SMS. This endpoint\nremains for API-contract compatibility so older clients do not break; it\nsimply acknowledges the request (no third-party SMS gateway involved).",
+        "description": "Acknowledge an OTP request.\n\nOTP delivery is handled by Firebase Phone Auth on the client \u2014 the Flutter\napp calls ``firebase_auth`` directly and Google sends the SMS. This endpoint\nremains for API-contract compatibility so older clients do not break; it\nsimply acknowledges the request (no third-party SMS gateway involved).",
         "operationId": "send_otp_api_v1_auth_send_otp_post",
         "requestBody": {
           "content": {
@@ -52,13 +52,53 @@
           "auth"
         ],
         "summary": "Firebase Login",
-        "description": "Combined Firebase login-or-register endpoint for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token here.\n\nFlow:\n  1. Verify the Firebase ID token (confirms the phone belongs to the user).\n  2. Extract the phone number from the verified token.\n  3. Look up the user by phone in PostgreSQL.\n  4. If found and active → issue JWT session tokens (login).\n  5. If not found → auto-register a new customer account, then login.\n     (``name`` is required when auto-registering.)\n\nThis \"login on first use\" pattern is the standard for phone-auth apps.",
+        "description": "Combined Firebase login-or-register endpoint for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token here.\n\nFlow:\n  1. Verify the Firebase ID token (confirms the phone belongs to the user).\n  2. Extract the phone number from the verified token.\n  3. Look up the user by phone in PostgreSQL.\n  4. If found and active \u2192 issue JWT session tokens (login).\n  5. If not found \u2192 auto-register a new customer account, then login.\n     (``name`` is required when auto-registering.)\n\nThis \"login on first use\" pattern is the standard for phone-auth apps.",
         "operationId": "firebase_login_api_v1_auth_firebase_login_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CustomerFirebaseAuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/google-login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Google Login",
+        "description": "Verify a Firebase Google ID token and login-or-register a customer.\n\nEmail is accepted only as a linking key when Firebase says it is verified.\nUID, Google-subject, and email identity conflicts are never auto-merged.",
+        "operationId": "google_login_api_v1_auth_google_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerGoogleAuthRequest"
               }
             }
           },
@@ -132,7 +172,7 @@
           "auth"
         ],
         "summary": "Verify Phone",
-        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a user with that ``firebase_uid`` (or phone) exists and is active →\n    issue JWT session tokens (login).\n  - Otherwise → return ``is_new_user`` so the client can collect the\n    profile (name + role) and call ``/register``.",
+        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a user with that ``firebase_uid`` (or phone) exists and is active \u2192\n    issue JWT session tokens (login).\n  - Otherwise \u2192 return ``is_new_user`` so the client can collect the\n    profile (name + role) and call ``/register``.",
         "operationId": "verify_phone_api_v1_auth_verify_phone_post",
         "responses": {
           "200": {
@@ -152,7 +192,7 @@
           "auth"
         ],
         "summary": "Register Endpoint",
-        "description": "Register a new account (customer or shopkeeper) after phone verification.\n\nThe Flutter app calls ``/verify-phone`` first; when it reports a new user,\nthe client collects the profile (name + role) and calls this endpoint.\n\nSecurity: the Firebase ID token is verified server-side (Bearer header or\n``firebase_id_token`` in the body) and the claimed ``firebase_uid`` /\n``phone_number`` must match the verified token — clients cannot spoof an\nidentity. The chosen ``role`` (``customer`` or ``shopkeeper``) decides which\nkind of account is created.",
+        "description": "Register a new account (customer or shopkeeper) after phone verification.\n\nThe Flutter app calls ``/verify-phone`` first; when it reports a new user,\nthe client collects the profile (name + role) and calls this endpoint.\n\nSecurity: the Firebase ID token is verified server-side (Bearer header or\n``firebase_id_token`` in the body) and the claimed ``firebase_uid`` /\n``phone_number`` must match the verified token \u2014 clients cannot spoof an\nidentity. The chosen ``role`` (``customer`` or ``shopkeeper``) decides which\nkind of account is created.",
         "operationId": "register_endpoint_api_v1_auth_register_post",
         "requestBody": {
           "content": {
@@ -272,7 +312,7 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "Revoke the current session (or specify session_id / revoke_all).",
+        "description": "Revoke the current session (or specify session_id / revoke_all).\n\nFalls back to the session named by the bearer token's ``session_id`` claim,\nso a client that sends no ``session_id`` still gets a real revocation.",
         "operationId": "logout_api_v1_auth_logout_post",
         "requestBody": {
           "content": {
@@ -527,7 +567,7 @@
           "categories"
         ],
         "summary": "List Categories",
-        "description": "Return all product categories.\n\nServed from the Redis cache when warm. A Redis outage degrades to a live\nPostgreSQL query (correct, just slower) — never an error.",
+        "description": "Return all product categories.\n\nServed from the Redis cache when warm. A Redis outage degrades to a live\nPostgreSQL query (correct, just slower) \u2014 never an error.",
         "operationId": "list_categories_api_v1_categories_get",
         "responses": {
           "200": {
@@ -1667,7 +1707,7 @@
           "catalog"
         ],
         "summary": "Get Search Document",
-        "description": "Prepare a product for search indexing (requires authentication — this\nendpoint recomputes and persists the search document, so it is NOT a\nplain read).",
+        "description": "Prepare a product for search indexing (requires authentication \u2014 this\nendpoint recomputes and persists the search document, so it is NOT a\nplain read).",
         "operationId": "get_search_document_api_v1_catalog_products__product_id__search_document_get",
         "security": [
           {
@@ -3421,7 +3461,7 @@
           "inventory"
         ],
         "summary": "Create Movement",
-        "description": "Record an inventory movement (sale, restock, return, damage, etc.) — admin only.",
+        "description": "Record an inventory movement (sale, restock, return, damage, etc.) \u2014 admin only.",
         "operationId": "create_movement_api_v1_inventory_movements_post",
         "requestBody": {
           "content": {
@@ -3466,7 +3506,7 @@
           "inventory"
         ],
         "summary": "Create Adjustment",
-        "description": "Create an inventory adjustment (stock count, damage, expiry, theft) — admin only.",
+        "description": "Create an inventory adjustment (stock count, damage, expiry, theft) \u2014 admin only.",
         "operationId": "create_adjustment_api_v1_inventory_adjustments_post",
         "requestBody": {
           "content": {
@@ -4223,7 +4263,7 @@
           "inventory"
         ],
         "summary": "Remove Inventory",
-        "description": "Remove inventory (sets quantity to 0, marks unavailable) — admin only.",
+        "description": "Remove inventory (sets quantity to 0, marks unavailable) \u2014 admin only.",
         "operationId": "remove_inventory_api_v1_inventory__inventory_id__delete",
         "security": [
           {
@@ -4375,7 +4415,7 @@
           "search"
         ],
         "summary": "V2 Search Products",
-        "description": "Unified discovery engine — search products across nearby shops.\n\nUses the search index (optimized layer) backed by PostgreSQL.\nCombines text search (with typo tolerance), geo proximity, and\nall discovery filters in one query.",
+        "description": "Unified discovery engine \u2014 search products across nearby shops.\n\nUses the search index (optimized layer) backed by PostgreSQL.\nCombines text search (with typo tolerance), geo proximity, and\nall discovery filters in one query.",
         "operationId": "v2_search_products_api_v1_search_v2_products_get",
         "security": [
           {
@@ -4457,16 +4497,16 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Category ID filter",
+              "description": "Category ID or name filter",
               "title": "Category"
             },
-            "description": "Category ID filter"
+            "description": "Category ID or name filter"
           },
           {
             "name": "brand",
@@ -4475,16 +4515,16 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Brand ID filter",
+              "description": "Brand ID or name filter",
               "title": "Brand"
             },
-            "description": "Brand ID filter"
+            "description": "Brand ID or name filter"
           },
           {
             "name": "min_price",
@@ -4575,12 +4615,36 @@
             "description": "Exclude unavailable items"
           },
           {
+            "name": "offers_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only show items with active offers",
+              "default": false,
+              "title": "Offers Only"
+            },
+            "description": "Only show items with active offers"
+          },
+          {
+            "name": "open_now",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Only show shops currently open",
+              "default": false,
+              "title": "Open Now"
+            },
+            "description": "Only show shops currently open"
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
             "schema": {
               "type": "string",
-              "pattern": "^(relevance|distance|nearest|lowest_price|price_asc|highest_price|price_desc|highest_rated|rating|availability|freshness|recently_updated)$",
+              "pattern": "^(relevance|distance|nearest|lowest_price|price_asc|highest_price|price_desc|highest_rated|rating|availability|freshness|recently_updated|offers)$",
               "default": "relevance",
               "title": "Sort"
             }
@@ -5433,7 +5497,7 @@
           "notifications"
         ],
         "summary": "Get Unread Count",
-        "description": "Badge helper — number of unread notifications.",
+        "description": "Badge helper \u2014 number of unread notifications.",
         "operationId": "get_unread_count_api_v1_notifications_unread_count_get",
         "responses": {
           "200": {
@@ -5734,7 +5798,7 @@
           "profile"
         ],
         "summary": "Get Profile",
-        "description": "Return the current user's profile.",
+        "description": "Return the current user's profile.\n\nIDOR-safe: the authenticated user is derived from the verified Firebase\ntoken \u2014 never from client input. No user_id parameter is accepted.",
         "operationId": "get_profile_api_v1_profile_get",
         "responses": {
           "200": {
@@ -5757,8 +5821,51 @@
           "profile"
         ],
         "summary": "Update Profile",
-        "description": "Update the current user's profile.",
+        "description": "Update the current user's profile.\n\nIDOR-safe: updates only the authenticated user (from verified token).\nAccepts partial updates \u2014 only provided fields are changed.",
         "operationId": "update_profile_api_v1_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "Patch Profile",
+        "description": "Partial-update the current user's profile (alias for PUT).\n\nIDOR-safe: the user is derived from the verified Firebase token.\nOnly fields present in the payload are applied \u2014 omitted fields are left\nunchanged.",
+        "operationId": "patch_profile_api_v1_profile_patch",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6413,7 +6520,7 @@
           "firebase-auth"
         ],
         "summary": "Authenticate",
-        "description": "Authenticate with a Firebase ID token.\n\nThis is the primary authentication endpoint. The client:\n1. Performs Firebase Phone OTP sign-in\n2. Obtains a Firebase ID token\n3. Sends it here for verification\n\nThe backend:\n1. Verifies the Firebase ID token cryptographically\n2. Extracts firebase_uid and phone_number\n3. Finds or creates the application user\n4. Returns user context (no custom tokens — Firebase manages session)",
+        "description": "Authenticate with a Firebase ID token.\n\nThis is the primary authentication endpoint. The client:\n1. Performs Firebase Phone OTP sign-in\n2. Obtains a Firebase ID token\n3. Sends it here for verification\n\nThe backend:\n1. Verifies the Firebase ID token cryptographically\n2. Extracts firebase_uid and phone_number\n3. Finds or creates the application user\n4. Returns user context (no custom tokens \u2014 Firebase manages session)",
         "operationId": "authenticate_api_v1_auth_firebase_post",
         "requestBody": {
           "content": {
@@ -6518,7 +6625,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Send Otp",
-        "description": "OTP delivery is handled by Firebase Phone Auth on the client.\n\nThis endpoint remains for API-contract compatibility but no longer sends\nan SMS — the Flutter app calls ``firebase_auth`` directly. It simply\nacknowledges the request so older clients do not break.",
+        "description": "OTP delivery is handled by Firebase Phone Auth on the client.\n\nThis endpoint remains for API-contract compatibility but no longer sends\nan SMS \u2014 the Flutter app calls ``firebase_auth`` directly. It simply\nacknowledges the request so older clients do not break.",
         "operationId": "send_otp_api_v1_shopkeeper_auth_send_otp_post",
         "requestBody": {
           "content": {
@@ -6558,7 +6665,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Verify Phone",
-        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff (shopkeeper scope).\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a shopkeeper user with that ``firebase_uid`` (or phone) exists and\n    is active → issue JWT session tokens (login).\n  - Otherwise → return ``is_new_user`` so the client can collect the\n    profile (name) and call ``/register``.",
+        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff (shopkeeper scope).\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a shopkeeper user with that ``firebase_uid`` (or phone) exists and\n    is active \u2192 issue JWT session tokens (login).\n  - Otherwise \u2192 return ``is_new_user`` so the client can collect the\n    profile (name) and call ``/register``.",
         "operationId": "verify_phone_api_v1_shopkeeper_auth_verify_phone_post",
         "responses": {
           "200": {
@@ -6698,7 +6805,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Firebase Login",
-        "description": "Combined Firebase login-or-register endpoint.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token here.\n\nFlow:\n  1. Verify the Firebase ID token (confirms the phone belongs to the user).\n  2. Extract the phone number from the verified token.\n  3. Look up the shopkeeper by phone in PostgreSQL.\n  4. If found and active → issue JWT session tokens (login).\n  5. If not found → auto-register a new shopkeeper account, then login.\n     (``name`` is required when auto-registering.)\n\nThis \"login on first use\" pattern is the standard for phone-auth apps —\nusers don't need a separate registration step.",
+        "description": "Combined Firebase login-or-register endpoint.\n\nWorks for BOTH providers the platform supports (per the CURRENT\nauthentication decision \u2014 Google only, phone is a future extension):\n\nGoogle Sign-In (provider ``google.com``):\n  1. The Flutter app completes Google Sign-In with Firebase client-side\n     (native Credential Manager on Android, Firebase popup on web).\n  2. The resulting Firebase ID token is sent here and verified via the\n     Firebase Admin SDK.\n  3. The shopkeeper is looked up by ``firebase_uid``, then by email.\n  4. If found and active \u2192 JWT session tokens (login).\n  5. If not found \u2192 auto-register ONE shopkeeper profile and login.\n\nPhone OTP (provider ``phone`` \u2014 FUTURE extension point): the token's\n``phone_number`` claim is matched instead of email. No OTP UI/API/SMS\nexists in this implementation; ``/send-otp`` + ``/verify-phone`` remain\nonly as the future extension surface.",
         "operationId": "firebase_login_api_v1_shopkeeper_auth_firebase_login_post",
         "requestBody": {
           "content": {
@@ -6730,6 +6837,51 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/shopkeeper/auth/profile-create": {
+      "post": {
+        "tags": [
+          "shopkeeper-auth"
+        ],
+        "summary": "Profile Create",
+        "description": "Create the shopkeeper's first (and only) shop during on-profile setup.\n\nUnlike the full ``/shopkeeper/shops`` endpoint, this endpoint does NOT\nrequire location or address \u2014 those are captured later via the dedicated\nlocation-capture flow. This keeps the first-stage profile form fast and\nunblockable.\n\nSecurity: only users with the SHOPKEEPER role (server-determined) may\ncall this endpoint. The authenticated user is derived from the verified\nFirebase token \u2014 never from client input. IDOR-safe: the user can only\ncreate their own profile.",
+        "operationId": "profile_create_api_v1_shopkeeper_auth_profile_create_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopkeeperProfileCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/shopkeeper/auth/forgot-password": {
@@ -6858,7 +7010,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Logout",
-        "description": "Revoke the current session (or all sessions with revoke_all).",
+        "description": "Revoke the current session (or all sessions with revoke_all).\n\nThe session is the one the bearer token was issued for when the client sends\nno explicit ``session_id`` \u2014 otherwise logout left the session active.",
         "operationId": "logout_api_v1_shopkeeper_auth_logout_post",
         "requestBody": {
           "content": {
@@ -6886,6 +7038,127 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/shopkeeper/auth/sessions": {
+      "get": {
+        "tags": [
+          "shopkeeper-auth"
+        ],
+        "summary": "List Sessions",
+        "description": "Active sign-in sessions (devices) for the current shopkeeper.\n\nMost recent activity first; each row carries the device/platform metadata\nthat Settings \u2192 Security renders. Read-only \u2014 revoking is a separate call,\nso a failed list can never look like a revoked device.",
+        "operationId": "list_sessions_api_v1_shopkeeper_auth_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/shopkeeper/auth/sessions/{session_id}": {
+      "delete": {
+        "tags": [
+          "shopkeeper-auth"
+        ],
+        "summary": "Revoke Session",
+        "description": "Revoke one session (device) belonging to the current shopkeeper.\n\nScoped to ``current_user.id`` inside the service, so a caller can never\nrevoke somebody else's session by guessing an id.",
+        "operationId": "revoke_session_api_v1_shopkeeper_auth_sessions__session_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/auth/profile": {
+      "get": {
+        "tags": [
+          "shopkeeper-auth"
+        ],
+        "summary": "Get Shopkeeper Profile",
+        "description": "Return the authenticated Shopkeeper's full profile (user + shop).\n\nSecurity:\n  - Only the SHOPKEEPER role (server-determined) may call this endpoint.\n  - IDOR-safe: the user is derived from the verified Firebase token \u2014\n    never from a client-supplied user_id. A shopkeeper can only read\n    their own profile.\n\nGoogle account data: only display name, email, and photo URL are stored\nand returned. No unnecessary Google account data is persisted.",
+        "operationId": "get_shopkeeper_profile_api_v1_shopkeeper_auth_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/shopkeeper/auth/google-profile": {
+      "get": {
+        "tags": [
+          "shopkeeper-auth"
+        ],
+        "summary": "Google Profile",
+        "description": "Return ONLY the minimal Google profile derived from the verified Firebase token.\n\nSecurity (Phase 19):\n  * The Firebase ID token is VERIFIED server-side first\n    (``verify_firebase_id_token_claims``) \u2014 never trusts the client.\n  * Only whitelisted Google fields (name, email, picture, email_verified)\n    are exposed; the firebase_uid is derived from ``sub`` and returned\n    for identity linking only.\n  * Learn more: :mod:`app.services.google_profile_service`\n\nRequires: ``Authorization: Bearer <Firebase ID Token>``",
+        "operationId": "google_profile_api_v1_shopkeeper_auth_google_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -7152,7 +7425,7 @@
           "shopkeeper"
         ],
         "summary": "Update Shop Location",
-        "description": "Controlled shop-location update (Edit Location workflow).\n\nThe target shop is resolved from the PATH ``shop_id`` only — a body-supplied\nid is never trusted — so cross-tenant (IDOR) updates are impossible.\nManagers without ``update:shop`` are rejected (403). Every change is\nappended to the hash-chained audit trail with old/new coordinates,\naccuracies and the acting user.",
+        "description": "Controlled shop-location update (Edit Location workflow).\n\nThe target shop is resolved from the PATH ``shop_id`` only \u2014 a body-supplied\nid is never trusted \u2014 so cross-tenant (IDOR) updates are impossible.\nManagers without ``update:shop`` are rejected (403). Every change is\nappended to the hash-chained audit trail with old/new coordinates,\naccuracies and the acting user.",
         "operationId": "update_shop_location_api_v1_shopkeeper_shops__shop_id__location_patch",
         "security": [
           {
@@ -7248,13 +7521,59 @@
         }
       }
     },
+    "/api/v1/shopkeeper/shops/{shop_id}/insights": {
+      "get": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Get Insights",
+        "description": "Shopkeeper business insights \u2014 data-driven insight cards.\n\nReturns insight cards for top products, low stock, stale inventory,\nsearch visibility, offers performance, and profile completeness.\nAll metrics are derived from live database state.",
+        "operationId": "get_insights_api_v1_shopkeeper_shops__shop_id__insights_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/shops/{shop_id}/inventory": {
       "get": {
         "tags": [
           "shopkeeper"
         ],
         "summary": "Get Inventory",
-        "description": "Inventory overview (default) or a filterable/sortable/searchable list\n(``view=list``) — items include last-updated time and inventory source.",
+        "description": "Inventory overview (default) or a filterable/sortable/searchable list\n(``view=list``) \u2014 items include last-updated time and inventory source.\n\n``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns\nonly listings whose **current stock is at or below their own per-listing\nlow-stock threshold** (``quantity <= low_stock_threshold``). This is\nstricter than ``stock_status=LOW_STOCK`` \u2014 that filter reports the server's\nderived state, while this one answers the operational question \"what must\nbe restocked now\" directly from the two numbers that decide it.",
         "operationId": "get_inventory_api_v1_shopkeeper_shops__shop_id__inventory_get",
         "security": [
           {
@@ -7335,6 +7654,22 @@
                 }
               ],
               "title": "Is Active"
+            }
+          },
+          {
+            "name": "low_below_threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Low Below Threshold"
             }
           },
           {
@@ -7853,6 +8188,136 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "List Stock Adjustments",
+        "description": "Adjustment-only audit trail for one product (damage / expiry /\nstock count / correction), newest first.",
+        "operationId": "list_stock_adjustments_api_v1_shopkeeper_shops__shop_id__products__shop_product_id__stock_adjustments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "shop_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Product Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/products/{shop_product_id}/low-stock-threshold": {
+      "patch": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Update Low Stock Threshold",
+        "description": "Change the quantity at which a listing is flagged LOW_STOCK.\n\nThe stock state is re-derived server-side (no units move), so the client\nnever has to guess the new status.",
+        "operationId": "update_low_stock_threshold_api_v1_shopkeeper_shops__shop_id__products__shop_product_id__low_stock_threshold_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "shop_product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Product Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopkeeperLowStockThresholdUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/shopkeeper/shops/{shop_id}/products/{shop_product_id}/history": {
@@ -7861,7 +8326,7 @@
           "shopkeeper"
         ],
         "summary": "Get Product History",
-        "description": "Inventory history for one product: movements, adjustments and price changes.",
+        "description": "Inventory history for one product: movements, adjustments and price\nchanges, newest first, paginated (`limit` + `offset`).",
         "operationId": "get_product_history_api_v1_shopkeeper_shops__shop_id__products__shop_product_id__history_get",
         "security": [
           {
@@ -7897,6 +8362,17 @@
               "minimum": 1,
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
             }
           }
         ],
@@ -8034,13 +8510,142 @@
         }
       }
     },
+    "/api/v1/shopkeeper/shops/{shop_id}/offers": {
+      "get": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "List Shop Offers",
+        "description": "Offers belonging to this shop, newest window first.\n\nRead-only; the shopkeeper app's Offers screen renders these directly so a\nfreshly created offer is visible without a reload.",
+        "operationId": "list_shop_offers_api_v1_shopkeeper_shops__shop_id__offers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bucket filter: active | scheduled | expired | draft | disabled. Omit for every offer.",
+              "title": "Status"
+            },
+            "description": "Bucket filter: active | scheduled | expired | draft | disabled. Omit for every offer."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/offers/{offer_id}/status": {
+      "patch": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Update Shop Offer Status",
+        "description": "Activate / pause / disable / cancel one shop-owned offer.\n\nExpired and cancelled offers are terminal and can never be re-activated.",
+        "operationId": "update_shop_offer_status_api_v1_shopkeeper_shops__shop_id__offers__offer_id__status_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopkeeperOfferStatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/leads": {
       "get": {
         "tags": [
           "shopkeeper"
         ],
         "summary": "Shopkeeper Leads",
-        "description": "All verified customer leads (call views, messages, ratings) tied to the\nshops this user owns/manages. Read-only — customer submissions are\nimmutable and cannot be edited or deleted through the API.",
+        "description": "All verified customer leads (call views, messages, ratings) tied to the\nshops this user owns/manages. Read-only \u2014 customer submissions are\nimmutable and cannot be edited or deleted through the API.",
         "operationId": "shopkeeper_leads_api_v1_shopkeeper_leads_get",
         "responses": {
           "200": {
@@ -8065,7 +8670,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Resolve Barcode",
-        "description": "Scan Barcode → Identify Identifier → Find Product → Show Product.",
+        "description": "Scan Barcode \u2192 Identify Identifier \u2192 Find Product \u2192 Show Product.",
         "operationId": "resolve_barcode_api_v1_shopkeeper_barcodes__barcode__resolve_get",
         "security": [
           {
@@ -8127,7 +8732,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Save Product From Barcode",
-        "description": "Confirm Shop Product → Price → Availability/Quantity → Save → Publish.",
+        "description": "Confirm Shop Product \u2192 Price \u2192 Availability/Quantity \u2192 Save \u2192 Publish.",
         "operationId": "save_product_from_barcode_api_v1_shopkeeper_shops__shop_id__products_from_barcode_post",
         "security": [
           {
@@ -8183,7 +8788,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Upload Inventory Import",
-        "description": "Upload → Validate File → Parse → Validate Rows → Preview.",
+        "description": "Upload \u2192 Validate File \u2192 Parse \u2192 Validate Rows \u2192 Preview.",
         "operationId": "upload_inventory_import_api_v1_shopkeeper_shops__shop_id__inventory_imports_post",
         "security": [
           {
@@ -8237,7 +8842,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "List Inventory Imports",
-        "description": "List this shop's import jobs (newest first).",
+        "description": "List this shop's import jobs (newest first), paginated.\n\n``limit`` / ``offset`` slice the newest-first order, and ``total`` reports\nhow many jobs the shop actually has so the client knows whether a further\npage exists instead of inferring it from a short page (which would be wrong\nfor any page that happens to end exactly on a size boundary).",
         "operationId": "list_inventory_imports_api_v1_shopkeeper_shops__shop_id__inventory_imports_get",
         "security": [
           {
@@ -8264,6 +8869,63 @@
               "minimum": 1,
               "default": 20,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/inventory-imports/sample": {
+      "get": {
+        "tags": [
+          "shopkeeper-inventory-intake"
+        ],
+        "summary": "Download Import Sample",
+        "description": "Download Sample \u2014 a ready-to-fill .xlsx matching the import columns.\n\nReturned as raw workbook bytes (not the JSON envelope) so the app can hand\nit straight to the platform save dialog.",
+        "operationId": "download_import_sample_api_v1_shopkeeper_shops__shop_id__inventory_imports_sample_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
             }
           }
         ],
@@ -8350,7 +9012,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Confirm Inventory Import",
-        "description": "Confirm → Process → Update Inventory (large imports run in background).",
+        "description": "Confirm \u2192 Process \u2192 Update Inventory (large imports run in background).",
         "operationId": "confirm_inventory_import_api_v1_shopkeeper_inventory_imports__job_id__confirm_post",
         "security": [
           {
@@ -8460,7 +9122,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Inventory Import Report",
-        "description": "Generate Import Report — totals + row-level outcomes.",
+        "description": "Generate Import Report \u2014 totals + row-level outcomes.",
         "operationId": "inventory_import_report_api_v1_shopkeeper_inventory_imports__job_id__report_get",
         "security": [
           {
@@ -8633,7 +9295,7 @@
           "media"
         ],
         "summary": "Confirm Upload",
-        "description": "Verify the object landed (content-type + size re-checked) and return a\nshort-lived read URL. Failure recovery: if the object is missing, the\nclient simply re-requests an upload URL — nothing partial is stored.",
+        "description": "Verify the object landed (content-type + size re-checked) and return a\nshort-lived read URL. Failure recovery: if the object is missing, the\nclient simply re-requests an upload URL \u2014 nothing partial is stored.",
         "operationId": "confirm_upload_api_v1_media_confirm_post",
         "requestBody": {
           "content": {
@@ -8678,7 +9340,7 @@
           "media"
         ],
         "summary": "Get Media Url",
-        "description": "Authorized read access — presigned GET URL (private objects).",
+        "description": "Authorized read access \u2014 presigned GET URL (private objects).",
         "operationId": "get_media_url_api_v1_media_url_get",
         "security": [
           {
@@ -8771,7 +9433,7 @@
           "media"
         ],
         "summary": "Delete Media Object",
-        "description": "Authorized deletion — only the object's owner scope (or an admin).",
+        "description": "Authorized deletion \u2014 only the object's owner scope (or an admin).",
         "operationId": "delete_media_object_api_v1_media_objects_delete",
         "security": [
           {
@@ -8813,13 +9475,125 @@
         }
       }
     },
+    "/api/v1/media/status": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Media Status",
+        "description": "Return the lifecycle state of a media key (auth required).",
+        "operationId": "media_status_api_v1_media_status_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 512,
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/s3/object-created": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "S3 Object Created",
+        "description": "Receive an S3-object-created notification (HMAC-authenticated).\n\nThe Lambda writes the Media row directly; this webhook is the fallback /\nexternal-provider channel and is idempotent by event id.",
+        "operationId": "s3_object_created_api_v1_webhooks_s3_object_created_post",
+        "parameters": [
+          {
+            "name": "X-Hyperlocal-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hyperlocal-Signature"
+            }
+          },
+          {
+            "name": "X-Hyperlocal-Event-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hyperlocal-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/pos/providers": {
       "get": {
         "tags": [
           "shopkeeper-pos-integration"
         ],
         "summary": "Get Pos Providers",
-        "description": "Registry listing — every pluggable POS vendor adapter.",
+        "description": "Registry listing \u2014 every pluggable POS vendor adapter.",
         "operationId": "get_pos_providers_api_v1_shopkeeper_pos_providers_get",
         "responses": {
           "200": {
@@ -13305,7 +14079,7 @@
           "shopkeeper-subscription"
         ],
         "summary": "Payment Webhook",
-        "description": "Provider webhook receiver (HMAC-authenticated, idempotent).\n\nDeliberately unauthenticated at the app layer — authenticity comes from\nthe provider signature over the raw body; duplicates are ignored.",
+        "description": "Provider webhook receiver (HMAC-authenticated, idempotent).\n\nDeliberately unauthenticated at the app layer \u2014 authenticity comes from\nthe provider signature over the raw body; duplicates are ignored.",
         "operationId": "payment_webhook_api_v1_shopkeeper_subscription_webhooks__provider_code__post",
         "parameters": [
           {
@@ -15744,7 +16518,7 @@
           "reviews"
         ],
         "summary": "Moderate Review",
-        "description": "Moderate a review — approve, reject, or hide (admin only).",
+        "description": "Moderate a review \u2014 approve, reject, or hide (admin only).",
         "operationId": "moderate_review_api_v1_reviews__review_id__moderate_post",
         "security": [
           {
@@ -15768,6 +16542,359 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReviewModeration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Create Order Route",
+        "description": "Place a customer checkout order against a shop.",
+        "operationId": "create_order_route_api_v1_orders_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "List Orders Route",
+        "description": "Paginated list of the current customer's orders.",
+        "operationId": "list_orders_route_api_v1_orders_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Get Order Route",
+        "description": "Fetch one of the current customer's orders.",
+        "operationId": "get_order_route_api_v1_orders__order_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/cancel": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Cancel Order Route",
+        "description": "Cancel one of the current customer's orders.",
+        "operationId": "cancel_order_route_api_v1_orders__order_id__cancel_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/shop/{shop_id}": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "List Shop Orders Route",
+        "description": "List orders for a shop (admin only).",
+        "operationId": "list_shop_orders_route_api_v1_orders_shop__shop_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/status": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Update Order Status Route",
+        "description": "Admin transition of an order to a new status.",
+        "operationId": "update_order_status_route_api_v1_orders__order_id__status_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderStatusUpdate"
               }
             }
           }
@@ -15962,7 +17089,7 @@
           "shopkeeper-analytics"
         ],
         "summary": "Analytics Top Products",
-        "description": "Most-viewed products — which items drive the most customer interest.",
+        "description": "Most-viewed products \u2014 which items drive the most customer interest.",
         "operationId": "analytics_top_products_api_v1_shopkeeper_shops__shop_id__analytics_top_products_get",
         "security": [
           {
@@ -16032,7 +17159,7 @@
           "shopkeeper-analytics"
         ],
         "summary": "Analytics Top Searches",
-        "description": "What customers typed before landing on this shop — demand intelligence.",
+        "description": "What customers typed before landing on this shop \u2014 demand intelligence.",
         "operationId": "analytics_top_searches_api_v1_shopkeeper_shops__shop_id__analytics_top_searches_get",
         "security": [
           {
@@ -16848,7 +17975,7 @@
           "shopkeeper-management"
         ],
         "summary": "Get Shop Notifications",
-        "description": "Get notifications relevant to this shop owners/managers.",
+        "description": "Get notifications relevant to this shop owners/managers.\n\nPaginated (``limit`` / ``offset``) like every other list this app reads:\nthe response carries ``total`` so the client can tell whether another page\nexists instead of guessing from a short page.\n\n``unread`` is counted across the WHOLE shop-scoped set, not just the\nreturned page \u2014 a page-scoped count would make the badge shrink as the\nshopkeeper pages deeper, and a page with no unread rows would report zero\neven while earlier pages were still unread.",
         "operationId": "get_shop_notifications_api_v1_shopkeeper_shops__shop_id__notifications_get",
         "security": [
           {
@@ -16885,6 +18012,17 @@
               "minimum": 1,
               "default": 20,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
             }
           }
         ],
@@ -16956,13 +18094,276 @@
         }
       }
     },
+    "/api/v1/shopkeeper/notifications/read-all": {
+      "put": {
+        "tags": [
+          "shopkeeper-management"
+        ],
+        "summary": "Mark All Notifications Read",
+        "description": "Mark every notification owned by the current user as read.",
+        "operationId": "mark_all_notifications_read_api_v1_shopkeeper_notifications_read_all_put",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/shopkeeper/support/tickets": {
+      "post": {
+        "tags": [
+          "shopkeeper-support"
+        ],
+        "summary": "Create Support Ticket",
+        "description": "Files a support ticket for the signed-in shopkeeper.\n\nReturns the created ticket INCLUDING its ``status`` and ``status_label``, so\nthe app can show the ticket reference and the real triage state immediately\ninstead of assuming \"submitted\" locally. An optional screenshot is validated\nthrough the media pipeline FIRST \u2014 a rejected attachment never leaves a\nhalf-filed ticket behind.",
+        "operationId": "create_support_ticket_api_v1_shopkeeper_support_tickets_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShopkeeperSupportTicketCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "shopkeeper-support"
+        ],
+        "summary": "List Support Tickets",
+        "description": "Tickets filed by the signed-in shopkeeper, newest first.",
+        "operationId": "list_support_tickets_api_v1_shopkeeper_support_tickets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status (OPEN, IN_PROGRESS, RESOLVED, ...)",
+              "title": "Status"
+            },
+            "description": "Filter by status (OPEN, IN_PROGRESS, RESOLVED, ...)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/support/tickets/{ticket_id}": {
+      "get": {
+        "tags": [
+          "shopkeeper-support"
+        ],
+        "summary": "Get Support Ticket",
+        "description": "One ticket filed by the signed-in shopkeeper (404 if it is not theirs).",
+        "operationId": "get_support_ticket_api_v1_shopkeeper_support_tickets__ticket_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/businesses/categories": {
+      "get": {
+        "tags": [
+          "merchant-onboarding"
+        ],
+        "summary": "List Registration Categories",
+        "description": "Active merchant categories for the shop-registration dropdown.\n\nThe wizard renders exactly what this returns \u2014 no category codes are\nhardcoded in the Flutter app.",
+        "operationId": "list_registration_categories_api_v1_shopkeeper_businesses_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/shopkeeper/businesses/categories/{category_code}/requirements": {
+      "get": {
+        "tags": [
+          "merchant-onboarding"
+        ],
+        "summary": "Get Registration Category Requirements",
+        "description": "Backend-driven document/info requirements for a merchant category.\n\nThe registration wizard's Documents step is rendered from this contract \u2014\nrequired/optional documents and the verification steps (OTP, identity,\nbank, category documents, admin review) all originate here.",
+        "operationId": "get_registration_category_requirements_api_v1_shopkeeper_businesses_categories__category_code__requirements_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/businesses/{business_id}/onboarding": {
       "post": {
         "tags": [
           "merchant-onboarding"
         ],
         "summary": "Start Onboarding",
-        "description": "Start merchant onboarding for a business.\n\nCreates an onboarding record and initiates the verification flow.\nIdempotent — returns existing onboarding if already started.",
+        "description": "Start merchant onboarding for a business.\n\nCreates an onboarding record and initiates the verification flow.\nIdempotent \u2014 returns existing onboarding if already started.",
         "operationId": "start_onboarding_api_v1_shopkeeper_businesses__business_id__onboarding_post",
         "security": [
           {
@@ -18170,7 +19571,7 @@
           "Health"
         ],
         "summary": "Health Check",
-        "description": "Liveness probe — always returns 200 if the process is alive.",
+        "description": "Liveness probe \u2014 always returns 200 if the process is alive.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
@@ -18191,8 +19592,29 @@
           "Health"
         ],
         "summary": "Readiness Check",
-        "description": "Readiness probe — DB, Redis, PostGIS, storage, and queue reachable.",
+        "description": "Readiness probe \u2014 DB, Redis, PostGIS, storage, and queue reachable.",
         "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/firebase-cache": {
+      "get": {
+        "tags": [
+          "Health",
+          "Health"
+        ],
+        "summary": "Firebase Cache Stats",
+        "description": "Firebase token verification cache statistics (monitoring).",
+        "operationId": "firebase_cache_stats_firebase_cache_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -19730,7 +21152,81 @@
         },
         "type": "object",
         "title": "CustomerFirebaseAuthRequest",
-        "description": "Firebase Phone Auth payload for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token. The token can\narrive in the ``Authorization: Bearer`` header (preferred) or — for\nbackward compatibility — in the body as ``firebase_id_token``.\n\nFor the new ``verify-phone`` → ``register`` flow the client may also send\nthe verified ``firebase_uid`` / ``phone_number`` and the desired ``role``."
+        "description": "Firebase Phone Auth payload for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token. The token can\narrive in the ``Authorization: Bearer`` header (preferred) or \u2014 for\nbackward compatibility \u2014 in the body as ``firebase_id_token``.\n\nFor the new ``verify-phone`` \u2192 ``register`` flow the client may also send\nthe verified ``firebase_uid`` / ``phone_number`` and the desired ``role``."
+      },
+      "CustomerGoogleAuthRequest": {
+        "properties": {
+          "firebase_id_token": {
+            "type": "string",
+            "minLength": 20,
+            "title": "Firebase Id Token",
+            "description": "Firebase ID token returned after Google Sign-In"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Stable device identifier"
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name"
+          },
+          "device_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Type",
+            "description": "android, ios, web"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform",
+            "description": "OS version / platform info"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firebase_id_token"
+        ],
+        "title": "CustomerGoogleAuthRequest",
+        "description": "Firebase Google sign-in payload for the Customer App.\n\nProfile values are intentionally absent: the backend derives the Firebase\nUID, provider, email, name, and picture from its server-side token\nverification rather than trusting client-supplied identity data."
       },
       "DeviceTokenPayload": {
         "properties": {
@@ -19776,7 +21272,7 @@
           "token"
         ],
         "title": "DeviceTokenPayload",
-        "description": "Push registration payload (API_CONTRACT §21.6)."
+        "description": "Push registration payload (API_CONTRACT \u00a721.6)."
       },
       "FirebaseAuthRequest": {
         "properties": {
@@ -19963,7 +21459,7 @@
           "shop_id"
         ],
         "title": "InteractionCreateRequest",
-        "description": "Create a verified customer action on a shop.\n\nCreate-only by design — there are no update/delete endpoints for these\nrecords (Immutable Actions Rule)."
+        "description": "Create a verified customer action on a shop.\n\nCreate-only by design \u2014 there are no update/delete endpoints for these\nrecords (Immutable Actions Rule)."
       },
       "InventoryAdjustmentCreate": {
         "properties": {
@@ -20520,15 +22016,13 @@
         "properties": {
           "latitude": {
             "type": "number",
-            "maximum": 90.0,
-            "minimum": -90.0,
-            "title": "Latitude"
+            "title": "Latitude",
+            "description": "Latitude (WGS84)"
           },
           "longitude": {
             "type": "number",
-            "maximum": 180.0,
-            "minimum": -180.0,
-            "title": "Longitude"
+            "title": "Longitude",
+            "description": "Longitude (WGS84)"
           },
           "radius_meters": {
             "type": "number",
@@ -20552,7 +22046,7 @@
           "longitude"
         ],
         "title": "NearbyShopsRequest",
-        "description": "Find shops within a radius."
+        "description": "Find shops within a radius.\n\nCoordinate range is validated manually in the handler (returns 400\nINVALID_COORDINATES), so no Pydantic ge/le constraints here."
       },
       "NotificationPreferencesPayload": {
         "properties": {
@@ -20594,7 +22088,7 @@
         },
         "type": "object",
         "title": "NotificationPreferencesPayload",
-        "description": "Per-customer delivery preferences (API_CONTRACT §21.4)."
+        "description": "Per-customer delivery preferences (API_CONTRACT \u00a721.4)."
       },
       "OfferConditionCreate": {
         "properties": {
@@ -20680,6 +22174,18 @@
               }
             ],
             "title": "Discount Percentage"
+          },
+          "promotional_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotional Price"
           },
           "min_purchase_amount": {
             "anyOf": [
@@ -20807,7 +22313,8 @@
           "ACTIVE",
           "PAUSED",
           "EXPIRED",
-          "CANCELLED"
+          "CANCELLED",
+          "DISABLED"
         ],
         "title": "OfferStatus"
       },
@@ -20818,7 +22325,8 @@
           "FLAT_DISCOUNT",
           "BUY_X_GET_Y",
           "BUNDLE",
-          "FREE_SHIPPING"
+          "FREE_SHIPPING",
+          "PROMOTIONAL_PRICE"
         ],
         "title": "OfferType"
       },
@@ -20882,6 +22390,18 @@
               }
             ],
             "title": "Discount Percentage"
+          },
+          "promotional_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotional Price"
           },
           "min_purchase_amount": {
             "anyOf": [
@@ -20990,6 +22510,192 @@
         },
         "type": "object",
         "title": "OfferUpdate"
+      },
+      "OrderCreate": {
+        "properties": {
+          "shop_id": {
+            "type": "integer",
+            "title": "Shop Id",
+            "description": "Shop the order is placed against"
+          },
+          "shipping_address_json": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipping Address Json",
+            "description": "Snapshot of the chosen address"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "delivery_fee": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Delivery Fee",
+            "default": 0
+          },
+          "discount_amount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Discount Amount",
+            "default": 0
+          },
+          "tax_amount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tax Amount",
+            "default": 0
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemCreate"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_id",
+          "items"
+        ],
+        "title": "OrderCreate",
+        "description": "A customer checkout against a single shop."
+      },
+      "OrderItemCreate": {
+        "properties": {
+          "product_master_id": {
+            "type": "integer",
+            "title": "Product Master Id",
+            "description": "Catalog product master id (snapshot at checkout)"
+          },
+          "product_name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Product Name"
+          },
+          "variant_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Id",
+            "description": "Variant id if applicable"
+          },
+          "variant_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant Name"
+          },
+          "shop_product_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shop Product Id",
+            "description": "Shop-specific product row"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Quantity"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Price",
+            "description": "Unit price snapshot"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_master_id",
+          "product_name",
+          "quantity",
+          "price"
+        ],
+        "title": "OrderItemCreate",
+        "description": "Line item as captured by the customer cart at checkout (price snapshot)."
+      },
+      "OrderStatusUpdate": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Target OrderStatus value"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "processed_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "OrderStatusUpdate",
+        "description": "Admin transition of an order to a new status."
       },
       "POSCredentialUpdateRequest": {
         "properties": {
@@ -21189,7 +22895,7 @@
           "config"
         ],
         "title": "POSSyncConfigRequest",
-        "description": "Merge vendor-neutral sync configuration (authorities, thresholds…)."
+        "description": "Merge vendor-neutral sync configuration (authorities, thresholds\u2026)."
       },
       "POSTriggerSyncRequest": {
         "properties": {
@@ -22515,15 +24221,11 @@
         "properties": {
           "latitude": {
             "type": "number",
-            "maximum": 90.0,
-            "minimum": -90.0,
             "title": "Latitude",
             "description": "Latitude (WGS84)"
           },
           "longitude": {
             "type": "number",
-            "maximum": 180.0,
-            "minimum": -180.0,
             "title": "Longitude",
             "description": "Longitude (WGS84)"
           }
@@ -22534,7 +24236,7 @@
           "longitude"
         ],
         "title": "ReverseGeocodeRequest",
-        "description": "Convert lat/lng to structured address."
+        "description": "Convert lat/lng to structured address.\n\nCoordinate range is validated manually in the handler (returns 400\nINVALID_COORDINATES), so no Pydantic ge/le constraints here."
       },
       "ReviewCreate": {
         "properties": {
@@ -22616,27 +24318,23 @@
         "properties": {
           "origin_latitude": {
             "type": "number",
-            "maximum": 90.0,
-            "minimum": -90.0,
-            "title": "Origin Latitude"
+            "title": "Origin Latitude",
+            "description": "Origin latitude (WGS84)"
           },
           "origin_longitude": {
             "type": "number",
-            "maximum": 180.0,
-            "minimum": -180.0,
-            "title": "Origin Longitude"
+            "title": "Origin Longitude",
+            "description": "Origin longitude (WGS84)"
           },
           "dest_latitude": {
             "type": "number",
-            "maximum": 90.0,
-            "minimum": -90.0,
-            "title": "Dest Latitude"
+            "title": "Dest Latitude",
+            "description": "Destination latitude (WGS84)"
           },
           "dest_longitude": {
             "type": "number",
-            "maximum": 180.0,
-            "minimum": -180.0,
-            "title": "Dest Longitude"
+            "title": "Dest Longitude",
+            "description": "Destination longitude (WGS84)"
           },
           "mode": {
             "type": "string",
@@ -22653,7 +24351,7 @@
           "dest_longitude"
         ],
         "title": "RouteEtaRequest",
-        "description": "Route and ETA between origin and destination."
+        "description": "Route and ETA between origin and destination.\n\nCoordinate range is validated manually in the handler (returns 400\nINVALID_COORDINATES), so no Pydantic ge/le constraints here."
       },
       "SendOTPRequest": {
         "properties": {
@@ -24056,12 +25754,14 @@
           },
           "quantity": {
             "type": "integer",
+            "maximum": 999999.0,
             "minimum": 0.0,
             "title": "Quantity",
             "default": 0
           },
           "low_stock_threshold": {
             "type": "integer",
+            "maximum": 999999.0,
             "minimum": 0.0,
             "title": "Low Stock Threshold",
             "default": 5
@@ -24078,7 +25778,7 @@
           "price"
         ],
         "title": "ShopkeeperAddFromMaster",
-        "description": "Add an EXISTING product-master record (optionally a variant) to a shop.\n\nShopkeepers must select from the platform catalog — arbitrary duplicate\nproduct-master creation is not allowed through this endpoint."
+        "description": "Add an EXISTING product-master record (optionally a variant) to a shop.\n\nShopkeepers must select from the platform catalog \u2014 arbitrary duplicate\nproduct-master creation is not allowed through this endpoint."
       },
       "ShopkeeperBulkOperation": {
         "properties": {
@@ -24124,6 +25824,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 999999.0,
                 "minimum": 0.0
               },
               {
@@ -24158,7 +25859,7 @@
             "type": "string",
             "minLength": 20,
             "title": "Firebase Id Token",
-            "description": "Firebase ID token from a completed phone-OTP sign-in"
+            "description": "Firebase ID token from a completed Google Sign-In or phone-OTP sign-in"
           },
           "name": {
             "anyOf": [
@@ -24171,7 +25872,33 @@
               }
             ],
             "title": "Name",
-            "description": "Required only when auto-registering a new account"
+            "description": "Required when auto-registering (Google Sign-In)"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Email from Google Sign-In"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url",
+            "description": "Google profile picture URL (avatar)"
           },
           "device_id": {
             "anyOf": [
@@ -24236,7 +25963,7 @@
           "firebase_id_token"
         ],
         "title": "ShopkeeperFirebaseLoginRequest",
-        "description": "Combined Firebase login-or-register request.\n\nThe Flutter app sends the Firebase ID token after a successful phone-OTP\nsign-in. The backend verifies the token, extracts the phone number, and\neither logs in an existing shopkeeper or auto-registers a new one (if no\naccount exists for that phone). This \"login or register on first use\" flow\nis the standard pattern for phone-auth apps."
+        "description": "Combined Firebase login-or-register request.\n\nSupports BOTH Phone-OTP and Google Sign-In:\n- Phone OTP: sends firebase_id_token, backend extracts phone number\n- Google Sign-In: sends firebase_id_token + email + name, backend extracts firebase_uid\n\nThe backend verifies the token and either logs in an existing shopkeeper\nor auto-registers a new one. This \"login or register on first use\" flow\nmeans users don't need a separate registration step."
       },
       "ShopkeeperForgotPasswordRequest": {
         "properties": {
@@ -24367,6 +26094,22 @@
         "type": "object",
         "title": "ShopkeeperLogoutRequest"
       },
+      "ShopkeeperLowStockThresholdUpdate": {
+        "properties": {
+          "low_stock_threshold": {
+            "type": "integer",
+            "maximum": 999999.0,
+            "minimum": 0.0,
+            "title": "Low Stock Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "low_stock_threshold"
+        ],
+        "title": "ShopkeeperLowStockThresholdUpdate",
+        "description": "Set the per-listing low-stock threshold (the quantity that flips a\nlisting into LOW_STOCK)."
+      },
       "ShopkeeperOTPLoginRequest": {
         "properties": {
           "firebase_id_token": {
@@ -24476,6 +26219,30 @@
             ],
             "title": "Discount Percentage"
           },
+          "promotional_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotional Price"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
           "start_date": {
             "type": "string",
             "format": "date-time",
@@ -24517,6 +26284,21 @@
         ],
         "title": "ShopkeeperOfferAssign",
         "description": "Assign (create + link) an offer to selected shop products."
+      },
+      "ShopkeeperOfferStatusUpdate": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ShopkeeperOfferStatusUpdate",
+        "description": "Change an offer's lifecycle state (shopkeeper-owned)."
       },
       "ShopkeeperProductCreate": {
         "properties": {
@@ -24592,14 +26374,18 @@
           },
           "quantity": {
             "type": "integer",
+            "maximum": 999999.0,
             "minimum": 0.0,
             "title": "Quantity",
+            "description": "Initial stock quantity (0-999,999)",
             "default": 0
           },
           "low_stock_threshold": {
             "type": "integer",
+            "maximum": 999999.0,
             "minimum": 0.0,
             "title": "Low Stock Threshold",
+            "description": "Alert threshold (0-999,999)",
             "default": 5
           },
           "is_available": {
@@ -24624,6 +26410,56 @@
               }
             ],
             "title": "Image Key"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "subcategory_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategory Id"
+          },
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "barcode_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode Type",
+            "description": "Optional explicit identifier type (EAN/UPC/GTIN/JAN/ITF/CUSTOM); inferred from the barcode length when omitted"
           }
         },
         "type": "object",
@@ -24663,25 +26499,29 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 999999.0,
                 "minimum": 0.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Quantity"
+            "title": "Quantity",
+            "description": "Updated stock quantity (0-999,999)"
           },
           "low_stock_threshold": {
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 999999.0,
                 "minimum": 0.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Low Stock Threshold"
+            "title": "Low Stock Threshold",
+            "description": "Alert threshold (0-999,999)"
           },
           "is_available": {
             "anyOf": [
@@ -24732,6 +26572,99 @@
         },
         "type": "object",
         "title": "ShopkeeperProductUpdate"
+      },
+      "ShopkeeperProfileCreateRequest": {
+        "properties": {
+          "shop_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Shop Name"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Override display name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Override email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Contact number"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Merchant category code"
+          },
+          "business_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Type",
+            "description": "Retail | Wholesale | Retail + Wholesale | Service | Other"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shop_name"
+        ],
+        "title": "ShopkeeperProfileCreateRequest",
+        "description": "First-time profile creation payload (no location required).\n\nSent by the Flutter profile-creation screen after the shopkeeper's first\nGoogle sign-in. Creates the sole business shop and updates the user's\nprofile fields."
       },
       "ShopkeeperProfileUpdate": {
         "properties": {
@@ -25052,7 +26985,7 @@
           "name"
         ],
         "title": "ShopkeeperRegisterRequest",
-        "description": "First-time shopkeeper registration.\n\nPhone verification is performed client-side by Firebase Phone Auth — the\nFlutter app sends the resulting Firebase ID token (``firebase_id_token``).\nThe backend verifies the token to extract and trust the phone number.\n\nThe new ``verify-phone`` → ``register`` flow also accepts the verified\n``firebase_uid`` / ``phone_number`` (cross-checked against the token) and\na ``role`` (defaults to ``shopkeeper``)."
+        "description": "First-time shopkeeper registration.\n\nPhone verification is performed client-side by Firebase Phone Auth \u2014 the\nFlutter app sends the resulting Firebase ID token (``firebase_id_token``).\nThe backend verifies the token to extract and trust the phone number.\n\nThe new ``verify-phone`` \u2192 ``register`` flow also accepts the verified\n``firebase_uid`` / ``phone_number`` (cross-checked against the token) and\na ``role`` (defaults to ``shopkeeper``)."
       },
       "ShopkeeperResetPasswordRequest": {
         "properties": {
@@ -25235,6 +27168,19 @@
             ],
             "title": "Category"
           },
+          "business_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Type",
+            "description": "Retail | Wholesale | Retail + Wholesale | Service | Other"
+          },
           "phone": {
             "anyOf": [
               {
@@ -25284,15 +27230,29 @@
             "title": "Image Url"
           },
           "latitude": {
-            "type": "number",
-            "maximum": 90.0,
-            "minimum": -90.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Latitude"
           },
           "longitude": {
-            "type": "number",
-            "maximum": 180.0,
-            "minimum": -180.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Longitude"
           },
           "gstin": {
@@ -25308,7 +27268,14 @@
             "title": "Gstin"
           },
           "address": {
-            "$ref": "#/components/schemas/app__schemas__shopkeeper__ShopAddressInput"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__schemas__shopkeeper__ShopAddressInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "location": {
             "anyOf": [
@@ -25323,12 +27290,10 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "latitude",
-          "longitude",
-          "address"
+          "name"
         ],
-        "title": "ShopkeeperShopCreate"
+        "title": "ShopkeeperShopCreate",
+        "description": "Payload to create a shop during first-time profile setup.\n\nLocation and address are OPTIONAL for the initial profile-creation flow \u2014\nthey are filled in later via the location-capture screen. This keeps the\nfirst-stage form fast and unblockable."
       },
       "ShopkeeperShopLocationUpdate": {
         "properties": {
@@ -25373,6 +27338,8 @@
           },
           "quantity_adjustment": {
             "type": "integer",
+            "maximum": 999999.0,
+            "minimum": -999999.0,
             "title": "Quantity Adjustment",
             "description": "Delta units (+restock / -damage); result must stay >= 0"
           },
@@ -25395,6 +27362,110 @@
         ],
         "title": "ShopkeeperStockAdjustment",
         "description": "Delta stock adjustment with audit trail (type + reason)."
+      },
+      "ShopkeeperSupportTicketCreate": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Category",
+            "description": "Issue category code (APP_PRODUCTS, APP_INVENTORY, ...)"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 10,
+            "title": "Description",
+            "description": "What happened, in the shopkeeper's own words"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority",
+            "description": "LOW | MEDIUM | HIGH | URGENT"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject",
+            "description": "Optional one-line title"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps",
+            "description": "Optional steps to reproduce"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version",
+            "description": "Client build the report came from"
+          },
+          "shop_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shop Id",
+            "description": "Shop the report belongs to. Authorized through the standard shop-access check, so a foreign shop id is rejected with 403."
+          },
+          "attachment_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Key",
+            "description": "Optional screenshot/evidence, as a media key from the signed upload flow (``support/{your_user_id}/....png``). The key is validated (category + self scope + object exists) before it is stored, so a foreign or phantom key is rejected."
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "title": "ShopkeeperSupportTicketCreate",
+        "description": "A support ticket filed from the shopkeeper app.\n\nSent by *Report an issue* and *Contact support*. Field limits mirror\n``app.services.support_service``: the schema rejects an obviously malformed\nrequest early (FastAPI 422 with a field-level message), and the service\nre-validates because it is also reachable from tests and admin tooling."
       },
       "StockStatus": {
         "type": "string",
