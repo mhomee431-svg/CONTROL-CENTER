@@ -110,3 +110,52 @@ jobs:
         run: flutter analyze
       - name: Run tests
         run: flutter test
+
+  # ---------------------------------------------------------------------------
+  # Added: release-blocking gates that used to be discovered only at deploy time.
+  # ---------------------------------------------------------------------------
+
+  api-contract:
+    name: API contract in sync
+    runs-on: ubuntu-24.04
+    # Fast (seconds) and dependency-free: it parses the FastAPI route
+    # decorators, so a backend change that adds a route without refreshing
+    # packages/api_contracts/openapi.json is caught HERE, in the pull request,
+    # instead of stopping the staging deploy after the whole cycle is spent.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Contract drift check (static, no backend deps)
+        run: python scripts/ci/check_api_contract_drift.py --verbose
+      - name: Commit the refreshed contract
+        # Belt and braces: the static parser is deliberately one-directional, so
+        # this regenerates the spec from the real app and fails if the committed
+        # file is stale. It boots FastAPI, so the backend requirements are
+        # installed first.
+        run: |
+          pip install -r backend/requirements.txt
+          python scripts/ci/refresh_api_contract.py --check
+
+  shopkeeper-build:
+    name: Shopkeeper build check
+    runs-on: ubuntu-24.04
+    # `analyze` + `test` can both be green while the app does not COMPILE
+    # (Gradle / manifest / plugin / R8 issues). That used to surface on the
+    # develop push, where the staging APK build then failed. A debug build is
+    # fast with a warm Flutter cache and proves the whole toolchain works.
+    # `continue-on-error` is deliberately OFF: a red build must block the PR.
+    defaults:
+      run:
+        working-directory: apps/shopkeeper_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify the app compiles (debug APK)
+        run: flutter build apk --debug

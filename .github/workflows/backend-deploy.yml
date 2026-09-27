@@ -154,17 +154,44 @@ jobs:
     if: ${{ needs.deploy-staging.result == 'success' && needs.smoke-staging.result == 'success' }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      # FAIL-CLOSED (was: skip-with-warning).
+      #
+      # This gate used to be conditional on `vars.STAGING_API_URL != ''`, and
+      # the fallback step only emitted a `::warning::`. A renamed or deleted
+      # repository variable therefore DISABLED the contract check while the job
+      # still reported success -- and `deploy-production` only requires this job
+      # to succeed, so production shipped with no contract verification at all.
+      #
+      # A safety gate that vanishes when its configuration is missing is worse
+      # than no gate, because it looks green. Missing configuration must now
+      # BLOCK the release, exactly like a failing check.
+      - name: E2E — require a contract gate to be configured
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          if [ -z "${STAGING_API_URL}" ]; then
+            echo "::error::Repository variable STAGING_API_URL is not set."
+            echo "::error::The contract gate is fail-closed: a release cannot proceed"
+            echo "::error::without verifying the deployed API against"
+            echo "::error::packages/api_contracts/openapi.json."
+            echo "::error::Fix the variable, or remove the e2e-staging job from this"
+            echo "::error::workflow's deploy-production needs: list if you really want"
+            echo "::error::an unverified release."
+            exit 1
+          fi
+          echo "Contract gate configured for ${STAGING_API_URL}"
       - name: E2E — deployed API must match the committed contract
-        if: ${{ vars.STAGING_API_URL != '' }}
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
         run: |
           python3 infrastructure/scripts/cicd_contract_check.py \
-            --url "${{ vars.STAGING_API_URL }}" \
+            --url "${STAGING_API_URL}" \
             --expect-env staging \
             --sha "${{ github.sha }}" \
             --contract packages/api_contracts/openapi.json
-      - name: E2E skipped — STAGING_API_URL is not configured
-        if: ${{ vars.STAGING_API_URL == '' }}
-        run: echo "::warning::STAGING_API_URL is unset — the E2E contract battery was skipped."
 
   deploy-production:
     name: Deploy production ECS (step 12, approval gated)
