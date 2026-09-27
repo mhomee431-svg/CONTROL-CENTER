@@ -123,6 +123,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       .read(notificationsControllerProvider.notifier)
                       .load(),
                   child: LazyListView(
+                    // Always scrollable: pull works on a short (or empty)
+                    // notification list.
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: visible.length,
                     padding: EdgeInsets.zero,
                     separatorBuilder: (_, _) =>

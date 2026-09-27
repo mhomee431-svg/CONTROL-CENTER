@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/ui/capability_gate.dart';
+import '../../../shell/capabilities_controller.dart';
 import '../controllers/import_controller.dart';
 
 /// Import Upload — File Picker + Upload Progress.
@@ -56,30 +58,42 @@ class _ImportUploadScreenState extends ConsumerState<ImportUploadScreen> {
     });
 
     final state = ref.watch(importControllerProvider);
+    // Capability-gated (spec 103): the backend `canUploadExcel` flag decides
+    // whether the picker renders at all. Read from the ONE centralized layer
+    // — no plan logic here. The backend stays authoritative (the upload
+    // endpoint still enforces `BULK_IMPORT` server-side).
+    final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Upload inventory file')),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: switch (state.status) {
-              ImportStatus.uploading => _UploadingView(
-                  filename: state.workbook?.name ?? 'workbook.xlsx',
-                ),
-              _ => _PickView(
-                  // An error keeps the flow open so the shopkeeper can retry.
-                  error: state.status == ImportStatus.error
-                      ? state.message
-                      : null,
-                  onPick: () {
-                    _navigated = false;
-                    ref
-                        .read(importControllerProvider.notifier)
-                        .pickAndUpload();
-                  },
-                ),
-            },
+      body: CapabilityGate(
+        allowed: caps.canUploadExcel,
+        title: 'Excel import not available on your plan',
+        message:
+            'Upgrade your plan to bulk-upload a workbook. Your current plan '
+            'does not include bulk import.',
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: switch (state.status) {
+                ImportStatus.uploading => _UploadingView(
+                    filename: state.workbook?.name ?? 'workbook.xlsx',
+                  ),
+                _ => _PickView(
+                    // An error keeps the flow open so the shopkeeper can retry.
+                    error: state.status == ImportStatus.error
+                        ? state.message
+                        : null,
+                    onPick: () {
+                      _navigated = false;
+                      ref
+                          .read(importControllerProvider.notifier)
+                          .pickAndUpload();
+                    },
+                  ),
+              },
+            ),
           ),
         ),
       ),

@@ -254,6 +254,14 @@ String friendlyPosError(ApiException e, {String? forbidden}) {
     return 'Your session has expired. Please sign in again.';
   }
   if (e.isForbidden || e.statusCode == 403) {
+    // A PLAN refusal (403 + ENTITLEMENT_DENIED / SUBSCRIPTION_EXPIRED /
+    // PLAN_LIMIT_REACHED) carries the server's own actionable copy —
+    // "Your current plan does not include 'pos_support'. Upgrade to unlock
+    // this feature." — which beats any generic permission wording: the fix is
+    // an upgrade, not a different shop or a retry.
+    if (e.isEntitlementDenied && e.message.trim().isNotEmpty) {
+      return e.message;
+    }
     return forbidden ?? 'You do not have permission to manage POS for this shop.';
   }
   if (e.statusCode == null) {

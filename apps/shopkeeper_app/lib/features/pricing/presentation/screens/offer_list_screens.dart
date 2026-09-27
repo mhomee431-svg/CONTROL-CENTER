@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/lazy_list.dart';
 import '../../../offers/domain/offer_models.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 
@@ -63,22 +64,29 @@ class _OfferBucketScreenState extends ConsumerState<OfferBucketScreen> {
             onRetry: () =>
                 ref.read(offersListControllerProvider.notifier).load(),
           ),
-        OffersListStatus.ready => offers.isEmpty
-            ? _Message(
+        OffersListStatus.ready => RefreshIndicator(
+            onRefresh: () =>
+                ref.read(offersListControllerProvider.notifier).load(),
+            // ONE list for the rows and the empty state: AlwaysScrollable
+            // physics keeps the pull gesture alive even when this bucket is
+            // empty.
+            child: LazyListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: offers.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(height: 1, indent: 16),
+              itemBuilder: (context, i) => _OfferTile(offer: offers[i]),
+              emptyPlaceholder: _Message(
                 icon: widget.expiredOnly
                     ? Icons.history_outlined
                     : Icons.local_offer_outlined,
                 text: widget.expiredOnly
                     ? 'No expired offers. Offers that finish their window will be listed here.'
                     : 'No offers are running right now. Create one to boost sales.',
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: offers.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(height: 1, indent: 16),
-                itemBuilder: (context, i) => _OfferTile(offer: offers[i]),
               ),
+            ),
+          ),
       },
     );
   }

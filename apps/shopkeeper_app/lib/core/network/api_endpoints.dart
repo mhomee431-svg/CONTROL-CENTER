@@ -32,6 +32,7 @@ class ApiEndpoints {
   // ── Shopkeeper portal ──
   static const String shops = '/api/v1/shopkeeper/shops';
   static String shop(String id) => '$shops/$id';
+  static String shopCapabilities(String id) => '${shop(id)}/capabilities';
   static String shopProfile(String id) => '${shop(id)}/profile';
   static String shopLocation(String id) => '${shop(id)}/location';
   static String shopSettings(String id) => '${shop(id)}/settings';
@@ -228,7 +229,7 @@ class ApiEndpoints {
   //
   // Flow: request a grant → upload the bytes → confirm → attach the returned
   // key when filing the ticket. AWS credentials never reach the client.
-    static const String mediaDirectUpload = '/api/v1/media/direct-upload';
+  static const String mediaDirectUpload = '/api/v1/media/direct-upload';
 
   /// The only media category a support ticket accepts.
   static const String supportAttachmentCategory = 'SUPPORT_ATTACHMENT';

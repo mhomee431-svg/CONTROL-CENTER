@@ -87,7 +87,10 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen> {
       ),
       body: SafeArea(
         child: ticket != null
-            ? _TicketBody(ticket: ticket, onRefresh: _refresh)
+            ? RefreshIndicator(
+                onRefresh: _refresh,
+                child: _TicketBody(ticket: ticket, onRefresh: _refresh),
+              )
             : error != null
             ? SystemStateView(
                 spec: SystemStateSpec.resolve(
@@ -116,6 +119,7 @@ class _TicketBody extends StatelessWidget {
     final created = ticket.createdAt;
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
         Card(

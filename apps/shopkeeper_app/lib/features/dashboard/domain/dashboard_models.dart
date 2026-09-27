@@ -1,4 +1,5 @@
-import '../../shops/domain/shop_models.dart';
+import '../../shops/domain/shop_models.dart'
+    show ShopCapabilities, SubscriptionInfo, VerificationInfo;
 
 /// One product the backend flagged as needing attention
 /// (LOW_STOCK / LIMITED_STOCK / OUT_OF_STOCK, sorted OUT_OF_STOCK first).
@@ -138,6 +139,7 @@ class DashboardData {
     required this.isVerified,
     required this.verification,
     required this.subscription,
+    this.capabilities = const ShopCapabilities(),
     required this.products,
     required this.recentUpdates,
     required this.offers,
@@ -148,6 +150,10 @@ class DashboardData {
   final bool isVerified;
   final VerificationInfo verification;
   final SubscriptionInfo subscription;
+
+  /// Backend-driven feature flags (spec section 103). Absent on old
+  /// payloads -> permissive default, never a lock-out.
+  final ShopCapabilities capabilities;
   final ProductStats products;
   final List<RecentUpdate> recentUpdates;
   final OffersSummary offers;
@@ -162,6 +168,8 @@ class DashboardData {
           json['verification'] as Map<String, dynamic>?),
       subscription: SubscriptionInfo.fromJson(
           json['subscription'] as Map<String, dynamic>?),
+      capabilities: ShopCapabilities.fromJson(
+          json['capabilities'] as Map<String, dynamic>?),
       products: ProductStats.fromJson(
           json['products'] as Map<String, dynamic>? ?? const {}),
       recentUpdates:

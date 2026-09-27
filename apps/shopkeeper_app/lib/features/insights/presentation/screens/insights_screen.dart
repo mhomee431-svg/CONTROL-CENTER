@@ -9,7 +9,9 @@ import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/ui/capability_gate.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../shell/capabilities_controller.dart';
 import '../../domain/insights_models.dart';
 import '../controllers/insights_controller.dart';
 import 'insights_drill_down_screen.dart';
@@ -50,6 +52,10 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 
     final state = ref.watch(insightsControllerProvider);
     final shopName = ref.watch(selectedShopProvider)?.name;
+    // Capability-gated (spec 103): the backend `canViewReports` flag decides
+    // whether reports render. Read from the ONE centralized layer — no plan
+    // logic here; the analytics endpoints stay server-authoritative.
+    final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -63,7 +69,14 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
           ),
         ],
       ),
-      body: SafeArea(child: _buildBody(state, shopName)),
+      body: CapabilityGate(
+        allowed: caps.canViewReports,
+        title: 'Reports not available on your plan',
+        message:
+            'Upgrade your plan to see customer activity and trends. Your '
+            'current plan does not include reports.',
+        child: SafeArea(child: _buildBody(state, shopName)),
+      ),
     );
   }
 
@@ -179,7 +192,10 @@ class _ReportBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Always scrollable: pull-to-refresh must fire even when the report fits
+    // on one screen.
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         Text(

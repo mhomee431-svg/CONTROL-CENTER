@@ -6,6 +6,9 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/capability_gate.dart';
+import '../../../../core/utils/datetime_utils.dart';
+import '../../../shell/capabilities_controller.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
 import '../widgets/pos_shared.dart';
@@ -91,11 +94,22 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(posControllerProvider);
+    final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('POS integration')),
-      body: SafeArea(
-        child: switch (state.status) {
+      // Capability-gated (spec §103): the backend `canUsePos` flag decides
+      // whether the POS surface renders at all. The flag is read from the
+      // ONE centralized layer — no plan logic here. Backend stays
+      // authoritative (state-changing routes still 403 on violation).
+      body: CapabilityGate(
+        allowed: caps.canUsePos,
+        title: 'POS not available on your plan',
+        message:
+            'Upgrade your plan to connect a point of sale. Your current plan '
+            'does not include POS integrations.',
+        child: SafeArea(
+          child: switch (state.status) {
           PosStatus.loading =>
             const Center(child: CircularProgressIndicator()),
           // Both non-ready states render through the ONE shared state view, so
@@ -126,6 +140,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               onDisconnect: _disconnect,
             ),
         },
+        ),
       ),
     );
   }
@@ -282,7 +297,11 @@ class _ConnectedView extends StatelessWidget {
                       '${integration.mappedProducts} products mapped',
                       '${integration.deviceCount} devices',
                       if (integration.lastSyncAt != null)
-                        'Last sync: ${_ConnectedView.shortDateTime(integration.lastSyncAt!)}',
+                        // Unified freshness voice: "Last POS sync 5 min ago" /
+                        // "… today" / "… yesterday", same as Inventory/Price.
+                        DateTimeUtils.formatPosSyncFreshness(
+                          integration.lastSyncAt,
+                        ),
                     ].join('  ·  '),
                     style: TextStyle(fontSize: 12, color: scheme.outline),
                   ),

@@ -77,7 +77,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     return RefreshIndicator(
       onRefresh: () => ref.read(sessionsControllerProvider.notifier).load(),
+      // Always scrollable: pull-to-refresh must fire even with a single
+      // session (each device is one row).
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           const SettingsIntro(

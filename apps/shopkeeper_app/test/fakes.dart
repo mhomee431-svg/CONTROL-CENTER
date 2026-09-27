@@ -1003,8 +1003,11 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     this.onSearch,
   });
 
-  /// Items returned by [fetchInventoryOverview].
-  final List<ShopProductItem> items;
+  /// Items returned by [fetchInventoryOverview]. Mutable on purpose: a test
+  /// that models "the server's payload changed" REPLACES the list (the lists
+  /// in the app are immutable and identity-cached, so in-place edits would be
+  /// invisible).
+  List<ShopProductItem> items;
 
   /// Rows ONLY the server knows — the stale-catalog fixture behind the
   /// products screen's server-search path (a listing added after the last
@@ -1024,6 +1027,14 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
       onUpdate;
 
   int overviewCalls = 0;
+
+  /// When set, [fetchInventoryOverview] waits for it before answering — lets a
+  /// test observe the IN-FLIGHT window of a (silent) refresh.
+  Completer<void>? overviewGate;
+
+  /// When true, [fetchInventoryOverview] throws — the failed-refresh fixture.
+  bool failOverview = false;
+
   int? lastShopId;
   Map<String, dynamic>? lastCreatePayload;
   int? lastUpdatedId;
@@ -1053,6 +1064,8 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   ) async {
     overviewCalls++;
     lastShopId = shopId;
+    await overviewGate?.future;
+    if (failOverview) throw Exception('offline');
     final summary = (
       total: items.length,
       active: items.where((i) => i.isActive && i.isAvailable).length,

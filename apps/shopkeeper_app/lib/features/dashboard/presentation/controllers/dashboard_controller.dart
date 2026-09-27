@@ -6,6 +6,8 @@ import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../inventory/data/inventory_repository.dart';
 import '../../../inventory_import/data/import_repository.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
+import '../../../shell/capabilities_controller.dart'
+    show capabilitiesControllerProvider;
 import '../../data/dashboard_repository.dart';
 import '../../domain/dashboard_models.dart';
 
@@ -57,6 +59,11 @@ class DashboardController extends Notifier<DashboardState> {
       if (token == null) throw const ApiException(message: 'Not signed in');
       final data = await _repo.fetchDashboard(shop.id, token);
       final alerts = await _loadAlerts(shop.id, token, data);
+      // Publish the backend-driven flags to the ONE centralized layer so
+      // every screen gates off the same source (no duplicated plan logic).
+      ref
+          .read(capabilitiesControllerProvider.notifier)
+          .adopt(data.capabilities);
       state = DashboardState(
           status: DashboardStatus.ready, data: data, alerts: alerts);
     } on ApiException catch (e) {
@@ -153,6 +160,7 @@ class DashboardController extends Notifier<DashboardState> {
       if (token == null) return;
       final data = await _repo.fetchDashboard(shop.id, token);
       final alerts = await _loadAlerts(shop.id, token, data);
+      ref.read(capabilitiesControllerProvider.notifier).adopt(data.capabilities);
       state = DashboardState(
           status: DashboardStatus.ready, data: data, alerts: alerts);
     } catch (_) {

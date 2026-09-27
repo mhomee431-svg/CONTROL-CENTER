@@ -56,7 +56,13 @@ class _InsightsDrillDownScreenState
                   .read(insightsDrillDownsProvider.notifier)
                   .load(widget.metric),
             ),
-          DrillDownStatus.ready => _ReadyView(state: state),
+          DrillDownStatus.ready => RefreshIndicator(
+              // Pull re-fetches the SAME metric and window that is on screen.
+              onRefresh: () => ref
+                  .read(insightsDrillDownsProvider.notifier)
+                  .load(widget.metric),
+              child: _ReadyView(state: state),
+            ),
         },
       ),
     );
@@ -73,7 +79,10 @@ class _ReadyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Always scrollable: pull-to-refresh must fire even when the report fits
+    // on one screen.
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         _RangeSelector(

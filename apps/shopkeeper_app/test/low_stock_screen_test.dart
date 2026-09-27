@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
+import 'package:hyperlocal_shopkeeper_app/core/ui/debounced_search_field.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/presentation/screens/low_stock_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
+import 'package:hyperlocal_shopkeeper_app/features/products/presentation/widgets/product_image_view.dart';
 
 import 'fakes.dart';
 
@@ -225,5 +227,122 @@ void main() {
       expect(find.text('1 item requires immediate restocking'), findsOneWidget);
     });
   });
+
+  group('LowStockScreen — PERFORMANCE (§110)', () {
+    testWidgets('uses the shared debounced search field, not a raw TextField',
+        (tester) async {
+      // §110 "debounced search" + the no-duplication rule: the restock slice is
+      // derived from the whole catalog, so filtering it on every glyph would
+      // re-run a full pass per keystroke. The shared field debounces that and
+      // gives this list the same search history as the other catalog lists.
+      final container = makeContainer(
+        productRepo: FakeProductRepo(
+          items: [lowItem(id: 7, name: 'Oil 1L', quantity: 2, threshold: 5)],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container);
+
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is DebouncedSearchField && w.key == const Key('low-stock-search-field'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('filters the restock slice by the typed name', (tester) async {
+      final container = makeContainer(
+        productRepo: FakeProductRepo(
+          items: [
+            lowItem(id: 7, name: 'Oil 1L', quantity: 2, threshold: 5),
+            lowItem(id: 8, name: 'Bread', quantity: 1, threshold: 5),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container);
+      expect(find.byKey(const Key('low-stock-card-7')), findsOneWidget);
+      expect(find.byKey(const Key('low-stock-card-8')), findsOneWidget);
+
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const Key('low-stock-search-field')),
+          matching: find.byType(TextField),
+        ),
+        'oil',
+      );
+      // Past the field's 300ms debounce, so the filter has actually run.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('low-stock-card-7')), findsOneWidget);
+      expect(find.byKey(const Key('low-stock-card-8')), findsNothing);
+    });
+
+    testWidgets('a rebuild with unchanged data keeps the derived slice stable',
+        (tester) async {
+      // The derivation is memoized on (catalog, query). Opening the stock sheet
+      // rebuilds this screen with the SAME catalog and the SAME query; without
+      // the memo that would re-sort the whole catalog for a change the
+      // shopkeeper never made. The rows must be identical afterwards, still in
+      // urgency order (fewest units first).
+      final container = makeContainer(
+        productRepo: FakeProductRepo(
+          items: [
+            lowItem(id: 7, name: 'Oil 1L', quantity: 2, threshold: 5),
+            lowItem(id: 8, name: 'Bread', quantity: 1, threshold: 5),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container);
+      expect(find.byKey(const Key('low-stock-card-8')), findsOneWidget);
+      expect(find.text('1 units left'), findsOneWidget);
+
+      // Open and dismiss the stock sheet — a rebuild with no data change.
+      await tester.tap(find.byKey(const Key('low-stock-update-8')));
+      await tester.pumpAndSettle();
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('low-stock-card-8')), findsOneWidget);
+      expect(find.byKey(const Key('low-stock-card-7')), findsOneWidget);
+      expect(find.text('1 units left'), findsOneWidget);
+    });
+
+    testWidgets('the thumbnail goes through the shared optimized image widget',
+        (tester) async {
+      // §110 "image optimization": the row thumbnail must decode at ~2x its
+      // 48px box rather than the source resolution, and must be decorative
+      // (the card already names the product).
+      final container = makeContainer(
+        productRepo: FakeProductRepo(
+          items: [
+            lowItem(
+              id: 7,
+              name: 'Oil 1L',
+              quantity: 2,
+              threshold: 5,
+              imageUrl: 'https://cdn.example.com/oil.jpg',
+            ),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container);
+
+      final image =
+          tester.widget<ProductImageView>(find.byType(ProductImageView));
+      expect(image.imageUrl, 'https://cdn.example.com/oil.jpg');
+      expect(image.cacheWidth, 96);
+      expect(image.excludeFromSemantics, isTrue);
+    });
+  });
+
 }
 
