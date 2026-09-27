@@ -165,9 +165,12 @@ void main() {
       await tester.pump();
 
       // At DPR 3 a 72px box needs 216px of bitmap, not the source's 2000.
+      // `Image.file` wraps its provider in a `ResizeImage` only when it is told
+      // to downsample, so the wrapper IS the assertion.
       final image = tester.widget<Image>(find.byType(Image));
-      expect(image.cacheWidth, 216);
-      expect(image.cacheWidth, lessThan(1024),
+      final resize = image.image as ResizeImage;
+      expect(resize.width, 216);
+      expect(resize.width, lessThan(1024),
           reason: 'the decode is bounded, never the full-resolution file');
     });
 
@@ -191,7 +194,7 @@ void main() {
       await tester.pump();
 
       final image = tester.widget<Image>(find.byType(Image));
-      expect(image.cacheWidth, 96);
+      expect((image.image as ResizeImage).width, 96);
     });
 
     testWidgets('the decode width is clamped to a sane range', (tester) async {
@@ -213,7 +216,7 @@ void main() {
       await tester.pump();
 
       final image = tester.widget<Image>(find.byType(Image));
-      expect(image.cacheWidth, greaterThanOrEqualTo(1));
+      expect((image.image as ResizeImage).width, greaterThanOrEqualTo(1));
     });
   });
 }
