@@ -111,15 +111,21 @@ class NotificationTapHandler {
   }
 
   void _showUnavailable(BuildContext context, String? message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message ?? 'This content is no longer available.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    showInAppMessage(context, message);
   }
+}
+
+/// Single place where a "cannot open that" message is shown, so the list tap
+/// and the in-app banner produce identical, non-interrupting feedback.
+void showInAppMessage(BuildContext context, String? message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message ?? 'This content is no longer available.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 }
 
 final notificationTapHandlerProvider = Provider<NotificationTapHandler>(

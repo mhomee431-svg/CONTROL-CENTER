@@ -573,6 +573,157 @@ class MockDBEngine:
 
 
 # ── Barcode lookup test with mocks ─────────────────────────────────────────
+def test_shop_offers_payload_includes_open_state():
+    """Product-detail shop offers must carry open/closed, like search does.
+
+    A customer comparing the same shop on the search page and the product page
+    must not see two different answers about whether it is open.
+    """
+    from app.api.routes.products import _shop_offers_payload
+
+    class _Shop:
+        id = 7
+        name = "Neighbour Market"
+        image_url = None
+        latitude = 25.5941
+        longitude = 85.1376
+        rating = 4.5
+        is_accepting_orders = True
+
+    class _Inv:
+        stock_status = "IN_STOCK"
+        is_available = True
+        updated_at = None
+        freshness_status = None
+
+    class _SP:
+        id = 11
+        shop_id = 7
+        price = 42.0
+        mrp = 50.0
+        last_inventory_update = None
+        is_available = True
+        inventory = _Inv()
+
+    class _Product:
+        id = 3
+
+    class _DB:
+        def query(self, model):
+            return self
+
+        def join(self, *a, **k):
+            return self
+
+        def options(self, *a, **k):
+            return self
+
+        def filter(self, *a, **k):
+            return self
+
+        def all(self):
+            return [_SP()]
+
+        def first(self):
+            return _Shop()
+
+    monkeypatched = {}
+
+    import app.api.routes.products as products_module
+
+    # The route computes open state through the canonical helper; stub it so the
+    # test asserts plumbing rather than opening-hours parsing (covered elsewhere).
+    original_is_shop_open = products_module.is_shop_open
+    original_offer_text = products_module.get_offer_text_for_shop_product
+    try:
+        products_module.is_shop_open = lambda shop, at_time=None: True
+        products_module.get_offer_text_for_shop_product = lambda db, sp_id: None
+        offers = _shop_offers_payload(_DB(), _Product(), None, None, 25.0)
+    finally:
+        products_module.is_shop_open = original_is_shop_open
+        products_module.get_offer_text_for_shop_product = original_offer_text
+
+    assert len(offers) == 1
+    assert offers[0]["is_open_now"] is True
+    assert offers[0]["is_accepting_orders"] is True
+    assert monkeypatched == {}
+
+
+def test_shop_offers_payload_tolerates_open_state_failure():
+    """A failing opening-hours lookup must not break the product page.
+
+    The offer still has to be returned with an *unknown* (None) open state, so
+    the UI hides the badge instead of guessing.
+    """
+    from app.api.routes.products import _shop_offers_payload
+
+    class _Shop:
+        id = 7
+        name = "Neighbour Market"
+        image_url = None
+        latitude = None
+        longitude = None
+        rating = 4.0
+        is_accepting_orders = True
+
+    class _Inv:
+        stock_status = "IN_STOCK"
+        is_available = True
+        updated_at = None
+        freshness_status = None
+
+    class _SP:
+        id = 11
+        shop_id = 7
+        price = 42.0
+        mrp = None
+        last_inventory_update = None
+        is_available = True
+        inventory = _Inv()
+
+    class _Product:
+        id = 3
+
+    class _DB:
+        def query(self, model):
+            return self
+
+        def join(self, *a, **k):
+            return self
+
+        def options(self, *a, **k):
+            return self
+
+        def filter(self, *a, **k):
+            return self
+
+        def all(self):
+            return [_SP()]
+
+        def first(self):
+            return _Shop()
+
+    import app.api.routes.products as products_module
+
+    def _boom(shop, at_time=None):
+        raise RuntimeError("opening hours unavailable")
+
+    original_is_shop_open = products_module.is_shop_open
+    original_offer_text = products_module.get_offer_text_for_shop_product
+    try:
+        products_module.is_shop_open = _boom
+        products_module.get_offer_text_for_shop_product = lambda db, sp_id: None
+        offers = _shop_offers_payload(_DB(), _Product(), None, None, 25.0)
+    finally:
+        products_module.is_shop_open = original_is_shop_open
+        products_module.get_offer_text_for_shop_product = original_offer_text
+
+    # The shop is still listed; only the open state is unknown.
+    assert len(offers) == 1
+    assert offers[0]["is_open_now"] is None
+    assert offers[0]["is_accepting_orders"] is None
+
+
 def test_barcode_lookup_works():
     """barcode_lookup should find products by barcode."""
     from app.search.engine import barcode_lookup

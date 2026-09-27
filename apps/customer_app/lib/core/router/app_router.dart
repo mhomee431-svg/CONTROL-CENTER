@@ -7,16 +7,23 @@ import '../../features/shell/app_shell.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/home/presentation/screens/coming_soon_screen.dart';
 import '../../features/home/presentation/screens/search_results_by_pin_screen.dart';
+import '../../features/search/presentation/screens/barcode_scan_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/search/presentation/screens/search_results_screen.dart';
 import '../../features/saved_and_history/presentation/screens/saved_items_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/notifications/presentation/screens/notification_settings_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/account_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/legal_document_screen.dart';
+import '../../features/profile/presentation/screens/privacy_screen.dart';
+import '../../features/profile/presentation/screens/delete_account_screen.dart';
 import '../../features/profile/presentation/screens/addresses_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/settings/presentation/screens/about_screen.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
+import '../../features/location/presentation/screens/location_settings_screen.dart';
 import '../../features/location/presentation/screens/location_permission_screen.dart';
 import '../../features/location/presentation/screens/select_location_screen.dart';
 import '../../features/product_details/presentation/screens/product_details_screen.dart';
@@ -166,6 +173,28 @@ final routerProvider = Provider<GoRouter>((ref) {
             const LegalDocumentScreen(document: LegalDocument.terms),
       ),
       GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/location-settings',
+        builder: (context, state) => const LocationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/delete-account',
+        builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        // Distinct from '/privacy' (the legal document). This is the
+        // interactive privacy & data centre: switches and account actions.
+        path: '/privacy-data',
+        builder: (context, state) => const PrivacyScreen(),
+      ),
+      GoRoute(
         path: '/help',
         builder: (context, state) => const HelpSupportScreen(),
       ),
@@ -239,6 +268,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                       return SearchResultsScreen(query: query);
                     },
                   ),
+                  // Camera scan — pushed from the search field's scanner icon.
+                  // Reached only when the entry point is offered, but the route
+                  // itself stays registered so deep links and a mid-session
+                  // kill-switch flip cannot strand the user on a 404 page.
+                  GoRoute(
+                    path: 'scan',
+                    builder: (context, state) => const BarcodeScanScreen(),
+                  ),
                 ],
               ),
             ],
@@ -247,7 +284,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/saved',
-                builder: (context, state) => const SavedItemsScreen(),
+                builder: (context, state) => SavedItemsScreen(
+                  // Lets the account hub deep-link straight to Saved
+                  // Products / Saved Shops / Search History instead of
+                  // dumping the customer on tab 0 every time.
+                  initialTab: SavedItemsTab.fromQuery(
+                    state.uri.queryParameters['tab'],
+                  ),
+                ),
               ),
             ],
           ),
@@ -261,6 +305,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
+              // The nav's "Profile" tab is the account HUB: the customer's
+              // single entry point for profile, saved items, addresses,
+              // notifications, settings, help and logout. The identity page
+              // itself stays reachable at /profile (pushed from the hub).
+              GoRoute(
+                path: '/account',
+                builder: (context, state) => const AccountScreen(),
+              ),
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfileScreen(),

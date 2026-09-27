@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../providers/product_details_providers.dart';
@@ -8,8 +9,12 @@ import '../../domain/models/product_details_models.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/stale_data_notice.dart';
 import '../widgets/product_image_gallery.dart';
 import '../widgets/product_master_section.dart';
+import '../widgets/product_offers_section.dart';
+import '../widgets/product_price_summary.dart';
+import '../widgets/price_comparison_section.dart';
 import '../widgets/shop_inventory_section.dart';
 
 /// Product Details screen.
@@ -92,17 +97,56 @@ class ProductDetailsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── PRODUCT MASTER (global static info) ──────────────────────
+            // ── OFFLINE / STALE DISCLOSURE ───────────────────────────────
+            // Must come first so it is impossible to miss: everything below
+            // this line may be a cached snapshot rather than live data. The
+            // spec forbids presenting cached content as live, and a notice
+            // buried under a product image is functionally absent.
+            if (details.servedFromCache)
+              StaleDataNotice(
+                label: details.lastUpdatedLabel,
+                onRetry: () => ref.refresh(productDetailsProvider(productId)),
+              ),
+
+            // ── PRODUCT IMAGE ────────────────────────────────────────────
             ProductImageGallery(imageUrls: details.product.imageUrls),
+
+            // ── CURRENT PRICE / AVAILABILITY / FRESHNESS AT A GLANCE ─────
+            ProductPriceSummary(details: details),
+
+            // ── SECTION: PRODUCT INFORMATION (global static info) ────────
             ProductMasterSection(product: details.product),
 
             const Divider(height: 1),
 
-            // ── SHOP INVENTORY (dynamic availability) ────────────────────
+            // ── SECTION: AVAILABLE NEARBY SHOPS (dynamic availability) ───
+            // Fed `liveOffers`, not `shopOffers`: for cached data this is
+            // empty, so the section renders its honest "cannot confirm
+            // availability" message instead of stale "In Stock" tiles.
             ShopInventorySection(
               productId: productId,
-              offers: details.shopOffers,
+              offers: details.liveOffers,
+              unverified: !details.hasLiveShopData,
             ),
+
+            // ── SECTION: PRICE COMPARISON ────────────────────────────────
+            if (details.liveOffers.length > 1) ...const [
+              Divider(height: 1),
+            ],
+            PriceComparisonSection(
+              details: details,
+              onShopTap: (offer) => context.push('/shop/${offer.shopId}'),
+            ),
+
+            // ── SECTION: OFFERS ──────────────────────────────────────────
+            if (details.offersWithDeals.isNotEmpty) ...const [
+              Divider(height: 1),
+            ],
+            ProductOffersSection(
+              details: details,
+              onShopTap: (offer) => context.push('/shop/${offer.shopId}'),
+            ),
+
             const SizedBox(height: AppSpacing.xl),
           ],
         ),

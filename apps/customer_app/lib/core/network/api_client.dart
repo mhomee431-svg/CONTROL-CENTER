@@ -8,6 +8,7 @@ import '../security/safe_logger.dart';
 import '../storage/secure_storage_service.dart';
 import 'api_endpoints.dart';
 import 'api_error_handler.dart';
+import 'connectivity_service.dart';
 import 'retry_interceptor.dart';
 
 /// A thin wrapper around Dio that:
@@ -266,6 +267,38 @@ class TokenRefreshInterceptor extends Interceptor {
   }
 }
 
+/// Correlation id for a single outbound request.
+///
+/// Time-based rather than random so it sorts chronologically in logs and stays
+/// unique enough to trace one customer-reported failure without a UUID
+/// dependency. Deliberately not derived from any token or user data.
+String _newRequestId() {
+  final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+  return 'req_${now.toUpperCase()}';
+}
+
+/// Promotes connectivity to `online` after a successful response.
+///
+/// Guarded by [read] so this never *builds* the connectivity service in a
+/// context that has not opted into it; a failure here must not take down a
+/// request that actually succeeded.
+Future<void> _confirmReachable(Ref ref) async {
+  try {
+    ref.read(connectivityServiceProvider).confirmReachable();
+  } catch (_) {
+    // Connectivity tracking is advisory; never let it break a good response.
+  }
+}
+
+/// Marks connectivity as degraded after a network-shaped failure.
+Future<void> _noteFailure(Ref ref) async {
+  try {
+    ref.read(connectivityServiceProvider).noteRequestFailure();
+  } catch (_) {
+    // As above — advisory only.
+  }
+}
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = Dio(
     BaseOptions(
@@ -282,20 +315,38 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   dio.interceptors.addAll([
     ExponentialRetryInterceptor(dio: dio),
     InterceptorsWrapper(
+      // Stamps a correlation id on every outbound request so a customer
+      // reporting "it failed at 14:32" can be traced to an exact request in
+      // the logs, without logging bodies or tokens.
       onRequest: (options, handler) {
-        SafeLogger.debug('HTTP Outbound: [${options.method}] ${options.path}');
+        options.headers['X-Request-ID'] ??= _newRequestId();
+        SafeLogger.debug(
+          'HTTP Outbound: [${options.method}] ${options.path} '
+          '(${options.headers['X-Request-ID']})',
+        );
         return handler.next(options);
       },
       onResponse: (response, handler) {
         SafeLogger.debug(
           'HTTP Inbound: [${response.statusCode}] ${response.requestOptions.path}',
         );
+        // A response is the only proof that connectivity genuinely works, so it
+        // is what promotes `reconnecting` back to `online`. Without this the
+        // banner would sit on "Reconnecting…" forever even though requests are
+        // succeeding again.
+        unawaited(_confirmReachable(ref));
         return handler.next(response);
       },
       onError: (DioException e, handler) {
         SafeLogger.error(
           'HTTP Error: [${e.response?.statusCode}] ${e.requestOptions.path}',
         );
+        // Only network-shaped failures mark the device offline. A 404 or a 422
+        // proves the network works fine, and treating those as an outage would
+        // show a false "You're offline" banner over a mere missing record.
+        if (isConnectivityError(ApiException.fromDioError(e))) {
+          unawaited(_noteFailure(ref));
+        }
         return handler.next(e);
       },
     ),

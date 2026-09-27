@@ -36,19 +36,27 @@ GoRouter _router() {
       ),
       GoRoute(
         path: '/profile/addresses',
-        builder: (_, _) => const Scaffold(body: Text('AddressesPage')),
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('AddressesPage')),
       ),
       GoRoute(
         path: '/help',
-        builder: (_, _) => const Scaffold(body: Text('HelpPage')),
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('HelpPage')),
       ),
       GoRoute(
         path: '/privacy',
-        builder: (_, _) => const Scaffold(body: Text('PrivacyPage')),
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('PrivacyPage')),
       ),
       GoRoute(
         path: '/terms',
-        builder: (_, _) => const Scaffold(body: Text('TermsPage')),
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('TermsPage')),
+      ),
+      GoRoute(
+        path: '/account',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('AccountHubPage')),
+      ),
+      GoRoute(
+        path: '/delete-account',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('DeleteAccountPage')),
       ),
       GoRoute(
         path: '/settings',
@@ -270,7 +278,7 @@ void main() {
     expect(find.text('SettingsPage:notifications'), findsOneWidget);
   });
 
-  testWidgets('delete account explains the impact before deleting', (
+  testWidgets('delete account hands off to the dedicated flow', (
     tester,
   ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
@@ -287,20 +295,18 @@ void main() {
     await tester.tap(find.byKey(const Key('deleteAccountTile')));
     await tester.pumpAndSettle();
 
-    // Impact is explained and nothing is deleted yet.
-    expect(find.byKey(const Key('confirmDeleteAccount')), findsOneWidget);
-    expect(find.textContaining('cannot be undone'), findsOneWidget);
+    // The old inline confirm dialog is gone. Tapping the entry must not
+    // delete anything by itself — the real flow (impact -> confirm ->
+    // backend call -> teardown) lives on its own screen and is covered by
+    // delete_account_screen_test.dart.
+    expect(find.byKey(const Key('confirmDeleteAccount')), findsNothing);
     expect(repository.isDeleted, isFalse);
-
-    await tester.tap(find.byKey(const Key('confirmDeleteAccount')));
-    await tester.pumpAndSettle();
-
-    expect(repository.isDeleted, isTrue);
-    // The session is closed so no stale token survives the deleted account.
-    expect(auth.logoutCalled, isTrue);
+    expect(auth.logoutCalled, isFalse);
   });
 
-  testWidgets('cancelling the delete dialog keeps the account', (tester) async {
+  testWidgets('leaving the profile screen does not delete the account', (
+    tester,
+  ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
     final repository = MockProfileRepository(delay: Duration.zero);
     final container = ProviderContainer(
@@ -312,9 +318,10 @@ void main() {
     addTearDown(container.dispose);
 
     await pump(tester, container);
-    await tester.tap(find.byKey(const Key('deleteAccountTile')));
+    // Navigating away without confirming must leave everything intact.
+    await tester.tap(find.byKey(const Key('editProfileButton')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     expect(repository.isDeleted, isFalse);

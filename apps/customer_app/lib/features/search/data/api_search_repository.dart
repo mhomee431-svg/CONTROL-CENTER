@@ -1,5 +1,7 @@
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/enum_codec.dart';
+import '../../../core/network/json_map.dart';
 import '../domain/search_repository.dart';
 import '../domain/models/search_models.dart';
 
@@ -53,9 +55,10 @@ class ApiSearchRepository implements SearchRepository {
     );
 
     if (data is List) {
+      // A row that is not an object is dropped rather than crashing the scan.
       return data
-          .whereType<Map<String, dynamic>>()
-          .map(_mapBarcodeHit)
+          .whereType<Map<dynamic, dynamic>>()
+          .map((e) => _mapBarcodeHit(JsonMap.tryParse(e)))
           .toList(growable: false);
     }
     return const [];
@@ -65,50 +68,46 @@ class ApiSearchRepository implements SearchRepository {
   ///
   /// The barcode payload omits the product image and reports nullable price /
   /// distance, so those stay empty rather than being invented.
-  static ShopProductResult _mapBarcodeHit(Map<String, dynamic> json) {
+  static ShopProductResult _mapBarcodeHit(JsonMap json) {
     // A scanned product carries the same freshness evidence as a typed one.
     // A missing timestamp keeps the epoch sentinel, which the shared freshness
     // formatter renders as "Unknown" instead of a fabricated "just now".
-    final lastUpdated = DateTime.tryParse(
-      (json['last_inventory_update'] ?? json['last_updated'])?.toString() ?? '',
-    );
-
+    final lastUpdated = json.firstDateTimeOf([
+      'last_inventory_update',
+      'last_updated',
+    ]);
     return ShopProductResult(
-      id: json['shop_product_id']?.toString() ?? '',
-      productId: json['product_id']?.toString() ?? '',
-      productName: json['product_name']?.toString() ?? '',
+      id: json.stringOr('shop_product_id'),
+      productId: json.stringOr('product_id'),
+      productName: json.stringOr('product_name'),
       productImageUrl: '',
-      shopId: json['shop_id']?.toString() ?? '',
-      shopName: json['shop_name']?.toString() ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0,
-      isAvailable: json['is_available'] == true,
-      distanceInKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
-      shopRating: (json['shop_rating'] as num?)?.toDouble() ?? 0,
+      shopId: json.stringOr('shop_id'),
+      shopName: json.stringOr('shop_name'),
+      price: json.decimalOr('price'),
+      isAvailable: json.booleanOr('is_available'),
+      distanceInKm: json.decimalOr('distance_km'),
+      shopRating: json.decimalOr('shop_rating'),
       lastUpdated: lastUpdated ?? DateTime.fromMillisecondsSinceEpoch(0),
-      brand: json['brand_name']?.toString(),
-      category: json['category_name']?.toString(),
-      mrp: (json['mrp'] as num?)?.toDouble(),
+      brand: json.string('brand_name'),
+      category: json.string('category_name'),
+      mrp: json.decimal('mrp'),
       // Barcode hits carry the same open/order-acceptance enrichment as text
       // search (engine attaches it), so a scanned and a typed product agree.
-      isOpenNow: json['is_open_now'] as bool?,
-      isAcceptingOrders: json['is_accepting_orders'] as bool?,
-      availability: _availabilityFrom(json['stock_status']?.toString()),
+      isOpenNow: json.firstBooleanOf(['is_open_now']),
+      isAcceptingOrders: json.firstBooleanOf(['is_accepting_orders']),
+      availability: _availabilityFrom(json),
       freshness: _parseFreshnessStatus(json),
-      freshnessStatusRaw: json['freshness_status']?.toString(),
+      freshnessStatusRaw: json.string('freshness_status'),
     );
   }
 
-  static InventoryAvailability _availabilityFrom(String? status) {
-    return switch (status?.toLowerCase()) {
-      'in_stock' || 'in-stock' || 'in stock' || 'available' =>
-        InventoryAvailability.inStock,
-      'out_of_stock' || 'out-of-stock' || 'out of stock' || 'unavailable' =>
-        InventoryAvailability.outOfStock,
-      'low_stock' || 'low-stock' || 'low stock' || 'limited' =>
-        InventoryAvailability.lowStock,
-      _ => InventoryAvailability.unknown,
-    };
-  }
+  /// Availability for the barcode hit, which reports `stock_status` directly.
+  static InventoryAvailability _availabilityFrom(JsonMap json) =>
+      EnumCodec<InventoryAvailability>(
+        json.firstOf(['stock_status', 'availability']),
+        InventoryAvailability.values,
+        InventoryAvailability.unknown,
+      );
 
   @override
   Future<List<SearchSuggestion>> getSuggestions(String query) async {
@@ -119,11 +118,20 @@ class ApiSearchRepository implements SearchRepository {
     );
 
     if (data is List) {
-      return data
-          .map((e) => SearchSuggestion.fromJson(e as Map<String, dynamic>))
-          .toList();
+      // Suggestions are a small freezed model; a row that cannot be decoded is
+      // skipped so one odd entry cannot empty the whole suggestion list.
+      final out = <SearchSuggestion>[];
+      for (final entry in data) {
+        if (entry is! Map) continue;
+        try {
+          out.add(SearchSuggestion.fromJson(entry.cast<String, dynamic>()));
+        } catch (_) {
+          // A malformed suggestion is not worth failing the whole list over.
+        }
+      }
+      return out;
     }
-    return [];
+    return const [];
   }
 
   @override
@@ -174,88 +182,88 @@ class ApiSearchRepository implements SearchRepository {
       requiresAuth: false,
     );
 
-    if (data is Map<String, dynamic>) {
-      final results = data['results'] as List<dynamic>? ?? [];
-      return results.map((e) => _mapResult(e as Map<String, dynamic>)).toList();
+    final root = JsonMap.tryParse(data);
+    if (root.has('results')) {
+      // A malformed row costs that row, not the whole results page.
+      return root
+          .objectList('results')
+          .map(_mapResult)
+          .toList(growable: false);
     }
-    return [];
+    return const [];
   }
 
-  ShopProductResult _mapResult(Map<String, dynamic> json) {
+  ShopProductResult _mapResult(JsonMap json) {
     // The search index publishes `last_inventory_update`; `last_updated` is
     // accepted as a tolerated alias. When neither is present we keep null so
     // freshness falls back to the explicit `freshness_status` instead of being
     // derived from a fabricated "now".
-    final lastUpdated = DateTime.tryParse(
-      (json['last_inventory_update'] ?? json['last_updated'])?.toString() ?? '',
-    );
+    final lastUpdated = json.firstDateTimeOf([
+      'last_inventory_update',
+      'last_updated',
+    ]);
     final availability = _parseAvailability(json);
     final freshness = lastUpdated != null
         ? _deriveFreshness(lastUpdated)
         : _parseFreshnessStatus(json);
 
     return ShopProductResult(
-      // The search index exposes the offer-level id as shop_product_id.
-      id: (json['id'] ?? json['shop_product_id'])?.toString() ?? '',
-      productId: json['product_id']?.toString() ?? '',
-      productName: json['product_name']?.toString() ?? '',
-      productImageUrl: json['product_image_url']?.toString() ?? '',
-      shopId: json['shop_id']?.toString() ?? '',
-      shopName: json['shop_name']?.toString() ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0,
-      isAvailable: json['is_available'] == true,
-      distanceInKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
-      shopRating: (json['shop_rating'] as num?)?.toDouble() ?? 0,
+      // The search index exposes the offer-level id as `id`, with
+      // `shop_product_id` accepted as an alias.
+      id: json.firstOf(['id', 'shop_product_id']) ?? '',
+      productId: json.stringOr('product_id'),
+      productName: json.stringOr('product_name'),
+      productImageUrl: json.stringOr('product_image_url'),
+      shopId: json.stringOr('shop_id'),
+      shopName: json.stringOr('shop_name'),
+      price: json.decimalOr('price'),
+      isAvailable: json.booleanOr('is_available'),
+      distanceInKm: json.decimalOr('distance_km'),
+      shopRating: json.decimalOr('shop_rating'),
       // Unknown timestamp stays an explicit sentinel. Stamping DateTime.now()
       // here would make stale inventory look freshly verified.
       lastUpdated: lastUpdated ?? DateTime.fromMillisecondsSinceEpoch(0),
-      variant: json['variant']?.toString(),
-      mrp: (json['mrp'] as num?)?.toDouble(),
-      shopImageUrl: json['shop_image_url']?.toString(),
-      offerText: json['offer_text']?.toString(),
-      shopAddress: json['shop_address']?.toString(),
-      shopLatitude: (json['shop_latitude'] as num?)?.toDouble(),
-      shopLongitude: (json['shop_longitude'] as num?)?.toDouble(),
-      category: (json['category'] ?? json['category_name'])?.toString(),
-      brand: (json['brand'] ?? json['brand_name'])?.toString(),
-      reviewCount: (json['review_count'] as num?)?.toInt(),
+      variant: json.string('variant'),
+      mrp: json.decimal('mrp'),
+      shopImageUrl: json.string('shop_image_url'),
+      offerText: json.string('offer_text'),
+      shopAddress: json.string('shop_address'),
+      shopLatitude: json.decimal('shop_latitude'),
+      shopLongitude: json.decimal('shop_longitude'),
+      category: json.firstOf(['category', 'category_name']),
+      brand: json.firstOf(['brand', 'brand_name']),
+      reviewCount: json.integer('review_count'),
       // Backend's open/order-acceptance evaluation. Null means "not reported",
       // which the card renders as nothing rather than guessing.
-      isOpenNow: json['is_open_now'] as bool?,
-      isAcceptingOrders: json['is_accepting_orders'] as bool?,
+      isOpenNow: json.firstBooleanOf(['is_open_now']),
+      isAcceptingOrders: json.firstBooleanOf(['is_accepting_orders']),
       availability: availability,
       freshness: freshness,
-      freshnessStatusRaw: json['freshness_status']?.toString(),
+      freshnessStatusRaw: json.string('freshness_status'),
     );
   }
 
-  InventoryAvailability _parseAvailability(Map<String, dynamic> json) {
-    final raw = (json['stock_status'] ?? json['availability'])
-        ?.toString()
-        .toLowerCase();
-    if (raw != null) {
-      switch (raw) {
-        case 'in_stock':
-        case 'in-stock':
-        case 'in stock':
-        case 'available':
-          return InventoryAvailability.inStock;
-        case 'out_of_stock':
-        case 'out-of-stock':
-        case 'out of stock':
-        case 'unavailable':
-          return InventoryAvailability.outOfStock;
-        case 'low_stock':
-        case 'low-stock':
-        case 'low stock':
-        case 'limited':
-          return InventoryAvailability.lowStock;
-        default:
-          break;
-      }
+  InventoryAvailability _parseAvailability(JsonMap json) {
+    // `stock_status` and `availability` are two names for one idea, newest first.
+    final raw = json.firstOf([
+      'availability',
+      'stock_status',
+      'availability_status',
+    ]);
+    final parsed = EnumCodec<InventoryAvailability>(
+      raw,
+      InventoryAvailability.values,
+      InventoryAvailability.unknown,
+    );
+    if (parsed != InventoryAvailability.unknown) return parsed;
+
+    // A status this build has never heard of still tells us something: the
+    // server had an opinion. Fall back to the boolean, then to unknown.
+    if (json.has('is_available')) {
+      return json.booleanOr('is_available')
+          ? InventoryAvailability.inStock
+          : InventoryAvailability.outOfStock;
     }
-    if (json['is_available'] == true) return InventoryAvailability.inStock;
-    if (json['is_available'] == false) return InventoryAvailability.outOfStock;
     return InventoryAvailability.unknown;
   }
 
@@ -269,13 +277,17 @@ class ApiSearchRepository implements SearchRepository {
   /// Maps the backend's inventory freshness classification
   /// (RECENTLY_UPDATED / STALE / None) onto the UI freshness levels.
   ///
-  /// Static so the barcode hit mapper and the result mapper can share one
+  /// Static so the barcode hit mapper and the result mapper share one
   /// implementation — a scanned and a typed product must never classify
   /// freshness differently.
-  static FreshnessLevel _parseFreshnessStatus(Map<String, dynamic> json) {
-    final raw = json['freshness_status']?.toString().toLowerCase();
-    if (raw == 'recently_updated') return FreshnessLevel.fresh;
-    if (raw == 'stale') return FreshnessLevel.stale;
-    return FreshnessLevel.unknown;
-  }
+  ///
+  /// An unrecognised status (a backend adding `VERY_STALE`) becomes
+  /// [FreshnessLevel.unknown] rather than throwing, so one new value cannot
+  /// take down the results list.
+  static FreshnessLevel _parseFreshnessStatus(JsonMap json) =>
+      EnumCodec<FreshnessLevel>(
+        json.string('freshness_status'),
+        FreshnessLevel.values,
+        FreshnessLevel.unknown,
+      );
 }

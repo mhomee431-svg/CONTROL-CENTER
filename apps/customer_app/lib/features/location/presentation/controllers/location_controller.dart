@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/security/safe_logger.dart';
@@ -61,6 +62,27 @@ class LocationState {
   );
   factory LocationState.error(String message) =>
       LocationState(status: LocationStatus.error, errorMessage: message);
+
+  /// Returns a copy carrying a freshly-read permission status.
+  ///
+  /// Only the permission status is replaced: the customer may have granted or
+  /// revoked access in the OS while this screen was open, and the last known
+  /// position must survive that change (losing it would blank "Current
+  /// location" and send the customer hunting for an address they already set).
+  ///
+  /// The parameter is deliberately named [permission] rather than [status]: it
+  /// is a `LocationPermissionStatus`, while `this.status` is a `LocationStatus`.
+  /// Naming both [status] would silently pass the permission into the status
+  /// field and lose the real one.
+  LocationState copyWithPermissionStatus(LocationPermissionStatus permission) {
+    return LocationState(
+      status: status,
+      location: location,
+      errorMessage: errorMessage,
+      permissionStatus: permission,
+      isRefreshing: isRefreshing,
+    );
+  }
 }
 
 final locationControllerProvider =
@@ -215,6 +237,55 @@ class LocationController extends Notifier<LocationState> {
 
   Future<void> refreshLocation() async => fetchCurrentLocation(force: true);
   Future<void> retry() async => fetchCurrentLocation(force: true);
+
+  /// Asks the platform for the location grant without fetching a fix.
+  ///
+  /// [fetchCurrentLocation] prompts as a side effect of getting a position,
+  /// which is right for discovery but wrong for a settings row that only wants
+  /// to report (or ask for) the permission state. Returns the resulting status
+  /// so the caller can react without re-reading [state].
+  ///
+  /// The grant itself still flows through `LocationRepository` — the single
+  /// owner of the location permission — never through `PermissionService`.
+  Future<LocationPermissionStatus> requestLocationPermission() async {
+    final status = await ref
+        .read(locationRepositoryProvider)
+        .requestPermission();
+    // Keep [LocationState.permissionStatus] in step with what the OS just said,
+    // otherwise this screen would keep rendering a stale "Not allowed" chip.
+    state = state.copyWithPermissionStatus(status);
+    return status;
+  }
+
+  /// Reads the current grant without prompting the customer.
+  Future<LocationPermissionStatus> checkLocationPermission() async {
+    final status = await ref.read(locationRepositoryProvider).checkPermission();
+    state = state.copyWithPermissionStatus(status);
+    return status;
+  }
+
+  /// Opens the OS location settings page — the only route back from a
+  /// permanently denied grant, and the only way to re-enable GPS.
+  ///
+  /// Returns whether the platform actually opened it, so the UI can explain
+  /// itself instead of silently doing nothing.
+  Future<bool> openSystemLocationSettings() async {
+    try {
+      await ref.read(locationRepositoryProvider).openLocationSettings();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Forces the location state — for tests and for seeding a location the
+  /// OS plugin cannot produce in a test environment.
+  ///
+  /// `LocationState`'s fields are final and its constructors are factories, so
+  /// there is no public way to express "granted, with this fix" from a widget
+  /// test. This is the supported seam for that.
+  @visibleForTesting
+  void debugSetState(LocationState value) => state = value;
 
   Future<void> setManualLocation(UserLocation location) async {
     state = LocationState.loading();

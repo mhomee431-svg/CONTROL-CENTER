@@ -145,6 +145,8 @@ class MockProductDetailsRepository implements ProductDetailsRepository {
           stockStatus: 'IN_STOCK',
           freshnessStatus: 'RECENTLY_UPDATED',
           offerText: 'Free tempered glass & back cover combo',
+          isOpenNow: true,
+          isAcceptingOrders: true,
         ),
         ShopInventoryOffer(
           shopId: 's2',
@@ -160,6 +162,9 @@ class MockProductDetailsRepository implements ProductDetailsRepository {
           ), // Moderately fresh
           stockStatus: 'IN_STOCK',
           freshnessStatus: 'RECENTLY_UPDATED',
+          // Trading but not taking orders — a distinct, honest state.
+          isOpenNow: true,
+          isAcceptingOrders: false,
         ),
         ShopInventoryOffer(
           shopId: 's3',
@@ -175,6 +180,8 @@ class MockProductDetailsRepository implements ProductDetailsRepository {
           ), // Stale inventory (>24h)
           stockStatus: 'OUT_OF_STOCK',
           freshnessStatus: 'STALE',
+          isOpenNow: false,
+          isAcceptingOrders: false,
         ),
       ],
     );

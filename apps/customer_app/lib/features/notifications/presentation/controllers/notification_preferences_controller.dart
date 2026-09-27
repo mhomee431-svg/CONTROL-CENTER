@@ -94,6 +94,12 @@ class NotificationPreferencesController
       update((p) => p.copyWith(smsEnabled: value));
 
   // ── Type toggles ───────────────────────────────────────────────────
+  // Only the categories the backend can actually gate. The backend decision
+  // table (`notification_service._TYPE_REGISTRY`) maps only these three
+  // fields to customer-facing types:
+  //   price_alerts       -> PRICE_DROP
+  //   availability_alerts-> PRODUCT_AVAILABLE
+  //   deal_alerts        -> OFFER
   Future<void> setPriceAlerts(bool value) =>
       update((p) => p.copyWith(priceAlerts: value));
   Future<void> setAvailabilityAlerts(bool value) =>
@@ -102,6 +108,11 @@ class NotificationPreferencesController
       update((p) => p.copyWith(promotional: value));
   Future<void> setDealAlerts(bool value) =>
       update((p) => p.copyWith(dealAlerts: value));
-  Future<void> setShopUpdates(bool value) =>
-      update((p) => p.copyWith(shopUpdates: value));
+
+  /// Sets both offer-related fields together.
+  ///
+  /// "Offers and deals" is one customer-facing switch backed by two columns;
+  /// binding them as a pair is what stops the two from disagreeing on screen.
+  Future<void> setOffers(bool value) =>
+      update((p) => p.copyWith(promotional: value, dealAlerts: value));
 }

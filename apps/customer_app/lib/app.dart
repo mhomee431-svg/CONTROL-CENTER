@@ -9,6 +9,9 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/notifications/data/device_token_coordinator.dart';
 import 'features/notifications/presentation/controllers/fcm_lifecycle.dart';
+import 'features/notifications/presentation/controllers/in_app_notification_controller.dart';
+import 'features/notifications/presentation/controllers/pending_deep_link_drain.dart';
+import 'features/notifications/presentation/widgets/in_app_notification_host.dart';
 import 'features/saved_and_history/data/local_saved_and_history_repository.dart';
 import 'features/saved_and_history/domain/saved_and_history_repository.dart';
 import 'features/settings/presentation/controllers/settings_controller.dart';
@@ -36,6 +39,9 @@ class HyperlocalApp extends ConsumerWidget {
     // Keeps the session-expiry listener subscribed.
     ref.watch(sessionExpiryBridgeProvider);
     ref.watch(fcmLifecycleBootstrapProvider);
+    // Replays a notification tap (background or terminated state) once the
+    // router's splash/onboarding/auth gates have cleared.
+    ref.watch(pendingDeepLinkDrainProvider);
 
     // ── Phase 9: personalization sync across auth transitions ──────────
     // ── Phase 10: device-token registration across auth transitions ────
@@ -65,6 +71,10 @@ class HyperlocalApp extends ConsumerWidget {
         );
         // Unregister push delivery for this device.
         unawaited(ref.read(deviceTokenCoordinatorProvider).handleLogout());
+        // Drop any alert still on screen or queued behind it, so messages
+        // belonging to the signed-out account can never surface in the next
+        // one's session.
+        ref.read(inAppNotificationControllerProvider.notifier).clear();
       }
     });
 
@@ -75,6 +85,13 @@ class HyperlocalApp extends ConsumerWidget {
       themeMode: settings.themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      // Foreground notifications are hosted ABOVE the router rather than in
+      // any screen, so a push that lands while the customer is on the map,
+      // mid-search, or in a half-typed field still surfaces — and still
+      // never forces navigation.
+      builder: (context, child) => InAppNotificationHost(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/auth/domain/auth_service.dart'
+    show authAppVersion;
 import 'package:hyperlocal_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:hyperlocal_app/features/notifications/data/mock_notification_repository.dart';
 import 'package:hyperlocal_app/features/settings/presentation/controllers/settings_controller.dart';
@@ -40,7 +43,10 @@ Future<void> _pumpSettings(
       localStorageDriverProvider.overrideWithValue(driver),
       authControllerProvider.overrideWith(() => auth),
       notificationsRepositoryProvider.overrideWithValue(
-        MockNotificationRepository(),
+        // Zero delay: the default 150 ms artificial latency is modelled with
+        // `Future.delayed`, which leaves a real pending timer that outlives the
+        // widget tree and trips the framework's `timersPending` invariant.
+        MockNotificationRepository(delay: Duration.zero),
       ),
     ],
   );
@@ -49,11 +55,49 @@ Future<void> _pumpSettings(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: SettingsScreen()),
+      // A real GoRouter is required: the settings rows navigate with
+      // `context.push`, which throws under a bare MaterialApp.
+      child: MaterialApp.router(routerConfig: _router()),
     ),
   );
   // Let notification preferences load.
   await tester.pumpAndSettle();
+}
+
+/// Mirrors every destination the settings screen can push to, so a tap never
+/// hits an undeclared route.
+GoRouter _router() {
+  return GoRouter(
+    initialLocation: '/settings',
+    routes: [
+      GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+      for (final path in const [
+        '/account',
+        '/profile',
+        '/profile/edit',
+        '/profile/addresses',
+        '/notification-settings',
+        '/location-settings',
+        '/saved',
+        '/notifications',
+        '/help',
+        '/privacy',
+        '/privacy-data',
+        '/terms',
+        '/about',
+        '/delete-account',
+        '/onboarding',
+        '/login',
+      ])
+        GoRoute(
+          path: path,
+          // An AppBar gives the pushed page a real back button, so the tests
+          // that return via `tester.pageBack()` exercise a real pop instead of
+          // failing to find a widget.
+          builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('Page$path')),
+        ),
+    ],
+  );
 }
 
 void main() {
@@ -64,17 +108,92 @@ void main() {
       auth: _StubAuthController(AuthStatus.authenticated),
     );
 
+    expect(find.text('ACCOUNT'), findsOneWidget);
     expect(find.text('NOTIFICATIONS'), findsOneWidget);
     expect(find.text('LOCATION PREFERENCES'), findsOneWidget);
-    expect(find.text('APP PREFERENCES'), findsOneWidget);
+    expect(find.text('APPEARANCE'), findsOneWidget);
     expect(find.text('PRIVACY & DATA'), findsOneWidget);
-    expect(find.text('ACCOUNT'), findsOneWidget);
-    // Per-type preference switches from the preferences controller.
-    expect(find.byKey(const Key('prefPriceDrop')), findsOneWidget);
-    expect(find.byKey(const Key('prefAvailability')), findsOneWidget);
-    expect(find.byKey(const Key('prefShopUpdates')), findsOneWidget);
+    expect(find.text('SUPPORT & ABOUT'), findsOneWidget);
+    expect(find.text('SESSION'), findsOneWidget);
+    // The per-type switches moved to the dedicated notification screen, so
+    // Settings now points there rather than duplicating them.
+    expect(find.byKey(const Key('notificationSettingsTile')), findsOneWidget);
+    expect(find.byKey(const Key('prefPriceDrop')), findsNothing);
     // Account management entries for signed-in users.
     expect(find.byKey(const Key('deleteAccountTile')), findsOneWidget);
+  });
+
+  testWidgets('legal documents and about are reachable from settings', (
+    tester,
+  ) async {
+    await _pumpSettings(
+      tester,
+      driver: InMemoryStorageDriver(),
+      auth: _StubAuthController(AuthStatus.authenticated),
+    );
+
+    expect(find.byKey(const Key('settingsTermsTile')), findsOneWidget);
+    // The privacy entry is the interactive centre; the legal document is
+    // one tap deeper from there.
+    expect(find.byKey(const Key('privacyPolicyTile')), findsOneWidget);
+    expect(find.byKey(const Key('settingsAboutTile')), findsOneWidget);
+    // The About row shows the live app version, not a stale literal.
+    expect(find.text('Version $authAppVersion'), findsOneWidget);
+  });
+
+  testWidgets('delete account opens the dedicated deletion flow', (
+    tester,
+  ) async {
+    await _pumpSettings(
+      tester,
+      driver: InMemoryStorageDriver(),
+      auth: _StubAuthController(AuthStatus.authenticated),
+    );
+
+    await tester.tap(find.byKey(const Key('deleteAccountTile')));
+    await tester.pumpAndSettle();
+
+    // The old inline dialog is gone: the real flow (impact, confirmation,
+    // backend call, teardown) is its own screen.
+    expect(find.text('Delete account?'), findsNothing);
+  });
+
+  testWidgets('account section links to the account hub', (tester) async {
+    await _pumpSettings(
+      tester,
+      driver: InMemoryStorageDriver(),
+      auth: _StubAuthController(AuthStatus.authenticated),
+    );
+
+    expect(find.byKey(const Key('settingsAccountHubTile')), findsOneWidget);
+    expect(find.byKey(const Key('settingsEditProfileTile')), findsOneWidget);
+  });
+
+  testWidgets('clear all local data warns before wiping saved items', (
+    tester,
+  ) async {
+    await _pumpSettings(
+      tester,
+      driver: InMemoryStorageDriver(),
+      auth: _StubAuthController(AuthStatus.authenticated),
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('clearAllLocalDataTile')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('clearAllLocalDataTile')));
+    await tester.pumpAndSettle();
+
+    // It must be explicit that synced account data is NOT removed.
+    expect(find.text('Clear all local data?'), findsOneWidget);
+    expect(find.textContaining('stay on your account'), findsOneWidget);
+
+    // Cancelling changes nothing.
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('All local data cleared.'), findsNothing);
   });
 
   testWidgets('privacy toggles persist through the storage driver', (
@@ -139,9 +258,11 @@ void main() {
     );
 
     expect(find.byKey(const Key('deleteAccountTile')), findsNothing);
-    expect(find.text('Edit profile'), findsNothing);
+    expect(find.byKey(const Key('settingsEditProfileTile')), findsNothing);
     // Guest exit entry replaces sign out.
     expect(find.text('Exit guest mode'), findsOneWidget);
+    // The account hub stays reachable — browsing as a guest is still browsing.
+    expect(find.byKey(const Key('settingsAccountHubTile')), findsOneWidget);
   });
 
   testWidgets('clear browsing history asks for confirmation', (tester) async {

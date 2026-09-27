@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../domain/barcode_validation.dart';
 import '../controllers/search_controller.dart';
 import 'freshness_disclaimer.dart';
 import 'shop_product_card.dart';
@@ -25,6 +26,7 @@ class BarcodeLookupSheet extends ConsumerStatefulWidget {
 class _BarcodeLookupSheetState extends ConsumerState<BarcodeLookupSheet> {
   final TextEditingController _controller = TextEditingController();
   String? _submitted;
+  String? _fieldError;
 
   @override
   void dispose() {
@@ -32,10 +34,24 @@ class _BarcodeLookupSheetState extends ConsumerState<BarcodeLookupSheet> {
     super.dispose();
   }
 
-  void _submit() {
-    final value = _controller.text.trim();
-    if (value.isEmpty) return;
-    setState(() => _submitted = value);
+  /// Validates BEFORE submitting: a malformed code shows an inline field error
+  /// instead of firing a request that can only fail. Returns true when a
+  /// lookup was actually started.
+  bool _submit() {
+    final value = normalizeBarcode(_controller.text);
+    final reason = validateBarcode(value.isEmpty ? null : value);
+    if (reason != null) {
+      setState(() {
+        _fieldError = invalidBarcodeMessage(reason);
+        _submitted = null;
+      });
+      return false;
+    }
+    setState(() {
+      _fieldError = null;
+      _submitted = value;
+    });
+    return true;
   }
 
   @override
@@ -67,6 +83,10 @@ class _BarcodeLookupSheetState extends ConsumerState<BarcodeLookupSheet> {
             decoration: InputDecoration(
               hintText: 'Enter barcode',
               border: const OutlineInputBorder(),
+              // Inline validation error — the request never fires for a
+              // malformed code, so the message appears here, not as a lookup
+              // failure below.
+              errorText: _fieldError,
               suffixIcon: IconButton(
                 key: const Key('barcodeSubmit'),
                 icon: const Icon(Icons.search),
@@ -107,13 +127,36 @@ class _BarcodeResults extends ConsumerWidget {
         padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
         child: Center(child: CircularProgressIndicator.adaptive()),
       ),
-      error: (err, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Text(
-          friendlyErrorMessage(err),
-          style: const TextStyle(color: AppColors.textMuted),
-        ),
-      ),
+      error: (err, _) {
+        // Offline/timeout vs server/auth failures read differently: the first
+        // is the phone's connection (fixable by the customer right now), the
+        // second is ours. The message always comes from `friendlyErrorMessage`
+        // — raw exception text never reaches the sheet.
+        final isOffline = err is ApiException &&
+            (err.type == ApiErrorType.offline || err.type == ApiErrorType.timeout);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                isOffline
+                    ? 'You appear to be offline. Reconnect and try again, or fix '
+                        'a possible typo below.'
+                    : friendlyErrorMessage(err),
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              TextButton.icon(
+                key: const Key('barcodeSheetRetry'),
+                onPressed: () => ref.invalidate(barcodeLookupProvider(barcode)),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
+        );
+      },
       data: (results) {
         if (results.isEmpty) {
           return const Padding(

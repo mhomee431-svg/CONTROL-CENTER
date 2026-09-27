@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../../core/security/safe_logger.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/profile_repository.dart';
 
@@ -19,8 +20,24 @@ class ProfileController extends AsyncNotifier<UserProfile?> {
     if (authStatus != AuthStatus.authenticated) {
       return null;
     }
-    // Watch (not read) so auth transitions swap repositories automatically.
-    return ref.watch(profileRepositoryProvider).getProfile();
+    // A profile fetch that throws is deliberately swallowed into a null
+    // profile. Letting the error escape `build()` would hand it to Riverpod's
+    // automatic retry, which reschedules with backoff for as long as the
+    // provider is alive — an unreachable profile endpoint would then retry
+    // forever, holding a live timer and hammering the API. The account and
+    // profile screens both render a sensible degraded state for a null
+    // profile, and `refresh()` is the explicit, user-driven retry.
+    try {
+      // Watch (not read) so auth transitions swap repositories automatically.
+      return await ref.watch(profileRepositoryProvider).getProfile();
+    } catch (error, stackTrace) {
+      SafeLogger.error(
+        'Profile fetch failed; continuing with a null profile.',
+        error,
+        stackTrace,
+      );
+      return null;
+    }
   }
 
   /// Applies edits to the profile. Returns whether it succeeded so the

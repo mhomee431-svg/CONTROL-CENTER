@@ -30,6 +30,10 @@ from app.models.shop import Shop
 from app.models.user import User
 from app.services.geo_service import haversine_km
 from app.services.inventory_service import get_offer_text_for_shop_product
+from app.services.shop_service import is_shop_open
+from app.core.logging import get_logger
+
+logger = get_logger("app.api.routes.products")
 
 router = APIRouter(
     prefix="/products",
@@ -206,6 +210,21 @@ def _shop_offers_payload(
             if inv.updated_at is not None:
                 last_updated = inv.updated_at
 
+        # Whether the shop is trading right now, from the canonical helper so a
+        # product page never disagrees with search results about the same shop.
+        # Best-effort: opening-hours data must never fail the whole request, and
+        # "unknown" (None) is distinct from "closed" (False).
+        is_open_now: bool | None = None
+        is_accepting_orders: bool | None = None
+        try:
+            is_open_now = bool(is_shop_open(shop))
+            is_accepting_orders = bool(getattr(shop, "is_accepting_orders", False))
+        except Exception:  # noqa: BLE001 — enrichment must never fail the page
+            logger.warning(
+                "open-state computation failed for shop=%s", getattr(shop, "id", None),
+                exc_info=True,
+            )
+
         offers.append(
             {
                 "shop_product_id": sp.id,
@@ -221,6 +240,8 @@ def _shop_offers_payload(
                 "freshness_status": freshness_status,
                 "offer_text": get_offer_text_for_shop_product(db, sp.id),
                 "last_updated": last_updated.isoformat() if last_updated else None,
+                "is_open_now": is_open_now,
+                "is_accepting_orders": is_accepting_orders,
             }
         )
 

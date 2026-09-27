@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_error_handler.dart' show ApiErrorType, ApiException;
 
 /// Issue categories the customer can choose when filing a support ticket.
 enum SupportIssueCategory {
@@ -16,18 +17,34 @@ enum SupportIssueCategory {
   final String label;
 }
 
-/// Provider — wired to the real backend; falls back gracefully if the
-/// support endpoint is not yet live (email intent as fallback).
+/// Result of a support-ticket submission.
+///
+/// Modelled as a type rather than a bare `bool` so "we could not reach the
+/// server" and "the server rejected this" are distinguishable, and so a
+/// caller cannot accidentally treat a failure as success.
+enum SupportSubmitResult {
+  /// The server accepted the ticket.
+  success,
+
+  /// The request never reached the server (offline, DNS, timeout).
+  networkFailure,
+
+  /// The server received it but refused (validation, 4xx/5xx).
+  rejected,
+}
+
+/// Provider — wired to the real backend.
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   return ApiSupportRepository(ref.watch(apiClientProvider));
 });
 
 /// Abstract contract — lets tests inject a mock easily.
 abstract class SupportRepository {
-  /// Submits a support issue.
+  /// Attempts to submit a support issue.
   ///
-  /// Returns `true` on success, throws on network failure.
-  Future<bool> submitIssue({
+  /// Never throws: every outcome is reported as a [SupportSubmitResult] so
+  /// the UI is forced to handle the failure cases explicitly.
+  Future<SupportSubmitResult> submitIssue({
     required SupportIssueCategory category,
     required String description,
     String? contactEmail,
@@ -39,7 +56,7 @@ class ApiSupportRepository implements SupportRepository {
   ApiSupportRepository(this._api);
 
   @override
-  Future<bool> submitIssue({
+  Future<SupportSubmitResult> submitIssue({
     required SupportIssueCategory category,
     required String description,
     String? contactEmail,
@@ -53,13 +70,23 @@ class ApiSupportRepository implements SupportRepository {
           if (contactEmail != null && contactEmail.isNotEmpty)
             'contact_email': contactEmail,
         },
-        requiresAuth: false,
+        // The customer must be signed in: the ticket is attached to their
+        // account so support can follow up.
+        requiresAuth: true,
       );
-      return true;
+      return SupportSubmitResult.success;
+    } on ApiException catch (e) {
+      // A structured API error means the server answered — it just said no.
+      // Reporting that as "submitted" (as this method used to) is a lie the
+      // customer would act on.
+      return switch (e.type) {
+        ApiErrorType.offline ||
+        ApiErrorType.timeout ||
+        ApiErrorType.requestCancelled => SupportSubmitResult.networkFailure,
+        _ => SupportSubmitResult.rejected,
+      };
     } catch (_) {
-      // If the backend endpoint is not yet live, swallow silently.
-      // The UI will still show "submitted" so the UX is not broken.
-      return true;
+      return SupportSubmitResult.networkFailure;
     }
   }
 }

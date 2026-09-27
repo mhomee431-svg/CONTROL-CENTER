@@ -356,6 +356,10 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   bool _isSubmitting = false;
   bool _submitted = false;
 
+  /// Non-null when the last submission failed. The customer keeps their text
+  /// so a network blip does not cost them the report they just wrote.
+  String? _error;
+
   @override
   void dispose() {
     _descController.dispose();
@@ -366,27 +370,38 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() => _isSubmitting = true);
-    try {
-      await ref
-          .read(supportRepositoryProvider)
-          .submitIssue(
-            category: _selectedCategory,
-            description: _descController.text.trim(),
-            contactEmail: _emailController.text.trim(),
-          );
-      if (mounted) setState(() => _submitted = true);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to submit. Please try again.'),
-            behavior: SnackBarBehavior.floating,
-          ),
+    setState(() {
+      _isSubmitting = true;
+      _error = null;
+    });
+
+    final result = await ref
+        .read(supportRepositoryProvider)
+        .submitIssue(
+          category: _selectedCategory,
+          description: _descController.text.trim(),
+          contactEmail: _emailController.text.trim(),
         );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    switch (result) {
+      case SupportSubmitResult.success:
+        // Only a real acknowledgement from the server earns the success view.
+        setState(() => _submitted = true);
+      case SupportSubmitResult.networkFailure:
+        setState(
+          () => _error =
+              'We could not reach our servers. Check your connection and try '
+              'again — or email us using the Contact tab.',
+        );
+      case SupportSubmitResult.rejected:
+        setState(
+          () => _error =
+              'Our servers could not accept this report. Please try again, or '
+              'email us using the Contact tab.',
+        );
     }
   }
 
@@ -411,8 +426,7 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
               'Found something wrong? Tell us about it and we will look into it.',
               style: TextStyle(color: AppColors.textMuted),
             ),
-            const SizedBox(height: AppSpacing.lg),
-
+            const SizedBox(height: AppSpacing.md),
             // Category
             const Text(
               'Issue Category',
@@ -488,6 +502,41 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
               },
             ),
             const SizedBox(height: AppSpacing.lg),
+
+            // A failed submission must be visible and must NOT look like a
+            // success. The report text is deliberately preserved above.
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                key: const Key('issueSubmitError'),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             ElevatedButton.icon(
               key: const Key('submitIssueButton'),

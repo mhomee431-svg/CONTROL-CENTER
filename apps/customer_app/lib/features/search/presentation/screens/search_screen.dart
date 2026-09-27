@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../controllers/search_controller.dart';
-import '../widgets/barcode_lookup_sheet.dart';
 import '../widgets/search_history_view.dart';
 import '../widgets/search_input_field.dart';
 import '../widgets/search_suggestions_list.dart';
@@ -41,8 +40,14 @@ class SearchScreen extends ConsumerWidget {
                 context.push('/search/results?q=${Uri.encodeComponent(value)}');
               }
             },
-            // Barcode lookup is backed by GET /search/v2/barcodes/{barcode}.
-            onBarcodeTap: () => _openBarcodeLookup(context),
+            // The scanner icon opens the camera flow (which also offers manual
+            // entry as its fallback). It is hidden entirely when the barcode
+            // lookup is unavailable — the env kill-switch, or a first lookup
+            // that proved the backend has no barcode route — because an icon
+            // that leads to a dead end is worse than no icon.
+            onBarcodeTap: barcodeEntryPointAvailable(ref)
+                ? () => context.push('/search/scan')
+                : null,
           ),
         ),
         actions: [
@@ -56,15 +61,6 @@ class SearchScreen extends ConsumerWidget {
         ],
       ),
       body: body,
-    );
-  }
-
-  /// Opens the barcode sheet over the current route.
-  void _openBarcodeLookup(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const BarcodeLookupSheet(),
     );
   }
 }

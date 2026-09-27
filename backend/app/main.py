@@ -253,6 +253,14 @@ app.include_router(shopkeeper_extra_routes.router, prefix=API_PREFIX)
 from app.api.routes import shopkeeper_support as shopkeeper_support_routes
 app.include_router(shopkeeper_support_routes.router, prefix=API_PREFIX)
 
+# Customer Support (the shopper-facing half of the same complaints queue).
+# Registered after the shopkeeper router on purpose: both mount a `/support`
+# prefix on different sub-paths (`/support/issues` vs `/shopkeeper/support/*`),
+# so they cannot collide, but keeping them adjacent documents that they are two
+# audiences of ONE triage queue rather than two unrelated systems.
+from app.api.routes import customer_support as customer_support_routes
+app.include_router(customer_support_routes.router, prefix=API_PREFIX)
+
 
 # Merchant Onboarding & Verification (Tiered Merchant Onboarding System)
 from app.api.routes import merchant_onboarding as merchant_onboarding_routes

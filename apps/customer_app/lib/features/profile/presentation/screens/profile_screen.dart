@@ -66,6 +66,18 @@ class ProfileScreen extends ConsumerWidget {
               _ProfileHeader(profile: profile),
             const SizedBox(height: AppSpacing.lg),
             const Divider(),
+            // The account hub owns navigation; this screen is the identity
+            // page. Give the customer a way back so it is not a dead end.
+            ListTile(
+              key: const Key('backToAccountTile'),
+              leading: const Icon(Icons.account_circle_outlined),
+              title: const Text('Account'),
+              subtitle: const Text(
+                'Saved items, notifications, settings and more',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.go('/account'),
+            ),
             const _SectionLabel('Account'),
             ListTile(
               key: const Key('myOrdersTile'),
@@ -169,7 +181,13 @@ class ProfileScreen extends ConsumerWidget {
                   Icons.chevron_right,
                   color: AppColors.error,
                 ),
-                onTap: () => _confirmDeleteAccount(context, ref),
+                // Hands off to the dedicated multi-step flow. This screen must
+                // NOT keep its own inline confirm + delete: two entry points
+                // doing the same irreversible thing is how one of them ends up
+                // missing a guard. `DeleteAccountScreen` owns explain →
+                // confirm → backend → teardown, and is covered by
+                // `delete_account_screen_test.dart`.
+                onTap: () => context.push('/delete-account'),
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
@@ -201,65 +219,6 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-  /// Explains the impact, then deletes and signs out.
-  ///
-  /// Deletion is a destructive, irreversible action, so the confirmation
-  /// spells out exactly what is lost. `profileController.deleteAccount()`
-  /// calls the backend's `DELETE /users/me`; on success the session is closed
-  /// so no stale token survives on the device.
-  Future<void> _confirmDeleteAccount(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'This permanently deletes your account from our servers and '
-          'cannot be undone.\n\n'
-          'You will lose:\n'
-          '• Your profile and saved addresses\n'
-          '• Saved products and shops\n'
-          '• Notification preferences\n\n'
-          'Browsing history already cleared on this device stays cleared.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const Key('confirmDeleteAccount'),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete forever'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    final deleted = await ref
-        .read(profileControllerProvider.notifier)
-        .deleteAccount();
-    if (!context.mounted) return;
-
-    if (!deleted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Could not delete your account. Please try again shortly.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    // The account is gone — close the session so nothing stale is reused.
-    await ref.read(authControllerProvider.notifier).logout();
-  }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(

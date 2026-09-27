@@ -9,6 +9,7 @@ import '../../../search/presentation/widgets/freshness_disclaimer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/shop_open_closed_badge.dart';
 
 /// "View All Nearby Shops" screen.
 ///
@@ -196,12 +197,28 @@ class _NearbyShopCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // Backend's opening-hours verdict; unknown renders
+                          // nothing so "Open" is never assumed.
+                          ShopOpenClosedBadge(
+                            isOpenNow: offer.isOpenNow,
+                            acceptingOrders: offer.isAcceptingOrders,
+                            dense: true,
+                          ),
+                        ],
                       ),
                     ],
                   ),

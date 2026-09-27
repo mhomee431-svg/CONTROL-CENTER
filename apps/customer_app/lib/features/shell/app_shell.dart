@@ -12,14 +12,27 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Loading / error states default to "connected" so a missing connectivity
-    // plugin (tests, edge platforms) never blocks the shell from rendering.
-    final isConnected = ref.watch(isConnectedProvider).value ?? true;
+    // A `null` value means the stream has not produced its first event yet.
+    // Mapping that to `online` would be the optimistic claim the tri-state
+    // exists to prevent, so it maps to `unknown`, which the banner renders as
+    // nothing: the shell appears immediately without a red flash on a healthy
+    // connection, and without a false "all good" on a broken one.
+    final status =
+        ref.watch(connectivityStatusProvider).value ??
+        ConnectivityStatus.unknown;
+
+    // Retry re-probes the platform rather than assuming success. A transport
+    // flag alone is not proof — it lies on captive portals and dead uplinks —
+    // so the banner keeps saying "Reconnecting…" until a real request works.
+    Future<void> retry() async {
+      final service = ref.read(connectivityServiceProvider);
+      await service.checkConnectivity();
+    }
 
     return Scaffold(
       body: Column(
         children: [
-          OfflineBanner(isConnected: isConnected),
+          OfflineBanner(status: status, onRetry: retry),
           Expanded(child: navigationShell),
         ],
       ),
@@ -53,9 +66,9 @@ class AppShell extends ConsumerWidget {
             label: 'Alerts',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: Icon(Icons.account_circle_outlined),
+            selectedIcon: Icon(Icons.account_circle),
+            label: 'Account',
           ),
         ],
       ),

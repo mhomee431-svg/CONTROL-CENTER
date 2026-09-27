@@ -16,9 +16,27 @@ class ShopDetailsScreen extends ConsumerWidget {
   final String shopId;
   const ShopDetailsScreen({super.key, required this.shopId});
 
-  Future<void> _launchUrl(String url) async {
+  /// Phone numbers arrive display-formatted ("+91 98765 43210"); the `tel:`
+  /// scheme accepts only digits and a leading `+`, so strip formatting before
+  /// building the intent. Returns '' when nothing dialable remains.
+  String _sanitizePhone(String raw) {
+    final cleaned = raw.replaceAll(RegExp(r'[^0-9+]'), '');
+    // Keep a single leading '+' at most — anything else is not dialable.
+    if (cleaned.isEmpty || cleaned == '+') return '';
+    final plusStripped = cleaned.replaceAll('+', '');
+    return cleaned.startsWith('+') ? '+$plusStripped' : plusStripped;
+  }
+
+  Future<void> _launchUrl(BuildContext context, String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    if (!await canLaunchUrl(uri)) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this link right now.')),
+      );
+      return;
+    }
+    await launchUrl(uri);
   }
 
   Future<void> _shareShop(ShopProfile shop) async {
@@ -56,7 +74,15 @@ class ShopDetailsScreen extends ConsumerWidget {
       actionLabel: 'call this shop',
     );
     if (!allowed || !context.mounted) return;
-    await _launchUrl('tel:$phone');
+    final dialable = _sanitizePhone(phone);
+    if (dialable.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This phone number cannot be dialed.')),
+      );
+      return;
+    }
+    await _launchUrl(context, 'tel:$dialable');
   }
 
   Future<void> _guardedLaunch(
@@ -71,7 +97,7 @@ class ShopDetailsScreen extends ConsumerWidget {
       actionLabel: actionLabel,
     );
     if (!allowed || !context.mounted) return;
-    await _launchUrl(url);
+    await _launchUrl(context, url);
   }
 
   @override
@@ -160,14 +186,19 @@ class ShopDetailsScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openDirections(context, ref, shop),
-                    icon: const Icon(Icons.directions),
-                    label: const Text('Directions'),
+                if (shop.phone.isNotEmpty && shop.hasValidCoordinates)
+                  const SizedBox(width: AppSpacing.md),
+                // Directions stay hidden when the backend has no usable shop
+                // coordinates — a button that opens a map error state would be
+                // a dead action.
+                if (shop.hasValidCoordinates)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openDirections(context, ref, shop),
+                      icon: const Icon(Icons.directions),
+                      label: const Text('Directions'),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -359,24 +390,46 @@ class ShopDetailsScreen extends ConsumerWidget {
           _buildContactRow(
             icon: Icons.call_outlined,
             text: shop.phone,
-            onTap: () => _guardedLaunch(
-              context,
-              ref,
-              'tel:${shop.phone}',
-              'call this shop',
-            ),
+            onTap: () {
+              final dialable = _sanitizePhone(shop.phone);
+              if (dialable.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This phone number cannot be dialed.'),
+                  ),
+                );
+                return;
+              }
+              _guardedLaunch(
+                context,
+                ref,
+                'tel:$dialable',
+                'call this shop',
+              );
+            },
           ),
         if (shop.secondaryPhone.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           _buildContactRow(
             icon: Icons.phone_android_outlined,
             text: shop.secondaryPhone,
-            onTap: () => _guardedLaunch(
-              context,
-              ref,
-              'tel:${shop.secondaryPhone}',
-              'call this shop',
-            ),
+            onTap: () {
+              final dialable = _sanitizePhone(shop.secondaryPhone);
+              if (dialable.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This phone number cannot be dialed.'),
+                  ),
+                );
+                return;
+              }
+              _guardedLaunch(
+                context,
+                ref,
+                'tel:$dialable',
+                'call this shop',
+              );
+            },
           ),
         ],
         if (shop.email.isNotEmpty) ...[

@@ -134,7 +134,22 @@ class EnvConfig {
     'MAPS_API_KEY',
     defaultValue: '',
   );
+
+  /// Kill switch for the barcode entry point (camera scan + manual lookup):
+  /// `flutter run --dart-define=BARCODE_LOOKUP_ENABLED=false`.
+  ///
+  /// WHY IT IS NEEDED: `barcodeSupportProvider` discovers a missing backend
+  /// route by trying it, which means one failing request per app session. When
+  /// an operator already KNOWS the deployment has no barcode service, this flag
+  /// removes the entry point up front — no wasted request, no dead icon. It
+  /// defaults to enabled because barcode search is a real feature wherever the
+  /// backend serves it.
+  static const bool barcodeLookupEnabled = bool.fromEnvironment(
+    'BARCODE_LOOKUP_ENABLED',
+    defaultValue: true,
+  );
 }
+
 
 /// The environment the app is built for.
 enum AppEnv { development, staging, production }

@@ -73,6 +73,9 @@ class GoogleMapScene {
   }
 
   /// Scene for the search-results map (many shop markers around the user).
+  ///
+  /// Marker input is pre-clustered with [clusterMarkers]: a dense grid cell
+  /// becomes one count marker ("3 shops") instead of overlapping pins.
   factory GoogleMapScene.forShops({
     required double userLat,
     required double userLng,
@@ -87,8 +90,28 @@ class GoogleMapScene {
         infoWindow: const InfoWindow(title: 'Your location'),
       ),
     ];
-    for (var i = 0; i < shops.length; i++) {
-      final shop = shops[i];
+    final clustered = clusterMarkers(shops);
+    for (var i = 0; i < clustered.length; i++) {
+      final entry = clustered[i];
+      if (entry is MapClusterInfo) {
+        final point = LatLng(entry.latitude, entry.longitude);
+        points.add(point);
+        markers.add(
+          Marker(
+            markerId: MarkerId('cluster_$i'),
+            position: point,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange,
+            ),
+            infoWindow: InfoWindow(
+              title: '${entry.count} shops',
+              snippet: entry.members.map((m) => m.label).take(3).join(', '),
+            ),
+          ),
+        );
+        continue;
+      }
+      final shop = entry as MapMarkerInfo;
       final point = LatLng(shop.latitude, shop.longitude);
       points.add(point);
       markers.add(
@@ -231,23 +254,9 @@ class GoogleMapAdapter implements MapAdapter {
 
   @override
   Widget buildError({required String message, VoidCallback? onRetry}) {
-    return Container(
-      color: Colors.grey.shade200,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.map_outlined, size: 48, color: Colors.black45),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            if (onRetry != null) ...[
-              const SizedBox(height: 12),
-              TextButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
-          ],
-        ),
-      ),
-    );
+    // Shared with [GoogleMapsView] so the platform-failure and adapter-failure
+    // paths are visually identical.
+    return MapErrorView(message: message, onRetry: onRetry);
   }
 }
 
@@ -256,20 +265,37 @@ class GoogleMapAdapter implements MapAdapter {
 /// Re-frames the camera to the scene bounds once the platform view reports
 /// its real viewport dimensions, and exposes the SDK's built-in location
 /// controls ("my location" button / blue dot).
+///
+/// Note: `google_maps_flutter` 2.18.0's `GoogleMap` exposes **no**
+/// `onPlatformError` callback, so a bad `MAPS_API_KEY` cannot be observed from
+/// Dart and is instead pre-empted upstream — [mapAdapterProvider] only selects
+/// [GoogleMapAdapter] when [EnvConfig.mapsApiKey] is non-empty, and callers use
+/// [MapAdapter.buildError] for states such as "no coordinates".
 class GoogleMapsView extends StatefulWidget {
   final GoogleMapScene scene;
 
   const GoogleMapsView({super.key, required this.scene});
 
   @override
-  State<GoogleMapsView> createState() => _GoogleMapsViewState();
+  State<GoogleMapsView> createState() => GoogleMapsViewState();
 }
 
-class _GoogleMapsViewState extends State<GoogleMapsView> {
+/// Public state so camera framing and error handling are testable.
+class GoogleMapsViewState extends State<GoogleMapsView> {
   GoogleMapController? _controller;
+  String? _platformError;
 
   @override
   Widget build(BuildContext context) {
+    // Genuine Maps SDK failures (API key / billing / network) must look like
+    // failures, not an empty map.
+    final platformError = _platformError;
+    if (platformError != null) {
+      return MapErrorView(
+        message: platformError,
+        onRetry: () => setState(() => _platformError = null),
+      );
+    }
     return ClipRect(
       child: GoogleMap(
         initialCameraPosition: widget.scene.initialCamera,
@@ -307,4 +333,37 @@ class _GoogleMapsViewState extends State<GoogleMapsView> {
     _controller?.dispose();
     super.dispose();
   }
+
+  /// Reports a map failure so the platform view is replaced by
+  /// [MapErrorView] with a Retry action instead of a blank grey tile.
+  ///
+  /// `google_maps_flutter` 2.18.0 surfaces no `onPlatformError`, so callers
+  /// (or tests) drive this explicitly. Retry clears the message and remounts
+  /// the real map.
+  @visibleForTesting
+  void showError(String message) {
+    if (!mounted) return;
+    setState(() => _platformError = message);
+  }
+
+  /// The error currently displayed, or null when the real map is showing.
+  @visibleForTesting
+  String? get platformError => _platformError;
+
+  /// Maps a raw Maps SDK error message to user-facing copy.
+  ///
+  /// An API-key mention is a build-configuration fault, so it gets a
+  /// configuration hint; anything else is treated as transient.
+  @visibleForTesting
+  static String describeMapPlatformError(String message) =>
+      isMapsKeyError(message)
+      ? 'Map failed to load. Check the Maps API key configuration.'
+      : 'Map failed to load. Please check your connection and retry.';
+
+  /// A platform error is a key/config error when the SDK message mentions the
+  /// API key. Everything else is treated as a transient network/platform
+  /// failure so a typo'd key never gets a misleading "check connection" hint.
+  @visibleForTesting
+  static bool isMapsKeyError(String message) =>
+      message.toLowerCase().contains('api key');
 }

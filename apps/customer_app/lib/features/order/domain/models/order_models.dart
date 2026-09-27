@@ -2,7 +2,21 @@
 //
 // These models intentionally do not depend on generated files so the order
 // feature remains buildable in environments that have Dart but not Flutter.
+//
+// Decoding goes through [JsonMap] so a response that is missing a field, sends
+// an unexpected type, or carries a status this build has never heard of yields
+// a partially-populated order instead of an exception. The two enum decoders
+// below are the reason an order list can never be taken down by one new backend
+// status value.
 
+import '../../../../core/network/enum_codec.dart';
+import '../../../../core/network/json_map.dart';
+
+/// Order lifecycle states.
+///
+/// Carries a `value` so the wire spelling is explicit rather than inferred
+/// from the Dart identifier — the backend's vocabulary is the contract, and
+/// renaming a Dart member must not silently change what we send or accept.
 enum OrderStatus {
   pending('PENDING'),
   confirmed('CONFIRMED'),
@@ -17,11 +31,29 @@ enum OrderStatus {
   final String value;
   const OrderStatus(this.value);
 
-  static OrderStatus fromValue(String? value) => values.firstWhere(
-    (status) => status.value == value,
-    orElse: () => OrderStatus.pending,
+  /// Decodes a backend status, never throwing.
+  ///
+  /// An unrecognised value becomes [pending] — the initial state — rather than
+  /// throwing. Falling back to the earliest state is a recoverable misreading;
+  /// crashing the order list is not. Use [isRecognised] to detect the fallback
+  /// and offer a refresh instead of presenting it as a current state.
+  static OrderStatus fromValue(String? value) => EnumCodec<OrderStatus>(
+    value,
+    OrderStatus.values,
+    OrderStatus.pending,
+    // The wire value is `READY_FOR_PICKUP`; the Dart name is camelCase.
+    normalize: (lower) => lower.replaceAll(RegExp(r'[\s\-]+'), '_'),
   );
 }
+
+/// Whether [raw] is a status this build recognises.
+///
+/// Lets a caller tell a genuine `PENDING` from one that arrived as a fallback
+/// for an unknown value, so the UI can show "status unavailable" rather than
+/// assert a state the backend never sent.
+bool isRecognised(String? raw) =>
+    raw != null &&
+    OrderStatus.values.any((s) => s.value == raw.trim().toUpperCase());
 
 enum PaymentStatus {
   pending('PENDING'),
@@ -33,9 +65,12 @@ enum PaymentStatus {
   final String value;
   const PaymentStatus(this.value);
 
-  static PaymentStatus fromValue(String? value) => values.firstWhere(
-    (status) => status.value == value,
-    orElse: () => PaymentStatus.pending,
+  /// Decodes a backend payment status, never throwing. See [OrderStatus].
+  static PaymentStatus fromValue(String? value) => EnumCodec<PaymentStatus>(
+    value,
+    PaymentStatus.values,
+    PaymentStatus.pending,
+    normalize: (lower) => lower.replaceAll(RegExp(r'[\s\-]+'), '_'),
   );
 }
 
@@ -68,20 +103,29 @@ class OrderItem {
     this.itemStatus = 'PENDING',
   });
 
-  factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-    id: _asInt(json['id']),
-    orderId: _asInt(json['order_id']),
-    productMasterId: _asInt(json['product_master_id']),
-    productName: json['product_name'] as String? ?? '',
-    variantId: _asNullableInt(json['variant_id']),
-    variantName: json['variant_name'] as String?,
-    shopProductId: _asNullableInt(json['shop_product_id']),
-    quantity: _asInt(json['quantity']),
-    price: _asDouble(json['price']),
-    totalPrice: _asDouble(json['total_price']),
-    imageUrl: json['image_url'] as String?,
-    itemStatus: json['item_status'] as String? ?? 'PENDING',
-  );
+  /// Decodes one line item.
+  ///
+  /// Takes [Object?] rather than a raw map so it is total on its own: a caller
+  /// holding a possibly-null or wrongly-typed value can pass it straight in.
+  /// [Order.fromJson] passes the already-wrapped `JsonMap` from `objectList`,
+  /// which `tryParse` returns unchanged — no re-parse, no lost fields.
+  factory OrderItem.fromJson(Object? value) {
+    final json = value is JsonMap ? value : JsonMap.tryParse(value);
+    return OrderItem(
+      id: json.integerOr('id'),
+      orderId: json.integerOr('order_id'),
+      productMasterId: json.integerOr('product_master_id'),
+      productName: json.stringOr('product_name'),
+      variantId: json.integer('variant_id'),
+      variantName: json.string('variant_name'),
+      shopProductId: json.integer('shop_product_id'),
+      quantity: json.integerOr('quantity'),
+      price: json.decimalOr('price'),
+      totalPrice: json.decimalOr('total_price'),
+      imageUrl: json.string('image_url'),
+      itemStatus: json.stringOr('item_status', 'PENDING'),
+    );
+  }
 }
 
 class Order {
@@ -147,44 +191,50 @@ class Order {
     this.items = const [],
   });
 
-  factory Order.fromJson(Map<String, dynamic> json) => Order(
-    id: _asInt(json['id']),
-    orderNumber: json['order_number'] as String? ?? '',
-    userId: _asInt(json['user_id']),
-    customerId: _asNullableInt(json['customer_id']),
-    shopId: _asInt(json['shop_id']),
-    status: OrderStatus.fromValue(json['status'] as String?),
-    paymentMethod: json['payment_method'] as String?,
-    paymentStatus: PaymentStatus.fromValue(json['payment_status'] as String?),
-    currency: json['currency'] as String? ?? 'INR',
-    subtotalAmount: _asDouble(json['subtotal_amount']),
-    deliveryFee: _asDouble(json['delivery_fee']),
-    discountAmount: _asDouble(json['discount_amount']),
-    taxAmount: _asDouble(json['tax_amount']),
-    totalAmount: _asDouble(json['total_amount']),
-    totalItems: _asInt(json['total_items']),
-    notes: json['notes'] as String?,
-    shippingAddressJson: json['shipping_address_json'] as String?,
-    placedAt: _asDateTime(json['placed_at']),
-    confirmedAt: _asDateTime(json['confirmed_at']),
-    preparingAt: _asDateTime(json['preparing_at']),
-    readyAt: _asDateTime(json['ready_at']),
-    outForDeliveryAt: _asDateTime(json['out_for_delivery_at']),
-    deliveredAt: _asDateTime(json['delivered_at']),
-    cancelledAt: _asDateTime(json['cancelled_at']),
-    cancelledBy: _asNullableInt(json['cancelled_by']),
-    cancelReason: json['cancel_reason'] as String?,
-    createdAt:
-        _asDateTime(json['created_at']) ??
-        DateTime.fromMillisecondsSinceEpoch(0),
-    updatedAt:
-        _asDateTime(json['updated_at']) ??
-        DateTime.fromMillisecondsSinceEpoch(0),
-    items: (json['items'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(OrderItem.fromJson)
-        .toList(growable: false),
-  );
+  factory Order.fromJson(Object? value) {
+    final json = value is JsonMap ? value : JsonMap.tryParse(value);
+    // A missing timestamp used to become 1970, which then rendered as a real
+    // (very old) order date. The epoch sentinel is kept deliberately — it is
+    // the documented "unknown" marker and the UI formats it as such.
+    final createdAt =
+        json.dateTime('created_at') ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+    return Order(
+      id: json.integerOr('id'),
+      orderNumber: json.stringOr('order_number'),
+      userId: json.integerOr('user_id'),
+      customerId: json.integer('customer_id'),
+      shopId: json.integerOr('shop_id'),
+      status: OrderStatus.fromValue(json.string('status')),
+      paymentMethod: json.string('payment_method'),
+      paymentStatus: PaymentStatus.fromValue(json.string('payment_status')),
+      currency: json.stringOr('currency', 'INR'),
+      subtotalAmount: json.decimalOr('subtotal_amount'),
+      deliveryFee: json.decimalOr('delivery_fee'),
+      discountAmount: json.decimalOr('discount_amount'),
+      taxAmount: json.decimalOr('tax_amount'),
+      totalAmount: json.decimalOr('total_amount'),
+      totalItems: json.integerOr('total_items'),
+      notes: json.string('notes'),
+      shippingAddressJson: json.string('shipping_address_json'),
+      placedAt: json.dateTime('placed_at'),
+      confirmedAt: json.dateTime('confirmed_at'),
+      preparingAt: json.dateTime('preparing_at'),
+      readyAt: json.dateTime('ready_at'),
+      outForDeliveryAt: json.dateTime('out_for_delivery_at'),
+      deliveredAt: json.dateTime('delivered_at'),
+      cancelledAt: json.dateTime('cancelled_at'),
+      cancelledBy: json.integer('cancelled_by'),
+      cancelReason: json.string('cancel_reason'),
+      createdAt: createdAt,
+      updatedAt: json.dateTime('updated_at') ?? createdAt,
+      // A malformed line item costs that line, not the whole order.
+      items: json
+          .objectList('items')
+          .map(OrderItem.fromJson)
+          .toList(growable: false),
+    );
+  }
 }
 
 class OrderCreate {
@@ -280,17 +330,55 @@ class OrderListResponse {
     this.hasNext = false,
   });
 
-  factory OrderListResponse.fromJson(Map<String, dynamic> json) =>
-      OrderListResponse(
-        orders: (json['orders'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(Order.fromJson)
-            .toList(growable: false),
-        total: _asInt(json['total']),
-        page: _asInt(json['page']),
-        pageSize: _asInt(json['page_size']),
-        hasNext: json['has_next'] as bool? ?? false,
-      );
+  factory OrderListResponse.fromJson(Object? value) {
+    final json = value is JsonMap ? value : JsonMap.tryParse(value);
+    return OrderListResponse(
+      // `orders` has also been called `results` on paginated endpoints; the
+      // alias keeps one response shape working across both.
+      orders: json.has('orders')
+          ? json.objectList('orders').map(Order.fromJson).toList(growable: false)
+          : json.objectList('results').map(Order.fromJson).toList(growable: false),
+      total: json.integerOr('total'),
+      page: json.integerOr('page'),
+      pageSize: json.integerOr('page_size'),
+      // A missing `has_next` must not silently claim there is no more: derive it
+      // from the page when possible, since a false here hides further orders.
+      hasNext: json.booleanOr(
+            'has_next',
+            json.integer('total') != null &&
+                json.objectList('orders').length >=
+                    json.integerOr('page_size'),
+          ),
+    );
+  }
+}
+
+/// The reason an [Order] mutation was refused.
+///
+/// A mutation can fail for two very different reasons and the UI must not
+/// conflate them: the user asked for something the rules forbid (e.g. cancelling
+/// a delivered order), versus the order does not exist. Only the first is worth
+/// explaining back to the customer.
+class OrderMutationException implements Exception {
+  final String message;
+
+  const OrderMutationException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Raised when an order id does not exist in this data source.
+///
+/// Distinct from [OrderMutationException] so "not found" is never reported as
+/// "your action was rejected" — the two need different UI copy.
+class OrderNotFoundException implements Exception {
+  final String orderId;
+
+  const OrderNotFoundException(this.orderId);
+
+  @override
+  String toString() => 'No order with id $orderId';
 }
 
 int _asInt(Object? value) => value is num ? value.toInt() : 0;

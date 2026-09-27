@@ -33,7 +33,11 @@ void main() {
     '/settings',
     '/privacy',
     '/terms',
-
+    '/about',
+    '/notification-settings',
+    '/location-settings',
+    '/delete-account',
+    '/privacy-data',
     '/help',
     '/orders',
     '/order/:id',
@@ -46,9 +50,11 @@ void main() {
     '/',
     '/search',
     'results',
+    'scan',
     '/saved',
     '/notifications',
     '/profile',
+    '/account',
   };
 
   /// Fully-qualified patterns (parent + child) used to validate nav targets.
@@ -69,7 +75,11 @@ void main() {
     '/settings',
     '/privacy',
     '/terms',
-
+    '/about',
+    '/notification-settings',
+    '/location-settings',
+    '/delete-account',
+    '/privacy-data',
     '/help',
     '/orders',
     '/order/:id',
@@ -82,9 +92,11 @@ void main() {
     '/',
     '/search',
     '/search/results',
+    '/search/scan',
     '/saved',
     '/notifications',
     '/profile',
+    '/account',
   };
 
   final routerFile = File('lib/core/router/app_router.dart');

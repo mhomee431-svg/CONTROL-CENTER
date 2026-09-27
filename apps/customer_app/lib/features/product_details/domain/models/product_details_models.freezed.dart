@@ -1170,7 +1170,11 @@ as bool,
 /// @nodoc
 mixin _$ShopInventoryOffer {
 
- String get shopId; String get shopName; String get shopImageUrl; double get price; double? get mrp; double get distanceInKm; double get rating; bool get isAvailable; DateTime get lastUpdated; String? get stockStatus; String? get freshnessStatus; String? get offerText;
+ String get shopId; String get shopName; String get shopImageUrl; double get price; double? get mrp; double get distanceInKm; double get rating; bool get isAvailable; DateTime get lastUpdated; String? get stockStatus; String? get freshnessStatus; String? get offerText;/// Whether the shop is open right now, per the backend's opening-hours
+/// evaluation. Null means the backend did not report it (unknown) and must
+/// never be rendered as "Open".
+ bool? get isOpenNow;/// Whether the shop is currently accepting orders. Null = unknown.
+ bool? get isAcceptingOrders;
 /// Create a copy of ShopInventoryOffer
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1183,16 +1187,16 @@ $ShopInventoryOfferCopyWith<ShopInventoryOffer> get copyWith => _$ShopInventoryO
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShopInventoryOffer&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopImageUrl, shopImageUrl) || other.shopImageUrl == shopImageUrl)&&(identical(other.price, price) || other.price == price)&&(identical(other.mrp, mrp) || other.mrp == mrp)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.freshnessStatus, freshnessStatus) || other.freshnessStatus == freshnessStatus)&&(identical(other.offerText, offerText) || other.offerText == offerText));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShopInventoryOffer&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopImageUrl, shopImageUrl) || other.shopImageUrl == shopImageUrl)&&(identical(other.price, price) || other.price == price)&&(identical(other.mrp, mrp) || other.mrp == mrp)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.freshnessStatus, freshnessStatus) || other.freshnessStatus == freshnessStatus)&&(identical(other.offerText, offerText) || other.offerText == offerText)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.isAcceptingOrders, isAcceptingOrders) || other.isAcceptingOrders == isAcceptingOrders));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,shopId,shopName,shopImageUrl,price,mrp,distanceInKm,rating,isAvailable,lastUpdated,stockStatus,freshnessStatus,offerText);
+int get hashCode => Object.hash(runtimeType,shopId,shopName,shopImageUrl,price,mrp,distanceInKm,rating,isAvailable,lastUpdated,stockStatus,freshnessStatus,offerText,isOpenNow,isAcceptingOrders);
 
 @override
 String toString() {
-  return 'ShopInventoryOffer(shopId: $shopId, shopName: $shopName, shopImageUrl: $shopImageUrl, price: $price, mrp: $mrp, distanceInKm: $distanceInKm, rating: $rating, isAvailable: $isAvailable, lastUpdated: $lastUpdated, stockStatus: $stockStatus, freshnessStatus: $freshnessStatus, offerText: $offerText)';
+  return 'ShopInventoryOffer(shopId: $shopId, shopName: $shopName, shopImageUrl: $shopImageUrl, price: $price, mrp: $mrp, distanceInKm: $distanceInKm, rating: $rating, isAvailable: $isAvailable, lastUpdated: $lastUpdated, stockStatus: $stockStatus, freshnessStatus: $freshnessStatus, offerText: $offerText, isOpenNow: $isOpenNow, isAcceptingOrders: $isAcceptingOrders)';
 }
 
 
@@ -1203,7 +1207,7 @@ abstract mixin class $ShopInventoryOfferCopyWith<$Res>  {
   factory $ShopInventoryOfferCopyWith(ShopInventoryOffer value, $Res Function(ShopInventoryOffer) _then) = _$ShopInventoryOfferCopyWithImpl;
 @useResult
 $Res call({
- String shopId, String shopName, String shopImageUrl, double price, double? mrp, double distanceInKm, double rating, bool isAvailable, DateTime lastUpdated, String? stockStatus, String? freshnessStatus, String? offerText
+ String shopId, String shopName, String shopImageUrl, double price, double? mrp, double distanceInKm, double rating, bool isAvailable, DateTime lastUpdated, String? stockStatus, String? freshnessStatus, String? offerText, bool? isOpenNow, bool? isAcceptingOrders
 });
 
 
@@ -1220,7 +1224,7 @@ class _$ShopInventoryOfferCopyWithImpl<$Res>
 
 /// Create a copy of ShopInventoryOffer
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? shopId = null,Object? shopName = null,Object? shopImageUrl = null,Object? price = null,Object? mrp = freezed,Object? distanceInKm = null,Object? rating = null,Object? isAvailable = null,Object? lastUpdated = null,Object? stockStatus = freezed,Object? freshnessStatus = freezed,Object? offerText = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? shopId = null,Object? shopName = null,Object? shopImageUrl = null,Object? price = null,Object? mrp = freezed,Object? distanceInKm = null,Object? rating = null,Object? isAvailable = null,Object? lastUpdated = null,Object? stockStatus = freezed,Object? freshnessStatus = freezed,Object? offerText = freezed,Object? isOpenNow = freezed,Object? isAcceptingOrders = freezed,}) {
   return _then(ShopInventoryOffer(
 shopId: null == shopId ? _self.shopId : shopId // ignore: cast_nullable_to_non_nullable
 as String,shopName: null == shopName ? _self.shopName : shopName // ignore: cast_nullable_to_non_nullable
@@ -1234,7 +1238,9 @@ as bool,lastUpdated: null == lastUpdated ? _self.lastUpdated : lastUpdated // ig
 as DateTime,stockStatus: freezed == stockStatus ? _self.stockStatus : stockStatus // ignore: cast_nullable_to_non_nullable
 as String?,freshnessStatus: freezed == freshnessStatus ? _self.freshnessStatus : freshnessStatus // ignore: cast_nullable_to_non_nullable
 as String?,offerText: freezed == offerText ? _self.offerText : offerText // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isOpenNow: freezed == isOpenNow ? _self.isOpenNow : isOpenNow // ignore: cast_nullable_to_non_nullable
+as bool?,isAcceptingOrders: freezed == isAcceptingOrders ? _self.isAcceptingOrders : isAcceptingOrders // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -1319,10 +1325,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shopId,  String shopName,  String shopImageUrl,  double price,  double? mrp,  double distanceInKm,  double rating,  bool isAvailable,  DateTime lastUpdated,  String? stockStatus,  String? freshnessStatus,  String? offerText)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shopId,  String shopName,  String shopImageUrl,  double price,  double? mrp,  double distanceInKm,  double rating,  bool isAvailable,  DateTime lastUpdated,  String? stockStatus,  String? freshnessStatus,  String? offerText,  bool? isOpenNow,  bool? isAcceptingOrders)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ShopInventoryOffer() when $default != null:
-return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that.mrp,_that.distanceInKm,_that.rating,_that.isAvailable,_that.lastUpdated,_that.stockStatus,_that.freshnessStatus,_that.offerText);case _:
+return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that.mrp,_that.distanceInKm,_that.rating,_that.isAvailable,_that.lastUpdated,_that.stockStatus,_that.freshnessStatus,_that.offerText,_that.isOpenNow,_that.isAcceptingOrders);case _:
   return orElse();
 
 }
@@ -1340,10 +1346,10 @@ return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shopId,  String shopName,  String shopImageUrl,  double price,  double? mrp,  double distanceInKm,  double rating,  bool isAvailable,  DateTime lastUpdated,  String? stockStatus,  String? freshnessStatus,  String? offerText)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shopId,  String shopName,  String shopImageUrl,  double price,  double? mrp,  double distanceInKm,  double rating,  bool isAvailable,  DateTime lastUpdated,  String? stockStatus,  String? freshnessStatus,  String? offerText,  bool? isOpenNow,  bool? isAcceptingOrders)  $default,) {final _that = this;
 switch (_that) {
 case _ShopInventoryOffer():
-return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that.mrp,_that.distanceInKm,_that.rating,_that.isAvailable,_that.lastUpdated,_that.stockStatus,_that.freshnessStatus,_that.offerText);case _:
+return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that.mrp,_that.distanceInKm,_that.rating,_that.isAvailable,_that.lastUpdated,_that.stockStatus,_that.freshnessStatus,_that.offerText,_that.isOpenNow,_that.isAcceptingOrders);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1360,10 +1366,10 @@ return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shopId,  String shopName,  String shopImageUrl,  double price,  double? mrp,  double distanceInKm,  double rating,  bool isAvailable,  DateTime lastUpdated,  String? stockStatus,  String? freshnessStatus,  String? offerText)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shopId,  String shopName,  String shopImageUrl,  double price,  double? mrp,  double distanceInKm,  double rating,  bool isAvailable,  DateTime lastUpdated,  String? stockStatus,  String? freshnessStatus,  String? offerText,  bool? isOpenNow,  bool? isAcceptingOrders)?  $default,) {final _that = this;
 switch (_that) {
 case _ShopInventoryOffer() when $default != null:
-return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that.mrp,_that.distanceInKm,_that.rating,_that.isAvailable,_that.lastUpdated,_that.stockStatus,_that.freshnessStatus,_that.offerText);case _:
+return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that.mrp,_that.distanceInKm,_that.rating,_that.isAvailable,_that.lastUpdated,_that.stockStatus,_that.freshnessStatus,_that.offerText,_that.isOpenNow,_that.isAcceptingOrders);case _:
   return null;
 
 }
@@ -1374,8 +1380,8 @@ return $default(_that.shopId,_that.shopName,_that.shopImageUrl,_that.price,_that
 /// @nodoc
 @JsonSerializable()
 
-class _ShopInventoryOffer implements ShopInventoryOffer {
-  const _ShopInventoryOffer({required this.shopId, required this.shopName, required this.shopImageUrl, required this.price, this.mrp, required this.distanceInKm, required this.rating, required this.isAvailable, required this.lastUpdated, this.stockStatus, this.freshnessStatus, this.offerText});
+class _ShopInventoryOffer extends ShopInventoryOffer {
+  const _ShopInventoryOffer({required this.shopId, required this.shopName, required this.shopImageUrl, required this.price, this.mrp, required this.distanceInKm, required this.rating, required this.isAvailable, required this.lastUpdated, this.stockStatus, this.freshnessStatus, this.offerText, this.isOpenNow, this.isAcceptingOrders}): super._();
   factory _ShopInventoryOffer.fromJson(Map<String, dynamic> json) => _$ShopInventoryOfferFromJson(json);
 
 @override final  String shopId;
@@ -1390,6 +1396,12 @@ class _ShopInventoryOffer implements ShopInventoryOffer {
 @override final  String? stockStatus;
 @override final  String? freshnessStatus;
 @override final  String? offerText;
+/// Whether the shop is open right now, per the backend's opening-hours
+/// evaluation. Null means the backend did not report it (unknown) and must
+/// never be rendered as "Open".
+@override final  bool? isOpenNow;
+/// Whether the shop is currently accepting orders. Null = unknown.
+@override final  bool? isAcceptingOrders;
 
 /// Create a copy of ShopInventoryOffer
 /// with the given fields replaced by the non-null parameter values.
@@ -1404,16 +1416,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShopInventoryOffer&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopImageUrl, shopImageUrl) || other.shopImageUrl == shopImageUrl)&&(identical(other.price, price) || other.price == price)&&(identical(other.mrp, mrp) || other.mrp == mrp)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.freshnessStatus, freshnessStatus) || other.freshnessStatus == freshnessStatus)&&(identical(other.offerText, offerText) || other.offerText == offerText));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShopInventoryOffer&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.shopName, shopName) || other.shopName == shopName)&&(identical(other.shopImageUrl, shopImageUrl) || other.shopImageUrl == shopImageUrl)&&(identical(other.price, price) || other.price == price)&&(identical(other.mrp, mrp) || other.mrp == mrp)&&(identical(other.distanceInKm, distanceInKm) || other.distanceInKm == distanceInKm)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isAvailable, isAvailable) || other.isAvailable == isAvailable)&&(identical(other.lastUpdated, lastUpdated) || other.lastUpdated == lastUpdated)&&(identical(other.stockStatus, stockStatus) || other.stockStatus == stockStatus)&&(identical(other.freshnessStatus, freshnessStatus) || other.freshnessStatus == freshnessStatus)&&(identical(other.offerText, offerText) || other.offerText == offerText)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.isAcceptingOrders, isAcceptingOrders) || other.isAcceptingOrders == isAcceptingOrders));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,shopId,shopName,shopImageUrl,price,mrp,distanceInKm,rating,isAvailable,lastUpdated,stockStatus,freshnessStatus,offerText);
+int get hashCode => Object.hash(runtimeType,shopId,shopName,shopImageUrl,price,mrp,distanceInKm,rating,isAvailable,lastUpdated,stockStatus,freshnessStatus,offerText,isOpenNow,isAcceptingOrders);
 
 @override
 String toString() {
-  return 'ShopInventoryOffer(shopId: $shopId, shopName: $shopName, shopImageUrl: $shopImageUrl, price: $price, mrp: $mrp, distanceInKm: $distanceInKm, rating: $rating, isAvailable: $isAvailable, lastUpdated: $lastUpdated, stockStatus: $stockStatus, freshnessStatus: $freshnessStatus, offerText: $offerText)';
+  return 'ShopInventoryOffer(shopId: $shopId, shopName: $shopName, shopImageUrl: $shopImageUrl, price: $price, mrp: $mrp, distanceInKm: $distanceInKm, rating: $rating, isAvailable: $isAvailable, lastUpdated: $lastUpdated, stockStatus: $stockStatus, freshnessStatus: $freshnessStatus, offerText: $offerText, isOpenNow: $isOpenNow, isAcceptingOrders: $isAcceptingOrders)';
 }
 
 
@@ -1424,7 +1436,7 @@ abstract mixin class _$ShopInventoryOfferCopyWith<$Res> implements $ShopInventor
   factory _$ShopInventoryOfferCopyWith(_ShopInventoryOffer value, $Res Function(_ShopInventoryOffer) _then) = __$ShopInventoryOfferCopyWithImpl;
 @override @useResult
 $Res call({
- String shopId, String shopName, String shopImageUrl, double price, double? mrp, double distanceInKm, double rating, bool isAvailable, DateTime lastUpdated, String? stockStatus, String? freshnessStatus, String? offerText
+ String shopId, String shopName, String shopImageUrl, double price, double? mrp, double distanceInKm, double rating, bool isAvailable, DateTime lastUpdated, String? stockStatus, String? freshnessStatus, String? offerText, bool? isOpenNow, bool? isAcceptingOrders
 });
 
 
@@ -1441,7 +1453,7 @@ class __$ShopInventoryOfferCopyWithImpl<$Res>
 
 /// Create a copy of ShopInventoryOffer
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? shopId = null,Object? shopName = null,Object? shopImageUrl = null,Object? price = null,Object? mrp = freezed,Object? distanceInKm = null,Object? rating = null,Object? isAvailable = null,Object? lastUpdated = null,Object? stockStatus = freezed,Object? freshnessStatus = freezed,Object? offerText = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? shopId = null,Object? shopName = null,Object? shopImageUrl = null,Object? price = null,Object? mrp = freezed,Object? distanceInKm = null,Object? rating = null,Object? isAvailable = null,Object? lastUpdated = null,Object? stockStatus = freezed,Object? freshnessStatus = freezed,Object? offerText = freezed,Object? isOpenNow = freezed,Object? isAcceptingOrders = freezed,}) {
   return _then(_ShopInventoryOffer(
 shopId: null == shopId ? _self.shopId : shopId // ignore: cast_nullable_to_non_nullable
 as String,shopName: null == shopName ? _self.shopName : shopName // ignore: cast_nullable_to_non_nullable
@@ -1455,7 +1467,9 @@ as bool,lastUpdated: null == lastUpdated ? _self.lastUpdated : lastUpdated // ig
 as DateTime,stockStatus: freezed == stockStatus ? _self.stockStatus : stockStatus // ignore: cast_nullable_to_non_nullable
 as String?,freshnessStatus: freezed == freshnessStatus ? _self.freshnessStatus : freshnessStatus // ignore: cast_nullable_to_non_nullable
 as String?,offerText: freezed == offerText ? _self.offerText : offerText // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isOpenNow: freezed == isOpenNow ? _self.isOpenNow : isOpenNow // ignore: cast_nullable_to_non_nullable
+as bool?,isAcceptingOrders: freezed == isAcceptingOrders ? _self.isAcceptingOrders : isAcceptingOrders // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -1466,7 +1480,20 @@ as String?,
 /// @nodoc
 mixin _$ProductDetails {
 
- ProductMasterDetails get product; List<ShopInventoryOffer> get shopOffers;
+ ProductMasterDetails get product; List<ShopInventoryOffer> get shopOffers;/// Whether this payload came from the local cache rather than the network.
+///
+/// This is the field that stops the app from presenting old data as live.
+/// Product master data (name, brand, images, description) is stable enough
+/// to cache, so serving it offline is good behaviour — but only if the UI
+/// says so. Without this flag a cached page is indistinguishable from a
+/// fresh one, and the customer has no way to know the prices they are
+/// looking at may be out of date.
+ bool get servedFromCache;/// When this payload was cached. Null for live data.
+///
+/// Drives the "Last updated …" line. Null whenever [servedFromCache] is
+/// false, because a live response is current by definition and dating it
+/// would be noise.
+ DateTime? get cachedAt;
 /// Create a copy of ProductDetails
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1479,16 +1506,16 @@ $ProductDetailsCopyWith<ProductDetails> get copyWith => _$ProductDetailsCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductDetails&&(identical(other.product, product) || other.product == product)&&const DeepCollectionEquality().equals(other.shopOffers, shopOffers));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductDetails&&(identical(other.product, product) || other.product == product)&&const DeepCollectionEquality().equals(other.shopOffers, shopOffers)&&(identical(other.servedFromCache, servedFromCache) || other.servedFromCache == servedFromCache)&&(identical(other.cachedAt, cachedAt) || other.cachedAt == cachedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,product,const DeepCollectionEquality().hash(shopOffers));
+int get hashCode => Object.hash(runtimeType,product,const DeepCollectionEquality().hash(shopOffers),servedFromCache,cachedAt);
 
 @override
 String toString() {
-  return 'ProductDetails(product: $product, shopOffers: $shopOffers)';
+  return 'ProductDetails(product: $product, shopOffers: $shopOffers, servedFromCache: $servedFromCache, cachedAt: $cachedAt)';
 }
 
 
@@ -1499,7 +1526,7 @@ abstract mixin class $ProductDetailsCopyWith<$Res>  {
   factory $ProductDetailsCopyWith(ProductDetails value, $Res Function(ProductDetails) _then) = _$ProductDetailsCopyWithImpl;
 @useResult
 $Res call({
- ProductMasterDetails product, List<ShopInventoryOffer> shopOffers
+ ProductMasterDetails product, List<ShopInventoryOffer> shopOffers, bool servedFromCache, DateTime? cachedAt
 });
 
 
@@ -1516,11 +1543,13 @@ class _$ProductDetailsCopyWithImpl<$Res>
 
 /// Create a copy of ProductDetails
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? product = null,Object? shopOffers = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? product = null,Object? shopOffers = null,Object? servedFromCache = null,Object? cachedAt = freezed,}) {
   return _then(ProductDetails(
 product: null == product ? _self.product : product // ignore: cast_nullable_to_non_nullable
 as ProductMasterDetails,shopOffers: null == shopOffers ? _self.shopOffers : shopOffers // ignore: cast_nullable_to_non_nullable
-as List<ShopInventoryOffer>,
+as List<ShopInventoryOffer>,servedFromCache: null == servedFromCache ? _self.servedFromCache : servedFromCache // ignore: cast_nullable_to_non_nullable
+as bool,cachedAt: freezed == cachedAt ? _self.cachedAt : cachedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 /// Create a copy of ProductDetails
@@ -1614,10 +1643,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ProductMasterDetails product,  List<ShopInventoryOffer> shopOffers)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ProductMasterDetails product,  List<ShopInventoryOffer> shopOffers,  bool servedFromCache,  DateTime? cachedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProductDetails() when $default != null:
-return $default(_that.product,_that.shopOffers);case _:
+return $default(_that.product,_that.shopOffers,_that.servedFromCache,_that.cachedAt);case _:
   return orElse();
 
 }
@@ -1635,10 +1664,10 @@ return $default(_that.product,_that.shopOffers);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ProductMasterDetails product,  List<ShopInventoryOffer> shopOffers)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ProductMasterDetails product,  List<ShopInventoryOffer> shopOffers,  bool servedFromCache,  DateTime? cachedAt)  $default,) {final _that = this;
 switch (_that) {
 case _ProductDetails():
-return $default(_that.product,_that.shopOffers);case _:
+return $default(_that.product,_that.shopOffers,_that.servedFromCache,_that.cachedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1655,10 +1684,10 @@ return $default(_that.product,_that.shopOffers);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ProductMasterDetails product,  List<ShopInventoryOffer> shopOffers)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ProductMasterDetails product,  List<ShopInventoryOffer> shopOffers,  bool servedFromCache,  DateTime? cachedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _ProductDetails() when $default != null:
-return $default(_that.product,_that.shopOffers);case _:
+return $default(_that.product,_that.shopOffers,_that.servedFromCache,_that.cachedAt);case _:
   return null;
 
 }
@@ -1669,8 +1698,8 @@ return $default(_that.product,_that.shopOffers);case _:
 /// @nodoc
 @JsonSerializable()
 
-class _ProductDetails implements ProductDetails {
-  const _ProductDetails({required this.product,  List<ShopInventoryOffer> shopOffers = const <ShopInventoryOffer>[]}): _shopOffers = shopOffers;
+class _ProductDetails extends ProductDetails {
+  const _ProductDetails({required this.product,  List<ShopInventoryOffer> shopOffers = const <ShopInventoryOffer>[], this.servedFromCache = false, this.cachedAt}): _shopOffers = shopOffers,super._();
   factory _ProductDetails.fromJson(Map<String, dynamic> json) => _$ProductDetailsFromJson(json);
 
 @override final  ProductMasterDetails product;
@@ -1681,6 +1710,21 @@ class _ProductDetails implements ProductDetails {
   return EqualUnmodifiableListView(_shopOffers);
 }
 
+/// Whether this payload came from the local cache rather than the network.
+///
+/// This is the field that stops the app from presenting old data as live.
+/// Product master data (name, brand, images, description) is stable enough
+/// to cache, so serving it offline is good behaviour — but only if the UI
+/// says so. Without this flag a cached page is indistinguishable from a
+/// fresh one, and the customer has no way to know the prices they are
+/// looking at may be out of date.
+@override@JsonKey() final  bool servedFromCache;
+/// When this payload was cached. Null for live data.
+///
+/// Drives the "Last updated …" line. Null whenever [servedFromCache] is
+/// false, because a live response is current by definition and dating it
+/// would be noise.
+@override final  DateTime? cachedAt;
 
 /// Create a copy of ProductDetails
 /// with the given fields replaced by the non-null parameter values.
@@ -1695,16 +1739,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductDetails&&(identical(other.product, product) || other.product == product)&&const DeepCollectionEquality().equals(other._shopOffers, _shopOffers));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductDetails&&(identical(other.product, product) || other.product == product)&&const DeepCollectionEquality().equals(other._shopOffers, _shopOffers)&&(identical(other.servedFromCache, servedFromCache) || other.servedFromCache == servedFromCache)&&(identical(other.cachedAt, cachedAt) || other.cachedAt == cachedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,product,const DeepCollectionEquality().hash(_shopOffers));
+int get hashCode => Object.hash(runtimeType,product,const DeepCollectionEquality().hash(_shopOffers),servedFromCache,cachedAt);
 
 @override
 String toString() {
-  return 'ProductDetails(product: $product, shopOffers: $shopOffers)';
+  return 'ProductDetails(product: $product, shopOffers: $shopOffers, servedFromCache: $servedFromCache, cachedAt: $cachedAt)';
 }
 
 
@@ -1715,7 +1759,7 @@ abstract mixin class _$ProductDetailsCopyWith<$Res> implements $ProductDetailsCo
   factory _$ProductDetailsCopyWith(_ProductDetails value, $Res Function(_ProductDetails) _then) = __$ProductDetailsCopyWithImpl;
 @override @useResult
 $Res call({
- ProductMasterDetails product, List<ShopInventoryOffer> shopOffers
+ ProductMasterDetails product, List<ShopInventoryOffer> shopOffers, bool servedFromCache, DateTime? cachedAt
 });
 
 
@@ -1732,11 +1776,13 @@ class __$ProductDetailsCopyWithImpl<$Res>
 
 /// Create a copy of ProductDetails
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? product = null,Object? shopOffers = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? product = null,Object? shopOffers = null,Object? servedFromCache = null,Object? cachedAt = freezed,}) {
   return _then(_ProductDetails(
 product: null == product ? _self.product : product // ignore: cast_nullable_to_non_nullable
 as ProductMasterDetails,shopOffers: null == shopOffers ? _self._shopOffers : shopOffers // ignore: cast_nullable_to_non_nullable
-as List<ShopInventoryOffer>,
+as List<ShopInventoryOffer>,servedFromCache: null == servedFromCache ? _self.servedFromCache : servedFromCache // ignore: cast_nullable_to_non_nullable
+as bool,cachedAt: freezed == cachedAt ? _self.cachedAt : cachedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 

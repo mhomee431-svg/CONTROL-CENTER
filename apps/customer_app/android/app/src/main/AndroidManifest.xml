@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Camera for barcode search (mobile_scanner). required="false" so devices
+         without a camera still install; the scan entry hides gracefully there. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <!-- Required for all networking (release builds merge this manifest) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <application

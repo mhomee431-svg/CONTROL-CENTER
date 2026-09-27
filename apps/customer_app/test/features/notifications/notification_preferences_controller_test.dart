@@ -67,6 +67,25 @@ void main() {
       expect((await repository.getPreferences()).priceAlerts, isFalse);
     });
 
+    test('setOffers moves promotional and dealAlerts together', () async {
+      await settle();
+      final controller = container.read(
+        notificationPreferencesControllerProvider.notifier,
+      );
+
+      // "Offers and deals" is one switch over two columns. Enabling it must
+      // set BOTH, otherwise the backend would still suppress some offers.
+      await controller.setOffers(true);
+      expect(prefs().promotional, isTrue);
+      expect(prefs().dealAlerts, isTrue);
+
+      // Disabling must clear BOTH, or the switch would read "off" while
+      // the backend kept sending deals.
+      await controller.setOffers(false);
+      expect(prefs().promotional, isFalse);
+      expect(prefs().dealAlerts, isFalse);
+    });
+
     test('failed save rolls back and surfaces an error', () async {
       final failing = ProviderContainer(
         overrides: [

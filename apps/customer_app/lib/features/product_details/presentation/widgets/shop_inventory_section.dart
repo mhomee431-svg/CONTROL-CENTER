@@ -7,6 +7,7 @@ import '../../../search/presentation/widgets/freshness_disclaimer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/shop_open_closed_badge.dart';
 
 /// Displays the **SHOP INVENTORY** (dynamic availability).
 ///
@@ -19,10 +20,19 @@ class ShopInventorySection extends StatelessWidget {
   final String productId;
   final List<ShopInventoryOffer> offers;
 
+  /// True when [offers] is empty only because the data is cached, not because
+  /// the product is genuinely unavailable nearby.
+  ///
+  /// Kept as an explicit parameter (rather than inferred from an empty list)
+  /// because an empty list is otherwise ambiguous, and the two cases need
+  /// opposite copy.
+  final bool unverified;
+
   const ShopInventorySection({
     super.key,
     required this.productId,
     required this.offers,
+    this.unverified = false,
   });
 
   @override
@@ -57,12 +67,23 @@ class ShopInventorySection extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
 
           // ── Empty State ────────────────────────────────────────────────
+          // The message depends on WHY the list is empty. "No shops" and "we
+          // have no current data" are different facts, and telling a customer a
+          // product is unavailable when we simply have not checked is the exact
+          // failure the cache-provenance work exists to prevent.
           if (offers.isEmpty)
-            const EmptyStateView(
-              icon: Icons.storefront_outlined,
-              title: 'No nearby shops found',
-              message:
-                  'This product is not currently available at any nearby shop.',
+            EmptyStateView(
+              icon: unverified
+                  ? Icons.cloud_off_outlined
+                  : Icons.storefront_outlined,
+              title: unverified
+                  ? 'Availability unavailable'
+                  : 'No nearby shops found',
+              message: unverified
+                  ? 'Showing saved product details. Reconnect to check which '
+                        'nearby shops currently stock this item.'
+                  : 'This product is not currently available at any nearby '
+                        'shop.',
             )
           else ...[
             // ── Shop Offer Cards ─────────────────────────────────────────
@@ -172,12 +193,28 @@ class _ShopInventoryCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Open/closed comes straight from the backend's
+                        // opening-hours verdict; unknown renders nothing.
+                        ShopOpenClosedBadge(
+                          isOpenNow: offer.isOpenNow,
+                          acceptingOrders: offer.isAcceptingOrders,
+                          dense: true,
+                        ),
+                      ],
                     ),
                   ],
                 ),

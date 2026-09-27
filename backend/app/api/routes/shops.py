@@ -144,6 +144,9 @@ async def get_shop(
     data["last_inventory_update"] = last_updated
     data["available_products"] = [p.model_dump() for p in available_products]
     data["subcategories"] = shop_service.parse_subcategories(shop.subcategories)
+    # Public contact surface only: primary phone, alternate phone, and email.
+    # Ownership, verification workflow, and internal flags stay server-side.
+    data["secondary_phone"] = shop.alternate_phone
     return success_response(data=data)
 
 

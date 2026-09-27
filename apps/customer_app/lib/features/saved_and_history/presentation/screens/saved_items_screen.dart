@@ -7,16 +7,57 @@ import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
+/// Index of the tab each deep-link target opens.
+///
+/// Exposed so the account hub can send the customer straight to the list
+/// they actually asked for, instead of making them re-tap a tab bar.
+enum SavedItemsTab {
+  products(0, 'Saved Products'),
+  shops(1, 'Saved Shops'),
+  search(2, 'Search History'),
+  viewed(3, 'Recently Viewed'),
+  viewedShops(4, 'Recently Viewed Shops');
+
+  const SavedItemsTab(this.tabIndex, this.title);
+
+  /// Position of this tab in the `TabBar`.
+  ///
+  /// Deliberately NOT called `index`: every Dart enum already declares a
+  /// built-in `index` getter, and re-declaring it (even with `@override`)
+  /// is a compile error. Callers use `tabIndex`.
+  final int tabIndex;
+
+  final String title;
+
+  /// Resolves the `?tab=` query value. Unknown values fall back to
+  /// [SavedItemsTab.products] so a hand-edited URL can never open an
+  /// undefined tab or crash the screen.
+  static SavedItemsTab fromQuery(String? value) {
+    for (final tab in SavedItemsTab.values) {
+      if (tab.name == value) return tab;
+    }
+    return SavedItemsTab.products;
+  }
+}
+
 class SavedItemsScreen extends ConsumerWidget {
-  const SavedItemsScreen({super.key});
+  const SavedItemsScreen({super.key, this.initialTab = SavedItemsTab.products});
+
+  /// Tab to open on first build (deep-linked from the account screen).
+  final SavedItemsTab initialTab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // `initialIndex` makes the tab controller honour the deep link; without
+    // it DefaultTabController would always open tab 0.
     return DefaultTabController(
       length: 5,
+      initialIndex: initialTab.tabIndex,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Saved & History'),
+          title: Text(initialTab == SavedItemsTab.products
+              ? 'Saved & History'
+              : initialTab.title),
           bottom: const TabBar(
             isScrollable: true,
             tabs: [

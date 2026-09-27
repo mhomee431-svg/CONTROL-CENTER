@@ -261,8 +261,16 @@ class ApiAuthRepository implements AuthRepository {
         case ApiErrorType.offline:
         case ApiErrorType.timeout:
           return const NetworkFailure();
-        case ApiErrorType.unauthorized:
+        // Only 401 maps to an expired session. A 403 means the customer is
+        // authenticated but not allowed, which re-authenticating cannot fix —
+        // mapping it to SessionExpiredFailure would bounce them to the login
+        // screen to be rejected all over again.
+        case ApiErrorType.sessionExpired:
           return const SessionExpiredFailure();
+        // 429 is its own outcome on auth routes (OTP send/verify throttling)
+        // and is handled by the message inspection below.
+        case ApiErrorType.rateLimited:
+          return const TooManyAttemptsFailure();
         default:
           // For OTP-specific operations, map known backend error messages.
           final msg = e.message.toLowerCase();

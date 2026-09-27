@@ -67,6 +67,35 @@ CATEGORIES: dict[str, str] = {
     "APP_OTHER": "Something else",
 }
 
+# Customer-filed issues, sharing the SAME `complaints` table and triage queue.
+#
+# Prefixed `CUST_` for the same reason the shopkeeper codes are prefixed `APP_`:
+# an admin working one merged queue must be able to tell "the shopper cannot
+# use the app" apart from "a shopper says a price is wrong". The two audiences
+# are also resolved by DIFFERENT teams, so an unprefixed code would make the
+# queue unactionable.
+#
+# `CUST_WRONG_PRICE` and `CUST_AVAILABILITY` deliberately overlap with the
+# pre-existing CUSTOMER complaint codes on that table. They are the same
+# concern (a shopper disputing what a shop listed), so reusing the vocabulary
+# keeps one meaning per concept instead of two near-identical codes an admin
+# has to learn apart.
+CUSTOMER_CATEGORIES: dict[str, str] = {
+    "CUST_WRONG_PRICE": "Wrong price or offer",
+    "CUST_AVAILABILITY": "Availability did not match",
+    "CUST_WRONG_PRODUCT": "Product information is wrong",
+    "CUST_SHOP_ISSUE": "Problem with a shop",
+    "CUST_APP_BUG": "App bug or crash",
+    "CUST_ACCOUNT": "Account or sign-in issue",
+    "CUST_PRIVACY": "Data or privacy concern",
+    "CUST_OTHER": "Something else",
+}
+
+# Every code either intake route accepts. `normalize_category` validates
+# against this union, so adding a code to one audience map without the other
+# is impossible to get wrong at the call site.
+ALL_CATEGORIES: dict[str, str] = {**CATEGORIES, **CUSTOMER_CATEGORIES}
+
 # Priorities are stored in `complaints.priority`, whose vocabulary is shared
 # with customer complaints (LOW, MEDIUM, HIGH, URGENT). URGENT is accepted so a
 # support agent can escalate a ticket later without a schema change.
@@ -108,15 +137,25 @@ def _iso(value: datetime | None) -> str | None:
 
 
 # ── Validation ────────────────────────────────────────────────────────────
-def normalize_category(raw: str) -> str:
-    """Validates and returns an accepted ``APP_*`` category code."""
+def normalize_category(
+    raw: str, *, allowed: dict[str, str] | None = None
+) -> str:
+    """Validates and returns an accepted category code.
+
+    ``allowed`` scopes validation to one audience (``CATEGORIES`` for a
+    shopkeeper, ``CUSTOMER_CATEGORIES`` for a shopper). It defaults to the
+    UNION of both so an existing caller keeps working unchanged, while a route
+    that knows its audience can pass the right map and reject the other's codes
+    with a 422 rather than filing a shopper's bug report under ``APP_POS``.
+    """
+    table = ALL_CATEGORIES if allowed is None else allowed
     code = _text(raw).upper()
     if not code:
         raise ValidationError("An issue category is required")
-    if code not in CATEGORIES:
+    if code not in table:
         raise ValidationError(
             f"Unknown issue category: {raw}",
-            data={"allowed_categories": sorted(CATEGORIES)},
+            data={"allowed_categories": sorted(table)},
         )
     return code
 
@@ -199,28 +238,49 @@ def _derive_subject(category: str, subject: str | None, description: str) -> str
         (line.strip() for line in _text(description).splitlines() if line.strip()),
         "No description",
     )
-    label = CATEGORIES[category]
+    label = ALL_CATEGORIES[category]
     return f"[{label}] {first_line}"[:MAX_SUBJECT_LENGTH]
 
 
 # ── Shop scoping ──────────────────────────────────────────────────────────
-def _resolve_shop(db: Session, user: User, shop_id: int | None) -> Shop | None:
-    """Authorizes ``shop_id`` for *user* and returns the shop row.
+def _resolve_shop(
+    db: Session, user: User, shop_id: int | None, *, require_access: bool
+) -> Shop | None:
+    """Resolves ``shop_id`` to a shop row for *user*.
 
-    Reuses the single shopkeeper authorization helper, so a ticket can never be
-    filed against a shop the caller does not own or manage (IDOR). The location
+    Reuses the single shopkeeper authorization helper, so a MERCHANT can never
+    file a ticket against a shop they do not own or manage (IDOR). The location
     geometry is deferred: SQLite has no ``AsBinary()`` and the coordinates are
     irrelevant to filing a ticket.
+
+    ``require_access`` is the whole difference between the two audiences:
+
+    * ``True`` (shopkeeper) — the shop is the ticket's SUBJECT, so the caller
+      must own or manage it. A foreign id is a 403.
+    * ``False`` (customer) — the shop is only CONTEXT ("this happened at
+      Koramangala"). A shopper legitimately reports a shop they do not own, so
+      applying the ownership check here would reject a valid report with a
+      confusing "you do not have access to this shop".
+
+    Looking the shop up without the access check is safe for a customer: shops
+    are public entities whose name/rating/address every customer can already
+    see, the ticket is scoped to ``complainant_user_id`` so it is readable only
+    by its reporter, and nothing here grants access to the shop itself.
     """
     if shop_id is None:
         return None
-    from app.services import shopkeeper_service
 
-    access = shopkeeper_service.resolve_shop_access(db, user, shop_id)
+    resolved_id = shop_id
+    if require_access:
+        from app.services import shopkeeper_service
+
+        access = shopkeeper_service.resolve_shop_access(db, user, shop_id)
+        resolved_id = access.shop.id
+
     return (
         db.query(Shop)
         .options(defer(Shop.location))
-        .filter(Shop.id == access.shop.id)
+        .filter(Shop.id == resolved_id)
         .first()
     )
 
@@ -275,7 +335,7 @@ def serialize_ticket(complaint: Complaint, *, shop_name: str | None = None) -> d
         "id": complaint.id,
         "reference": f"HL-{complaint.id}",
         "category": complaint.complaint_type,
-        "category_label": CATEGORIES.get(complaint.complaint_type),
+        "category_label": ALL_CATEGORIES.get(complaint.complaint_type),
         "subject": complaint.subject,
         "description": complaint.description,
         "status": _status_code(complaint),
@@ -322,11 +382,13 @@ def create_ticket(
     app_version: str | None = None,
     shop_id: int | None = None,
     attachment: dict | None = None,
+    allowed: dict[str, str] | None = None,
+    require_shop_access: bool | None = None,
 ) -> dict:
-    """Files a support ticket for the signed-in shopkeeper.
+    """Files a support ticket for the signed-in reporter.
 
     Opens in ``OPEN`` — the state support triages from — and is written to the
-    hash-chained audit trail, because a ticket is the shopkeeper's record that
+    hash-chained audit trail, because a ticket is the reporter's record that
     they reported a problem and asked for help.
 
     ``attachment`` is the ALREADY-VALIDATED media grant for an optional
@@ -334,9 +396,28 @@ def create_ticket(
     ``SUPPORT_ATTACHMENT`` category). Validation stays in the media service —
     which also performs the storage HEAD — so this function cannot be tricked
     into persisting a key that was never authorized or never uploaded.
+
+    ``allowed`` scopes category validation to the calling app's audience (see
+    ``normalize_category``). It defaults to ``None`` — the union — which keeps
+    the original shopkeeper-only caller working untouched; each route passes
+    its own map so a shopper cannot file under an ``APP_*`` code, and vice
+    versa.
+
+    ``require_shop_access`` decides whether a supplied ``shop_id`` is treated as
+    the ticket's SUBJECT (must be owned → 403 otherwise) or as mere CONTEXT.
+    It defaults to ``True`` for the original shopkeeper caller, preserving the
+    existing IDOR protection; the customer route passes ``False`` because a
+    shopper may legitimately report a shop they do not own.
     """
-    code = normalize_category(category)
-    shop = _resolve_shop(db, user, shop_id)
+    app_label = "shopkeeper" if allowed is None else (
+        "shopkeeper" if allowed is CATEGORIES else "customer"
+    )
+    code = normalize_category(category, allowed=allowed)
+    if require_shop_access is None:
+        require_shop_access = app_label == "shopkeeper"
+    shop = _resolve_shop(
+        db, user, shop_id, require_access=require_shop_access
+    )
     attachment_key = (attachment or {}).get("key")
 
     complaint = Complaint(
@@ -384,8 +465,8 @@ def create_ticket(
             "has_attachment": complaint.attachment_key is not None,
         },
         description=(
-            f"Support ticket HL-{complaint.id} filed from the shopkeeper app "
-            f"({CATEGORIES[code]})"
+            f"Support ticket HL-{complaint.id} filed from the {app_label} app "
+            f"({ALL_CATEGORIES[code]})"
         ),
     )
     db.commit()

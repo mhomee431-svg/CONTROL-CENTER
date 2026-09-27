@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/env/env_config.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/performance/debouncer.dart';
 import '../../../location/presentation/controllers/location_controller.dart';
 import '../../../saved_and_history/domain/saved_and_history_repository.dart';
+import '../../domain/barcode_capability.dart';
 import '../../domain/search_repository.dart';
 import '../../domain/search_state.dart';
 import '../../domain/search_event_tracker.dart';
@@ -179,6 +181,52 @@ Future<void> saveRecentSearch(WidgetRef ref, String query) async {
 /// Passes the customer's coordinates when known so the backend can rank hits
 /// by proximity. An unknown barcode resolves to an empty list (a real "not
 /// found"), never a placeholder product.
+// --- BARCODE CAPABILITY ---
+/// What the app currently knows about the backend's barcode route.
+///
+/// Lives in its own notifier rather than inside [barcodeLookupProvider]
+/// because it must OUTLIVE a single lookup: `barcodeLookupProvider` is
+/// `autoDispose` (each scanned barcode is a different family key), so if the
+/// "no such route" verdict lived there the search screen would forget it the
+/// moment the customer went back and the scan icon would reappear.
+final barcodeSupportProvider =
+    NotifierProvider<BarcodeSupportNotifier, BarcodeSupport>(
+      BarcodeSupportNotifier.new,
+    );
+
+class BarcodeSupportNotifier extends Notifier<BarcodeSupport> {
+  @override
+  BarcodeSupport build() => BarcodeSupport.unknown;
+
+  /// Records a verdict. A successful lookup is the only thing that can restore
+  /// the entry point after a false negative (e.g. a manual entry made from a
+  /// build that still showed it).
+  void mark(BarcodeSupport support) {
+    if (state != support) state = support;
+  }
+}
+
+/// True when the barcode entry point may be offered at all: the operator has
+/// not disabled it AND the backend has not been seen to lack the route.
+///
+/// Single source for this decision so the search screen, the scanner screen and
+/// any future entry point agree on when barcode search exists.
+bool barcodeEntryPointAvailable(WidgetRef ref) =>
+    EnvConfig.barcodeLookupEnabled &&
+    !ref.watch(barcodeSupportProvider).isHidden;
+
+// --- BARCODE LOOKUP ---
+/// Looks up the shops selling a scanned/entered barcode.
+///
+/// Passes the customer's coordinates when known so the backend can rank hits
+/// by proximity. An unknown barcode resolves to an empty list (a real "not
+/// found"), never a placeholder product.
+///
+/// Failures that mean "this server has no barcode route" are recorded on
+/// [barcodeSupportProvider] and rethrown with copy that says exactly that —
+/// otherwise the customer blames the barcode on their shelf for what is a
+/// missing feature on the server. Every other failure propagates untouched so
+/// the sheet/scanner can still offer a retry.
 final barcodeLookupProvider = FutureProvider.autoDispose
     .family<List<ShopProductResult>, String>((ref, barcode) async {
       final trimmed = barcode.trim();
@@ -186,13 +234,29 @@ final barcodeLookupProvider = FutureProvider.autoDispose
 
       final location = ref.watch(locationControllerProvider).location;
       final hasCoords = location != null && location.hasValidCoordinates;
-      return ref
-          .watch(searchRepositoryProvider)
-          .lookupBarcode(
-            trimmed,
-            latitude: hasCoords ? location.latitude : null,
-            longitude: hasCoords ? location.longitude : null,
+      try {
+        final results = await ref
+            .watch(searchRepositoryProvider)
+            .lookupBarcode(
+              trimmed,
+              latitude: hasCoords ? location.latitude : null,
+              longitude: hasCoords ? location.longitude : null,
+            );
+        ref.read(barcodeSupportProvider.notifier).mark(BarcodeSupport.supported);
+        return results;
+      } catch (error) {
+        if (isMissingBarcodeRoute(error)) {
+          ref
+              .read(barcodeSupportProvider.notifier)
+              .mark(BarcodeSupport.unsupported);
+          throw ApiException(
+            type: ApiErrorType.notFound,
+            statusCode: (error as ApiException).statusCode,
+            message: kBarcodeUnsupportedMessage,
           );
+        }
+        rethrow;
+      }
     });
 
 // --- POPULAR SEARCHES ---

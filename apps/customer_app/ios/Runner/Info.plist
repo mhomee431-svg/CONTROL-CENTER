@@ -8,6 +8,8 @@
 	<string>We need your location to show you which local shops currently have the products you are searching for.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to show you which local shops currently have the products you are searching for.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed to scan product barcodes and find nearby shops that stock them.</string>
 	<key>GMSApiKey</key>
 	<string>$(MAPS_API_KEY)</string>
 	<key>CFBundleDevelopmentRegion</key>
