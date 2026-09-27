@@ -173,13 +173,13 @@ jobs:
           STAGING_API_URL: ${{ vars.STAGING_API_URL }}
         run: |
           if [ -z "${STAGING_API_URL}" ]; then
-            echo "::error::Repository variable STAGING_API_URL is not set."
+            echo "::error::STAGING_API_URL is missing"
             echo "::error::The contract gate is fail-closed: a release cannot proceed"
             echo "::error::without verifying the deployed API against"
             echo "::error::packages/api_contracts/openapi.json."
-            echo "::error::Fix the variable, or remove the e2e-staging job from this"
-            echo "::error::workflow's deploy-production needs: list if you really want"
-            echo "::error::an unverified release."
+            echo "::error::Set the repository variable STAGING_API_URL, or remove the"
+            echo "::error::e2e-staging job from this workflow's deploy-production"
+            echo "::error::needs: list if an unverified release is really intended."
             exit 1
           fi
           echo "Contract gate configured for ${STAGING_API_URL}"
