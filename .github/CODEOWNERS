@@ -1,0 +1,38 @@
+# CODEOWNERS -- who must review a change before it can land.
+#
+# WHY THIS FILE EXISTS
+# A required-review branch rule counts ANY approval. This file makes the
+# approval come from someone who actually owns the area, so a backend change
+# cannot be merged by a frontend-only review (and vice versa) -- the exact
+# class of mistake that produces a contract drift between the API and the
+# Flutter apps.
+#
+# The last matching pattern wins, so the most specific rules are listed last.
+#
+# NOTE: replace `@Akasharyan47` with every maintainer handle that should be
+# able to approve. A handle that does not exist on this repository makes
+# GitHub ignore the rule silently, so verify with
+# https://github.com/Akasharyan47/hyperlocal_app/settings/access
+
+# ── Defaults: anything not matched below needs the owner ───────────────────
+*                               @Akasharyan47
+
+# ── Release plumbing: only the owner may change what ships ─────────────────
+/.github/workflows/             @Akasharyan47
+/.github/CODEOWNERS             @Akasharyan47
+/scripts/ci/                    @Akasharyan47
+/scripts/security/              @Akasharyan47
+/infrastructure/                @Akasharyan47
+/docs/deployment/               @Akasharyan47
+
+# ── The API contract: backend and every client depend on it ────────────────
+# Changing this file without regenerating it (scripts/ci/refresh_api_contract.py)
+# blocks the staging deploy, so it gets an explicit owner.
+/packages/api_contracts/        @Akasharyan47
+
+# ── Backend ────────────────────────────────────────────────────────────────
+/backend/                       @Akasharyan47
+
+# ── Flutter clients ────────────────────────────────────────────────────────
+/apps/                          @Akasharyan47
+/packages/shared_models/        @Akasharyan47

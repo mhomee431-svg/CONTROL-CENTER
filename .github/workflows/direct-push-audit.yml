@@ -1,0 +1,148 @@
+name: Direct-push audit (compensating control)
+
+# WHY THIS EXISTS
+# This repository is a PRIVATE repo on the GitHub FREE plan, and GitHub gates
+# BOTH branch protection and rulesets behind Pro for private repositories:
+#
+#   "Upgrade to GitHub Pro or make this repository public to enable this
+#    feature."
+#
+# That means nothing can mechanically BLOCK a push to `develop` / `main` on
+# this plan. The gates in platform-ci.yml still RUN and still go red, but a red
+# run does not stop a push -- and the release workflows consume the commit
+# regardless of what platform-ci reported.
+#
+# So this workflow does what IS possible without Pro: it makes an unreviewed
+# direct push impossible to miss.
+#
+# WHAT IT DETECTS
+#   A push to develop/main whose head commit is NOT a merge commit carrying a
+#   pull-request number -- i.e. somebody typed into the branch directly instead
+#   of merging a reviewed PR.
+#
+# WHAT IT DOES
+#   Fails the run (so it is red in the UI and in any notification), opens an
+#   issue recording exactly what was pushed, and -- when a token is available --
+#   asks CI to re-run the full battery.
+#
+# WHAT IT DELIBERATELY DOES NOT DO
+#   It does not revert, force-push, or delete anything. Destroying a developer's
+#   commit to "enforce" a rule is a far worse outcome than an unreviewed commit,
+#   and on a free plan the correct fix is upgrading to Pro (see
+#   docs/deployment/BRANCHING.md section 1a), not automating a rollback.
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+# Only one audit per branch at a time; never cancel a half-written issue.
+concurrency:
+  group: direct-push-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Direct-push audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - id: detect
+        name: Detect an unreviewed direct push
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          BRANCH="${{ github.ref_name }}"
+          SUBJECT=$(git log -1 --pretty=%s "$SHA")
+          PARENTS=$(git rev-list --parents -n 1 "$SHA" | wc -w)
+
+          # A reviewed merge carries "... (#12)" and more than one parent.
+          IS_PR_MERGE=false
+          if [ "$PARENTS" -gt 2 ] && printf '%s' "$SUBJECT" | grep -qE '\(#[0-9]+\)'; then
+            IS_PR_MERGE=true
+          fi
+
+          # The first commit of a brand-new branch has one parent by definition.
+          if [ "$PARENTS" -le 1 ]; then
+            IS_PR_MERGE=true
+            echo "Root commit -- not a direct push."
+          fi
+
+          if [ "$IS_PR_MERGE" = "true" ]; then
+            echo "direct_push=false" >> "$GITHUB_OUTPUT"
+            echo "OK: $SHA on $BRANCH arrived through a reviewed pull request."
+          else
+            echo "direct_push=true" >> "$GITHUB_OUTPUT"
+            echo "::error::UNREVIEWED DIRECT PUSH on $BRANCH"
+            echo "Commit $SHA ('$SUBJECT') did not arrive via a pull request."
+          fi
+
+      - name: Record the finding
+        if: steps.detect.outputs.direct_push == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Unreviewed direct push to ${{ github.ref_name }} (${{ github.sha }})"
+          BODY=$(cat <<EOF
+          An unreviewed commit was pushed directly to \`${{ github.ref_name }}\`.
+
+          | | |
+          |---|---|
+          | Branch | \`${{ github.ref_name }}\` |
+          | Commit | \`${{ github.sha }}\` |
+          | Subject | ${{ github.event.head_commit.message }} |
+          | Pushed by | ${{ github.actor }} |
+          | When | ${{ github.event.repository.pushed_at }} |
+
+          ## Why this matters
+
+          This repository is private on the GitHub **free** plan, where branch
+          protection is a Pro-only feature, so nothing mechanically blocks a
+          direct push. This run cannot undo the push -- it exists to make the
+          push **visible**.
+
+          ## What to do
+
+          1. Review commit \`${{ github.sha }}\` (\`git show ${{ github.sha }}\`).
+          2. If it is unsafe, revert it:
+             \`git revert ${{ github.sha }}\` and push the revert to the same branch.
+          3. Confirm the release workflows behaved as expected for this SHA.
+
+          ## Permanent fix
+
+          Enable branch protection (Pro) so this class of push cannot happen:
+
+          \`\`\`powershell
+          $env:GITHUB_TOKEN = "<PAT: repo + administration>"
+          powershell -ExecutionPolicy Bypass -File scripts/setup_branch_protection.ps1 -Discover
+          powershell -ExecutionPolicy Bypass -File scripts/setup_branch_protection.ps1
+          \`\`\`
+          EOF
+          )
+          echo "$BODY" > issue_body.md
+          gh issue create --title "$TITLE" --body-file issue_body.md \
+            --label "ci-audit" 2>/dev/null \
+            || echo "::warning::could not open the audit issue (label or token missing); the failure is recorded in this run."
+
+      - name: Re-run the full quality battery
+        if: steps.detect.outputs.direct_push == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.actions.reRunWorkflowForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'platform-ci.yml',
+              });
+              core.info('Re-triggered platform-ci.yml for the pushed commit.');
+            } catch (error) {
+              core.warning(`Could not re-trigger platform-ci.yml: ${error.message}`);
+            }

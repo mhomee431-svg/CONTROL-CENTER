@@ -68,12 +68,62 @@ They are **two different axes**, not two options. You need both:
 Nothing else deploys: feature branches only open PRs, and the deploy jobs
 refuse to run on any branch other than `develop` / `main`.
 
+## 2a. Hotfix path (production → `develop` → `feature/*`)
+
+`develop` is the integration branch, so a production bug fixed straight on
+`main` would otherwise never return to `develop` and would be **re-introduced
+by the next merge**. The rule is therefore: *every* change to `main` is also a
+change to `develop`, and the branch is never left dirty.
+
+```bash
+# 1. Cut the hotfix from the PRODUCTION code, not from develop.
+git checkout main
+git pull --ff-only
+git checkout -b hotfix/<short-description>
+
+# 2. Fix + prove it locally BEFORE pushing (never skip this).
+cd apps/shopkeeper_app && flutter analyze && flutter test   # or backend pytest
+cd ../.. && python scripts/ci/refresh_api_contract.py        # if a route changed
+
+# 3. Open a PR hotfix/* -> main. It runs the same gates as any other PR:
+#    analyze, tests, API contract, build check, secret scan.
+#    Merge it -> the CD pipeline releases to production.
+
+# 4. MANDATORY: bring the fix back so develop does not regress.
+git checkout develop
+git pull --ff-only
+git merge --no-ff hotfix/<short-description>   # never rebase main's history
+git push origin develop
+
+# 5. Optional: propagate forward to the in-flight feature branches so nobody
+#    re-introduces the bug while their PR is still open.
+git checkout feature/<in-flight>
+git rebase --onto develop <old-develop-sha> develop
+```
+
+Rules that make this safe:
+
+| Rule | Why |
+|---|---|
+| Branch from `main`, never from `develop` | The fix must be based on the code that is actually failing in production. |
+| `main` → `develop` is **mandatory** | Otherwise the next merge to `develop` silently reverts the fix and it ships again. |
+| Merge, never rebase `main` into `develop` | `main` is public history; rewriting it invalidates the deployed SHA and the release audit trail. |
+| `refresh_api_contract.py` if a route changed | A route added on a hotfix but not in the contract blocks the *next* staging deploy. |
+| Hotfixes still pass the full PR gate | A bypassed gate is how a two-line fix becomes an outage. Skip nothing; if it is too slow, fix the *gate*, not the rule. |
+| Mobile is the exception | A released APK **cannot be rolled back**. A backend hotfix is reversible; a shipped app is not. Treat app hotfixes as release-forever decisions. |
+
+If `main` and `develop` ever drift enough to conflict badly, resolve on
+`develop` and re-run the whole gate rather than force-merging: the E2E contract
+battery on the next `main` push is what proves the two are consistent.
+
 ## 3. Gate matrix (what runs where)
 
 | Trigger | Workflow | Gate | Deploys? |
 |---|---|---|---|
 | PR → `develop` or `main` | `backend-ci.yml` | reusable battery: static analysis, unit, integration (PostGIS+Redis), build, gitleaks/pip-audit, migration rehearsal + safety verdict | no |
 | PR → `develop` or `main` | `flutter-customer.yml`, `flutter-shopkeeper.yml` | `analyze` + `flutter test` | no |
+| PR → `develop` or `main` | `platform-ci.yml` → `API contract in sync` | backend routes vs committed `openapi.json` (static drift check + exact regeneration check) | no |
+| PR → `develop` or `main` | `platform-ci.yml` → `Shopkeeper build check` | `flutter build apk --debug` (proves it compiles, not just that it analyzes) | no |
 | push → `develop` | `backend-cd.yml` (or `backend-deploy.yml` when `DEPLOY_TARGET=ecs`) | battery → **staging** → smoke → **E2E contract** | staging only |
 | push → `develop` | Flutter workflows | analyze/test + **staging APK** (`APP_ENV=staging`) | artifact only |
 | push → `main` | `backend-cd.yml` / `backend-deploy.yml` | battery → staging → smoke → E2E → **approval** → production → verify → rollback on failure | staging + production |

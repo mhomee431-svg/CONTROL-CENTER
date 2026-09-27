@@ -110,3 +110,112 @@ jobs:
         run: flutter analyze
       - name: Run tests
         run: flutter test
+
+  # ---------------------------------------------------------------------------
+  # Added: release-blocking gates that used to be discovered only at deploy time.
+  # ---------------------------------------------------------------------------
+
+  contract-drift:
+    name: API contract drift (static)
+    runs-on: ubuntu-24.04
+    # Fast (seconds) and dependency-free: it parses the FastAPI route
+    # decorators, so a backend change that adds a route without refreshing
+    # packages/api_contracts/openapi.json is caught HERE, in the pull request,
+    # instead of stopping the staging deploy after the whole cycle is spent.
+    #
+    # Deliberately NOT combined with the exact regeneration check below: that
+    # one must install the whole backend dependency tree, and a failure there
+    # would otherwise mask this deterministic gate. Separate jobs mean a red
+    # run always says which of the two is at fault.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Contract drift check (static, no backend deps)
+        run: python scripts/ci/check_api_contract_drift.py --verbose
+
+  contract-drift-exact:
+    name: API contract drift (exact)
+    runs-on: ubuntu-24.04
+    # The authoritative version: boots the real FastAPI app and compares the
+    # regenerated spec with the committed file. It has no blind spots, so it
+    # also covers the routes the static parser cannot see (sub-routers,
+    # mounted sub-applications, root routes). The environment is pinned to
+    # `test` inside the script, so the result cannot drift with runner config.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Regenerate the spec from the live app and compare
+        run: python scripts/ci/refresh_api_contract.py --check
+
+  build-verify:
+    name: Build verify (Shopkeeper APK)
+    runs-on: ubuntu-24.04
+    # `analyze` + `test` can both be green while the app does not COMPILE
+    # (Gradle / manifest / plugin / R8 issues). That used to surface on the
+    # develop push, where the staging APK build then failed. A debug build is
+    # fast with a warm Flutter cache and proves the whole toolchain works.
+    # `continue-on-error` is deliberately OFF: a red build must block the PR.
+    defaults:
+      run:
+        working-directory: apps/shopkeeper_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify the app compiles (debug APK)
+        run: flutter build apk --debug
+
+  build-verify-customer:
+    name: Build verify (Customer APK)
+    runs-on: ubuntu-24.04
+    # Same reasoning as `shopkeeper-build`. The customer app owns the release
+    # path a customer actually downloads, and a released APK cannot be rolled
+    # back -- so proving it compiles before merge is worth the minutes.
+    defaults:
+      run:
+        working-directory: apps/customer_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify the app compiles (debug APK)
+        run: flutter build apk --debug
+
+  build-verify-admin:
+    name: Build verify (Admin web)
+    runs-on: ubuntu-24.04
+    # The admin panel is the third client of the same backend contract, so it
+    # gets the same compile guarantee.
+    defaults:
+      run:
+        working-directory: apps/admin_panel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify the app compiles
+        # `build web` rather than an APK: the admin panel is served as a static
+        # bundle (see flutter-admin.yml), and a web build is far faster.
+        run: flutter build web --release
