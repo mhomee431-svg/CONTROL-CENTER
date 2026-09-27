@@ -1,3 +1,127 @@
+# The two rules this codebase is built on
+
+These are the contract. Everything else in this document exists to satisfy them,
+and `test/core/view/view_rule_guard_test.dart` enforces them on every test run.
+
+## VIEW RULE
+
+**Views should contain:** layout, simple display decisions, animation, basic
+routing actions.
+
+**Views should NOT contain:** database logic, backend verification logic, large
+business logic, complex API transformations.
+
+Concretely: a widget in `presentation/` may import its own `domain/models`, the
+shared `core/` presentation helpers, and a ViewModel. It may **not** import a
+`data/` layer. Decoding rules, permission checks, and repository calls belong
+behind a ViewModel — otherwise two views decode the same record differently and
+the disagreement only shows up on whichever screen happened to hit a malformed
+row.
+
+## VIEWMODEL RULE
+
+**ViewModels manage:** UI state, commands, loading, error, filter state, search
+state, pagination state, mutation state.
+
+**Avoid conflicting boolean states. Prefer explicit state models.**
+
+This is the rule that has the most bugs behind it, so it is worth being precise
+about what "conflicting" means.
+
+### Why booleans break
+
+The pattern this replaces was real code in this repo:
+
+```dart
+class PaginatedState<T> {
+  final List<T> items;
+  final bool isLoadingInitial;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final ApiException? error;   // <-- dead code: never read, never assigned
+}
+```
+
+Four independent fields describe a list that has four **mutually exclusive**
+phases. Four booleans mean sixteen reachable states, twelve of which are
+impossible, and nothing stops the code from being in one of them:
+`isLoadingInitial: true, hasMore: false` is a list that is loading its first
+page and has already decided there is no more — a screen reading that has no
+correct thing to render.
+
+The `error` field made it worse. `copyWith` assigned `error: error` instead of
+`error: error ?? this.error`, so every unrelated `copyWith` call **silently
+cleared the error**. A customer would see a failure, scroll, and find the retry
+button gone.
+
+### What replaces it
+
+Sealed classes, one case per phase, so the impossible states are unrepresentable:
+
+| Concern | Type | Cases |
+| --- | --- | --- |
+| Load / search / filter | `LoadState<T>` | `LoadIdle`, `LoadLoading`, `LoadRefreshing`, `LoadReady`, `LoadEmpty`, `LoadFailed` |
+| Pagination | `PagedState<T>` + `PagePhase` | `PageInitial`, `PageLoading`, `PageReplacing`, `PageHasMore`, `PageLoadingMore`, `PageComplete`, `PageFailed` |
+| Mutation | `MutationState` | `MutationIdle`, `MutationRunning`, `MutationSucceeded`, `MutationFailed` |
+
+Three properties the boolean version could not offer:
+
+1. **Exhaustive `switch`.** Adding a case fails the build at every unhandled
+   site, so a new state cannot be silently ignored.
+2. **Derived, not stored.** `PagedState.hasMore` is computed from `phase`, so it
+   cannot contradict whether a request is in flight.
+3. **Meaningful fields per case.** `LoadEmpty` has no `error`, because an empty
+   result is a *success* needing different copy ("widen your search"), not a
+   failure. Collapsing the two is what makes empty-state screens show a scary
+   error.
+
+`LoadState.refreshing()` and `LoadFailed(previous:)` exist so that a refresh
+never blanks content the customer is already reading — the "flash of empty" on
+every pull-to-refresh.
+
+`MutationState` exists because views were holding `_isSubmitting` and `_error` as
+two `setState` fields, which could show "submitting" and "failed" at once, and
+which allowed a double-tap to fire two requests. `MutationRunning.isFailed` is
+`false` by construction, and a view disables its submit control on
+`isRunning`.
+
+### A ViewModel knows nothing about widgets
+
+`ViewModel` imports `package:flutter/foundation.dart`, **not** `material.dart`,
+and never holds a `BuildContext` or calls `setState`. That is what makes it
+testable with no widget pumping — you assert on state, not pixels. The guard
+test fails the build if `material.dart`, `BuildContext`, or `setState` appears
+anywhere under `lib/core/view/`.
+
+### Where the rules are checked
+
+| Check | Test |
+| --- | --- |
+| No view imports `data/` | `view_rule_guard_test.dart` — "no view imports a data/ layer" |
+| Known violations are all still real (no stale baseline) | `view_rule_guard_test.dart` — "every known violation is still justified" |
+| A ViewModel never imports material / holds context | `view_rule_guard_test.dart` — "a ViewModel never imports material.dart" |
+| Exactly one phase per state | `load_state_test.dart`, `paged_state_test.dart` |
+
+### Current violations (tracked, not ignored)
+
+Six views still reach into `data/`. They are listed in `_knownViolations` in the
+guard test with a reason each, and the test **fails if a listed file stops
+violating** — so the baseline cannot quietly rot:
+
+- `help_support_screen.dart` — calls `supportRepository.submitIssue` from the
+  view and tracks `_isSubmitting` / `_error` as `setState` fields. This is the
+  clearest violation: it is a mutation state machine living in a widget. It
+  should be a `MutationState` in a support ViewModel.
+- `delete_account_screen.dart` — calls `phoneAuthService` directly.
+- `barcode_scan_screen.dart`, `barcode_camera_gate.dart` — read permission
+  status directly.
+- `login_screen.dart`, `register_screen.dart` — import `data/phone_utils.dart`.
+  This one is a naming problem rather than a layering problem: phone
+  normalisation is a pure function and belongs in `domain/`. Moving the file
+  fixes it with no logic change.
+
+Each is removed as its feature is migrated. New violations are not accepted.
+
 # Feature Architecture
 
 How data moves and how the UI rebuilds in this app, and why each layer is shaped
