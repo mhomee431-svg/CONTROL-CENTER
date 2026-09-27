@@ -45,6 +45,10 @@ class _InventoryDashboardScreenState
         status: state.status,
         message: state.message,
         onRetry: () => ref.read(productsControllerProvider.notifier).load(),
+        // Pull is the silent path: the health cards stay on screen while
+        // fresh counts load.
+        onRefresh: () =>
+            ref.read(productsControllerProvider.notifier).refresh(),
         builder: (context) =>
             _Dashboard(items: state.items, summary: state.summary),
       ),
@@ -155,7 +159,10 @@ class _Dashboard extends StatelessWidget {
     final outline = Theme.of(context).colorScheme.outline;
     final s = summary;
 
+    // Always scrollable: the pull gesture must fire even when the cards fit
+    // on one screen.
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

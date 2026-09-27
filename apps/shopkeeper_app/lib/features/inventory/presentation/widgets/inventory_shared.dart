@@ -4,6 +4,7 @@ import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/datetime_utils.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 
@@ -100,6 +101,11 @@ String shortDateLabel(DateTime date) =>
 
 /// Friendly relative label for a last-updated timestamp:
 /// `Today 14:05` / `Yesterday` / `12 Jan 2026` / `—` when null.
+///
+/// This is the EVENT form (when a change happened) used by history and sync
+/// lists. Freshness surfaces — "how old is this data?" — use
+/// [freshnessChipLabel] / `DateTimeUtils.formatInventoryFreshness` instead, so
+/// Inventory, Pricing and POS share one age vocabulary.
 String lastUpdatedLabel(DateTime? when) {
   if (when == null) return '—';
   final now = DateTime.now();
@@ -113,6 +119,25 @@ String lastUpdatedLabel(DateTime? when) {
   }
   if (diff == 1) return 'Yesterday';
   return shortDateLabel(when);
+}
+
+/// Unified freshness-chip copy for inventory rows: the server's tier word
+/// plus the shared relative age label, e.g.
+/// `Fresh · Inventory updated 5 min ago` / `Needs update · Inventory updated
+/// yesterday`. When either half is unknown it drops out instead of stacking
+/// dashes.
+String freshnessChipLabel(
+  String? status,
+  DateTime? lastUpdated, {
+  DateTime? referenceNow,
+}) {
+  final tier = freshnessLabel(status);
+  if (lastUpdated == null) return tier;
+  final age = DateTimeUtils.formatInventoryFreshness(
+    lastUpdated,
+    referenceNow: referenceNow,
+  );
+  return tier == '—' ? age : '$tier · $age';
 }
 
 // ── Reusable widgets ─────────────────────────────────────────────────────────
@@ -223,16 +248,25 @@ class ProductsAsyncBody extends StatelessWidget {
     required this.status,
     this.message,
     required this.onRetry,
+    this.onRefresh,
     required this.builder,
   });
 
   final ProductsStatus status;
   final String? message;
   final VoidCallback onRetry;
+
+  /// When set, the READY body is wrapped in a [RefreshIndicator]: pull is the
+  /// SILENT path (see `ProductsController.refresh` — the rows stay on screen
+  /// while fresh ones load), while the first load and Retry keep their
+  /// spinner. The body's own scrollable must be always-scrollable for the
+  /// gesture to fire on a list shorter than the viewport.
+  final Future<void> Function()? onRefresh;
   final WidgetBuilder builder;
 
   @override
   Widget build(BuildContext context) {
+    final refresh = onRefresh;
     return SystemStateBody(
       isLoading: status == ProductsStatus.loading,
       failure: switch (status) {
@@ -250,7 +284,11 @@ class ProductsAsyncBody extends StatelessWidget {
         _ => null,
       },
       onRetry: onRetry,
-      builder: builder,
+      // The READY body only: a spinner or an error view has nothing to pull.
+      builder: refresh == null
+          ? builder
+          : (context) =>
+              RefreshIndicator(onRefresh: refresh, child: builder(context)),
     );
   }
 }

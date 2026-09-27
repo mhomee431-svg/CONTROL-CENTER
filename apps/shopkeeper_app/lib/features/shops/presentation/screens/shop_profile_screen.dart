@@ -59,6 +59,9 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
             onRefresh: () =>
                 ref.read(shopProfileDetailProvider.notifier).load(),
             child: ListView(
+              // Always scrollable: pull-to-refresh must fire even when the
+              // tiles fit on one screen.
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
                 _identityCard(context, detail),

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../products/presentation/controllers/products_controller.dart';
 import '../controllers/pos_controller.dart';
 import '../widgets/pos_shared.dart';
 import 'pos_sync_result_screen.dart';
@@ -74,6 +75,17 @@ class _PosSyncProgressScreenState
       }
       if (next.phase == PosSyncPhase.done && !_navigated) {
         _navigated = true;
+        // DATA CONSISTENCY: a completed sync wrote products + stock
+        // server-side, so the mounted catalog is now stale. Same reason as
+        // the Excel import: the app is a StatefulShellBranch, so the Products
+        // tab never re-runs initState on the way back to it.
+        //
+        // This fires on the JOB's terminal state, not when it was queued, so
+        // the refetch cannot race a still-running sync. `refresh()` is
+        // silent: a failure here must not disturb the result screen.
+        unawaited(
+          ref.read(productsControllerProvider.notifier).refresh(),
+        );
         // Standalone (no router) stays here and renders the result inline.
         GoRouter.maybeOf(context)?.pushReplacement(Routes.posSyncResult);
       }

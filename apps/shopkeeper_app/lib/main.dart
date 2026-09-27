@@ -39,6 +39,18 @@ void main() async {
     // Release-safe crash logging foundation (remote reporter pending).
     debugPrint('Uncaught framework error: ${details.exception}');
   };
+
+  // ── §111 MEMORY: bound the decoded-image cache explicitly ─────────────────
+  // Flutter's defaults (1000 images / 100 MB) are generous for a list app that
+  // only ever paints thumbnails. Scrolling a catalog decodes one image per row,
+  // so this cache is the largest single consumer of heap in the app; bounding it
+  // by BYTES (not just count) is what actually caps the footprint. Set here
+  // rather than left to the framework default so the cap is a reviewed number
+  // instead of an accident of the SDK.
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 200
+    ..maximumSizeBytes = 32 << 20; // 32 MB
+
   runApp(const ProviderScope(child: ShopkeeperApp()));
 }
 

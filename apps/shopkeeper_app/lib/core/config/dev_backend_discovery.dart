@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'env_config.dart';
 
@@ -48,30 +49,50 @@ class DevBackendDiscovery {
 
   /// Probes [candidates] and stores the first reachable backend.
   ///
+  /// On success the winner is published to BOTH [resolvedBaseUrl] and
+  /// [EnvConfig.runtimeApiBaseUrlOverride] — the latter is what
+  /// [EnvConfig.apiBaseUrl] actually reads, so forgetting it (the original
+  /// bug) silently discarded the discovery result and left the app on the
+  /// emulator-only `10.0.2.2` default.
+  ///
   /// Every probe is a 2-second `/health` GET — worst case the whole discovery
   /// finishes in ~6s (only when NOTHING is reachable, which itself is the
   /// signal that the backend isn't running).
-  static Future<void> discover() async {
+  ///
+  /// [probe] is injectable for tests; it defaults to a real HTTP GET.
+  static Future<void> discover({
+    Future<bool> Function(String baseUrl)? probe,
+  }) async {
+    final check = probe ?? _probeHealth;
+
+    for (final url in candidates) {
+      try {
+        if (await check(url)) {
+          resolvedBaseUrl = url;
+          EnvConfig.runtimeApiBaseUrlOverride = url;
+          debugPrint('[STARTUP] Dev backend discovered: $url');
+          return;
+        }
+      } catch (_) {
+        // Unreachable candidate — try the next one.
+      }
+    }
+    // Nothing reachable: leave [resolvedBaseUrl] null so the app falls back
+    // to the build-time default and surfaces the normal timeout errors.
+  }
+
+  /// Default probe: GET `<baseUrl>/health` expecting HTTP 200.
+  static Future<bool> _probeHealth(String baseUrl) async {
     final dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 4),
       receiveTimeout: const Duration(seconds: 4),
       responseType: ResponseType.json,
     ));
-
-    for (final url in candidates) {
-      try {
-        final response = await dio.get<Object?>('$url/health');
-        if (response.statusCode == 200) {
-          resolvedBaseUrl = url;
-          return;
-        }
-      } on DioException {
-        // Unreachable candidate — try the next one.
-      } catch (_) {
-        // Malformed response etc. — still try the next candidate.
-      }
+    try {
+      final response = await dio.get<Object?>('$baseUrl/health');
+      return response.statusCode == 200;
+    } on DioException {
+      return false;
     }
-    // Nothing reachable: leave [resolvedBaseUrl] null so the app falls back
-    // to the build-time default and surfaces the normal timeout errors.
   }
 }

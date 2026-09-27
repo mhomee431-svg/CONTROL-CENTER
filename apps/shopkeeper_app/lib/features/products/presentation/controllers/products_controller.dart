@@ -155,6 +155,49 @@ class ProductsController extends Notifier<ProductsState> {
     }
   }
 
+  bool _refreshInFlight = false;
+
+  /// Silent re-fetch used by pull-to-refresh: the list keeps showing the
+  /// current rows while fresh ones load, and a failure keeps the current view
+  /// instead of throwing an error over working data. Re-entrant calls are
+  /// dropped, never queued.
+  ///
+  /// [load] stays the LOUD path (spinner, error state) for the first load and
+  /// for Retry buttons; this is the one for a gesture whose progress the
+  /// shopkeeper already sees in the pull indicator.
+  Future<void> refresh() async {
+    if (_refreshInFlight) return;
+    final shopId = _shopId;
+    if (shopId == null) return;
+    _refreshInFlight = true;
+    // A refresh replaces the whole catalog: a server-search response from the
+    // previous generation must not merge into the new rows, and the same
+    // query may be asked again against the fresh catalog.
+    _generation++;
+    _serverAnsweredFor = null;
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      // Signed out mid-flight → keep the current view; logout resets state.
+      if (token == null) return;
+      final overview =
+          await _inventoryRepo.fetchInventoryOverview(shopId, token);
+      // The shop switched while the request was in flight: this answer
+      // belongs to a catalog that is no longer on screen.
+      if (shopId != _shopId) return;
+      state = ProductsState(
+        status: ProductsStatus.ready,
+        items: overview.items,
+        summary: overview.summary,
+        fromCache: overview.fromCache,
+      );
+    } catch (_) {
+      // Silent: a failed pull keeps the rows on screen — the next pull tries
+      // again.
+    } finally {
+      _refreshInFlight = false;
+    }
+  }
+
   /// SERVER search — the products list's stale-catalog recovery path.
   ///
   /// The local predicate filters the already-loaded catalog on every settled
@@ -290,11 +333,15 @@ class ProductsController extends Notifier<ProductsState> {
       );
       return StockAdjustOutcome(ok: true, result: result);
     } on ApiException catch (e) {
-      final message = e.isForbidden
-          ? 'You do not have permission to update stock for this shop.'
-          : (e.statusCode == 404
-              ? 'This product is no longer in your inventory.'
-              : e.message);
+      // A plan refusal explains itself ("…Upgrade to unlock this feature") —
+      // only a plain association denial gets the generic permission copy.
+      final message = e.isEntitlementDenied
+          ? e.message
+          : e.isForbidden
+              ? 'You do not have permission to update stock for this shop.'
+              : (e.statusCode == 404
+                  ? 'This product is no longer in your inventory.'
+                  : e.message);
       state = ProductsState(
         status: e.isForbidden
             ? ProductsStatus.accessDenied
@@ -343,10 +390,14 @@ class ProductsController extends Notifier<ProductsState> {
       );
       return ProductHistoryLoad(history: history);
     } on ApiException catch (e) {
+      // Entitlement refusals keep the server's upgrade copy; a plain denial
+      // gets the module's own permission wording.
       return ProductHistoryLoad(
-        error: e.isForbidden
-            ? 'You do not have permission to view this history.'
-            : e.message,
+        error: e.isEntitlementDenied
+            ? e.message
+            : e.isForbidden
+                ? 'You do not have permission to view this history.'
+                : e.message,
       );
     } catch (_) {
       return const ProductHistoryLoad(error: 'Could not load history.');
@@ -388,6 +439,7 @@ class ProductsController extends Notifier<ProductsState> {
     int? quantity,
     int? lowStockThreshold,
     String? imageKey,
+    bool removeImage = false,
   }) async {
     final fields = <String, dynamic>{
       'price': ?price,
@@ -395,6 +447,10 @@ class ProductsController extends Notifier<ProductsState> {
       'quantity': ?quantity,
       'low_stock_threshold': ?lowStockThreshold,
       'image_key': ?imageKey,
+      // Removal has to be explicit. `image_key: null` cannot express it: the
+      // `?imageKey` spread above drops the key entirely, which the server reads
+      // as "leave the photo alone" rather than "detach it".
+      if (removeImage) 'remove_image': true,
     };
     return await _patch(productId, fields) != null;
   }

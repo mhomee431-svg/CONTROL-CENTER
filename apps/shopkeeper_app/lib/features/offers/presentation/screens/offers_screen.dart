@@ -5,6 +5,7 @@ import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/filter_ui.dart';
+import '../../../../core/ui/lazy_list.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/offer_models.dart';
 import '../controllers/offers_controller.dart';
@@ -185,8 +186,23 @@ class _OffersTab extends ConsumerWidget {
           ),
           onRetry: () => ref.read(offersListControllerProvider.notifier).load(),
         ),
-      OffersListStatus.ready => offers.isEmpty
-          ? SystemStateView.empty(
+      // ONE pull-to-refresh-able list for the rows and the empty state:
+      // AlwaysScrollable physics keeps the pull gesture alive even when this
+      // bucket has nothing to scroll (a fresh offer created elsewhere still
+      // arrives), and the empty copy keeps the filter's own wording.
+      OffersListStatus.ready => RefreshIndicator(
+          onRefresh: () =>
+              ref.read(offersListControllerProvider.notifier).load(),
+          child: LazyListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: offers.length,
+            separatorBuilder: (_, _) => Divider(
+                height: 1, color: Theme.of(context).dividerColor),
+            itemBuilder: (context, index) => _OfferTile(
+              offer: offers[index],
+              onTap: () => showOfferDetailsSheet(context, offers[index]),
+            ),
+            emptyPlaceholder: SystemStateView.empty(
               title: emptyTitle,
               message: emptyMessage,
               icon: emptyIcon,
@@ -197,21 +213,9 @@ class _OffersTab extends ConsumerWidget {
                       label: const Text('Create offer'),
                     )
                   : null,
-            )
-          : RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(offersListControllerProvider.notifier).load(),
-              child: ListView.separated(
-                itemCount: offers.length,
-                separatorBuilder: (_, _) => Divider(
-                    height: 1, color: Theme.of(context).dividerColor),
-                itemBuilder: (context, index) => _OfferTile(
-                  offer: offers[index],
-                  onTap: () =>
-                      showOfferDetailsSheet(context, offers[index]),
-                ),
-              ),
             ),
+          ),
+        ),
     };
   }
 }

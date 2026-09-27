@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -64,7 +65,7 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
     setState(() => _loading = true);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw Exception('Not signed in');
+      if (token == null) throw const ApiException(message: 'Not signed in');
       final detail =
           await ref.read(shopRepositoryProvider).getShopDetail(shop.id, token);
       if (!mounted) return;

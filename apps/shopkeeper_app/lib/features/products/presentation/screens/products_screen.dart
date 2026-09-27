@@ -12,6 +12,7 @@ import '../../../../core/ui/filter_ui.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../../core/ui/numeric_input.dart';
+import '../../../../core/utils/datetime_utils.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../offers/presentation/widgets/offer_create_sheet.dart';
@@ -21,6 +22,7 @@ import '../controllers/products_controller.dart';
 import '../controllers/products_list_controller.dart';
 import '../controllers/recent_searches_controller.dart';
 import '../widgets/product_details_sheet.dart';
+import '../widgets/product_image_view.dart';
 import '../widgets/product_sheets.dart';
 import '../widgets/stock_sheets.dart';
 
@@ -120,8 +122,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           onRetry: () => ref.read(productsControllerProvider.notifier).load(),
           onSwitchShop: () => context.go(Routes.shops),
           builder: (_) => RefreshIndicator(
+            // Pull is the SILENT path: the rows stay on screen while fresh
+            // ones load (ProductsController.refresh). Retry and the first
+            // load keep their spinner.
             onRefresh: () =>
-                ref.read(productsControllerProvider.notifier).load(),
+                ref.read(productsControllerProvider.notifier).refresh(),
             child: _ReadyBody(
               allItems: state.items,
               summary: state.summary,
@@ -244,6 +249,10 @@ class _ReadyBodyState extends ConsumerState<_ReadyBody> {
     return LazyListView(
       padding: const EdgeInsets.all(16),
       style: LazyListStyle.card,
+      // Always scrollable: pull-to-refresh must fire even when the list is
+      // shorter than the viewport (a filter that matched nothing, a handful
+      // of rows).
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: items.length,
       // Eager header: the summary, the search box and the filter/sort row are a
       // fixed handful of widgets, so they live outside the lazy row builder and
@@ -593,16 +602,10 @@ class _ProductTile extends StatelessWidget {
   final VoidCallback onHistory;
   final ValueChanged<bool> onToggle;
 
-  String _lastUpdatedLabel() {
-    final updated = item.lastUpdated;
-    if (updated == null) return '-';
-    final diff = DateTime.now().difference(updated);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours} h ago';
-    if (diff.inDays < 30) return '${diff.inDays} d ago';
-    return '${updated.day}/${updated.month}/${updated.year}';
-  }
+  String _lastUpdatedLabel() => DateTimeUtils.formatRelativeOrLocal(
+        item.lastUpdated,
+        nullLabel: '-',
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +620,6 @@ class _ProductTile extends StatelessWidget {
         : item.isLowStock
             ? 'Low - ${item.quantity} left'
             : '${item.quantity} in stock';
-    final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
 
     return Column(
       children: [
@@ -625,41 +627,29 @@ class _ProductTile extends StatelessWidget {
           onTap: onTap,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          leading: ClipRRect(
+          // Shared resilient thumbnail: placeholder while loading, and the same
+          // outline box when the presigned URL has expired instead of a raw
+          // framework error box.
+          leading: ProductImageView(
+            imageUrl: item.imageUrl,
+            width: 48,
+            height: 48,
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 48,
-              height: 48,
-              color: scheme.surfaceContainerHighest,
-              child: hasImage
-                  ? Image.network(item.imageUrl!,
-                      // The tile's title already names the product, so the
-                      // thumbnail is decorative — announcing "image" here only
-                      // adds noise.
-                      excludeFromSemantics: true,
-                      fit: BoxFit.cover,
-                      // Decode at roughly 2x the 48px box instead of the
-                      // source resolution: a thumbnail never needs the bytes.
-                      cacheWidth: 96,
-                      // Without this a slow image is an empty grey box, which
-                      // reads as "no image" rather than "still loading".
-                      loadingBuilder: (context, child, progress) =>
-                          progress == null
-                              ? child
-                              : Center(
-                                  child: SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: scheme.outline),
-                                  ),
-                                ),
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.inventory_2_outlined,
-                          size: 22,
-                          color: scheme.outline))
-                  : Icon(Icons.inventory_2_outlined,
-                      size: 22, color: scheme.outline),
+            // The tile's title already names the product, so the thumbnail is
+            // decorative — announcing "image" here only adds noise.
+            excludeFromSemantics: true,
+            // Decode at roughly 2x the 48px box instead of the source
+            // resolution: a thumbnail never needs the bytes.
+            cacheWidth: 96,
+            placeholderWidget: Icon(
+              Icons.inventory_2_outlined,
+              size: 22,
+              color: scheme.outline,
+            ),
+            errorWidget: Icon(
+              Icons.inventory_2_outlined,
+              size: 22,
+              color: scheme.outline,
             ),
           ),
           title: Text(item.name,

@@ -32,6 +32,25 @@ class ApiException implements Exception {
   /// True when the session is no longer valid (401 unrecoverable).
   bool get isUnauthorized => statusCode == 401;
 
+  /// 403 error codes the backend raises for PLAN/FEATURE refusals rather than
+  /// shop-association denials — `EntitlementDenied` and `enforce_limit` in
+  /// `backend/app/services/subscription/entitlements.py`
+  /// (`ENTITLEMENT_DENIED`, `SUBSCRIPTION_EXPIRED`, `PLAN_LIMIT_REACHED`).
+  static const Set<String> entitlementErrorCodes = {
+    'ENTITLEMENT_DENIED',
+    'SUBSCRIPTION_EXPIRED',
+    'PLAN_LIMIT_REACHED',
+  };
+
+  /// True when a 403 is a subscription/entitlement refusal. The server's own
+  /// message for these ("Your current plan does not include 'x'. Upgrade to
+  /// unlock this feature.") is the actionable copy — screens must show it
+  /// instead of a generic permission-denied fallback.
+  bool get isEntitlementDenied =>
+      isForbidden &&
+      errorCode != null &&
+      entitlementErrorCodes.contains(errorCode);
+
   /// Which of the nine system states this failure is.
   ///
   /// Screens use it to pick the copy, the icon and — most importantly — the ONE

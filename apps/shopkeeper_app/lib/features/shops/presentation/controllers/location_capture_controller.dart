@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -29,6 +30,23 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
   LocationService get _location => ref.read(locationServiceProvider);
   GeocodingService get _geocoder => ref.read(geocodingServiceProvider);
 
+  /// The acquisition currently in flight, or null.
+  ///
+  /// Every acquisition opens its OWN platform position stream (and the
+  /// multi-reading path holds it open for up to the acquisition timeout). This
+  /// screen has five entry points into `startCapture` / `acquire` — mount, the
+  /// three retry buttons and `refreshIfStale` — so without this a double tap
+  /// leaves TWO position streams running: the GPS radio stays awake for both
+  /// and each completion writes state the other has already superseded (§111
+  /// "repeated stream subscriptions"). A repeat call now JOINS the attempt
+  /// already running instead of starting a second one.
+  Future<void>? _inFlight;
+
+  /// Identifies the current attempt. Bumped by every new acquisition and by
+  /// [reset], so a completion that arrives after the shopkeeper has left the
+  /// screen can never resurrect the old fix into the fresh state.
+  int _generation = 0;
+
   /// Pre-flight: location service enabled? permission granted?
   /// Never crashes and never fabricates coordinates.
   Future<void> startCapture() async {
@@ -53,13 +71,39 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
   }
 
   /// Multi-reading acquisition with progressive accuracy feedback.
-  Future<void> acquire() async {
+  ///
+  /// Re-entrant: a call made while an acquisition is already running joins that
+  /// attempt instead of opening a second platform position stream (see
+  /// [_inFlight]).
+  Future<void> acquire() {
+    final running = _inFlight;
+    if (running != null) return running;
+    // `late final` so the cleanup callback can identify THIS attempt without
+    // capturing a variable that has not been declared yet.
+    late final Future<void> attempt;
+    attempt = _runAcquire().whenComplete(() {
+      if (identical(_inFlight, attempt)) _inFlight = null;
+    });
+    _inFlight = attempt;
+    return attempt;
+  }
+
+  /// True while an acquisition is running — asserted in tests to prove a repeat
+  /// call did not open a second platform position stream.
+  @visibleForTesting
+  bool get isAcquiring => _inFlight != null;
+
+  Future<void> _runAcquire() async {
+    final generation = ++_generation;
     state = state.copyWith(
       status: LocationCaptureStatus.fetchingLocation,
       clearError: true,
     );
     final acquisition = await _location.acquireBestLocation(
       onReading: (reading) {
+        // Superseded (or the shopkeeper left): the late reading belongs to an
+        // attempt nobody is watching any more.
+        if (generation != _generation) return;
         // Update ONLY the accuracy indicator — never rebuild the whole page.
         if (state.status == LocationCaptureStatus.fetchingLocation ||
             state.status == LocationCaptureStatus.improvingAccuracy) {
@@ -73,6 +117,10 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
       LocationAccuracyConfig.acquisitionTimeout + const Duration(seconds: 5),
       onTimeout: () => LocationAcquisition(best: null, readings: const [], timedOut: true),
     );
+
+    // The attempt finished after [reset] (or after a newer one started): its
+    // fix is stale, so it must not be written over the current state.
+    if (generation != _generation) return;
 
     final best = acquisition.best;
     if (best == null) {
@@ -184,5 +232,13 @@ class LocationCaptureController extends Notifier<LocationCaptureState> {
     await confirmLocation();
   }
 
-  void reset() => state = const LocationCaptureState();
+  /// Returns to the initial state. Bumps the generation first so an
+  /// acquisition still running (the shopkeeper navigated away mid-fix) cannot
+  /// write its late result into the cleared state — its GPS stream still closes
+  /// itself via the `await for` in `acquireBestLocation`, but the reading is
+  /// dropped instead of resurrecting a pin the shopkeeper never confirmed.
+  void reset() {
+    _generation++;
+    state = const LocationCaptureState();
+  }
 }

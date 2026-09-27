@@ -83,6 +83,9 @@ class _MyTicketsScreenState extends ConsumerState<MyTicketsScreen> {
     return RefreshIndicator(
       onRefresh: () => ref.read(supportTicketsProvider.notifier).load(),
       child: LazyListView(
+        // Always scrollable: pull-to-refresh must fire even with a single
+        // ticket.
+        physics: const AlwaysScrollableScrollPhysics(),
         itemCount: state.tickets.length,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         itemBuilder: (context, index) {

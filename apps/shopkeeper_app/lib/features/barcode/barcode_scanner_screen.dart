@@ -42,6 +42,19 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   void initState() {
     super.initState();
     _cameraController = _createCameraController();
+    // §112 "when reopening, initialize cleanly". The scan controller is a
+    // container-scoped provider, so it outlives this screen: a session the
+    // shopkeeper left by popping the scanner mid-resolve leaves the status on
+    // `resolving`/`saving`, and the next open would inherit it. A fresh scanning
+    // session always starts from idle.
+    //
+    // Deferred by a microtask because Riverpod forbids writing a provider
+    // during a widget life-cycle. Nothing flickers in the meantime: the AppBar
+    // spinner is driven by [_isProcessing], this screen's OWN flag, never by
+    // the inherited status.
+    Future.microtask(() {
+      if (mounted) ref.read(barcodeControllerProvider.notifier).reset();
+    });
   }
 
   MobileScannerController _createCameraController() => MobileScannerController(
@@ -86,12 +99,39 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   /// `MobileScannerController.start()` throws [MobileScannerException]
   /// (`controllerDisposed`) when the controller went away mid-call — expected
   /// while the screen is closing, and nothing is left to recover.
+  ///
+  /// It also refuses to start while the app is NOT resumed: a result sheet can
+  /// close while the shopkeeper is in another app, and the camera must not be
+  /// switched back on behind their back (§112 "do not leave camera active in
+  /// background"). `mobile_scanner` re-enables the camera itself on resume
+  /// (`useAppLifecycleState`), so skipping here is not a lost start.
   Future<void> _startCameraSafely() async {
+    if (!_isForeground) return;
     try {
       await _cameraController.start();
     } on MobileScannerException {
       // The screen is gone; there is nothing left to restart.
     }
+  }
+
+  /// The mirror of [_startCameraSafely] for the detection path. `stop()` throws
+  /// the same `controllerDisposed` exception when the screen closed between the
+  /// frame callback and this call; left unhandled it surfaces as an uncaught
+  /// async error in the zone rather than a no-op.
+  Future<void> _stopCameraSafely() async {
+    try {
+      await _cameraController.stop();
+    } on MobileScannerException {
+      // Already gone — nothing to stop.
+    }
+  }
+
+  /// True only while the app is in the foreground. A null lifecycle state (no
+  /// binding yet, as in a unit test) is treated as foreground so the scanner
+  /// still initialises outside a real app.
+  bool get _isForeground {
+    final state = WidgetsBinding.instance.lifecycleState;
+    return state == null || state == AppLifecycleState.resumed;
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -101,7 +141,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
     if (raw == null || raw.trim().isEmpty) return;
 
     setState(() => _isProcessing = true);
-    _cameraController.stop();
+    unawaited(_stopCameraSafely());
     Future<void>(
         () => ref.read(barcodeControllerProvider.notifier).resolve(raw.trim()));
   }
@@ -173,7 +213,13 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
           ref.read(productsControllerProvider.notifier).load();
         },
       ),
-    );
+      // §112: this sheet is DISMISSIBLE, and the NOT_FOUND path that opens it
+      // has already stopped the camera and latched `_isProcessing`. Without
+      // this, dismissing the sheet without saving left a permanently dead
+      // scanner — black preview, every later detection rejected by the latch.
+      // On a successful create the scanner is popped, and `_resumeScanning`'s
+      // mounted + isCurrent guards make this a no-op.
+    ).whenComplete(_resumeScanning);
   }
 
   /// MULTIPLE_MATCHES: the shopkeeper must explicitly choose which catalog
@@ -295,8 +341,13 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
 
     final status =
         ref.watch(barcodeControllerProvider.select((s) => s.status));
-    final showProgress = status == BarcodeScanStatus.resolving ||
-        status == BarcodeScanStatus.saving;
+    // The busy indicator belongs to THIS scanning session, so it is driven by
+    // this screen's own [_isProcessing] latch (set the moment a code is
+    // detected, cleared when a result sheet closes) plus a save in flight.
+    // Deriving it from the inherited `resolving` status instead would let a
+    // previous session — the container-scoped controller outlives this screen —
+    // park a permanent spinner over a camera that is working fine (§112).
+    final showProgress = _isProcessing || status == BarcodeScanStatus.saving;
 
     return Scaffold(
       appBar: AppBar(

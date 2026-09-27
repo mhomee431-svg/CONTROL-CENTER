@@ -66,13 +66,17 @@ class _PosSyncHistoryScreenState extends ConsumerState<PosSyncHistoryScreen> {
                 ),
               );
             }
-            return _HistoryList(
-              integration: integration,
-              jobs: hub.jobs,
-              filter: _filter,
-              onFilterChanged: (f) => setState(() => _filter = f),
+            return RefreshIndicator(
               onRefresh: () =>
                   ref.read(posControllerProvider.notifier).refreshJobs(),
+              child: _HistoryList(
+                integration: integration,
+                jobs: hub.jobs,
+                filter: _filter,
+                onFilterChanged: (f) => setState(() => _filter = f),
+                onRefresh: () =>
+                    ref.read(posControllerProvider.notifier).refreshJobs(),
+              ),
             );
           },
         ),
@@ -114,7 +118,10 @@ class _HistoryList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final visible = _visible;
+    // Always scrollable: pull-to-refresh must fire even when the jobs fit on
+    // one screen (or the filter matched nothing).
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

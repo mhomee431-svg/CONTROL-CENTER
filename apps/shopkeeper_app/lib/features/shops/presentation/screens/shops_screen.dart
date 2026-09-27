@@ -40,10 +40,12 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
         child: state.status == ShopsStatus.loading && state.shops.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
+                // Pull is the SILENT path (ShopsController.refresh): the list
+                // stays on screen while fresh shops load.
                 onRefresh: () =>
-                    ref.read(shopsControllerProvider.notifier).load(),
+                    ref.read(shopsControllerProvider.notifier).refresh(),
                 child: state.shops.isEmpty
-                    ? ListView(children: [
+                    ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                         const SizedBox(height: 120),
                         Icon(Icons.add_business_outlined,
                             size: 64,
@@ -59,6 +61,7 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
                         ),
                       ])
                     : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(16),
                         itemCount: state.shops.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 8),

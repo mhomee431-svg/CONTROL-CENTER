@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../shell/capabilities_controller.dart';
 import '../../data/location_accuracy_config.dart';
 import '../../data/location_service.dart';
 import '../../data/shop_repository.dart';
@@ -57,6 +58,11 @@ class ShopProfileDetailController extends Notifier<ShopProfileState> {
     state = const ShopProfileState(status: ShopProfileStatus.loading);
     try {
       final detail = await _repo.getShopDetail(shop.id, await _token());
+      // The detail payload already carries the backend-derived flags, so the
+      // gates refresh for free here — no second capabilities request.
+      ref
+          .read(capabilitiesControllerProvider.notifier)
+          .adopt(detail.capabilities);
       state = ShopProfileState(status: ShopProfileStatus.ready, detail: detail);
     } on ApiException catch (e) {
       state = ShopProfileState(

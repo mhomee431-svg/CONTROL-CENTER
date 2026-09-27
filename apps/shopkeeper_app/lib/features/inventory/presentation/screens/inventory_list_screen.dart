@@ -208,7 +208,15 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
               message: catalog.message,
               onRetry: () =>
                   ref.read(productsControllerProvider.notifier).load(),
+              // Pull is the SILENT path (see ProductsController.refresh): the
+              // rows stay on screen while fresh ones load; the app-bar icon
+              // above keeps the loud spinner.
+              onRefresh: () =>
+                  ref.read(productsControllerProvider.notifier).refresh(),
               builder: (context) => LazyListView(
+                // Always scrollable so the gesture works even on a scope with
+                // no rows (its empty state fills the viewport).
+                physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: page.rows.length,
                 // Provenance first: a cached list that looks live is worse
                 // than no list at all.
@@ -343,8 +351,10 @@ class _ProductRow extends StatelessWidget {
               InfoChip(label: stock.label, color: stockStateColor(stock)),
               if (showFreshness)
                 InfoChip(
-                  label:
-                      '${freshnessLabel(item.freshnessStatus)} · ${lastUpdatedLabel(item.lastUpdated)}',
+                  label: freshnessChipLabel(
+                    item.freshnessStatus,
+                    item.lastUpdated,
+                  ),
                   color: freshnessColor(item.freshnessStatus),
                 )
               else
