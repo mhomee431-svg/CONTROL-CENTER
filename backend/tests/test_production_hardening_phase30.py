@@ -27,6 +27,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -37,7 +38,7 @@ os.environ.setdefault("HYPERLOCAL_ENV", "test")
 
 import pytest  # noqa: E402
 from sqlalchemy import create_engine, event  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.core.config import Settings, settings  # noqa: E402
@@ -72,7 +73,7 @@ strip_geo_columns()
 def _portable_timestamp_defaults():
     from sqlalchemy import ColumnDefault
 
-    def _now(ctx=None):
+    def _now(ctx: Any = None) -> datetime:
         return datetime.now(timezone.utc)
 
     for table in Base.metadata.tables.values():
@@ -102,7 +103,7 @@ from app.models.role import Permission, Role, role_permissions  # noqa: E402
 from app.models.shop import Shop, ShopManager, ShopOwner  # noqa: E402
 from app.models.user import User, UserStatus  # noqa: E402
 
-TABLES = [
+TABLES: list[Any] = [
     Role.__table__,
     Permission.__table__,
     role_permissions,
@@ -141,7 +142,7 @@ def _next_id():
     return _counter["n"]
 
 
-def make_user(db, role_name="customer"):
+def make_user(db: Session, role_name: str = "customer") -> User:
     n = _next_id()
     role = db.query(Role).filter(Role.name == role_name).first()
     if role is None:
@@ -160,7 +161,7 @@ def make_user(db, role_name="customer"):
     return user
 
 
-def make_shop(db, owner=None):
+def make_shop(db: Session, owner: User | None = None) -> Shop:
     from app.models.shop import ShopStatus
 
     n = _next_id()
@@ -179,9 +180,9 @@ def make_shop(db, owner=None):
     return shop
 
 
-def _prod_settings(**overrides) -> Settings:
+def _prod_settings(**overrides: Any) -> Settings:
     """A fully-secure production Settings instance (tests mutate from here)."""
-    base = dict(
+    base: dict[str, Any] = dict(
         ENVIRONMENT="production",
         JWT_SECRET_KEY="x" * 48,
         DEBUG=False,
@@ -203,8 +204,14 @@ class TestStartupSecurityGate:
         assert run_startup_security_checks(_prod_settings()) == []
 
     def test_default_jwt_secret_blocks_production(self):
+        # Building production Settings around the PUBLISHED default is exactly
+        # what the config model warns about — assert the warning here (instead
+        # of letting it escape as an unexplained pytest warning), then prove
+        # the startup gate turns it into a hard failure.
+        with pytest.warns(RuntimeWarning, match="insecure default"):
+            weak = _prod_settings(JWT_SECRET_KEY="change-me-in-production")
         with pytest.raises(ProductionSecurityError, match="JWT_SECRET_KEY"):
-            run_startup_security_checks(_prod_settings(JWT_SECRET_KEY="change-me-in-production"))
+            run_startup_security_checks(weak)
 
     def test_short_jwt_secret_blocks_production(self):
         with pytest.raises(ProductionSecurityError, match="brute force"):
@@ -252,7 +259,7 @@ class TestStartupSecurityGate:
         assert findings == []
 
     def test_development_only_warns_never_raises(self):
-        insecure = Settings(
+        insecure = Settings(  # pyright: ignore[reportCallIssue]
             ENVIRONMENT="development",
             JWT_SECRET_KEY="change-me-in-production",
         )
@@ -305,7 +312,7 @@ class TestUploadSecurity:
         name = validate_upload("inventory final.xlsx", content, max_bytes=5 * 1024 * 1024)
         assert name == "inventory final.xlsx"
 
-    def test_excel_import_service_uses_validator(self, db):
+    def test_excel_import_service_uses_validator(self, db: Session):
         """End-to-end: create_import rejects polyglot uploads with reason code."""
         from app.services import excel_import_service
 
@@ -315,24 +322,25 @@ class TestUploadSecurity:
         class _Access:
             shop = _Shop()
 
-            def require(self, resource, action):
+            def require(self, resource: str, action: str) -> None:
                 assert (resource, action) == ("inventory", "update")
 
         fake_exe = b"MZ\x90\x00" + b"\x00" * 32
         with pytest.raises(ValidationError) as ei:
             excel_import_service.create_import(_Access(), db, None, "evil.xlsx", fake_exe)
+        assert ei.value.data is not None
         assert ei.value.data["reason_code"] == "CONTENT_TYPE_MISMATCH"
 
 
 # ── Barcode input hardening ──────────────────────────────────────────────────
 class TestBarcodeHardening:
     def test_valid_barcode_normalized(self):
-        from app.api.routes.inventory_intake import _validate_barcode_input
+        from app.api.routes.inventory_intake import _validate_barcode_input  # pyright: ignore[reportPrivateUsage]
 
         assert _validate_barcode_input(" 890-12345 67890 ") == "8901234567890"
 
     def test_non_numeric_barcode_rejected(self):
-        from app.api.routes.inventory_intake import _validate_barcode_input
+        from app.api.routes.inventory_intake import _validate_barcode_input  # pyright: ignore[reportPrivateUsage]
 
         with pytest.raises(AppError):
             _validate_barcode_input("89012DROP TABLE users")
@@ -340,7 +348,7 @@ class TestBarcodeHardening:
             _validate_barcode_input("../../etc/passwd")
 
     def test_oversized_barcode_rejected(self):
-        from app.api.routes.inventory_intake import MAX_BARCODE_LENGTH, _validate_barcode_input
+        from app.api.routes.inventory_intake import MAX_BARCODE_LENGTH, _validate_barcode_input  # pyright: ignore[reportPrivateUsage]
 
         with pytest.raises(AppError):
             _validate_barcode_input("9" * (MAX_BARCODE_LENGTH + 1))
@@ -369,7 +377,7 @@ class TestTokenSecurity:
         assert validate_token_type(evil, TokenPurpose.ACCESS) is False
 
     def test_expired_token_rejected(self):
-        from app.core.security import TokenPurpose, _create_token, get_token_subject
+        from app.core.security import TokenPurpose, _create_token, get_token_subject  # pyright: ignore[reportPrivateUsage]
 
         expired, _ = _create_token("42", TokenPurpose.ACCESS, timedelta(minutes=-10))
         assert get_token_subject(expired) is None
@@ -421,6 +429,7 @@ class TestOTPProtection:
         self._generate(phone)
         store = get_otp_store(settings.OTP_STORAGE_URI)
         record = store.get(phone)
+        assert record is not None  # a record was just generated for this phone
         record["expires_at"] = datetime.now(timezone.utc) - timedelta(seconds=1)
         store.set(phone, record, ttl_seconds=60)
         assert otp_service.verify_otp(phone, self.FIXED_OTP) is False
@@ -434,14 +443,14 @@ class TestOTPProtection:
 
 # ── Access control / IDOR ────────────────────────────────────────────────────
 class TestAccessControlIDOR:
-    def test_owner_can_access_own_shop(self, db):
+    def test_owner_can_access_own_shop(self, db: Session):
         owner = make_user(db, role_name="shopkeeper")
         shop = make_shop(db, owner=owner)
         access = shopkeeper_service.resolve_shop_access(db, owner, shop.id)
         assert access.shop.id == shop.id
         assert access.is_owner is True
 
-    def test_unrelated_user_cannot_access_shop(self, db):
+    def test_unrelated_user_cannot_access_shop(self, db: Session):
         """Classic IDOR probe: customer guesses /shopkeeper/shops/{id}/... paths."""
         owner = make_user(db, role_name="shopkeeper")
         stranger = make_user(db, role_name="customer")
@@ -449,7 +458,7 @@ class TestAccessControlIDOR:
         with pytest.raises(ForbiddenError):
             shopkeeper_service.resolve_shop_access(db, stranger, shop.id)
 
-    def test_suspended_owner_mapping_not_authorized(self, db):
+    def test_suspended_owner_mapping_not_authorized(self, db: Session):
         owner = make_user(db, role_name="shopkeeper")
         shop = make_shop(db, owner=owner)
         db.query(ShopOwner).filter(
@@ -459,7 +468,7 @@ class TestAccessControlIDOR:
         with pytest.raises(ForbiddenError):
             shopkeeper_service.resolve_shop_access(db, owner, shop.id)
 
-    def test_nonexistent_shop_is_404_not_403(self, db):
+    def test_nonexistent_shop_is_404_not_403(self, db: Session):
         user = make_user(db)
         with pytest.raises(NotFoundError):
             shopkeeper_service.resolve_shop_access(db, user, 999999)
@@ -474,7 +483,7 @@ class TestRateLimiting:
         assert callable(auth_rate_limit()) and callable(default_rate_limit())
 
     def test_client_key_ignores_xff_by_default(self):
-        from app.core.rate_limit import _client_key
+        from app.core.rate_limit import _client_key  # pyright: ignore[reportPrivateUsage]
 
         class _FakeClient:
             host = "10.0.0.7"
@@ -484,10 +493,10 @@ class TestRateLimiting:
             headers = {"X-Forwarded-For": "1.2.3.4"}
 
         settings.TRUST_X_FORWARDED_FOR = False
-        assert _client_key(_FakeRequest()) == "10.0.0.7"
+        assert _client_key(_FakeRequest()) == "10.0.0.7"  # pyright: ignore[reportArgumentType]
 
     def test_client_key_uses_xff_only_when_trusted(self):
-        from app.core.rate_limit import _client_key
+        from app.core.rate_limit import _client_key  # pyright: ignore[reportPrivateUsage]
 
         class _FakeClient:
             host = "10.0.0.7"
@@ -498,7 +507,7 @@ class TestRateLimiting:
 
         settings.TRUST_X_FORWARDED_FOR = True
         try:
-            assert _client_key(_FakeRequest()) == "203.0.113.9"
+            assert _client_key(_FakeRequest()) == "203.0.113.9"  # pyright: ignore[reportArgumentType]
         finally:
             settings.TRUST_X_FORWARDED_FOR = False
 
@@ -508,11 +517,11 @@ class TestMassAssignment:
     def test_analytics_event_schema_ignores_extras(self):
         from app.schemas.analytics import AnalyticsEventIn
 
-        payload = AnalyticsEventIn(
+        payload = AnalyticsEventIn(  # pyright: ignore[reportCallIssue]
             event_name="PRODUCT_VIEW",
             actor_type="CUSTOMER",
             props={"screen": "home"},
-            is_admin=True,  # attacker-injected field
+            is_admin=True,  # attacker-injected field  # pyright: ignore[reportCallIssue]
         )
         dumped = payload.model_dump()
         assert "is_admin" not in dumped
@@ -523,11 +532,11 @@ class TestMassAssignment:
     def test_barcode_save_schema_ignores_extras(self):
         from app.schemas.inventory_intake import BarcodeSaveRequest
 
-        payload = BarcodeSaveRequest(
+        payload = BarcodeSaveRequest(  # pyright: ignore[reportCallIssue]
             barcode="8901234567890",
             product_master_id=1,
             price=99.0,
-            shop_owner_role_bypass=True,
+            shop_owner_role_bypass=True,  # pyright: ignore[reportCallIssue]
         )
         assert "shop_owner_role_bypass" not in payload.model_dump()
 
@@ -535,10 +544,10 @@ class TestMassAssignment:
 # ── Database / API / search performance ──────────────────────────────────────
 class TestPerformance:
     @pytest.fixture()
-    def perf_db(self, db):
+    def perf_db(self, db: Session) -> Session:
         """Seed a realistic volume of analytics events."""
         base = datetime.now(timezone.utc) - timedelta(hours=2)
-        events = []
+        events: list[AnalyticsEvent] = []
         for i in range(300):
             events.append(
                 AnalyticsEvent(
@@ -557,12 +566,12 @@ class TestPerformance:
         db.flush()
         return db
 
-    def test_dashboard_no_n1_query_explosion(self, perf_db):
+    def test_dashboard_no_n1_query_explosion(self, perf_db: Session):
         from app.services import analytics_system as an
 
-        statements = []
+        statements: list[str] = []
 
-        def _before(conn, cursor, statement, parameters, context, executemany):
+        def _before(conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, executemany: Any) -> None:
             statements.append(statement)
 
         bind = perf_db.bind
@@ -577,7 +586,7 @@ class TestPerformance:
         # 3 dashboards x a handful of aggregate queries — NOT one per row.
         assert len(statements) <= 40, f"N+1 suspected: {len(statements)} queries"
 
-    def test_indexed_event_lookup_stays_fast_at_volume(self, perf_db):
+    def test_indexed_event_lookup_stays_fast_at_volume(self, perf_db: Session):
         from sqlalchemy import func
 
         start = time.perf_counter()
@@ -593,7 +602,7 @@ class TestPerformance:
         assert rows > 0
         assert elapsed < 0.5, f"Indexed lookup too slow: {elapsed:.3f}s"
 
-    def test_pagination_limits_are_respected(self, perf_db):
+    def test_pagination_limits_are_respected(self, perf_db: Session):
         from app.services import analytics_system as an
 
         assert len(an.popular_products(perf_db, days=7, limit=5)) <= 5
@@ -601,7 +610,7 @@ class TestPerformance:
         assert len(an.popular_products(perf_db, days=7, limit=100)) <= 100
         assert len(an.read_aggregates(perf_db, limit=10)) <= 10
 
-    def test_aggregation_over_volume_within_budget(self, perf_db):
+    def test_aggregation_over_volume_within_budget(self, perf_db: Session):
         from app.services import analytics_system as an
 
         start = time.perf_counter()
@@ -610,7 +619,7 @@ class TestPerformance:
         assert result["groups"] >= 2
         assert elapsed < 3.0, f"Aggregation too slow: {elapsed:.3f}s"
 
-    def test_search_tracking_throughput(self, perf_db):
+    def test_search_tracking_throughput(self, perf_db: Session):
         from app.services import analytics_system as an
 
         start = time.perf_counter()

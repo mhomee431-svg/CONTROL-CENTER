@@ -75,12 +75,34 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-
 CUSTOMER = SimpleNamespace(id=1, role=SimpleNamespace(name="customer"))
 ADMIN = SimpleNamespace(id=1, role=SimpleNamespace(name="admin"))
-app.dependency_overrides[get_current_user] = lambda: CUSTOMER
-app.dependency_overrides[require_admin] = lambda: ADMIN
+
+
+@pytest.fixture(autouse=True)
+def _install_orders_overrides():
+    """Wire this module's overrides for its own tests only.
+
+    Installing them at import time leaked them into every other module: pytest
+    imports all test files during collection, so ``get_db``, ``get_current_user``
+    and ``require_admin`` were already replaced before the first test of the run
+    (alphabetically ``test_admin_moderation_flow.py``) executed. Those modules
+    then ran against this module's ``SimpleNamespace`` user and failed only in
+    full-suite runs while passing in isolation.
+
+    Snapshot/restore mirrors the pattern in ``test_shopkeeper_auth.py`` so
+    co-running modules get their own wiring back.
+    """
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: CUSTOMER
+    app.dependency_overrides[require_admin] = lambda: ADMIN
+    try:
+        yield
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
+
 
 client = TestClient(app)
 

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/datetime_utils.dart';
 import '../../domain/product_models.dart';
 import '../controllers/products_controller.dart';
+import 'product_image_view.dart';
 import 'product_sheets.dart';
 import 'stock_sheets.dart';
 
@@ -171,15 +173,8 @@ String _sourceLabel(String? source) => switch (source) {
 
 /// Relative "Updated ..." label; never invents a timestamp when the backend
 /// did not provide one.
-String _lastUpdatedLabel(DateTime? updated) {
-  if (updated == null) return 'Not updated yet';
-  final diff = DateTime.now().difference(updated);
-  if (diff.inMinutes < 1) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  if (diff.inDays < 30) return '${diff.inDays} d ago';
-  return '${updated.day}/${updated.month}/${updated.year}';
-}
+String _lastUpdatedLabel(DateTime? updated) =>
+    DateTimeUtils.formatRelativeOrLocal(updated, nullLabel: 'Not updated yet');
 
 /// Image / name / status chips at the top of the details sheet.
 class _DetailsHeader extends StatelessWidget {
@@ -191,7 +186,6 @@ class _DetailsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
     final subtitle = [
       if (item.brand != null && item.brand!.isNotEmpty) item.brand!,
       if (item.variant != null && item.variant!.isNotEmpty) item.variant!,
@@ -200,35 +194,20 @@ class _DetailsHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
+        // Shared resilient image: it owns the placeholder / loading / broken
+        // states so a dead presigned URL degrades to the same box everywhere
+        // instead of an inconsistent one-off fallback.
+        ProductImageView(
+          imageUrl: item.imageUrl,
+          width: 72,
+          height: 72,
           borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: 72,
-            height: 72,
-            color: scheme.surfaceContainerHighest,
-            child: hasImage
-                ? Image.network(
-                    item.imageUrl!,
-                    // Decorative — the product name sits right next to it.
-                    excludeFromSemantics: true,
-                    fit: BoxFit.cover,
-                    cacheWidth: 144,
-                    loadingBuilder: (context, child, progress) =>
-                        progress == null
-                            ? child
-                            : const Center(
-                                child: SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
-                                ),
-                              ),
-                    errorBuilder: (context, error, stackTrace) =>
-                        _ImagePlaceholder(color: scheme.outline, label: 'Image'),
-                  )
-                : _ImagePlaceholder(color: scheme.outline, label: 'No image'),
-          ),
+          // Decorative — the product name sits right next to it.
+          excludeFromSemantics: true,
+          cacheWidth: 144,
+          placeholderWidget:
+              _ImagePlaceholder(color: scheme.outline, label: 'No image'),
+          errorWidget: _ImagePlaceholder(color: scheme.outline, label: 'Image'),
         ),
         const SizedBox(width: 12),
         Expanded(

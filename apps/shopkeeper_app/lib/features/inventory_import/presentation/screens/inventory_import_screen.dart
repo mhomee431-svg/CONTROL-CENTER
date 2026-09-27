@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/capability_gate.dart';
+import '../../../shell/capabilities_controller.dart';
 import '../../domain/import_models.dart';
 import '../controllers/import_controller.dart';
 
@@ -13,7 +15,7 @@ import '../controllers/import_controller.dart';
 /// outcomes → confirm → done. Recent jobs are shown at the bottom.
 class InventoryImportScreen extends ConsumerStatefulWidget {
   const InventoryImportScreen({super.key});
-
+ 
   @override
   ConsumerState<InventoryImportScreen> createState() =>
       _InventoryImportScreenState();
@@ -64,6 +66,11 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
     final uploading = state.status == ImportStatus.uploading;
     final confirming = state.status == ImportStatus.confirming;
     final saving = uploading || confirming;
+    // Capability-gated (spec 103): the backend `canUploadExcel` flag decides
+    // whether the whole upload surface renders. Read from the ONE centralized
+    // layer — no plan logic here. The backend stays authoritative (the import
+    // endpoint still enforces `BULK_IMPORT` server-side).
+    final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -81,34 +88,42 @@ class _InventoryImportScreenState extends ConsumerState<InventoryImportScreen> {
             ),
         ],
       ),
-      body: SafeArea(
-        child: switch (state.status) {
-          ImportStatus.idle => _IdleView(
-            onImportTap: saving ? null : _pickAndUpload,
-            hasJobs: state.jobs.isNotEmpty,
-            onDownloadSample:
-                sampleDownload.inProgress ? null : _downloadSample,
-            downloadingSample: sampleDownload.inProgress,
-          ),
-          ImportStatus.uploading => const _UploadingView(),
-          ImportStatus.preview => _PreviewView(
-            preview: state.preview!,
-            onConfirm: saving ? null : _confirm,
-            onCancel: saving ? null : _cancelFlow,
-            saving: saving,
-          ),
-          ImportStatus.confirming => _ConfirmingView(preview: state.preview!),
-          ImportStatus.done => _DoneView(
-            result: state.result!,
-            onImportAnother: () =>
-                ref.read(importControllerProvider.notifier).resetFlow(),
-          ),
-          ImportStatus.error => _ErrorView(
-            message: state.message ?? 'Something went wrong.',
-            onRetry: () =>
-                ref.read(importControllerProvider.notifier).resetFlow(),
-          ),
-        },
+      body: CapabilityGate(
+        allowed: caps.canUploadExcel,
+        title: 'Excel import not available on your plan',
+        message:
+            'Upgrade your plan to bulk-import a workbook. Your current plan '
+            'does not include bulk import.',
+        child: SafeArea(
+          child: switch (state.status) {
+            ImportStatus.idle => _IdleView(
+              onImportTap: saving ? null : _pickAndUpload,
+              hasJobs: state.jobs.isNotEmpty,
+              onDownloadSample:
+                  sampleDownload.inProgress ? null : _downloadSample,
+              downloadingSample: sampleDownload.inProgress,
+            ),
+            ImportStatus.uploading => const _UploadingView(),
+            ImportStatus.preview => _PreviewView(
+              preview: state.preview!,
+              onConfirm: saving ? null : _confirm,
+              onCancel: saving ? null : _cancelFlow,
+              saving: saving,
+            ),
+            ImportStatus.confirming =>
+              _ConfirmingView(preview: state.preview!),
+            ImportStatus.done => _DoneView(
+              result: state.result!,
+              onImportAnother: () =>
+                  ref.read(importControllerProvider.notifier).resetFlow(),
+            ),
+            ImportStatus.error => _ErrorView(
+              message: state.message ?? 'Something went wrong.',
+              onRetry: () =>
+                  ref.read(importControllerProvider.notifier).resetFlow(),
+            ),
+          },
+        ),
       ),
     );
   }

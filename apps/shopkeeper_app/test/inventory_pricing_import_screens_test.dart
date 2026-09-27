@@ -245,7 +245,12 @@ void main() {
         (tester) async {
       final container = makeContainer(
         productRepo: FakeProductRepo(items: [
-          p(id: 1, name: 'Fresh Item', freshnessStatus: 'RECENTLY_UPDATED'),
+          p(
+            id: 1,
+            name: 'Fresh Item',
+            freshnessStatus: 'RECENTLY_UPDATED',
+            lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
+          ),
           p(id: 2, name: 'Old Item', freshnessStatus: 'STALE'),
         ]),
       );
@@ -256,6 +261,9 @@ void main() {
       expect(find.text('Old Item'), findsOneWidget);
       expect(find.text('Fresh Item'), findsOneWidget);
       expect(find.textContaining('Needs update'), findsWidgets);
+      // The row age speaks the app-wide freshness vocabulary
+      // (DateTimeUtils.formatInventoryFreshness), not a screen-local format.
+      expect(find.textContaining('Inventory updated 5 min ago'), findsOneWidget);
     });
   });
 
@@ -401,6 +409,45 @@ void main() {
       expect(find.text('₹150'), findsOneWidget);
       expect(find.textContaining('25% off'), findsOneWidget);
       expect(find.textContaining('No MRP set'), findsOneWidget);
+      // No timestamps on these rows → no freshness line (never a lone
+      // "Price not updated yet" under every product).
+      expect(find.textContaining('Price updated'), findsNothing);
+    });
+
+    testWidgets('shows a unified freshness line, amber once stale',
+        (tester) async {
+      final container = makeContainer(
+        productRepo: FakeProductRepo(items: [
+          p(
+            id: 1,
+            name: 'Rice 5kg',
+            price: 90,
+            lastUpdated: DateTime.now().subtract(const Duration(days: 2)),
+          ),
+          p(
+            id: 2,
+            name: 'Oil 1L',
+            price: 150,
+            lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
+          ),
+        ]),
+      );
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container, const PriceListScreen());
+
+      // Both rows speak the shared freshness vocabulary…
+      expect(find.textContaining('Price updated'), findsNWidgets(2));
+      expect(find.textContaining('Price updated 5 min ago'), findsOneWidget);
+      // …and only the >24h row carries the stale indicator (amber weight).
+      final staleTexts = tester
+          .widgetList<Text>(find.byType(Text))
+          .where((t) =>
+              (t.data ?? '').startsWith('Price updated') &&
+              t.style?.fontWeight == FontWeight.w600)
+          .toList();
+      expect(staleTexts, hasLength(1));
+      expect(staleTexts.single.data, isNot(contains('5 min ago')));
     });
   });
 

@@ -72,6 +72,8 @@ EXPECTED_TABLES: set[str] = {
     "verification_attempts", "verification_provider_logs",
     # 0024 media pipeline (S3 upload lifecycle: PENDING -> READY)
     "media",
+    # 0026 customer orders & order items
+    "orders", "order_items",
 }
 
 # Geography POINT columns that must be typed for PostGIS.

@@ -1,5 +1,7 @@
 """Phase 25 — Pydantic schemas for the POS integration platform."""
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -12,7 +14,7 @@ class POSRegisterRequest(BaseModel):
     api_base_url: str | None = Field(None, max_length=500)
     api_key: str | None = None
     api_secret: str | None = None
-    config: dict | None = None
+    config: dict[str, Any] | None = None
 
 
 class POSCredentialUpdateRequest(BaseModel):
@@ -26,7 +28,7 @@ class POSCredentialUpdateRequest(BaseModel):
 class POSSyncConfigRequest(BaseModel):
     """Merge vendor-neutral sync configuration (authorities, thresholds…)."""
 
-    config: dict
+    config: dict[str, Any]
 
 
 class POSScheduleRequest(BaseModel):

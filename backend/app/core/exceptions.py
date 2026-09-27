@@ -1,5 +1,7 @@
 """Global exception handlers with structured logging and request context."""
 
+from typing import Any
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -19,7 +21,7 @@ class AppError(Exception):
         message: str,
         error_code: str = "APP_ERROR",
         status_code: int = 400,
-        data: dict | None = None,
+        data: dict[str, Any] | None = None,
     ):
         self.message = message
         self.error_code = error_code

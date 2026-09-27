@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,9 +11,11 @@ import '../../../media/data/media_repository.dart';
 import '../../../pos/presentation/controllers/pos_controller.dart';
 import '../../domain/category_taxonomy.dart';
 import '../../domain/product_form_rules.dart';
+import '../../domain/product_image_picker_service.dart';
 import '../../domain/product_models.dart';
 import '../controllers/category_controller.dart';
 import '../controllers/products_controller.dart';
+import 'product_image_view.dart';
 
 /// Shared product-image picker + uploader (used by the create and edit
 /// sheets). Client-side pre-flight mirrors the backend rules for a fast,
@@ -34,44 +33,28 @@ Future<(MediaObject, String)?> _pickAndUploadProductImage(
   void showMessage(String message) =>
       messenger.showSnackBar(SnackBar(content: Text(message)));
 
-  final picked = await FilePicker.platform.pickFiles(
-    type: FileType.image,
-    withData: false,
-  );
-  final path = picked?.files.single.path;
-  if (path == null) return null; // user cancelled (or no local path)
+  // Validation lives in ProductImagePickerService so the create sheet, the
+  // edit sheet and the unit tests all enforce the exact same rules.
+  final picker = ref.read(productImagePickerServiceProvider);
+  final validation = await picker.pickAndValidate(ProductImagePickSource.files);
+  if (validation == null) return null; // user cancelled
   if (!context.mounted) return null;
 
-  final ext = path.contains('.') ? path.split('.').last.toLowerCase() : '';
-  final contentType = switch (ext) {
-    'jpg' || 'jpeg' => 'image/jpeg',
-    'png' => 'image/png',
-    'webp' => 'image/webp',
-    _ => '',
-  };
-  if (contentType.isEmpty) {
-    showMessage('Only JPG, PNG or WebP images are supported');
+  if (validation case FileValidationFailure(:final reason)) {
+    showMessage(reason);
     return null;
   }
-  // `length()` (not `lengthSync()`) so the stat never blocks the UI isolate
-  // while the file dialog result is processed. The mounted guard keeps the
-  // snackbar below off a disposed context.
-  final size = await File(path).length();
-  if (!context.mounted) return null;
-  if (size > MediaRepository.maxImageBytes) {
-    showMessage('Image must be smaller than 5 MB');
-    return null;
-  }
+  final success = validation as FileValidationSuccess;
 
   onUploading(true);
   try {
     final media = await ref.read(mediaRepositoryProvider).upload(
           category: 'PRODUCT_IMAGE',
-          filePath: path,
-          contentType: contentType,
+          filePath: success.file.path,
+          contentType: success.mimeType,
           shopId: ref.read(selectedShopProvider)?.id,
         );
-    return (media, path);
+    return (media, success.file.path);
   } on ApiException catch (e) {
     showMessage(e.message);
     return null;
@@ -115,6 +98,12 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
   String? _imagePath;
   bool _uploadingImage = false;
 
+  /// The shopkeeper cleared the photo. Removal cannot be expressed by sending
+  /// `image_key: null` — both this client and the backend build their PATCH
+  /// payloads with `exclude_none`/`if null` semantics, which would silently
+  /// drop the field and keep the old image. It needs its own explicit flag.
+  bool _removeImage = false;
+
   @override
   void dispose() {
     _price.dispose();
@@ -138,6 +127,19 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
     setState(() {
       _image = result.$1;
       _imagePath = result.$2;
+      // Picking again after a removal means "keep this new one".
+      _removeImage = false;
+    });
+  }
+
+  /// Clears the photo, falling back to the server copy when nothing new was
+  /// picked yet (the photo stays visible until the sheet is saved).
+  void _clearImage() {
+    final serverImage = widget.item.imageUrl;
+    setState(() {
+      _image = null;
+      _imagePath = null;
+      _removeImage = serverImage != null && serverImage.isNotEmpty;
     });
   }
 
@@ -153,6 +155,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
           mrp: double.tryParse(_mrp.text.trim()),
           quantity: int.tryParse(_quantity.text.trim()),
           imageKey: _image?.key,
+          removeImage: _removeImage,
         );
     if (!mounted) return;
     if (!ok) {
@@ -235,43 +238,45 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                   int.tryParse((v ?? '').trim()) == null ? 'Required' : null,
             ),
             const SizedBox(height: 12),
-            // Replace the shop product's photo (PATCH image_key on save).
+            // Replace or clear the shop product's photo (PATCH image_key /
+            // remove_image on save).
             Row(children: [
-              if (_imagePath != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_imagePath!),
-                      // This preview IS the content (the photo the shopkeeper
-                      // just picked), so it needs a name of its own.
-                      semanticLabel: 'Selected product image',
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        width: 56,
-                        height: 56,
-                        color: scheme.surfaceContainerHighest,
-                        child: const Icon(Icons.broken_image_outlined),
-                      ),
-                    ),
-                  ),
+              if (_imagePath != null || !_removeImage) ...[
+                ProductImageView(
+                  localPath: _imagePath,
+                  imageUrl: _removeImage ? null : widget.item.imageUrl,
+                  width: 56,
+                  height: 56,
+                  // This preview IS the content (the photo the shopkeeper just
+                  // picked), so it needs a name of its own.
+                  semanticLabel: 'Selected product image',
                 ),
-              OutlinedButton.icon(
-                onPressed: _uploadingImage ? null : _pickImage,
-                icon: _uploadingImage
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child:
-                            CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.add_photo_alternate_outlined),
-                label: Text(_image == null
-                    ? 'Replace photo'
-                    : 'Photo ready — replace again'),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _uploadingImage ? null : _pickImage,
+                  icon: _uploadingImage
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text(_image == null
+                      ? 'Replace photo'
+                      : 'Photo ready — replace again'),
+                ),
               ),
+              // Only offer "remove" when something would actually be removed:
+              // a picked-but-unsaved local photo is cleared by re-picking.
+              if (_image == null &&
+                  widget.item.imageUrl != null &&
+                  widget.item.imageUrl!.isNotEmpty)
+                IconButton(
+                  tooltip: 'Remove photo',
+                  onPressed: _uploadingImage ? null : _clearImage,
+                  icon: const Icon(Icons.delete_outline),
+                ),
             ]),
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -696,41 +701,37 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       ),
                       const SizedBox(height: 4),
                       Row(children: [
-                        if (_imagePath != null)
+                        if (_imagePath != null) ...[
                           Padding(
                             padding: const EdgeInsets.only(right: 12),
-                            child: ClipRRect(
+                            // Same resilient preview as the edit sheet: a
+                            // corrupt local file degrades to a broken-image box
+                            // instead of throwing out of the build.
+                            child: ProductImageView(
+                              localPath: _imagePath,
+                              // The picked photo is content, so it needs an
+                              // accessible name of its own.
+                              semanticLabel: 'Selected product image',
+                              width: 56,
+                              height: 56,
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(_imagePath!),
-                                // Same as the edit sheet: the picked photo is
-                                // content, so give it an accessible name.
-                                semanticLabel: 'Selected product image',
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Container(
-                                  width: 56,
-                                  height: 56,
-                                  color: scheme.surfaceContainerHighest,
-                                  child: const Icon(
-                                      Icons.broken_image_outlined),
-                                ),
-                              ),
                             ),
                           ),
-                        OutlinedButton.icon(
-                          onPressed: _uploadingImage ? null : _pickImage,
-                          icon: _uploadingImage
-                              ? const SizedBox(
-                                  height: 16,
-                                  width: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))
-                              : const Icon(Icons.add_photo_alternate_outlined),
-                          label: Text(_image == null
-                              ? 'Add product photo'
-                              : 'Replace photo'),
+                        ],
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _uploadingImage ? null : _pickImage,
+                            icon: _uploadingImage
+                                ? const SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child:
+                                        CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.add_photo_alternate_outlined),
+                            label: Text(_image == null
+                                ? 'Add product photo'
+                                : 'Replace photo'),
+                          ),
                         ),
                         if (_image != null)
                           IconButton(

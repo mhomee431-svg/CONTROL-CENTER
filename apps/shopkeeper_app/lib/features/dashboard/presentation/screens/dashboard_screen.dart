@@ -13,6 +13,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../products/presentation/widgets/product_sheets.dart'
     show ProductAddMethodSheet;
+import '../../../shops/domain/shop_models.dart' show ShopCapabilities;
 import '../../../notifications/domain/notification_models.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../domain/dashboard_models.dart';
@@ -153,7 +154,11 @@ class _DashboardBody extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             // Shopkeeper Home header — greeting + shop summary + quick actions.
-            _HomeHeader(user: user, shop: shop),
+            _HomeHeader(
+              user: user,
+              shop: shop,
+              capabilities: data.capabilities,
+            ),
             // Dashboard notifications — the newest updates for this shop, read
             // from the Alerts controller (single source of truth) so Home and
             // the Alerts tab can never disagree. Hides itself when empty/failed.
@@ -280,10 +285,17 @@ class _DashboardBody extends StatelessWidget {
 /// below remain the source of truth for product & inventory numbers
 /// (never faked here).
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({this.user, this.shop});
+  const _HomeHeader({this.user, this.shop, this.capabilities});
 
   final dynamic user;
   final dynamic shop;
+
+  /// Backend-driven feature flags (spec section 103), passed down from the
+  /// dashboard payload - the ONE source the quick-action tiles gate on.
+  /// Absent (old payloads) -> permissive default, never a lock-out.
+  final ShopCapabilities? capabilities;
+
+  ShopCapabilities get _caps => capabilities ?? const ShopCapabilities();
 
   /// Shopkeeper's first name for the greeting (falls back to a generic
   /// "Shopkeeper" when the Google profile has no name yet).
@@ -401,6 +413,10 @@ class _HomeHeader extends StatelessWidget {
               icon: Icons.local_offer_outlined,
               label: 'Pricing & Offers',
               color: AppTheme.pendingAmber,
+              // Capability-gated (spec section 103): hidden when the backend
+              // flag says the plan cannot create offers. The flag comes from
+              // the centralized backend derivation - no plan logic here.
+              visible: _caps.canCreateOffers,
               // Pricing & Offers owns discounts / promo pricing (the
               // create-offer sheet is also reachable from Products).
               onTap: () => context.push(Routes.offers),
@@ -409,6 +425,7 @@ class _HomeHeader extends StatelessWidget {
               icon: Icons.insights_outlined,
               label: 'Reports & Insights',
               color: scheme.tertiary,
+              visible: _caps.canViewReports,
               // Reports / Insights is backed by the shop analytics
               // endpoints — real customer activity, never local guesses.
               onTap: () => context.push(Routes.insights),
@@ -469,6 +486,7 @@ class _QuickAction extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.visible = true,
   });
 
   final IconData icon;
@@ -476,8 +494,13 @@ class _QuickAction extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
+  /// Capability gate (spec section 103): false hides the tile. Driven ONLY
+  /// by the backend `canX` flag - never by local plan logic.
+  final bool visible;
+
   @override
   Widget build(BuildContext context) {
+    if (!visible) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
       label: label,

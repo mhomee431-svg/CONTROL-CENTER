@@ -29,6 +29,9 @@ _UNSAFE_NAME_CHARS = re.compile(r"[^A-Za-z0-9._ ()\-]")
 class UploadValidationError(ValueError):
     """Raised when an uploaded file fails a safety check."""
 
+    #: Machine-friendly rejection reason (assigned by ``validate_upload``).
+    reason_code: str
+
 
 def sanitize_filename(filename: str | None, *, fallback: str = "upload") -> str:
     """Reduce an untrusted filename to a safe, flat, printable basename.

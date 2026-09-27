@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../shell/capabilities_controller.dart';
 import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
 
@@ -53,6 +56,12 @@ class ShopsController extends Notifier<ShopsState> {
       }
       final shops = await _repo.listMyShops(token);
       state = ShopsState(status: ShopsStatus.ready, shops: shops);
+      // Refresh the backend-driven capability flags for whichever shop is now
+      // selected, so the gates are correct before the dashboard has loaded.
+      // Fail-soft inside the controller: the shop list itself still won.
+      unawaited(
+        ref.read(capabilitiesControllerProvider.notifier).loadForSelectedShop(),
+      );
       // NOTE: selection validity / auto-select policy is NOT duplicated here.
       // AuthController listens to this `ready` state and runs the ONE
       // selection policy (drop invalid selection, auto-select when exactly
@@ -83,6 +92,11 @@ class ShopsController extends Notifier<ShopsState> {
       if (token == null) return; // signed out mid-flight → keep current state
       final shops = await _repo.listMyShops(token);
       state = ShopsState(status: ShopsStatus.ready, shops: shops);
+      // Same silent capability refresh as [load] — a plan can change between
+      // two resumes, and the gates must follow the backend, not a cache.
+      unawaited(
+        ref.read(capabilitiesControllerProvider.notifier).loadForSelectedShop(),
+      );
     } catch (_) {
       // Silent: the auth listener only mirrors a `ready` list that actually
       // differs, so a failure leaves both this state and the session

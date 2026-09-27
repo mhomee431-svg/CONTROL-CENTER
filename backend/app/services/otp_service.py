@@ -3,15 +3,16 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.services.otp_store import get_otp_store
+from app.services.otp_store import BaseOTPStore, get_otp_store
 
 logger = get_logger("app.services.otp")
 
 
-def _store():
+def _store() -> BaseOTPStore:
     """Return the active OTP store (in-memory or Redis via OTP_STORAGE_URI)."""
     return get_otp_store(settings.OTP_STORAGE_URI)
 
@@ -39,7 +40,7 @@ def _ensure_phone_normalized(phone_number: str) -> str:
     return phone
 
 
-def generate_otp(phone_number: str) -> dict:
+def generate_otp(phone_number: str) -> dict[str, Any]:
     """Generate and store an OTP for the phone number.
 
     SMS delivery is handled client-side by Firebase Phone Auth; this legacy
@@ -144,7 +145,7 @@ def verify_otp(phone_number: str, otp: str) -> bool:
     return False
 
 
-def resend_otp(phone_number: str) -> dict:
+def resend_otp(phone_number: str) -> dict[str, Any]:
     """Alias for generate_otp — used by endpoints to differentiate paths."""
     return generate_otp(phone_number)
 

@@ -26,8 +26,9 @@ val mapsApiKey: String =
 
 android {
     namespace = "com.hyperlocal.hyperlocal_shopkeeper_app"
-    // 36 required by flutter_plugin_android_lifecycle (flutter_secure_storage dep)
-    compileSdk = 36
+    // 37 required by permission_handler_android 14.x (was 36 for
+    // flutter_plugin_android_lifecycle / flutter_secure_storage deps)
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

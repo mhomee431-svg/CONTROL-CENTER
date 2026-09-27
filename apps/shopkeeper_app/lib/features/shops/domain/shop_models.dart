@@ -59,6 +59,51 @@ class SubscriptionInfo {
       );
 }
 
+/// Backend-driven feature flags for one shop (spec section 103).
+///
+/// Single source of truth: the backend derives these ONLY from the resolved
+/// subscription entitlements (`derive_shop_capabilities`). The app never
+/// duplicates plan rules - it only reads these four flags to conditionally
+/// show functionality. Display hints only; the backend stays authoritative
+/// (403 on actual violations, surfaced via `ApiException.isEntitlementDenied`).
+class ShopCapabilities {
+  const ShopCapabilities({
+    this.canUsePos = true,
+    this.canUploadExcel = true,
+    this.canCreateOffers = true,
+    this.canViewReports = true,
+  });
+
+  /// POS integrations allowed (`pos_support` entitlement).
+  final bool canUsePos;
+
+  /// Excel/bulk import allowed (`BULK_IMPORT` in `listing_features`).
+  final bool canUploadExcel;
+
+  /// Offer creation allowed (`offers` entitlement).
+  final bool canCreateOffers;
+
+  /// Reports / analytics allowed (`analytics` entitlement).
+  final bool canViewReports;
+
+  /// Permissive legacy default: absent block (old backend / cache) never
+  /// locks the shopkeeper out of their own screens.
+  factory ShopCapabilities.fromJson(Map<String, dynamic>? json) =>
+      ShopCapabilities(
+        canUsePos: (json?['canUsePos'] as bool?) ?? true,
+        canUploadExcel: (json?['canUploadExcel'] as bool?) ?? true,
+        canCreateOffers: (json?['canCreateOffers'] as bool?) ?? true,
+        canViewReports: (json?['canViewReports'] as bool?) ?? true,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'canUsePos': canUsePos,
+        'canUploadExcel': canUploadExcel,
+        'canCreateOffers': canCreateOffers,
+        'canViewReports': canViewReports,
+      };
+}
+
 /// Full shop profile payload (GET /shopkeeper/shops/{id}).
 class ShopDetail {
   const ShopDetail({
@@ -71,6 +116,7 @@ class ShopDetail {
     this.logoUrl,
     required this.verification,
     required this.subscription,
+    this.capabilities = const ShopCapabilities(),
     required this.rating,
     required this.reviewCount,
     this.isAcceptingOrders = true,
@@ -108,6 +154,10 @@ class ShopDetail {
   final String? logoUrl;
   final VerificationInfo verification;
   final SubscriptionInfo subscription;
+
+  /// Backend-driven feature flags (spec section 103). Absent on old
+  /// payloads -> permissive default, never a lock-out.
+  final ShopCapabilities capabilities;
   final double rating;
   final int reviewCount;
 
@@ -177,6 +227,8 @@ class ShopDetail {
             json['verification'] as Map<String, dynamic>?),
         subscription: SubscriptionInfo.fromJson(
             json['subscription'] as Map<String, dynamic>?),
+        capabilities: ShopCapabilities.fromJson(
+            json['capabilities'] as Map<String, dynamic>?),
         rating: (json['rating'] as num?)?.toDouble() ?? 0,
         reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
         isAcceptingOrders: json['is_accepting_orders'] as bool? ?? true,

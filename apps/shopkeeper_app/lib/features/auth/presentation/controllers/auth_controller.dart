@@ -24,6 +24,7 @@ import '../../../inventory_import/presentation/controllers/import_controller.dar
 import '../../../insights/presentation/controllers/insights_controller.dart';
 import '../../../support/presentation/controllers/support_tickets_controller.dart';
 import '../../../account/presentation/controllers/sessions_controller.dart';
+import '../../../shell/capabilities_controller.dart';
 import 'selected_shop.dart';
 
 enum AuthStatus {
@@ -737,6 +738,10 @@ class AuthController extends Notifier<AuthState> {
     // device list must start empty for the next sign-in, not show who was
     // signed in before the logout.
     ref.read(sessionsControllerProvider.notifier).reset();
+    // Capability flags are per-account AND per-subscription: the next
+    // shopkeeper on this device must never inherit the previous account's
+    // plan (which would hide or expose features that are not theirs).
+    ref.read(capabilitiesControllerProvider.notifier).reset();
 
     // 4) Unauthenticated → the router redirect sends the user to login.
     state = AuthState.unauthenticated();

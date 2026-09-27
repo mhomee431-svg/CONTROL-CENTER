@@ -167,6 +167,62 @@ void main() {
     });
   });
 
+  group('ApiException.isEntitlementDenied — 403 plan vs permission', () {
+    // The backend raises these codes for PLAN/FEATURE refusals
+    // (entitlements.enforce_feature / enforce_limit) while plain association
+    // denials stay FORBIDDEN. The distinction decides which copy a screen
+    // shows: the server's upgrade sentence vs the generic permission fallback.
+    test('recognises every entitlement error code on a 403', () {
+      for (final code in ApiException.entitlementErrorCodes) {
+        expect(
+          ApiException(statusCode: 403, errorCode: code, message: 'x')
+              .isEntitlementDenied,
+          isTrue,
+          reason: '$code should read as an entitlement denial',
+        );
+      }
+    });
+
+    test('a plain 403 FORBIDDEN is a permission denial, not a plan refusal', () {
+      expect(
+        const ApiException(
+          statusCode: 403,
+          errorCode: 'FORBIDDEN',
+          message: 'Access denied',
+        ).isEntitlementDenied,
+        isFalse,
+      );
+      expect(
+        const ApiException(statusCode: 403, message: 'Denied').isEntitlementDenied,
+        isFalse,
+      );
+    });
+
+    test('an entitlement code outside a 403 is not an entitlement denial', () {
+      expect(
+        const ApiException(
+          statusCode: 409,
+          errorCode: 'ENTITLEMENT_DENIED',
+          message: 'x',
+        ).isEntitlementDenied,
+        isFalse,
+      );
+    });
+
+    test('a 403 entitlement denial still classifies as permissionDenied', () {
+      // The shared renderer keys off the state; the ACTION stays "switch shop"
+      // while the MESSAGE carries the upgrade sentence (permissionDenied does
+      // not own its copy).
+      const e = ApiException(
+        statusCode: 403,
+        errorCode: 'ENTITLEMENT_DENIED',
+        message: "Your current plan does not include 'pos_support'.",
+      );
+      expect(e.systemState, SystemState.permissionDenied);
+      expect(e.isEntitlementDenied, isTrue);
+    });
+  });
+
   group('SystemStateSpec — the expanded vocabulary', () {
     test('every state has copy, an icon and an action', () {
       for (final state in SystemState.values) {

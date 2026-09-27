@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../../products/presentation/controllers/products_controller.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../data/import_repository.dart';
@@ -177,6 +179,24 @@ class InventoryImportController extends Notifier<ImportState> {
       _patch(
         (s) => s.flow(status: ImportStatus.done, result: result),
       );
+      // DATA CONSISTENCY: the import wrote products and stock server-side, so
+      // the ONE local source for products / inventory / prices is now stale.
+      // The app is a StatefulShellBranch, so the Products tab is still mounted
+      // behind this pushed route and its initState will NOT re-run on the way
+      // back - without this the shopkeeper would keep seeing pre-import rows.
+      //
+      // A QUEUED job is still running server-side; refreshing now would race it
+      // and cache pre-import numbers. That case reconciles at the next natural
+      // read (screen entry / pull-to-refresh) instead.
+      if (!result.queued) {
+        unawaited(
+          ref.read(productsControllerProvider.notifier).refresh(),
+        );
+      }
+      // The jobs list is carried through `flow()` untouched, so the import
+      // history is refreshed here too rather than waiting for the user to
+      // reopen the history screen.
+      unawaited(loadJobs());
     } on ApiException catch (e) {
       _patch(
         (s) => s.flow(

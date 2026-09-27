@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/ui/debounced_search_field.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../products/presentation/controllers/recent_searches_controller.dart';
 import '../../../products/presentation/widgets/product_details_sheet.dart';
+import '../../../products/presentation/widgets/product_image_view.dart';
 import '../../../products/presentation/widgets/stock_sheets.dart';
 import '../widgets/inventory_shared.dart';
 
@@ -44,7 +47,30 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
 
   /// Restock list: only listings at/below their own threshold, ordered by
   /// urgency (fewest units first), optionally narrowed by the search field.
+  ///
+  /// Memoized on the (catalog, query) pair — the same rule
+  /// `ProductQueryCache` applies to the other catalog lists. `build()` runs on
+  /// every rebuild (a snackbar, an availability flip, a page turn, the text
+  /// field's own rebuilds), and the sort is O(n log n) over the WHOLE catalog;
+  /// without this every one of those rebuilds re-sorted a list the shopkeeper
+  /// never asked to change.
   List<ShopProductItem> _restock(List<ShopProductItem> items) {
+    final source = items;
+    if (identical(_restockSource, source) && _restockQuery == _query) {
+      return _restockRows!;
+    }
+    final derived = _deriveRestock(items);
+    _restockSource = source;
+    _restockQuery = _query;
+    _restockRows = derived;
+    return derived;
+  }
+
+  List<ShopProductItem>? _restockRows;
+  List<ShopProductItem>? _restockSource;
+  String? _restockQuery;
+
+  List<ShopProductItem> _deriveRestock(List<ShopProductItem> items) {
     final needsRestock = items
         .where((i) => !i.isDiscontinued && i.quantity <= _thresholdOf(i))
         .toList()
@@ -62,6 +88,9 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(productsControllerProvider);
     final restock = _restock(state.items);
+    // Shared search history, so a term typed on one catalog list is offered on
+    // the others too.
+    final recents = ref.watch(recentSearchesControllerProvider).terms;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Low stock')),
@@ -92,14 +121,28 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: TextField(
+              // The shared debounced field, as on every other catalog list: the
+              // restock slice is derived from the whole catalog, so filtering it
+              // on every glyph would re-run a full pass per keystroke. The
+              // field owns its text controller, so the value survives the
+              // setState rebuilds below.
+              child: DebouncedSearchField(
                 key: const Key('low-stock-search-field'),
-                onChanged: (v) => setState(() => _query = v),
-                decoration: const InputDecoration(
-                  hintText: 'Search name or SKU',
-                  prefixIcon: Icon(Icons.search_outlined),
-                  isDense: true,
-                ),
+                hintText: 'Search name or SKU',
+                initialValue: _query,
+                onChanged: (value) => setState(() => _query = value),
+                // A submitted term is history (shared across the catalog lists).
+                onSubmitted: (value) => ref
+                    .read(recentSearchesControllerProvider.notifier)
+                    .record(value),
+                onFocusLost: (value) => ref
+                    .read(recentSearchesControllerProvider.notifier)
+                    .record(value),
+                recentSearches: recents,
+                onRecentSelected: (value) => setState(() => _query = value),
+                onRecentRemoved: (term) => ref
+                    .read(recentSearchesControllerProvider.notifier)
+                    .remove(term),
               ),
             ),
             Expanded(
@@ -242,22 +285,29 @@ class _RestockCard extends StatelessWidget {
               children: [
                 // Thumbnail (falls back to the box icon when the master has
                 // no image) — always present, never a broken layout.
-                ClipRRect(
+                // Shared resilient thumbnail, identical to the products list:
+                // a progress state while loading, the same outline box when the
+                // presigned URL has expired (instead of a raw framework error
+                // box), and a ~2x decode instead of the source resolution — a
+                // 48px thumbnail never needs the full-resolution bytes (§110).
+                ProductImageView(
+                  imageUrl: item.imageUrl,
+                  width: 48,
+                  height: 48,
                   borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: item.imageUrl != null
-                        ? Image.network(
-                            item.imageUrl!,
-                            // Decorative — the card already shows the name.
-                            excludeFromSemantics: true,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
-                                const Icon(Icons.inventory_2_outlined),
-                          )
-                        : const Icon(Icons.inventory_2_outlined),
+                  // The card already shows the name, so the thumbnail is
+                  // decorative — announcing "image" here only adds noise.
+                  excludeFromSemantics: true,
+                  cacheWidth: 96,
+                  placeholderWidget: Icon(
+                    Icons.inventory_2_outlined,
+                    size: 22,
+                    color: outline,
+                  ),
+                  errorWidget: Icon(
+                    Icons.inventory_2_outlined,
+                    size: 22,
+                    color: outline,
                   ),
                 ),
                 const SizedBox(width: 12),

@@ -333,11 +333,15 @@ class ProductsController extends Notifier<ProductsState> {
       );
       return StockAdjustOutcome(ok: true, result: result);
     } on ApiException catch (e) {
-      final message = e.isForbidden
-          ? 'You do not have permission to update stock for this shop.'
-          : (e.statusCode == 404
-              ? 'This product is no longer in your inventory.'
-              : e.message);
+      // A plan refusal explains itself ("…Upgrade to unlock this feature") —
+      // only a plain association denial gets the generic permission copy.
+      final message = e.isEntitlementDenied
+          ? e.message
+          : e.isForbidden
+              ? 'You do not have permission to update stock for this shop.'
+              : (e.statusCode == 404
+                  ? 'This product is no longer in your inventory.'
+                  : e.message);
       state = ProductsState(
         status: e.isForbidden
             ? ProductsStatus.accessDenied
@@ -386,10 +390,14 @@ class ProductsController extends Notifier<ProductsState> {
       );
       return ProductHistoryLoad(history: history);
     } on ApiException catch (e) {
+      // Entitlement refusals keep the server's upgrade copy; a plain denial
+      // gets the module's own permission wording.
       return ProductHistoryLoad(
-        error: e.isForbidden
-            ? 'You do not have permission to view this history.'
-            : e.message,
+        error: e.isEntitlementDenied
+            ? e.message
+            : e.isForbidden
+                ? 'You do not have permission to view this history.'
+                : e.message,
       );
     } catch (_) {
       return const ProductHistoryLoad(error: 'Could not load history.');
@@ -431,6 +439,7 @@ class ProductsController extends Notifier<ProductsState> {
     int? quantity,
     int? lowStockThreshold,
     String? imageKey,
+    bool removeImage = false,
   }) async {
     final fields = <String, dynamic>{
       'price': ?price,
@@ -438,6 +447,10 @@ class ProductsController extends Notifier<ProductsState> {
       'quantity': ?quantity,
       'low_stock_threshold': ?lowStockThreshold,
       'image_key': ?imageKey,
+      // Removal has to be explicit. `image_key: null` cannot express it: the
+      // `?imageKey` spread above drops the key entirely, which the server reads
+      // as "leave the photo alone" rather than "detach it".
+      if (removeImage) 'remove_image': true,
     };
     return await _patch(productId, fields) != null;
   }

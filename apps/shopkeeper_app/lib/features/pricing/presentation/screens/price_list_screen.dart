@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/debounced_search_field.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
+import '../../../../core/utils/datetime_utils.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../../../products/presentation/controllers/recent_searches_controller.dart';
@@ -180,18 +182,38 @@ class _PriceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final outline = Theme.of(context).colorScheme.outline;
     final discount = discountPercentOff(item.mrp, item.price);
+    // A stale PRICE that looks live is the dangerous case, so the age line
+    // turns amber once the last update is over a day old (same threshold and
+    // vocabulary as Inventory and POS).
+    final stale = DateTimeUtils.isStale(item.lastUpdated);
 
     return ListTile(
       onTap: onTap,
       title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        item.mrp != null && item.mrp! > item.price
-            ? 'MRP ${moneyLabel(item.mrp!)}'
-                  '${discount == null ? '' : ' · ${trimNumber(discount)}% off'}'
-            : item.mrp == null
-            ? 'No MRP set'
-            : 'MRP ${moneyLabel(item.mrp!)}',
-        style: TextStyle(fontSize: 12, color: outline),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.mrp != null && item.mrp! > item.price
+                ? 'MRP ${moneyLabel(item.mrp!)}'
+                      '${discount == null ? '' : ' · ${trimNumber(discount)}% off'}'
+                : item.mrp == null
+                ? 'No MRP set'
+                : 'MRP ${moneyLabel(item.mrp!)}',
+            style: TextStyle(fontSize: 12, color: outline),
+          ),
+          if (item.lastUpdated != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              DateTimeUtils.formatPriceFreshness(item.lastUpdated),
+              style: TextStyle(
+                fontSize: 11,
+                color: stale ? AppTheme.pendingAmber : outline,
+                fontWeight: stale ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ],
       ),
       trailing: Text(
         moneyLabel(item.price),

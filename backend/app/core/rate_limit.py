@@ -13,6 +13,7 @@ stays off by default).
 
 from fastapi import Request
 from slowapi import Limiter
+from typing import Any, Callable
 
 from app.core.config import settings
 
@@ -48,11 +49,11 @@ limiter = Limiter(
 )
 
 
-def auth_rate_limit():
+def auth_rate_limit() -> Callable[..., Any]:
     """Rate limit for authentication endpoints (stricter)."""
     return limiter.limit(settings.RATE_LIMIT_AUTH_ENDPOINT)
 
 
-def default_rate_limit():
+def default_rate_limit() -> Callable[..., Any]:
     """Default rate limit for general endpoints."""
     return limiter.limit(settings.RATE_LIMIT_DEFAULT)

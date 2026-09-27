@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from traceback import format_exc
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -79,8 +80,10 @@ FIELD_AUTHORITIES: dict[str, str] = {
 
 def field_authority(integration: POSIntegration, field: str) -> str:
     """Resolve the authoritative side for *field* (integration override-aware)."""
-    overrides = (integration.config_json or {}).get("field_authorities", {}) or {}
-    return str(overrides.get(field, FIELD_AUTHORITIES.get(field, "PLATFORM"))).upper()
+    raw_cfg: dict[str, Any] = integration.config_json or {}
+    overrides: dict[str, Any] = raw_cfg.get("field_authorities") or {}  # pyright: ignore[reportUnknownVariableType]
+    val: Any = overrides.get(field, FIELD_AUTHORITIES.get(field, "PLATFORM"))  # pyright: ignore[reportUnknownMemberType]
+    return str(val).upper()
 
 
 class ItemSyncError(Exception):
@@ -158,7 +161,7 @@ def register_integration(
     api_base_url: str | None = None,
     api_key: str | None = None,
     api_secret: str | None = None,
-    config: dict | None = None,
+    config: dict[str, Any] | None = None,
 ) -> POSIntegration:
     """Register a new POS integration for a shop (one row per provider)."""
     try:
@@ -219,7 +222,7 @@ def update_credentials(
     return integration
 
 
-def update_sync_config(db: Session, integration_id: int, config: dict) -> POSIntegration:
+def update_sync_config(db: Session, integration_id: int, config: dict[str, Any]) -> POSIntegration:
     """Merge vendor-neutral sync configuration (deep-merged into config_json)."""
     integration = _require_integration(db, integration_id)
     merged = dict(integration.config_json or {})
@@ -253,7 +256,7 @@ def update_schedule(
 
 
 # ── Connect / disconnect / reconnect ─────────────────────────────────────────
-def connect_integration(db: Session, integration_id: int) -> dict:
+def connect_integration(db: Session, integration_id: int) -> dict[str, Any]:
     """Validate credentials against the provider; mark ACTIVE or ERROR."""
     integration = _require_integration(db, integration_id)
     provider = get_provider(integration.provider_code or integration.provider_name)
@@ -281,13 +284,13 @@ def disconnect_integration(db: Session, integration_id: int) -> POSIntegration:
     return integration
 
 
-def reconnect_integration(db: Session, integration_id: int) -> dict:
+def reconnect_integration(db: Session, integration_id: int) -> dict[str, Any]:
     """Re-establish connection (credentials revalidated before ACTIVE)."""
     return connect_integration(db, integration_id)
 
 
 # ── Serialization helpers ────────────────────────────────────────────────────
-def integration_payload(db: Session, integration: POSIntegration) -> dict:
+def integration_payload(db: Session, integration: POSIntegration) -> dict[str, Any]:
     """Safe serialization used by list/detail endpoints."""
     mapping_count = (
         db.query(POSProductMapping)
@@ -319,7 +322,7 @@ def integration_payload(db: Session, integration: POSIntegration) -> dict:
     }
 
 
-def job_payload(job: POSSyncJob) -> dict:
+def job_payload(job: POSSyncJob) -> dict[str, Any]:
     status = job.status.value if hasattr(job.status, "value") else str(job.status)
     return {
         "id": job.id,
@@ -342,7 +345,7 @@ def job_payload(job: POSSyncJob) -> dict:
     }
 
 
-def sync_status(db: Session, integration: POSIntegration) -> dict:
+def sync_status(db: Session, integration: POSIntegration) -> dict[str, Any]:
     """Aggregated status view for dashboards (`GET .../status`)."""
     latest_job = (
         db.query(POSSyncJob)
@@ -473,8 +476,12 @@ def find_due_integrations(db: Session, now: datetime | None = None) -> list[POSI
     """Scheduler helper — ACTIVE integrations whose cadence has elapsed.
 
     Skips integrations that already have a PENDING/RUNNING job so repeated
-    scheduler ticks never double-dispatch.
+    scheduler ticks never double-dispatch — and skips shops whose plan no
+    longer grants ``pos_support`` (a lapsed/canceled subscription must stop
+    background syncs, not just the manual button).
     """
+    from app.services.shopkeeper_service import shop_allows_pos
+
     now = now or _utcnow()
     integrations = (
         db.query(POSIntegration)
@@ -487,6 +494,8 @@ def find_due_integrations(db: Session, now: datetime | None = None) -> list[POSI
     )
     due: list[POSIntegration] = []
     for integration in integrations:
+        if not shop_allows_pos(db, integration.shop_id):
+            continue
         if integration.last_successful_sync_at is not None:
             last = integration.last_successful_sync_at
             if last.tzinfo is None:  # SQLite returns naive UTC datetimes
@@ -519,7 +528,7 @@ def _schedule_retry(job: POSSyncJob, now: datetime) -> None:
     job.next_retry_at = now + timedelta(minutes=delay_minutes)
 
 
-def _fail_job(db: Session, job: POSSyncJob, integration: POSIntegration, exc: Exception, now: datetime) -> dict:
+def _fail_job(db: Session, job: POSSyncJob, integration: POSIntegration, exc: Exception, now: datetime) -> dict[str, Any]:
     """Whole-job failure (provider unreachable / auth rejected / crashed)."""
     error_code = getattr(exc, "error_code", "POS_PROVIDER_ERROR")
     message = getattr(exc, "message", str(exc))
@@ -540,7 +549,7 @@ def _fail_job(db: Session, job: POSSyncJob, integration: POSIntegration, exc: Ex
 
 
 # ── Job execution ────────────────────────────────────────────────────────────
-def run_sync_job(db: Session, job_id: int) -> dict:
+def run_sync_job(db: Session, job_id: int) -> dict[str, Any]:
     """Execute a queued sync job end-to-end (mapping pipeline per record).
 
     Guarantees:
@@ -590,7 +599,7 @@ def run_sync_job(db: Session, job_id: int) -> dict:
         return _fail_job(db, job, integration, POSProviderError(str(exc)), _utcnow())
 
     seen_codes: set[str] = set()
-    conflicts: list[dict] = []
+    conflicts: list[dict[str, Any]] = []
 
     for record in result.items:
         if isinstance(record, dict):
@@ -785,11 +794,11 @@ def _apply_record(
     job: POSSyncJob,
     record: POSProductRecord,
     fingerprint: str,
-) -> dict:
+) -> dict[str, Any]:
     """Apply one POS record through the full mapping chain."""
     config = integration.config_json or {}
     shop_id = integration.shop_id
-    conflicts: list[dict] = []
+    conflicts: list[dict[str, Any]] = []
 
     mapping = (
         db.query(POSProductMapping)
@@ -959,11 +968,13 @@ def _apply_record(
 
 
 # ── Retry / job queries ──────────────────────────────────────────────────────
-def retry_failed_job(db: Session, job_id: int, user_id: int | None = None) -> dict:
+def retry_failed_job(db: Session, job_id: int, user_id: int | None = None) -> dict[str, Any]:
     """Manually re-run a FAILED job (allowed even after auto-retries exhausted)."""
     job = _require_job(db, job_id)
     if job.status != POSSyncStatus.FAILED:
         raise ConflictError("Only FAILED jobs can be retried")
+    if job.integration_id is None:
+        raise ConflictError("POS sync job is not linked to a POS integration")
     integration = _require_integration(db, job.integration_id)
     if integration.status == POSIntegrationStatus.DISCONNECTED:
         raise ConflictError("POS integration is disconnected — reconnect before retrying")
@@ -988,7 +999,7 @@ def list_jobs(db: Session, integration_id: int, limit: int = 20) -> list[POSSync
     )
 
 
-def get_job_logs(db: Session, job_id: int) -> list[dict]:
+def get_job_logs(db: Session, job_id: int) -> list[dict[str, Any]]:
     logs = (
         db.query(POSSyncLog)
         .filter(POSSyncLog.sync_job_id == job_id)
@@ -1008,12 +1019,12 @@ def get_job_logs(db: Session, job_id: int) -> list[dict]:
     ]
 
 
-def job_detail(db: Session, job: POSSyncJob) -> dict:
+def job_detail(db: Session, job: POSSyncJob) -> dict[str, Any]:
     """Job payload + full logs + every recorded mapping conflict."""
     payload = job_payload(job)
     payload["logs"] = get_job_logs(db, job.id)
 
-    conflict_entries: list[dict] = []
+    conflict_entries: list[dict[str, Any]] = []
     mappings = (
         db.query(POSProductMapping)
         .filter(
@@ -1023,7 +1034,10 @@ def job_detail(db: Session, job: POSSyncJob) -> dict:
         .all()
     )
     for mapping in mappings:
-        for conflict in ((mapping.last_conflict_json or {}).get("conflicts") or []):
-            conflict_entries.append({"pos_product_code": mapping.pos_product_code, **conflict})
+        raw_conflict = mapping.last_conflict_json or {}
+        conflict_list: list[Any] = raw_conflict.get("conflicts") or []
+        for conflict in conflict_list:
+            if isinstance(conflict, dict):
+                conflict_entries.append({"pos_product_code": mapping.pos_product_code, **conflict})
     payload["conflicts"] = conflict_entries
     return payload

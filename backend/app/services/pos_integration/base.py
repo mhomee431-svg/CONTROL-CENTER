@@ -55,10 +55,10 @@ class POSCredentials:
     api_base_url: Optional[str] = None
     api_key: Optional[str] = None
     api_secret: Optional[str] = None
-    extras: dict = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_integration(cls, integration) -> "POSCredentials":
+    def from_integration(cls, integration: Any) -> "POSCredentials":
         config = getattr(integration, "config_json", None) or {}
         return cls(
             api_base_url=getattr(integration, "api_base_url", None),
@@ -67,7 +67,7 @@ class POSCredentials:
             extras=dict(config.get("credentials", {}) or {}),
         )
 
-    def as_provider_input(self) -> dict:
+    def as_provider_input(self) -> dict[str, Any]:
         """Flatten into the opaque dict handed to provider methods."""
         payload: dict[str, Any] = {
             "api_base_url": self.api_base_url,
@@ -86,7 +86,7 @@ class POSCredentials:
         return f"{value[:4]}****{value[-2:]}"
 
     @classmethod
-    def masked_view(cls, integration) -> dict:
+    def masked_view(cls, integration: Any) -> dict[str, Any]:
         """Safe-to-serialize view of credentials for API responses."""
         creds = cls.from_integration(integration)
         return {
@@ -129,7 +129,7 @@ class POSProductRecord:
         return hashlib.sha256(json.dumps(material, sort_keys=True).encode("utf-8")).hexdigest()
 
 
-def normalize_product_record(payload: dict) -> POSProductRecord:
+def normalize_product_record(payload: dict[str, Any]) -> POSProductRecord:
     """Coerce a raw vendor dict into a validated :class:`POSProductRecord`.
 
     Raises ``ValueError`` for records that cannot safely enter the pipeline
@@ -149,7 +149,7 @@ def normalize_product_record(payload: dict) -> POSProductRecord:
     if isinstance(updated_at, datetime) and updated_at.tzinfo is None:
         updated_at = updated_at.replace(tzinfo=timezone.utc)
 
-    def _num(key):
+    def _num(key: str) -> float | None:
         value = payload.get(key)
         return None if value in (None, "") else float(value)
 
@@ -186,14 +186,14 @@ class POSProvider(ABC):
     supports_incremental: ClassVar[bool] = True
 
     @abstractmethod
-    def test_connection(self, credentials: dict) -> dict:
+    def test_connection(self, credentials: dict[str, Any]) -> dict[str, Any]:
         """Validate credentials; return descriptive info or raise
         ``POSAuthError`` / ``POSConnectionError``."""
 
     @abstractmethod
     def fetch_products(
         self,
-        credentials: dict,
+        credentials: dict[str, Any],
         since: Optional[str] = None,
         limit: int = 500,
     ) -> POSFetchResult:
@@ -229,7 +229,7 @@ def get_provider(code: str) -> POSProvider:
     return provider
 
 
-def list_providers() -> list[dict]:
+def list_providers() -> list[dict[str, Any]]:
     """Registry listing used by the API (`GET /shopkeeper/pos/providers`)."""
     return [
         {

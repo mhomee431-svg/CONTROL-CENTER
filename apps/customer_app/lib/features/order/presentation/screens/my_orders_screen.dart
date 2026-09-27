@@ -115,7 +115,7 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.shopping_bag_outlined,
                     size: 16,
                     color: AppColors.textMuted,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/route_names.dart';
-
+import '../shops/domain/shop_models.dart';
+import 'capabilities_controller.dart';
 /// One destination of the Shopkeeper feature map.
 class ShopkeeperFeature {
   const ShopkeeperFeature({
@@ -121,8 +123,17 @@ const List<ShopkeeperFeature> kShopkeeperFeatures = <ShopkeeperFeature>[
 
 /// "All features" — the Shopkeeper Home hub that makes every feature of the
 /// journey reachable from one screen.
-class AllFeaturesScreen extends StatelessWidget {
-  const AllFeaturesScreen({super.key});
+///
+/// Capability-gated (spec section 103): the four backend-driven `canX` flags
+/// decide which tiles render. No plan logic lives here - [capabilities]
+/// comes from the ONE centralized provider. Backend stays authoritative:
+/// a stale permit still meets the server 403, surfaced with the upgrade copy.
+class AllFeaturesScreen extends ConsumerWidget {
+  const AllFeaturesScreen({super.key, this.capabilities = const ShopCapabilities()});
+
+  /// Flags to gate with. Callers pass the dashboard / shop-detail flags;
+  /// default is the permissive legacy set (never locks out on old payloads).
+  final ShopCapabilities capabilities;
 
   void _open(BuildContext context, ShopkeeperFeature feature) {
     // The dashboard IS the shell root, so it is a location change; every other
@@ -135,8 +146,18 @@ class AllFeaturesScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    // Centralized flags win over the constructor value when the provider has
+    // fresher data; the constructor covers direct navigation / tests.
+    final caps = ref.watch(capabilitiesControllerProvider);
+    final effective = caps == const ShopCapabilities()
+        ? capabilities
+        : caps;
+    final visible = [
+      for (final feature in kShopkeeperFeatures)
+        if (_isAllowed(feature.id, effective)) feature,
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('All features')),
       body: SafeArea(
@@ -159,22 +180,22 @@ class AllFeaturesScreen extends StatelessWidget {
               margin: EdgeInsets.zero,
               child: Column(
                 children: [
-                  for (var i = 0; i < kShopkeeperFeatures.length; i++) ...[
+                  for (var i = 0; i < visible.length; i++) ...[
                     if (i > 0)
                       Divider(height: 1, color: Theme.of(context).dividerColor),
                     ListTile(
-                      key: kShopkeeperFeatures[i].tileKey,
+                      key: visible[i].tileKey,
                       leading: Icon(
-                        kShopkeeperFeatures[i].icon,
+                        visible[i].icon,
                         color: scheme.primary,
                       ),
-                      title: Text(kShopkeeperFeatures[i].title),
+                      title: Text(visible[i].title),
                       subtitle: Text(
-                        kShopkeeperFeatures[i].subtitle,
+                        visible[i].subtitle,
                         style: const TextStyle(fontSize: 12),
                       ),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _open(context, kShopkeeperFeatures[i]),
+                      onTap: () => _open(context, visible[i]),
                     ),
                   ],
                 ],
@@ -189,5 +210,24 @@ class AllFeaturesScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Maps hub tiles to the ONE backend flag that gates them. Ungated tiles
+  /// (dashboard, products, inventory, profile, notifications, settings,
+  /// support) always render.
+  static bool _isAllowed(String id, ShopCapabilities caps) {
+    switch (id) {
+      case 'pos':
+        return caps.canUsePos;
+      case 'imports':
+      case 'import-center':
+        return caps.canUploadExcel;
+      case 'offers':
+        return caps.canCreateOffers;
+      case 'insights':
+        return caps.canViewReports;
+      default:
+        return true;
+    }
   }
 }

@@ -34,6 +34,69 @@
   (`staging-api.hyperlocal.in`)
 
 ### Shopkeeper app
+- AUDIT SWEEP (line-by-line, whole `lib/`): verified and fixed the real
+  defects, preserved every unlinked seam. Findings:
+  - **Fixed — error classification (`shop_settings_screen.dart`).** The
+    "Not signed in" guard threw a raw `Exception`, the only one of 36 such
+    sites not using `ApiException`. A raw throw carries no `statusCode` /
+    `errorCode` / `kind`, so `ApiException.systemState` could not classify it
+    and the screen collapsed a recoverable session problem into the generic
+    "Could not load settings." Now the app-wide `const ApiException` idiom.
+  - **Fixed — indentation (`api_endpoints.dart`).** `mediaDirectUpload` was
+    indented 4 spaces out of alignment with every other member.
+  - **Verified clean, no change needed:** zero orphaned files in `lib/` (the
+    audit's "orphan" list is test entry points, which is correct); zero
+    duplicate provider names across the whole tree (single source of truth
+    holds); zero hardcoded `/api/v1` literals outside `env_config`'s
+    base-URL normalizer and doc comments; all 80 route constants registered
+    in `app_router.dart` and all navigation going through `Routes` (no raw
+    route strings); every `TextEditingController` in a `StatefulWidget` with
+    `dispose()`; the POS poll timer, the debounce timer and the connectivity
+    subscription all cancelled/unsubscribed (§111); no `FutureBuilder`; no
+    enum `.firstWhere` without an `orElse` (§126).
+  - **Endpoint contract re-verified against `packages/api_contracts/
+    openapi.json` + the live FastAPI routes.** 10 app paths are absent from
+    the committed `openapi.json` snapshot but ALL exist in the backend:
+    `auth/sessions` (`shopkeeper_auth.py:913`), `auth/profile-create` (`:673`),
+    `auth/google-profile` (`:994`), `shops/{id}/insights`
+    (`shopkeeper_portal.py:238`), `businesses/categories`
+    (`merchant_onboarding.py:47`), `notifications/read-all`
+    (`notifications.py:134`), `shops/{id}/offers` + `.../offers/{id}/status`
+    (`shopkeeper_portal.py:580/607`), `pos/jobs`
+    (`pos_integration.py:368/384`) and `support/tickets`
+    (`shopkeeper_support.py:49/87`). The snapshot is stale, the app is
+    correct — no app change.
+  - **Preserved, not deleted (§115 / this task's rule):** the 7
+    `ApiEndpoints` constants with no call site (`profileCreate`, `pincode`,
+    `analyticsOverview`, `analyticsTopSearches`, `analyticsInteractions`,
+    `analyticsDevices`, `analyticsFreshness`) — documented future seams
+    whose routes all exist server-side; `mock_auth_repository.dart` and its
+    `Future.delayed` calls (the deliberate `kUseMockAuth` seam); and
+    `test/_debug_dio_test.dart`. Nothing unlinked was removed.
+- PERFORMANCE (spec §110) — the Low Stock restock workbench was the last
+  catalog-backed list still doing per-keystroke and per-rebuild work. Three
+  defects, one screen (`features/inventory/.../low_stock_screen.dart`):
+  - **Debounced search.** Its raw `TextField` filtered the restock slice on
+    every glyph, while the products list, inventory scopes and price list all
+    use the shared `DebouncedSearchField` (300ms). It now uses the shared field
+    too, so the workbench is debounced like its three siblings and picks up the
+    shared recent-searches history (submit / focus-loss `record()`, dropdown
+    select + remove) instead of keeping a private one.
+  - **Derivation out of `build()`.** `_restock()` sorted the WHOLE catalog
+    (O(n log n)) on every rebuild — a snackbar, an availability flip, a page
+    turn, or the text field's own rebuilds. It is now memoized on the
+    (catalog, query) pair, the same rule `ProductQueryCache` already applies to
+    the other three lists, so an unrelated rebuild costs nothing.
+  - **Image optimization.** Its thumbnail was the one `Image.network` in the app
+    that bypassed `ProductImageView`: it decoded at the SOURCE resolution into
+    a 48px box, had no loading state (a slow image was an empty grey box,
+    indistinguishable from "no image"), and rendered a raw framework error box
+    when a presigned URL expired. It now goes through the shared widget at
+    `cacheWidth: 96` (~2x) with the same placeholder/error icon as the products
+    list.
+  No behavior the shopkeeper relies on changed. Tests: `low_stock_screen_test.dart`
+  +4 (12 total) pinning the shared field, the typed filter, the memoized
+  slice across an unrelated rebuild, and the optimized thumbnail.
 - Product search (spec §95) gained SERVER search — the missing checklist item.
   The loaded catalog still answers every settled query locally first (300ms
   `DebouncedSearchField` debounce + memoized `ProductQueryCache`, zero API

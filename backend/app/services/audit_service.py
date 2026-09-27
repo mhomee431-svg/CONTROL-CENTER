@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -89,8 +90,8 @@ def record_critical_action(
     entity_type: str,
     entity_id: int | None = None,
     user_id: int | None = None,
-    old_values: dict | None = None,
-    new_values: dict | None = None,
+    old_values: dict[str, Any] | None = None,
+    new_values: dict[str, Any] | None = None,
     description: str | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,

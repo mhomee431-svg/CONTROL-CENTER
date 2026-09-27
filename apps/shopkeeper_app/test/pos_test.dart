@@ -5,6 +5,7 @@ import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/token_store.dart';
 import 'package:hyperlocal_shopkeeper_app/features/auth/presentation/controllers/selected_shop.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pos/data/pos_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/pos/domain/pos_models.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pos/presentation/controllers/pos_controller.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pos/presentation/screens/pos_screen.dart';
 
@@ -317,6 +318,71 @@ void main() {
 
       expect(find.text('Not Connected'), findsOneWidget);
       expect(find.text('Connected'), findsNothing);
+    });
+  });
+
+  group('friendlyPosError — 403 copy', () {
+    const planCopy =
+        "Your current plan does not include 'pos_support'. Upgrade to unlock "
+        'this feature.';
+
+    test('an entitlement 403 shows the server upgrade copy verbatim', () {
+      // The fix is a plan upgrade — a generic "you do not have permission"
+      // would send the shopkeeper to switch shops for nothing.
+      expect(
+        friendlyPosError(const ApiException(
+          statusCode: 403,
+          errorCode: 'ENTITLEMENT_DENIED',
+          message: planCopy,
+        )),
+        planCopy,
+      );
+      expect(
+        friendlyPosError(const ApiException(
+          statusCode: 403,
+          errorCode: 'SUBSCRIPTION_EXPIRED',
+          message: 'Your subscription has expired. Renew to restore paid '
+              'features.',
+        )),
+        contains('Renew'),
+      );
+      expect(
+        friendlyPosError(const ApiException(
+          statusCode: 403,
+          errorCode: 'PLAN_LIMIT_REACHED',
+          message: 'Plan limit reached for max_products (limit: 10).',
+        )),
+        contains('Plan limit reached'),
+      );
+    });
+
+    test('a plain 403 keeps the permission copy (with optional override)', () {
+      expect(
+        friendlyPosError(
+          const ApiException(statusCode: 403, message: 'Denied'),
+        ),
+        contains('permission to manage POS'),
+      );
+      expect(
+        friendlyPosError(
+          const ApiException(statusCode: 403, message: 'Denied'),
+          forbidden: 'Only shop owners can connect a POS.',
+        ),
+        'Only shop owners can connect a POS.',
+      );
+    });
+
+    test('401 and transport failures keep their existing copy', () {
+      expect(
+        friendlyPosError(
+          const ApiException(statusCode: 401, message: 'Invalid token'),
+        ),
+        contains('session has expired'),
+      );
+      expect(
+        friendlyPosError(const ApiException(message: 'SocketException')),
+        contains('No internet'),
+      );
     });
   });
 }

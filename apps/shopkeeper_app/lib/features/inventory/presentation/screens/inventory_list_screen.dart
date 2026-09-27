@@ -351,8 +351,10 @@ class _ProductRow extends StatelessWidget {
               InfoChip(label: stock.label, color: stockStateColor(stock)),
               if (showFreshness)
                 InfoChip(
-                  label:
-                      '${freshnessLabel(item.freshnessStatus)} · ${lastUpdatedLabel(item.lastUpdated)}',
+                  label: freshnessChipLabel(
+                    item.freshnessStatus,
+                    item.lastUpdated,
+                  ),
                   color: freshnessColor(item.freshnessStatus),
                 )
               else

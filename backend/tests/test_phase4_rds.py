@@ -3,7 +3,7 @@
 These tests require no live database. They validate the parts of the Phase 4
 deliverable that are statically verifiable:
 
-- The Alembic migration chain is linear and its HEAD is "0025".
+- The Alembic migration chain is linear and its HEAD is "0026".
 - PostGIS is enabled by a migration (CREATE EXTENSION postgis).
 - PostGIS Geography columns exist in the migration chain.
 - The Phase 4 verifier (scripts/verify_rds.py) encodes the same approved
@@ -38,17 +38,17 @@ def _migration_tables():
 def _verifier_tables():
     src = _source(VERIFIER)
     # Extract the string literals inside EXPECTED_TABLES = { ... } block.
-    block = re.search(r"EXPECTED_TABLES.*?=\s*\{(.*?)\n\}", src, re.S)
+    block = re.search(r"EXPECTED_TABLES.*?=\s*\{(.*?)\n\}", src, re.DOTALL)
     assert block, "EXPECTED_TABLES set not found in verify_rds.py"
     return set(re.findall(r'"([\w_]+)"', block.group(1)))
 
 
-def test_migration_chain_is_linear_and_head_is_0025():
+def test_migration_chain_is_linear_and_head_is_0026():
     revisions = {}
     for f in _migration_files():
         src = _source(f)
-        m = re.search(r"^revision:.*?= [\"']([^\"']+)[\"']", src, re.M)
-        d = re.search(r"^down_revision:.*?=\s*([\"']([^\"']+)[\"']|None)", src, re.M)
+        m = re.search(r"^revision:.*?= [\"']([^\"']+)[\"']", src, re.MULTILINE)
+        d = re.search(r"^down_revision:.*?=\s*([\"']([^\"']+)[\"']|None)", src, re.MULTILINE)
         assert m, f"No revision id in {f.name}"
         rev = m.group(1)
         down = None if d is None or d.group(1) == "None" else d.group(2)
@@ -66,7 +66,7 @@ def test_migration_chain_is_linear_and_head_is_0025():
         if nxt is None:
             break
         current = nxt
-    assert current == "0025", f"migration HEAD should be 0025, got {current}"
+    assert current == "0026", f"migration HEAD should be 0026, got {current}"
     assert sorted(revisions) == sorted(seen), "chain is not linear (branch/merge)"
 
 

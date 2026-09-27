@@ -1,7 +1,7 @@
 """Inventory and Pricing Engine service — business logic for inventory, price history, offers, and freshness."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session, selectinload
 
@@ -153,7 +153,7 @@ def _enqueue_search_index_update(shop_product_id: int) -> None:
     )
 
 
-def create_inventory(db: Session, data: dict) -> Inventory:
+def create_inventory(db: Session, data: dict[str, Any]) -> Inventory:
     """Create a new inventory record for a shop product."""
     shop_product = db.query(ShopProduct).filter(ShopProduct.id == data["shop_product_id"]).first()
     if shop_product is None:
@@ -214,7 +214,7 @@ def create_inventory(db: Session, data: dict) -> Inventory:
     return inv
 
 
-def update_inventory(db: Session, inventory_id: int, data: dict) -> Optional[Inventory]:
+def update_inventory(db: Session, inventory_id: int, data: dict[str, Any]) -> Optional[Inventory]:
     """Update inventory quantity and related fields."""
     inv = db.query(Inventory).filter(Inventory.id == inventory_id).first()
     if inv is None:

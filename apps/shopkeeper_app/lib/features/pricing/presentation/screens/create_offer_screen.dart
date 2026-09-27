@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/ui/capability_gate.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../offers/domain/offer_models.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../shell/capabilities_controller.dart';
 
 /// Create Offer — the full-screen offer builder: title, type, discount,
 /// validity window and the shop products the offer applies to, submitted as
@@ -141,167 +143,183 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
     final assignError = assign.status == OfferAssignStatus.error
         ? assign.message
         : null;
+    // Capability-gated (spec 103) — see the `CapabilityGate` below.
+    final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Create offer')),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                key: const Key('offer-title-field'),
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Offer title',
-                  hintText: 'e.g. Monsoon Sale',
+      // Capability-gated (spec 103): the backend `canCreateOffers` flag decides
+      // whether the builder renders at all. Read from the ONE centralized
+      // layer — no plan logic here. The backend stays authoritative
+      // (`assign_offer` still enforces the `offers` entitlement server-side).
+      body: CapabilityGate(
+        allowed: caps.canCreateOffers,
+        title: 'Offers not available on your plan',
+        message:
+            'Upgrade your plan to create discount offers. Your current plan '
+            'does not include offers.',
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  key: const Key('offer-title-field'),
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Offer title',
+                    hintText: 'e.g. Monsoon Sale',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<ShopkeeperOfferType>(
-                key: const Key('offer-type-dropdown'),
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Offer type'),
-                items: [
-                  for (final t in ShopkeeperOfferType.values)
-                    DropdownMenuItem(value: t, child: Text(t.label)),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<ShopkeeperOfferType>(
+                  key: const Key('offer-type-dropdown'),
+                  initialValue: _type,
+                  decoration: const InputDecoration(labelText: 'Offer type'),
+                  items: [
+                    for (final t in ShopkeeperOfferType.values)
+                      DropdownMenuItem(value: t, child: Text(t.label)),
+                  ],
+                  onChanged: (v) => setState(() {
+                    _type = v ?? ShopkeeperOfferType.percentageDiscount;
+                    _discountController.clear();
+                  }),
+                ),
+                if (_needsDiscount) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const Key('offer-discount-field'),
+                    controller: _discountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: NumericInput.decimal(),
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: _type.requiresPercentage
+                          ? 'Discount percentage (%)'
+                          : 'Discount amount (₹)',
+                    ),
+                  ),
                 ],
-                onChanged: (v) => setState(() {
-                  _type = v ?? ShopkeeperOfferType.percentageDiscount;
-                  _discountController.clear();
-                }),
-              ),
-              if (_needsDiscount) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DateField(
+                        key: const Key('offer-start-date'),
+                        label: 'Start date',
+                        value: _start,
+                        onTap: () => _pickDate(isStart: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DateField(
+                        key: const Key('offer-end-date'),
+                        label: 'End date',
+                        value: _end,
+                        onTap: () => _pickDate(isStart: false),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  key: const Key('offer-discount-field'),
-                  controller: _discountController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: NumericInput.decimal(),
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: _type.requiresPercentage
-                        ? 'Discount percentage (%)'
-                        : 'Discount amount (₹)',
+                  key: const Key('offer-terms-field'),
+                  controller: _termsController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Terms & conditions (optional)',
                   ),
                 ),
+                const SizedBox(height: 16),
+                Text(
+                  'Apply to products',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _selectedProductIds.isEmpty
+                      ? 'Nothing selected'
+                      : '${_selectedProductIds.length} product(s) selected',
+                  key: const Key('offer-selection-count'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _ProductChecklist(
+                  status: products.status,
+                  message: products.message,
+                  items: products.items,
+                  selectedIds: _selectedProductIds,
+                  onRetry: () =>
+                      ref.read(productsControllerProvider.notifier).load(),
+                  onToggle: (id) => setState(() {
+                    if (!_selectedProductIds.add(id)) {
+                      _selectedProductIds.remove(id);
+                    }
+                  }),
+                ),
+                const SizedBox(height: 16),
+                if (_fieldError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      _fieldError!,
+                      key: const Key('offer-field-error'),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                if (assignError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      assignError,
+                      key: const Key('offer-submit-error'),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _DateField(
-                      key: const Key('offer-start-date'),
-                      label: 'Start date',
-                      value: _start,
-                      onTap: () => _pickDate(isStart: true),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DateField(
-                      key: const Key('offer-end-date'),
-                      label: 'End date',
-                      value: _end,
-                      onTap: () => _pickDate(isStart: false),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('offer-terms-field'),
-                controller: _termsController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Terms & conditions (optional)',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Apply to products',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _selectedProductIds.isEmpty
-                    ? 'Nothing selected'
-                    : '${_selectedProductIds.length} product(s) selected',
-                key: const Key('offer-selection-count'),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _ProductChecklist(
-                status: products.status,
-                message: products.message,
-                items: products.items,
-                selectedIds: _selectedProductIds,
-                onRetry: () =>
-                    ref.read(productsControllerProvider.notifier).load(),
-                onToggle: (id) => setState(() {
-                  if (!_selectedProductIds.add(id)) {
-                    _selectedProductIds.remove(id);
-                  }
-                }),
-              ),
-              const SizedBox(height: 16),
-              if (_fieldError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    _fieldError!,
-                    key: const Key('offer-field-error'),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              if (assignError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    assignError,
-                    key: const Key('offer-submit-error'),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-      // The primary action lives OUTSIDE the scroll view so it stays reachable
-      // no matter how long the product catalogue grows.
-      bottomNavigationBar: Material(
-        elevation: 8,
-        color: Theme.of(context).colorScheme.surface,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: FilledButton(
-              key: const Key('offer-submit'),
-              onPressed: saving ? null : _submit,
-              child: saving
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Create offer'),
             ),
           ),
         ),
       ),
+      // The primary action lives OUTSIDE the scroll view so it stays reachable
+      // no matter how long the product catalogue grows. It disappears with the
+      // gate above, so a locked plan shows the upgrade copy and no action.
+      bottomNavigationBar: caps.canCreateOffers
+          ? Material(
+              elevation: 8,
+              color: Theme.of(context).colorScheme.surface,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton(
+                    key: const Key('offer-submit'),
+                    onPressed: saving ? null : _submit,
+                    child: saving
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Create offer'),
+                  ),
+                ),
+              ),
+            )
+          : null,
     );
   }
 }
