@@ -1,55 +1,30 @@
+/// The Dio-backed implementation of [SupportRepository].
+///
+/// The CONTRACT (interface, enums, user-facing copy) lives in
+/// `../domain/support_repository.dart`; only the HTTP wiring is here. That split
+/// is what lets a view depend on the support vocabulary without importing a data
+/// layer, and lets a unit test construct a fake without pulling in Dio.
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
-import '../../../core/network/api_error_handler.dart' show ApiErrorType, ApiException;
+import '../../../core/network/api_error_handler.dart'
+    show ApiErrorType, ApiException;
+import '../domain/support_repository.dart';
 
-/// Issue categories the customer can choose when filing a support ticket.
-enum SupportIssueCategory {
-  wrongInformation('Wrong product/shop information'),
-  availabilityMismatch('Availability mismatch'),
-  appBug('App bug or crash'),
-  dataPrivacy('Data / privacy concern'),
-  accountIssue('Account issue'),
-  other('Other');
-
-  const SupportIssueCategory(this.label);
-  final String label;
-}
-
-/// Result of a support-ticket submission.
-///
-/// Modelled as a type rather than a bare `bool` so "we could not reach the
-/// server" and "the server rejected this" are distinguishable, and so a
-/// caller cannot accidentally treat a failure as success.
-enum SupportSubmitResult {
-  /// The server accepted the ticket.
-  success,
-
-  /// The request never reached the server (offline, DNS, timeout).
-  networkFailure,
-
-  /// The server received it but refused (validation, 4xx/5xx).
-  rejected,
-}
+export '../domain/support_repository.dart'
+    show
+        SupportIssueCategory,
+        SupportRepository,
+        SupportSubmitResult,
+        SupportSubmitResultCopy;
 
 /// Provider — wired to the real backend.
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   return ApiSupportRepository(ref.watch(apiClientProvider));
 });
-
-/// Abstract contract — lets tests inject a mock easily.
-abstract class SupportRepository {
-  /// Attempts to submit a support issue.
-  ///
-  /// Never throws: every outcome is reported as a [SupportSubmitResult] so
-  /// the UI is forced to handle the failure cases explicitly.
-  Future<SupportSubmitResult> submitIssue({
-    required SupportIssueCategory category,
-    required String description,
-    String? contactEmail,
-  });
-}
 
 class ApiSupportRepository implements SupportRepository {
   final ApiClient _api;

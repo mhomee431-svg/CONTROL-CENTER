@@ -6,20 +6,22 @@ import 'package:hyperlocal_app/core/view/view_boundary.dart';
 /// Files that currently break the View rule, with the reason each is allowed for
 /// now. This is a BASELINE, not a permission: an entry must be removed as each
 /// view is migrated, and the test below fails if a file that is NOT listed
-/// starts importing `data/`.
+/// starts importing `data/`, or if a listed file STOPS violating — so the
+/// baseline cannot quietly rot.
+///
+/// Already fixed (removed from this list, kept here as a record):
+///   login_screen.dart, register_screen.dart — imported `data/phone_utils.dart`.
+///     Phone normalisation is a pure function, so it moved to
+///     `auth/domain/phone_utils.dart` with no logic change.
+///   help_support_screen.dart — called `supportRepository.submitIssue` from the
+///     view and tracked `_isSubmitting`/`_error`/`_submitted` as three
+///     `setState` fields. A `SupportFormViewModel` now owns a `MutationState`.
 const Map<String, String> _knownViolations = {
-  'login_screen.dart':
-      'Phone normalisation is a pure function, not data access. Move to '
-      'domain/ as part of the auth ViewModel migration.',
-  'register_screen.dart': 'Same as login_screen.dart.',
   'delete_account_screen.dart':
       'Calls phoneAuthService directly. Needs an account-deletion ViewModel.',
   'barcode_scan_screen.dart':
       'Reads permission status directly. Needs a barcode ViewModel.',
   'barcode_camera_gate.dart': 'Same as barcode_scan_screen.dart.',
-  'help_support_screen.dart':
-      'Calls supportRepository.submitIssue from the view. This is the clearest '
-      'ViewModel violation: mutation state lives in the widget as setState.',
 };
 
 void main() {

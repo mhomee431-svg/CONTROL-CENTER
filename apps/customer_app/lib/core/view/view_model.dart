@@ -28,19 +28,14 @@ import 'load_state.dart';
 /// seeing a second skeleton for content they were just reading. Use
 /// [autoDispose] only for a screen that is genuinely single-use.
 abstract class ViewModel<S> extends HotNotifier<S> {
-  @override
-  S build() {
-    keepHot(ref);
-    return initialState();
-  }
-
   /// The state before anything is loaded.
   ///
   /// Defaults to the idle case, which is the honest starting point: the
   /// ViewModel has not asked for anything yet. A subclass that genuinely cannot
   /// render without data overrides this.
+  @override
   @protected
-  S initialState();
+  S buildOnce();
 
   /// Convenience for subclasses: run [command] as a load, publishing
   /// [LoadState] transitions without repeating try/catch.

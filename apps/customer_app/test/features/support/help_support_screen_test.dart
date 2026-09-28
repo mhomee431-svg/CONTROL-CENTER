@@ -23,10 +23,7 @@ class _FakeSupportRepository implements SupportRepository {
   }
 }
 
-Future<void> _pump(
-  WidgetTester tester,
-  SupportSubmitResult result,
-) async {
+Future<void> _pump(WidgetTester tester, SupportSubmitResult result) async {
   tester.view.physicalSize = const Size(1080, 2600);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -34,7 +31,9 @@ Future<void> _pump(
 
   final container = ProviderContainer(
     overrides: [
-      supportRepositoryProvider.overrideWithValue(_FakeSupportRepository(result)),
+      supportRepositoryProvider.overrideWithValue(
+        _FakeSupportRepository(result),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -91,7 +90,7 @@ void main() {
     await _fillAndSubmit(tester);
 
     expect(find.text('Report Submitted!'), findsNothing);
-    expect(find.textContaining('could not accept this report'), findsOneWidget);
+    expect(find.textContaining('could not accept that report'), findsOneWidget);
   });
 
   testWidgets('a failed submission keeps what the customer wrote', (

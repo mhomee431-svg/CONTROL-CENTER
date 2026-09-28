@@ -1,5 +1,9 @@
 /// Indian phone-number utilities.
 ///
+/// LIVES IN domain/ NOT data/: this is a pure string function with no IO and
+/// no backend knowledge, so it is domain logic. Keeping it under data/ forced
+/// login/register views to import a data layer, which the View rule forbids.
+///
 /// The app is India-only, so users should never have to type `+91` — a bare
 /// 10-digit number is normalized to the E.164 form `+91XXXXXXXXXX` that
 /// Firebase Phone Auth and the backend both expect.

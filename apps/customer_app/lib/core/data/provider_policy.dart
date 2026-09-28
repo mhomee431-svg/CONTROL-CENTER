@@ -20,34 +20,20 @@
 /// accident of which widget happened to watch what.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// `KeepAliveLink` is what `ref.keepAlive()` returns, but the `flutter_riverpod`
+// barrel does not re-export it.
+import 'package:flutter_riverpod/misc.dart' show KeepAliveLink;
 
 /// Central place to record what "hot" means for this app.
 abstract final class ProviderPolicy {
-  /// How long a hot provider's value survives with NO listeners before it is
-  /// released.
+  /// A hot provider is released by the framework, not by a clock.
   ///
-  /// A timed window rather than permanent is deliberate:
-  ///
-  ///  * Back navigation (seconds) is the common case, and the window covers it
-  ///    with no perceptible delay — the customer never sees a second skeleton.
-  ///  * A customer who has genuinely walked away from a feature for minutes gets
-  ///    their memory back.
-  ///  * A permanent keepAlive would grow for the whole session, and would have
-  ///    to be invalidated on sign-out anyway.
-  static const Duration hotIdle = Duration(minutes: 5);
-
-  /// Providers that MUST be released on sign-out, because they can hold
-  /// customer data.
-  ///
-  /// Anything in here is force-disposed when the session ends. This is the
-  /// privacy half of the policy, and it is why "just make everything hot" is
-  /// not the answer: a cart that survives a sign-out shows the next customer
-  /// somebody else's basket.
-  static const Set<Object> sessionScoped = {};
+  /// Kept as a named constant so call sites and docs refer to one idea, and so
+  /// the lifetime decision has a single place to change if that ever needs to
+  /// become tunable. See [keepHot] for why there is deliberately no interval.
+  static const bool hotProvidersSurviveNavigation = true;
 }
 
 /// Keeps the provider that owns [ref] alive for [idle] after its last listener
@@ -77,22 +63,64 @@ abstract final class ProviderPolicy {
 /// firing long after the customer moved on — wasted work, and in tests an
 /// "timer still pending" failure. Cancelling on re-listen means at most one
 /// timer exists per provider, and only while nobody is listening.
-final Map<Object, Timer> _hotTimers = {};
+final Map<Object, KeepAliveLink> _hotLinks = {};
 
-/// How many hot providers are currently holding a timer. For tests.
+/// How many hot providers are currently holding a keep-alive link. For tests.
 @visibleForTesting
-int get hotProviderCount => _hotTimers.length;
+int get hotProviderCount => _hotLinks.length;
 
-/// Marks the provider owning [ref] as HOT: it survives losing its last listener
-/// for [idle], so navigating back does not refetch what the customer just saw.
-void keepHot(Ref ref, [Duration idle = ProviderPolicy.hotIdle]) {
-  // The provider element is the identity of "which provider is this".
-  _hotTimers.remove(ref)?.cancel();
-  _hotTimers[ref] = Timer(idle, () {
-    // Reached only if nobody came back. Removing the entry is the whole job:
-    // once no listener has returned, Riverpod disposes the provider on its own.
-    _hotTimers.remove(ref);
-  });
+/// Marks the provider owning [ref] as HOT: it survives losing its last listener,
+/// so navigating back does not refetch what the customer just saw.
+///
+/// One line inside `build()`:
+///
+/// ```dart
+/// @override
+/// ProductDetailsState buildOnce(String id) {
+///   keepHot(ref);
+///   return const ProductDetailsState();
+/// }
+/// ```
+///
+/// ## Why this uses Riverpod's own link and NOT a Timer
+///
+/// The obvious implementation is "set a Timer, and when it fires stop caring".
+/// That is wrong in a way that only shows up later: an active `Timer` is a
+/// PENDING TIMER, and `flutter_test` asserts that no timers are outstanding at
+/// the end of every widget test. So one `keepHot` call anywhere in the widget
+/// tree made every widget test touching a hot provider fail with
+/// `!timersPending`. A design choice that breaks the whole test suite is not a
+/// design choice, it is a bug.
+///
+/// `ref.keepAlive()` is the mechanism Riverpod actually provides. It holds the
+/// provider with no timer, so there is nothing pending to assert on, and
+/// disposal is driven by the framework rather than by wall-clock time.
+///
+/// ## Why there is no timed window
+///
+/// A "release after N idle minutes" timer was considered and dropped. Beyond the
+/// test breakage, it makes a provider's lifetime depend on a clock rather than
+/// on a rule — which is exactly the invisible coupling that produces "why is my
+/// state gone?" bugs. Use `keepHot` for session-lifetime state and
+/// `autoDispose` for a screen's short-lived request.
+///
+/// ## The privacy trade-off
+///
+/// A hot provider is NOT released on sign-out. That is deliberate, and it is why
+/// hot providers must not hold customer data: a cart that survives a sign-out
+/// shows the next customer somebody else's basket. Anything personal belongs in
+/// an `autoDispose` provider, or must be cleared by the sign-out path via
+/// [releaseHot].
+void keepHot(Ref ref) {
+  // Re-listening would otherwise stack one link per rebuild.
+  _hotLinks.remove(ref)?.close();
+  _hotLinks[ref] = ref.keepAlive();
+}
+
+/// Releases a provider previously marked [keepHot]. Call from the sign-out path
+/// for any provider that does hold customer data.
+void releaseHot(Ref ref) {
+  _hotLinks.remove(ref)?.close();
 }
 
 /// A `Notifier` that is hot by default.

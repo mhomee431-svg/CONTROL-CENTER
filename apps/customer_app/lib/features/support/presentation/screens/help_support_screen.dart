@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../data/support_repository.dart';
+import '../../application/support_form_view_model.dart';
 
 /// Help & Support screen — covers Master Prompt §58:
 ///   - FAQ (expandable tiles)
@@ -352,14 +352,6 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   final _descController = TextEditingController();
   final _emailController = TextEditingController();
 
-  SupportIssueCategory _selectedCategory = SupportIssueCategory.other;
-  bool _isSubmitting = false;
-  bool _submitted = false;
-
-  /// Non-null when the last submission failed. The customer keeps their text
-  /// so a network blip does not cost them the report they just wrote.
-  String? _error;
-
   @override
   void dispose() {
     _descController.dispose();
@@ -368,46 +360,23 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   }
 
   Future<void> _submit() async {
+    // Form validation is a VIEW concern: it needs the FormState to know which
+    // field is invalid, so it stays here rather than in the ViewModel.
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() {
-      _isSubmitting = true;
-      _error = null;
-    });
-
-    final result = await ref
-        .read(supportRepositoryProvider)
-        .submitIssue(
-          category: _selectedCategory,
-          description: _descController.text.trim(),
-          contactEmail: _emailController.text.trim(),
+    await ref
+        .read(supportFormViewModelProvider.notifier)
+        .submit(
+          description: _descController.text,
+          contactEmail: _emailController.text,
         );
-
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    switch (result) {
-      case SupportSubmitResult.success:
-        // Only a real acknowledgement from the server earns the success view.
-        setState(() => _submitted = true);
-      case SupportSubmitResult.networkFailure:
-        setState(
-          () => _error =
-              'We could not reach our servers. Check your connection and try '
-              'again — or email us using the Contact tab.',
-        );
-      case SupportSubmitResult.rejected:
-        setState(
-          () => _error =
-              'Our servers could not accept this report. Please try again, or '
-              'email us using the Contact tab.',
-        );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_submitted) return const _SuccessView();
+    final form = ref.watch(supportFormViewModelProvider);
+
+    if (form.isSubmitted) return const _SuccessView();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -435,7 +404,7 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<SupportIssueCategory>(
               key: const Key('issueCategoryDropdown'),
-              initialValue: _selectedCategory,
+              initialValue: form.category,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(
@@ -447,7 +416,10 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
                   .map((c) => DropdownMenuItem(value: c, child: Text(c.label)))
                   .toList(),
               onChanged: (v) {
-                if (v != null) setState(() => _selectedCategory = v);
+                if (v == null) return;
+                ref
+                    .read(supportFormViewModelProvider.notifier)
+                    .selectCategory(v);
               },
             ),
             const SizedBox(height: AppSpacing.md),
@@ -505,7 +477,7 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
 
             // A failed submission must be visible and must NOT look like a
             // success. The report text is deliberately preserved above.
-            if (_error != null) ...[
+            if (form.errorMessage != null) ...[
               const SizedBox(height: AppSpacing.md),
               Container(
                 key: const Key('issueSubmitError'),
@@ -525,7 +497,7 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        _error!,
+                        form.errorMessage!,
                         style: const TextStyle(
                           fontSize: 13,
                           height: 1.4,
@@ -540,15 +512,20 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
 
             ElevatedButton.icon(
               key: const Key('submitIssueButton'),
-              onPressed: _isSubmitting ? null : _submit,
-              icon: _isSubmitting
+              // Disabled while in flight, so a double tap cannot file two
+              // tickets. The ViewModel also guards this; the disabled button is
+              // what the customer SEES.
+              onPressed: form.isSubmitting ? null : _submit,
+              icon: form.isSubmitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_outlined),
-              label: Text(_isSubmitting ? 'Submitting...' : 'Submit Report'),
+              label: Text(
+                form.isSubmitting ? 'Submitting...' : 'Submit Report',
+              ),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),

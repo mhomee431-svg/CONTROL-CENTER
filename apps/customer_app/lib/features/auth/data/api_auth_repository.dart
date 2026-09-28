@@ -5,7 +5,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_handler.dart';
 import 'phone_auth_service.dart';
-import 'phone_utils.dart';
+import '../domain/phone_utils.dart';
 import 'google_auth_service.dart';
 import '../domain/auth_repository.dart';
 

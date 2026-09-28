@@ -1,3 +1,71 @@
+# Repository rule
+
+**Repositories own:** cached application data, API data, retry, refresh, mapping,
+data-source coordination.
+
+**Create only where justified.** A repository that wraps a single `getX()` with
+no cache, no retry and no mapping is a pass-through class that adds a layer
+without adding a reason. This codebase has 13 repositories, and the ones that
+earn their place all do at least two of the jobs above.
+
+## Interface in `domain/`, implementation in `data/`
+
+The single most common layering mistake found in the audit was a **contract
+living in `data/` next to its implementation**. `SupportRepository` was declared
+inside `support_repository.dart` alongside the Dio class, which meant:
+
+1. A view that only needed to name a `SupportIssueCategory` had to import
+   `data/`, because that is where the enum was — a View-rule violation caused
+   purely by file placement.
+2. The contract could not be depended on without dragging in `ApiClient`,
+   `ApiEndpoints` and Dio, so a plain unit test pulled in the whole HTTP stack.
+
+Now: `domain/` holds the interface, the enums, and the user-facing copy;
+`data/` holds only the Dio wiring and re-exports the vocabulary for convenience.
+`domain` stays free of IO.
+
+Same treatment applied to `phone_utils.dart`, which was a pure string function
+sitting in `auth/data/` and forcing `login_screen` and `register_screen` to
+import a data layer. It moved to `auth/domain/` with **no logic change**.
+
+## Service rule
+
+**Services wrap external systems:** Firebase Auth, Firebase Messaging, REST API,
+location plugin, maps plugin, local file/device APIs.
+
+**Services must not become giant business-logic containers.**
+
+The line between a service and a repository is *what it talks to*, not *how much
+code it has*:
+
+| | Service | Repository |
+| --- | --- | --- |
+| Talks to | Firebase, Dio, geolocator, maps, secure storage | other repositories / a data source |
+| Knows about | the plugin or transport | caching, retry, staleness, mapping |
+
+A service that decides *which product to show* is a business-logic container
+wearing a service's name. `local_cache_service.dart` is the right shape: it
+wraps SharedPreferences and knows nothing about products. `fcm_notification_service`
+wraps Firebase Messaging; the decision of *which* notification a customer gets
+belongs above it.
+
+## The three rules together
+
+```
+View          layout, display decisions, animation, routing
+   ↓ watches
+ViewModel     UI state, commands, loading/error/filter/search/pagination/mutation
+   ↓ reads
+Repository    cache, retry, refresh, mapping, data-source coordination
+   ↓ uses
+Service       one wrapper per external system
+```
+
+Each arrow points one way. A View never imports `data/`, a ViewModel never
+imports `material.dart`, and a Service never decides product behaviour. The
+guard test in `test/core/view/view_rule_guard_test.dart` enforces the first two
+mechanically.
+
 # The two rules this codebase is built on
 
 These are the contract. Everything else in this document exists to satisfy them,
