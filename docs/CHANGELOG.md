@@ -33,6 +33,41 @@
 - terraform staging preset domains aligned with the apps' staging default
   (`staging-api.hyperlocal.in`)
 
+### Build & release (repo could not produce a binary at all)
+- AUDIT found the repository shipping **literal merge-conflict markers in six
+  tracked files**. Analyzer and unit tests were green throughout, so nothing in
+  CI caught this — the breakage was only visible by actually building.
+  - `shopkeeper_app/android/app/build.gradle.kts` — markers made the Gradle
+    script unparseable; the app **could not produce an APK at all**.
+  - `backend/tests/test_customer_support.py` — began with a stray `a` before
+    its module docstring, so the whole module failed to import (SyntaxError).
+  - `backend/tests/{test_orders_api,test_phase4_rds,test_phase26_migration_automation}.py`
+    and `backend/scripts/verify_rds.py` — markers, plus revision ids hardcoded
+    to `"0026"`/`"0027"`. The derived-head assertions replace the hardcoding,
+    so a new migration no longer breaks them.
+  - `docs/architecture/CLOUD_OWNERSHIP.md` — an *entire-file* conflict. Both
+    audits are preserved rather than one being dropped: the narrative document
+    stays, the capability-matrix view is kept alongside as
+    `CLOUD_OWNERSHIP_MATRIX.md`, and the two cross-link.
+  - `backend/tests/test_orders_api.py` also carried a **duplicate** autouse
+    fixture: the newer `_pin_orders_overrides` supersedes the older
+    `_install_orders_overrides`, so only the newer one is kept.
+- `customer_app` could not build for three independent reasons, fixed in
+  order: `compileSdk` was on `flutter.compileSdkVersion` (36) while
+  `permission_handler_android` 14.x requires 37; AGP 9.1.0 caps at 36, so AGP
+  moved to 9.2.1; and AGP 9.2.1 then required Gradle ≥ 9.4.1 while the wrapper
+  still pinned 9.3.1. All three now match the working `shopkeeper_app`
+  configuration.
+- `customer_app/MainActivity.kt` called `CredentialManager.getCredential()` as
+  if it returned a `Task` and chained `addOnSuccessListener` onto it. Since
+  `androidx.credentials` 1.3.0 that method is **suspend**, so
+  `:app:compileDebugKotlin` failed with five errors. It now runs on a
+  main-dispatcher coroutine, mirroring `shopkeeper_app`'s MainActivity.
+- Verified end to end: `flutter analyze` clean on all three apps, **748 + 929 +
+  1 tests pass**, `python -m compileall app tests scripts` exits 0, and real
+  builds succeed — `customer_app/app-debug.apk`, `shopkeeper_app/app-debug.apk`
+  and the `admin_panel` web bundle.
+
 ### Customer app
 - AUDIT SWEEP (line-by-line, whole `lib/` + `test/`): 47 analyzer issues → 0
   and **one hard compile error fixed**. Verified: `flutter analyze` reports
