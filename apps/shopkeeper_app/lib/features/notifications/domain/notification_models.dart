@@ -483,8 +483,16 @@ String? _routeTargetForType(ShopkeeperNotification notification) {
     case 'PRODUCT':
       return Routes.products;
     case 'IMPORT':
-      // Import results — including failures — are reviewed in Import history.
-      return Routes.importHistory;
+      // Import results — including failures — belong in the job's OWN result
+      // view, not in a list the shopkeeper has to re-scan. The backend already
+      // ships `job_id` in the payload and an `imports/{job_id}` deep link, so
+      // when that id validates we open the exact job. `payloadInt` rejects
+      // anything that is not a positive whole number, so a malformed payload
+      // cannot send anyone to a fabricated import; with no usable id the honest
+      // destination is the history list.
+      return notification.payloadInt('job_id') != null
+          ? Routes.importResult
+          : Routes.importHistory;
     case 'OFFER' || 'SHOP_OFFER':
       return Routes.offers;
     case 'POS_SYNC':

@@ -418,3 +418,43 @@
     `@pytest.mark.parametrize` decorator referenced `self.CUSTOMER_CODES`, and
     `self` is not bound while a class body is evaluated. The codes are now a
     module-level `frozenset` (the class name is not bound there either).
+### Screen reusability & deep linking
+- **Screen reusability — the import status vocabulary is now ONE component.**
+  Two surfaces each owned a private status→(icon, colour) mapping, and they had
+  already drifted: the history row drew a **green tick** for the legacy
+  `VALIDATED` status while the chip beside it read "Validating" in amber,
+  because `ImportJobStatusValue.label` treats that status as still-validating.
+  `ImportStatusView` + `importStatusTone()` (in the existing import `widgets/`
+  folder) now own the icon and colour for every state, and both
+  `import_processing_screen` and `import_history_screen` read from it — so one
+  component covers Processing / Queued / Success / Partial / Failed and a row
+  can no longer contradict its own label. The COPY stays with each surface (a
+  history row wants the short label, the result screen wants the full
+  sentence); only the visuals are shared.
+  - The confirm result now derives its status **once** and uses it for the
+    headline, the icon AND the report-sheet header, so those three can no
+    longer describe different outcomes. Zero rows applied is treated as a
+    FAILURE even when the payload also reports zero failures — nothing was
+    imported, and "Completed" would be a lie.
+  - An unrecognised future backend status degrades to a neutral icon instead of
+    throwing, matching how the label helper already degrades.
+- **Deep linking — a notification can now open the exact import job.**
+  The backend already sent everything needed: `deep_link:
+  hyperlocal://shopkeeper/imports/{job_id}` plus a `job_id` payload. The app
+  ignored it and sent the shopkeeper to the whole history list — the existing
+  tests even said "Import Failed → Import Result" while asserting
+  `Routes.importHistory`, i.e. the intent was documented and the implementation
+  lagged it.
+  - New `Routes.importResult` + `ImportResultScreen`, which renders the job
+    through the SAME `ImportStatusView` as the post-confirm result, so a job
+    reached from a notification looks exactly like the one watched finishing.
+  - The job is **fetched, never taken from the notification** — a push payload
+    can be stale, forged, or name a job that no longer exists.
+  - `ShopkeeperNotification.payloadInt` (a validated positive-int accessor that
+    existed with **no caller**) is now the gate. A payload that cannot name a
+    real job — missing, zero, negative, a string, a fractional number — falls
+    back to Import history rather than requesting a fabricated id. The router
+    re-validates the `extra` and falls back too, so no path can construct
+    "job 0".
+  - A deleted job / expired session / offline device renders an explained state
+    with a way out, not a blank screen; Retry re-issues the request.

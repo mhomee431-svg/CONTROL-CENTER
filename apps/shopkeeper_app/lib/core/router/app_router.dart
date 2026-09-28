@@ -54,6 +54,7 @@ import '../../features/inventory_import/presentation/screens/import_center_scree
 import '../../features/inventory_import/presentation/screens/import_history_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_preview_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_processing_screen.dart';
+import '../../features/inventory_import/presentation/screens/import_result_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_upload_screen.dart';
 import '../../features/inventory/domain/inventory_scope.dart';
 import '../../features/inventory/presentation/screens/inventory_dashboard_screen.dart';
@@ -304,6 +305,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute(Routes.importPreview, (_, _) => const ImportPreviewScreen()),
       buildRoute(Routes.importProcessing, (_, _) => const ImportProcessingScreen()),
       buildRoute(Routes.importHistory, (_, _) => const ImportHistoryScreen()),
+      // Deep-linked import outcome. The job id arrives through `extra` and is
+      // validated BEFORE the screen is built: a push payload is untrusted
+      // input, and an absent / non-positive / wrongly-typed id must not become
+      // a request for "job 0". Falling back to Import history keeps the tap
+      // useful instead of crashing on a null cast.
+      GoRoute(
+        path: Routes.importResult,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final jobId = state.extra;
+          if (jobId is! int || jobId <= 0) {
+            return const ImportHistoryScreen();
+          }
+          return ImportResultScreen(jobId: jobId);
+        },
+      ),
       buildRoute(Routes.offers, (_, _) => const OffersScreen()),
       buildRoute(Routes.pos, (_, _) => const PosScreen()),
       buildRoute(

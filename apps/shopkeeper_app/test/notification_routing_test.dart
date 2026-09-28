@@ -31,16 +31,18 @@ void main() {
       expect(notificationRouteTarget(n), Routes.lowStock);
     });
 
-    test('Import Failed → Import Result (Routes.importHistory)', () {
-      // The backend sends IMPORT type with a status payload for both
-      // completed and failed imports — the result screen is Import history.
+    test('Import Failed → Import Result (Routes.importResult)', () {
+      // The backend sends IMPORT type with a `job_id` payload for both
+      // completed and failed imports. A failed import is the case that matters
+      // most: the shopkeeper must land on THAT job's outcome, not on a list
+      // they have to re-scan to find it.
       final n = _notification(
         type: 'IMPORT',
         title: 'Import failed',
         deepLink: 'hyperlocal://shopkeeper/imports/42',
         payload: {'job_id': 42, 'status': 'FAILED', 'failed_rows': 3},
       );
-      expect(notificationRouteTarget(n), Routes.importHistory);
+      expect(notificationRouteTarget(n), Routes.importResult);
     });
 
     test('Import completed (success) also → Import Result', () {
@@ -49,7 +51,45 @@ void main() {
         title: 'Import completed',
         payload: {'job_id': 99, 'status': 'COMPLETED', 'processed_rows': 50},
       );
-      expect(notificationRouteTarget(n), Routes.importHistory);
+      expect(notificationRouteTarget(n), Routes.importResult);
+    });
+
+    test('Import with NO usable job id falls back to Import history', () {
+      // A payload that cannot name a real job must never become a request for
+      // a fabricated one. History is the honest destination: it still shows
+      // every job, so the tap is useful rather than dead.
+      for (final payload in <Map<String, dynamic>?>[
+        null,
+        <String, dynamic>{},
+        <String, dynamic>{'job_id': null},
+        <String, dynamic>{'job_id': 0},
+        <String, dynamic>{'job_id': -7},
+        <String, dynamic>{'job_id': '42'}, // right digits, wrong type
+        <String, dynamic>{'job_id': 4.5}, // not a whole number
+      ]) {
+        final n = _notification(
+          type: 'IMPORT',
+          title: 'Import failed',
+          payload: payload,
+        );
+        expect(
+          notificationRouteTarget(n),
+          Routes.importHistory,
+          reason: 'payload $payload must not resolve to a fabricated job',
+        );
+      }
+    });
+
+    test('a whole-number job id sent as a double is accepted', () {
+      // JSON has one number type, so an id can arrive as 42.0. `payloadInt`
+      // rounds it deliberately rather than rejecting a real job over a
+      // transport detail.
+      final n = _notification(
+        type: 'IMPORT',
+        payload: {'job_id': 42.0},
+      );
+      expect(n.payloadInt('job_id'), 42);
+      expect(notificationRouteTarget(n), Routes.importResult);
     });
 
     test('Price Update → Product/Price (Routes.priceList)', () {

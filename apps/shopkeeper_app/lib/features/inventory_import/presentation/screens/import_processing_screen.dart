@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../controllers/import_controller.dart';
 import '../widgets/import_report_sheet.dart';
+import '../widgets/import_status_view.dart';
 import '../../data/import_repository.dart';
 import '../../domain/import_models.dart';
 
@@ -102,44 +103,46 @@ class _ResultView extends ConsumerWidget {
 
   final ImportConfirmResult result;
 
-  (IconData, Color, String, String, String) get _view {
-    if (result.queued) {
-      return (
-        Icons.schedule_outlined,
-        AppTheme.pendingAmber,
-        'Import queued',
-        '${result.processed} rows queued for background processing. '
-            'Check Import history for the outcome.',
-        'import-result-queued',
-      );
-    }
-    if (result.processed == 0) {
-      return (
-        Icons.error_outline,
-        AppTheme.rejectedRed,
-        'Import failed',
-        'No rows could be applied. Check Import history for details.',
-        'import-result-failed',
-      );
-    }
-    if (result.failed > 0) {
-      return (
-        Icons.warning_amber_outlined,
-        AppTheme.pendingAmber,
-        'Partially imported',
-        '${result.processed + result.failed} rows processed — '
-            '${result.processed} successful, ${result.failed} failed.',
-        'import-result-partial',
-      );
-    }
-    return (
-      Icons.check_circle_outline,
-      AppTheme.verifiedGreen,
-      'Import successful',
-      '${result.processed} rows processed — all successful.',
-      'import-result-success',
-    );
-  }
+  /// The status this confirm result represents, in the SHARED vocabulary.
+  ///
+  /// Derived once and used for both the copy and the visuals, so the headline
+  /// and the icon can never describe different outcomes. Zero rows applied is a
+  /// FAILURE even when the payload also reports zero failures — the rows were
+  /// not imported, and saying "Completed" would be a lie.
+  String get _status => result.queued
+      ? ImportJobStatusValue.queued
+      : result.processed == 0
+          ? ImportJobStatusValue.failed
+          : (result.failed > 0
+              ? ImportJobStatusValue.partial
+              : ImportJobStatusValue.completed);
+
+  /// Headline + one-line detail for [_status]. Copy only — the icon and colour
+  /// come from the shared [importStatusTone].
+  (String, String, String) get _copy => switch (_status) {
+        ImportJobStatusValue.queued => (
+            'Import queued',
+            '${result.processed} rows queued for background processing. '
+                'Check Import history for the outcome.',
+            'import-result-queued',
+          ),
+        ImportJobStatusValue.failed => (
+            'Import failed',
+            'No rows could be applied. Check Import history for details.',
+            'import-result-failed',
+          ),
+        ImportJobStatusValue.partial => (
+            'Partially imported',
+            '${result.processed + result.failed} rows processed — '
+                '${result.processed} successful, ${result.failed} failed.',
+            'import-result-partial',
+          ),
+        _ => (
+            'Import successful',
+            '${result.processed} rows processed — all successful.',
+            'import-result-success',
+          ),
+      };
 
   /// True when rows were applied, so a per-row report exists to open.
   bool get _showResults => !result.queued && result.processed > 0;
@@ -150,15 +153,12 @@ class _ResultView extends ConsumerWidget {
   /// Header stub for the report sheet — the confirm payload carries counts, not
   /// the workbook name, so the sheet is titled by job id instead of guessing.
   ImportJob get _reportJob {
-    final status = result.queued
-        ? ImportJobStatusValue.queued
-        : (result.failed > 0
-              ? ImportJobStatusValue.partial
-              : ImportJobStatusValue.completed);
     return ImportJob(
       id: result.jobId ?? 0,
       filename: 'Import #${result.jobId ?? '—'}',
-      status: status,
+      // The SAME status the headline and icon are drawn from, so the report
+      // sheet can never contradict the result the shopkeeper is looking at.
+      status: _status,
       totalRows: result.processed + result.failed,
       validRows: result.processed,
       errorRows: result.failed,
@@ -196,7 +196,7 @@ class _ResultView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (icon, color, title, detail, keyName) = _view;
+    final (title, detail, keyName) = _copy;
 
     return Center(
       child: Padding(
@@ -204,24 +204,13 @@ class _ResultView extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: color),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              key: Key(keyName),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              detail,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            // The SAME component the deep-linked Import result screen and the
+            // history list use for their status visuals.
+            ImportStatusView(
+              tone: importStatusTone(_status),
+              title: title,
+              message: detail,
+              titleKey: Key(keyName),
             ),
             const SizedBox(height: 24),
             // Partial failures are never hidden — the shopkeeper can open the

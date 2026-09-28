@@ -212,6 +212,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       context.push(target, extra: notification);
       return;
     }
+    if (target == Routes.importResult) {
+      // The id was already validated by `payloadInt` on the way to the target
+      // decision; pass the SAME validated value so the screen and the route
+      // agree, and a payload that changed shape between the two reads cannot
+      // send them to different jobs.
+      final jobId = notification.payloadInt('job_id');
+      if (jobId == null) {
+        // Unreachable via notificationRouteTarget, but a screen that can no
+        // longer be opened must not crash the tap.
+        context.go(Routes.importHistory);
+        return;
+      }
+      context.push(target, extra: jobId);
+      return;
+    }
     if (kNotificationTabTargets.contains(target)) {
       context.go(target);
     } else {

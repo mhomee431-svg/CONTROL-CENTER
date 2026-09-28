@@ -111,6 +111,12 @@ abstract final class Routes {
   static const importProcessing = '/import-processing';
   static const importHistory = '/import-history';
 
+  /// One import job's OUTCOME, deep-linkable from a notification.
+  ///
+  /// Takes the job id through extra (never the bare path), so it can fetch
+  /// the real job instead of trusting whatever the notification claimed.
+  static const importResult = '/import-result';
+
   // ── Misc shell destinations (no shop required) ──────────────────────────
   static String insightsDrillDown(String metric) => '$insights/drill-down/$metric';
 
