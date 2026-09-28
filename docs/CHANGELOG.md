@@ -33,6 +33,30 @@
 - terraform staging preset domains aligned with the apps' staging default
   (`staging-api.hyperlocal.in`)
 
+### Customer app
+- AUDIT SWEEP (line-by-line, whole `lib/` + `test/`): 47 analyzer issues → 0
+  and **one hard compile error fixed**. Verified: `flutter analyze` reports
+  "No issues found" and **748 tests pass**.
+  - **Fixed — the app did not compile.** `login_screen.dart` and
+    `register_screen.dart` imported `../../data/phone_utils.dart`, but the file
+    actually lives in `domain/` (`data/phone_utils.dart` does not exist), so
+    both auth screens had an unresolvable import.
+  - **Fixed — a test that failed at the end of every month.**
+    `inventory_pricing_import_screens_test.dart` ("create offer validates, then
+    assigns with selected products") set the start date to today and the end
+    date to day **28 of the current month**. `OfferValidators.period` requires
+    `end.isAfter(start)` *strictly*, so from the 28th onwards the offer failed
+    its own validation and the test saw 0 assign calls. It now steps to the next
+    month and picks the 1st, which is after "today" on every day of the year.
+  - **Cleaned — the remaining analyzer issues**: dead imports, `const` hoists,
+    and documented `// ignore:` directives where the code is deliberate.
+  - **Preserved, not deleted (reserved for future work):** the `EnumCodec`
+    decoder, the seeded `Random` in `MockOrderRepository`, the
+    `_asNullableInt`/`_asDouble`/`_asDateTime` JSON-coercion helpers, and the
+    `/coming-soon` route + `ComingSoonScreen` (Home's "no nearby shops" state).
+    Each is either already linked or intentionally reserved, and now carries a
+    comment saying so.
+
 ### Shopkeeper app
 - AUDIT SWEEP (line-by-line, whole `lib/`): verified and fixed the real
   defects, preserved every unlinked seam. Findings:
