@@ -499,3 +499,67 @@ class ShopkeeperSupportTicketCreate(BaseModel):
         ),
     )
 
+
+class CustomerSupportTicketCreate(BaseModel):
+    """A support ticket filed from the customer app.
+
+    The shopper-facing twin of :class:`ShopkeeperSupportTicketCreate`. Field
+    limits deliberately match the shopkeeper schema and the service constants so
+    one set of validation rules covers both audiences — a limit that differs
+    between the two intake routes is a limit that will eventually differ from
+    the database column too.
+
+    The two differences that matter:
+
+    * ``category`` accepts only the ``CUST_*`` codes (enforced by the service,
+      which is passed ``CUSTOMER_CATEGORIES``), so a shopper cannot file a
+      ticket the shopkeeper triage queue is watching; and
+    * ``shop_id`` is context, not subject. A shopper may name the shop a ticket
+      is about, but unlike a merchant they do not *own* a shop, so the id is
+      never treated as proof of anything — see the field description.
+    """
+
+    category: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description=(
+            "Issue category code (CUST_WRONG_PRICE, CUST_AVAILABILITY, ...). "
+            "Validated against CUSTOMER_CATEGORIES by the service."
+        ),
+    )
+    description: str = Field(
+        ...,
+        min_length=10,
+        max_length=4000,
+        description="What happened, in the customer's own words",
+    )
+    subject: str | None = Field(
+        None, max_length=255, description="Optional one-line title"
+    )
+    steps: str | None = Field(
+        None, max_length=2000, description="Optional steps to reproduce"
+    )
+    app_version: str | None = Field(
+        None, max_length=50, description="Client build the report came from"
+    )
+    contact_email: str | None = Field(
+        None,
+        max_length=254,
+        description=(
+            "Optional reply address. Recorded on the ticket as context; it is "
+            "NOT used to identify the reporter, which is always the "
+            "authenticated user."
+        ),
+    )
+    shop_id: int | None = Field(
+        None,
+        ge=1,
+        description=(
+            "Optional shop the report is about. Recorded as context only — a "
+            "shopkeeper filing against their own shop is authorized through the "
+            "shop-access check, so a shopper supplying this id is NOT "
+            "authorized against it and must not be treated as a shop owner."
+        ),
+    )
+

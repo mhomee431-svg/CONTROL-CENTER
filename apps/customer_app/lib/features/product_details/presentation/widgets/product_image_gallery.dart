@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
@@ -27,7 +28,11 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.image_not_supported_outlined, size: 48, color: AppColors.textMuted),
+              Icon(
+                Icons.image_not_supported_outlined,
+                size: 48,
+                color: AppColors.textMuted,
+              ),
               SizedBox(height: AppSpacing.sm),
               Text(
                 'No images available',

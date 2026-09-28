@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../network/api_error_handler.dart';
 
 class PaginatedState<T> {
@@ -57,7 +58,9 @@ abstract class PaginatedNotifier<T> extends Notifier<PaginatedState<T>> {
   Future<List<T>> fetchItems(int page, CancelToken cancelToken);
 
   Future<void> fetchNextPage() async {
-    if (state.isLoadingMore || (!state.isLoadingInitial && !state.hasMore)) return;
+    if (state.isLoadingMore || (!state.isLoadingInitial && !state.hasMore)) {
+      return;
+    }
 
     if (state.currentPage == 1) {
       state = state.copyWith(isLoadingInitial: true, error: null);

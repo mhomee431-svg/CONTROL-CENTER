@@ -26,7 +26,10 @@ class SuggestionsShownEvent extends SearchEvent {
 class SuggestionSelectedEvent extends SearchEvent {
   final String query;
   final String suggestion;
-  const SuggestionSelectedEvent({required this.query, required this.suggestion});
+  const SuggestionSelectedEvent({
+    required this.query,
+    required this.suggestion,
+  });
 }
 
 /// Search results were successfully returned.

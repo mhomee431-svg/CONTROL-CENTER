@@ -84,7 +84,8 @@ void main() {
 
     test('initial state is loading', () {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
       when(mockLocationService.getCurrentLocation())
           .thenAnswer((_) async => userLocation);
       when(mockLocationService.calculateDistance(any, any)).thenReturn(1.5);
@@ -117,7 +118,8 @@ void main() {
 
     test('handles Permission Denied error properly', () async {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => false);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => false);
 
       final state = await waitForState();
 
@@ -135,7 +137,8 @@ void main() {
 
     test('successfully loads route with distance', () async {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
       when(mockLocationService.getCurrentLocation())
           .thenAnswer((_) async => userLocation);
       when(mockLocationService.calculateDistance(any, any)).thenReturn(1.2345);
@@ -160,7 +163,8 @@ void main() {
 
     test('marks shop as closed when shop is not open', () async {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
       when(mockLocationService.getCurrentLocation())
           .thenAnswer((_) async => userLocation);
       when(mockLocationService.calculateDistance(any, any)).thenReturn(1.5);
@@ -176,7 +180,8 @@ void main() {
 
     test('handles invalid shop coordinates', () async {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
       when(mockLocationService.getCurrentLocation())
           .thenAnswer((_) async => userLocation);
       when(mockShopRepo.getShopProfile(shopId))
@@ -198,14 +203,17 @@ void main() {
 
       // Now GPS becomes enabled and retry succeeds
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
       when(mockLocationService.getCurrentLocation())
           .thenAnswer((_) async => userLocation);
       when(mockLocationService.calculateDistance(any, any)).thenReturn(1.5);
       when(mockShopRepo.getShopProfile(shopId))
           .thenAnswer((_) async => buildShopProfile());
 
-      await container.read(directionsControllerProvider(shopId).notifier).retry();
+      await container
+          .read(directionsControllerProvider(shopId).notifier)
+          .retry();
       await Future.delayed(const Duration(milliseconds: 100));
 
       state = container.read(directionsControllerProvider(shopId));
@@ -217,12 +225,14 @@ void main() {
 
     test('handles LocationException gracefully', () async {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
-      when(mockLocationService.getCurrentLocation())
-          .thenThrow(const LocationException(
-        LocationErrorType.networkFailure,
-        'Network failure',
-      ));
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
+      when(mockLocationService.getCurrentLocation()).thenThrow(
+        const LocationException(
+          LocationErrorType.networkFailure,
+          'Network failure',
+        ),
+      );
       when(mockShopRepo.getShopProfile(shopId))
           .thenAnswer((_) async => buildShopProfile());
 
@@ -235,7 +245,8 @@ void main() {
 
     test('handles shop repository network failure', () async {
       when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
+      when(mockLocationService.requestPermission())
+          .thenAnswer((_) async => true);
       when(mockShopRepo.getShopProfile(shopId))
           .thenThrow(Exception('Network failure'));
 
@@ -246,27 +257,35 @@ void main() {
       expect(state.shopLocation, isNull);
     });
 
-    test('launchExternalMaps calls openExternalNavigation with shop location', () async {
-      when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
-      when(mockLocationService.requestPermission()).thenAnswer((_) async => true);
-      when(mockLocationService.getCurrentLocation())
-          .thenAnswer((_) async => userLocation);
-      when(mockLocationService.calculateDistance(any, any)).thenReturn(1.5);
-      when(mockShopRepo.getShopProfile(shopId))
-          .thenAnswer((_) async => buildShopProfile());
+    test(
+      'launchExternalMaps calls openExternalNavigation with shop location',
+      () async {
+        when(mockLocationService.isGpsEnabled()).thenAnswer((_) async => true);
+        when(mockLocationService.requestPermission())
+            .thenAnswer((_) async => true);
+        when(mockLocationService.getCurrentLocation())
+            .thenAnswer((_) async => userLocation);
+        when(mockLocationService.calculateDistance(any, any)).thenReturn(1.5);
+        when(mockShopRepo.getShopProfile(shopId))
+            .thenAnswer((_) async => buildShopProfile());
 
-      await waitForState();
+        await waitForState();
 
-      when(mockLocationService.openExternalNavigation(any, any))
-          .thenAnswer((_) async {});
+        when(mockLocationService.openExternalNavigation(any, any))
+            .thenAnswer((_) async {});
 
-      final controller = container.read(directionsControllerProvider(shopId).notifier);
-      await controller.launchExternalMaps('Test Shop');
+        final controller = container.read(
+          directionsControllerProvider(shopId).notifier,
+        );
+        await controller.launchExternalMaps('Test Shop');
 
-      verify(mockLocationService.openExternalNavigation(
-        argThat(isA<Coordinates>()),
-        'Test Shop',
-      ));
-    });
+        verify(
+          mockLocationService.openExternalNavigation(
+            argThat(isA<Coordinates>()),
+            'Test Shop',
+          ),
+        );
+      },
+    );
   });
 }

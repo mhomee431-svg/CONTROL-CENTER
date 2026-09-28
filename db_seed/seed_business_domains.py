@@ -7,6 +7,22 @@ Books, Automotive, Hardware, Restaurants, Transport, Personal Travel.
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Make the backend ``app`` package importable so the canonical category
+# registry (the single source of truth for the 11 approved names/codes) can be
+# imported here. Runs whether this file is executed directly
+# (`python db_seed/seed_data.py`) or imported by the test suite.
+_BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+from app.models.merchant_category import (  # noqa: E402
+    MERCHANT_CATEGORY_NAMES,
+    MerchantCategoryCode,
+)
+
 BUSINESS_DOMAIN_CATALOG = [
     # ── 1. PHARMACY & HEALTHCARE ────────────────────────────────────────────
     ("Pharmacy & Healthcare", [
@@ -142,7 +158,7 @@ BUSINESS_DOMAIN_CATALOG = [
     ]),
 
     # ── 11. PERSONAL TRANSPORT & TRAVEL ────────────────────────────────────
-    ('Personal Transport & Travel', [
+    (MERCHANT_CATEGORY_NAMES[MerchantCategoryCode.PERSONAL_TRANSPORT_TRAVEL.value], [
         ('City Tour Package', '1 day', 1500, 2800, ['1 day']),
         ('Weekend Getaway', '2 days', 4500, 7800, ['2 days']),
         ('Rail Ticket Booking Fee', '1 booking', 35, 60, ['1 booking']),
@@ -179,7 +195,7 @@ BRAND_NAMES = {
     'Hardware': ['Taparia', 'Bosch', 'Havells', 'Polycab', 'Finolex'],
     'Restaurants': ['Annapurna', 'Biryani Blues', 'Mei Mei', 'Sagar Ratna', 'Krishna'],
     'Transport': ['Savaari', 'Raftaar', 'LorryMerchant', 'VeriTrip'],
-    'Personal Transport & Travel': ['Ola', 'Uber', 'MakeMyTrip', 'Railyatri', 'Goibibo'],
+    "Personal Transport / Personal Travel": ['Ola', 'Uber', 'MakeMyTrip', 'Railyatri', 'Goibibo'],
 }
 
 # Physical shop names per domain (for realistic seed shops)
@@ -194,8 +210,21 @@ SHOP_NAMES = {
     'Hardware': ['Taparia Hardware', 'Hardware Corner', 'Sharma Hardware Works', 'Tools & Fix'],
     'Restaurants': ['Annapurna Restaurant', 'Biryani Blues', 'Sagar Ratna', 'Mei Mei Asian Kitchen'],
     'Transport': ['Savaari Rentals', 'City Movers', 'Raftaar Logistics', 'Green Ride Services'],
-    'Personal Transport & Travel': ['Ola Hub', 'Uber Lounge', 'TravelDesk India', 'Railyatri Center'],
+    "Personal Transport / Personal Travel": ['Ola Hub', 'Uber Lounge', 'TravelDesk India', 'Railyatri Center'],
 }
+
+
+# ── Invariant: this seeder's 11 domains must EXACTLY equal the canonical
+# registry (codes + names). Enforced at import time so a re-typed or leaked
+# grocery / legacy name can never sneak in. Names must be derived from
+# app.models.merchant_category, NEVER re-typed.
+_DOMAIN_NAMES = {name for name, _ in BUSINESS_DOMAIN_CATALOG}
+assert _DOMAIN_NAMES == set(MERCHANT_CATEGORY_NAMES.values()), (
+    "BUSINESS_DOMAIN_CATALOG names drifted from canonical MERCHANT_CATEGORY_NAMES "
+    "— do NOT re-type category names here; derive from app.models.merchant_category"
+)
+assert set(BRAND_NAMES.keys()) == _DOMAIN_NAMES, "BRAND_NAMES keys drifted from canonical names"
+assert set(SHOP_NAMES.keys()) == _DOMAIN_NAMES, "SHOP_NAMES keys drifted from canonical names"
 
 
 def build_domain_catalog():

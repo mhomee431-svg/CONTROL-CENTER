@@ -1,0 +1,106 @@
+name: Release ordering guard (backend before app)
+
+# WHY THIS EXISTS
+# A mobile release is IRREVERSIBLE. A released APK cannot be pulled back from
+# a user's phone, and Play Store review takes days. So the dangerous window is
+# not "the app is broken" -- it is:
+#
+#   t0  main merges. The production APK starts building AND the backend
+#       starts deploying to ECS. Both finish at roughly the same time.
+#   t1  A shopkeeper installs the new app.
+#   t2  The app calls an endpoint the NEW backend adds. The OLD backend
+#       (still rolling) answers 404, or the ECS service is mid-restart and
+#       the connection is refused.
+#   t3  The shopkeeper sees a broken screen. There is no rollback for the APK.
+#
+# The window between t0 and t2 is small but real, and it is entirely
+# avoidable: the backend that serves the new contract must be live BEFORE the
+# app that depends on it is allowed to build.
+#
+# WHAT THIS DOES
+# On a push to main it re-verifies, in order, that the deployed production
+# contract already contains every endpoint the commit's apps call. It fails
+# the run and tells you to deploy the backend first.
+#
+# It is intentionally a REPORT plus a hard failure, not an auto-deployer: it
+# never touches the deploy workflows, so the existing release steps stay
+# exactly as they are.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'apps/**'
+      - 'packages/api_contracts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-ordering-guard-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ordering:
+    name: Release ordering guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Collect the endpoints the shipped apps call
+        # The Dart clients centralise every URL in ApiEndpoints, so the client
+        # contract is read from the same place the code actually uses it -- not
+        # from a hand-maintained list that would drift. Parsing lives in a
+        # tested script rather than a shell one-liner, because a false positive
+        # here would block a legitimate release.
+        run: python scripts/ci/collect_client_endpoints.py --out client_paths.txt
+
+      - name: Compare with the contract the backend actually serves
+        id: compare
+        env:
+          PROD_API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_API_URL}" ]; then
+            echo "::notice::PRODUCTION_API_URL is not configured."
+            echo "::notice::Skipping the live comparison; the committed contract is"
+            echo "::notice::still checked for drift by the platform-ci contract job."
+            echo "live=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          python3 scripts/ci/compare_client_endpoints.py \
+            --live-url "${PROD_API_URL}" \
+            --client-paths client_paths.txt \
+            --report ordering_report.txt
+          echo "live=checked" >> "$GITHUB_OUTPUT"
+
+      - name: Explain the failure and the correct order
+        if: failure() && steps.compare.outputs.live == 'checked'
+        run: |
+          echo "::error::RELEASE ORDERING VIOLATION"
+          echo ""
+          echo "The commit's apps call endpoints that production does not serve yet."
+          echo "Shipping the app first would give every user a broken screen, and a"
+          echo "released APK cannot be rolled back."
+          echo ""
+          echo "Deploy the backend first, wait for verify-production to go green,"
+          echo "then re-run the app build:"
+          echo "  1. merge/push so the backend CD runs and reaches 'verify-production'"
+          echo "  2. re-run this workflow"
+          echo ""
+          cat ordering_report.txt || true
+
+      - name: Show the comparison
+        if: always() && steps.compare.outputs.live == 'checked'
+        run: cat ordering_report.txt || true

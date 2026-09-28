@@ -77,6 +77,11 @@ async def create_support_ticket(
         db,
         user=current_user,
         attachment=attachment,
+        # Scope validation to the SHOPKEEPER taxonomy. Without this the service
+        # defaults to the union of both audiences, which would let this route
+        # accept a `CUST_*` code and file a shopper's complaint into the
+        # merchant queue. The customer route passes the mirror-image map.
+        allowed=support_service.CATEGORIES,
         **data,
     )
     return success_response(

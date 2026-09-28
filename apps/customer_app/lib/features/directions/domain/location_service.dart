@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'models/location_models.dart';
 import '../data/device_location_service.dart';
 
-final locationServiceProvider = Provider<LocationService>((ref) => DeviceLocationService());
+final locationServiceProvider = Provider<LocationService>(
+  (ref) => DeviceLocationService(),
+);
 
 abstract class LocationService {
   Future<bool> isGpsEnabled();

@@ -1,27 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../controllers/onboarding_controller.dart';
 import '../widgets/illustrations.dart';
 
-/// Onboarding Flow Screen — shows the complete customer journey as
-/// swipeable steps with phone mockups, matching the reference design.
-class OnboardingFlowScreen extends StatefulWidget {
+/// Onboarding Flow — exactly the five spec screens, kept simple.
+///
+/// 1. Welcome
+/// 2. Search Nearby Products
+/// 3. Compare Price & Availability
+/// 4. Find Shop & Get Directions
+/// 5. Get Started
+///
+/// No permission is requested here: location is only asked later from
+/// the location screens where its purpose is clear on screen.
+class OnboardingFlowScreen extends ConsumerStatefulWidget {
   const OnboardingFlowScreen({super.key});
 
   @override
-  State<OnboardingFlowScreen> createState() => _OnboardingFlowScreenState();
+  ConsumerState<OnboardingFlowScreen> createState() =>
+      _OnboardingFlowScreenState();
 }
 
-class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
+class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  late final List<OnboardingStep> _steps;
-
-  @override
-  void initState() {
-    super.initState();
-    _steps = _buildSteps();
-  }
+  late final List<OnboardingStep> _steps = _buildSteps();
 
   @override
   void dispose() {
@@ -33,64 +40,69 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     return const [
       OnboardingStep(
         number: '1',
-        title: 'App Launch & Onboarding',
-        subtitle: 'Welcome to Your Nearby Product World',
+        title: 'Welcome',
+        subtitle: 'Find products in shops around you',
         headerColor: Color(0xFF1E3A8A),
         illustration: AppLaunchIllustration(),
         sideIcons: [
-          FlowIcon(icon: Icons.water_drop, label: 'Splash Screen'),
-          FlowIcon(icon: Icons.tour, label: 'App Introduction'),
-          FlowIcon(icon: Icons.star, label: 'Key Features'),
+          FlowIcon(icon: Icons.store, label: 'Local Shops'),
+          FlowIcon(icon: Icons.location_on, label: 'Nearby First'),
+          FlowIcon(icon: Icons.search, label: 'Fast Search'),
           FlowIcon(icon: Icons.rocket_launch, label: 'Get Started'),
         ],
       ),
       OnboardingStep(
         number: '2',
-        title: 'Customer Registration / Login',
-        subtitle: 'Quick & Secure Access',
+        title: 'Search Nearby Products',
+        subtitle: 'Type what you need, see it around you',
         headerColor: Color(0xFF7C3AED),
-        illustration: RegistrationIllustration(),
+        illustration: ListScreenIllustration(
+          heroIcon: Icons.search,
+          accent: Color(0xFF2563EB),
+          title: 'Search Nearby Products',
+        ),
         sideIcons: [
-          FlowIcon(icon: Icons.phone_android, label: 'Mobile Login'),
-          FlowIcon(icon: Icons.lock, label: 'OTP Verification'),
-          FlowIcon(icon: Icons.person_add, label: 'New Registration'),
-          FlowIcon(icon: Icons.security, label: 'Secure Session'),
+          FlowIcon(icon: Icons.search, label: 'Search Bar'),
+          FlowIcon(icon: Icons.my_location, label: 'Around You'),
+          FlowIcon(icon: Icons.category, label: 'Categories'),
+          FlowIcon(icon: Icons.bolt, label: 'Instant Results'),
         ],
       ),
       OnboardingStep(
         number: '3',
-        title: 'Location Selection',
-        subtitle: 'Find Shops Near You',
+        title: 'Compare Price & Availability',
+        subtitle: 'Compare shops before you step out',
         headerColor: Color(0xFF059669),
-        illustration: LocationIllustration(),
+        illustration: ListScreenIllustration(
+          heroIcon: Icons.compare_arrows,
+          accent: Color(0xFF059669),
+          title: 'Compare Price & Availability',
+        ),
         sideIcons: [
-          FlowIcon(icon: Icons.my_location, label: 'Auto Location'),
-          FlowIcon(icon: Icons.edit_location, label: 'Manual Selection'),
-          FlowIcon(icon: Icons.bookmark, label: 'Saved Addresses'),
-          FlowIcon(icon: Icons.search, label: 'Nearby Search'),
+          FlowIcon(icon: Icons.local_offer, label: 'Best Price'),
+          FlowIcon(icon: Icons.check_circle, label: 'In Stock'),
+          FlowIcon(icon: Icons.compare_arrows, label: 'Compare'),
+          FlowIcon(icon: Icons.savings, label: 'Save More'),
         ],
       ),
       OnboardingStep(
         number: '4',
-        title: 'Home Screen - Product Discovery',
-        subtitle: 'Explore Products & Shops',
+        title: 'Find Shop & Get Directions',
+        subtitle: 'Pick a shop, navigate straight there',
         headerColor: Color(0xFFDC2626),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.home,
-          accent: Color(0xFFDC2626),
-          title: 'Discover Nearby Products',
-        ),
+        illustration: LocationIllustration(),
         sideIcons: [
-          FlowIcon(icon: Icons.home, label: 'Home Feed'),
-          FlowIcon(icon: Icons.category, label: 'Categories'),
-          FlowIcon(icon: Icons.local_offer, label: 'Offers'),
-          FlowIcon(icon: Icons.store, label: 'Nearby Shops'),
+          FlowIcon(icon: Icons.store, label: 'Choose Shop'),
+          FlowIcon(icon: Icons.map, label: 'Map Preview'),
+          FlowIcon(icon: Icons.directions, label: 'Directions'),
+          FlowIcon(icon: Icons.navigation, label: 'Reach Fast'),
         ],
       ),
+
       OnboardingStep(
         number: '5',
-        title: 'Product Search',
-        subtitle: 'Find What You Need',
+        title: 'Get Started',
+        subtitle: 'Browse nearby products right away',
         headerColor: Color(0xFF2563EB),
         illustration: ListScreenIllustration(
           heroIcon: Icons.search,
@@ -104,143 +116,12 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           FlowIcon(icon: Icons.label, label: 'Quick Tags'),
         ],
       ),
-      OnboardingStep(
-        number: '6',
-        title: 'Search Results',
-        subtitle: 'Compare Prices & Availability',
-        headerColor: Color(0xFFEA580C),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.storefront,
-          accent: Color(0xFFEA580C),
-          title: 'Results & Shops',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.filter_list, label: 'Filter Results'),
-          FlowIcon(icon: Icons.sort, label: 'Sort by Price'),
-          FlowIcon(icon: Icons.storefront, label: 'Shop List'),
-          FlowIcon(icon: Icons.map, label: 'Map View'),
-        ],
-      ),
-      OnboardingStep(
-        number: '7',
-        title: 'Product Details',
-        subtitle: 'Complete Information',
-        headerColor: Color(0xFF0891B2),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.inventory_2,
-          accent: Color(0xFF0891B2),
-          title: 'Product Details',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.image, label: 'Images'),
-          FlowIcon(icon: Icons.info, label: 'Details'),
-          FlowIcon(icon: Icons.star_rate, label: 'Reviews'),
-          FlowIcon(icon: Icons.store, label: 'Available Shops'),
-        ],
-      ),
-      OnboardingStep(
-        number: '8',
-        title: 'Shop Profile & Directions',
-        subtitle: 'Visit Your Shop',
-        headerColor: Color(0xFFDB2777),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.store,
-          accent: Color(0xFFDB2777),
-          title: 'Shop Profile',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.store, label: 'Shop Info'),
-          FlowIcon(icon: Icons.directions, label: 'Directions'),
-          FlowIcon(icon: Icons.call, label: 'Contact'),
-          FlowIcon(icon: Icons.share, label: 'Share'),
-        ],
-      ),
-      OnboardingStep(
-        number: '9',
-        title: 'Favorites & History',
-        subtitle: 'Track Your Activity',
-        headerColor: Color(0xFF7C3AED),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.favorite,
-          accent: Color(0xFF7C3AED),
-          title: 'Saved & Viewed',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.favorite, label: 'Favorites'),
-          FlowIcon(icon: Icons.bookmark, label: 'Saved Items'),
-          FlowIcon(icon: Icons.history, label: 'Search History'),
-          FlowIcon(icon: Icons.visibility, label: 'Recently Viewed'),
-        ],
-      ),
-      OnboardingStep(
-        number: '10',
-        title: 'Notifications & Updates',
-        subtitle: 'Stay Informed',
-        headerColor: Color(0xFF16A34A),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.notifications,
-          accent: Color(0xFF16A34A),
-          title: 'Your Updates',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.local_offer, label: 'Offers'),
-          FlowIcon(icon: Icons.price_change, label: 'Price Drops'),
-          FlowIcon(icon: Icons.store, label: 'Shop Updates'),
-          FlowIcon(icon: Icons.directions, label: 'Visit Reminders'),
-        ],
-      ),
-      OnboardingStep(
-        number: '11',
-        title: 'Account & Settings',
-        subtitle: 'Manage Profile',
-        headerColor: Color(0xFF6366F1),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.person,
-          accent: Color(0xFF6366F1),
-          title: 'Account Settings',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.person, label: 'Profile'),
-          FlowIcon(icon: Icons.location_on, label: 'Addresses'),
-          FlowIcon(icon: Icons.notifications, label: 'Alert Prefs'),
-          FlowIcon(icon: Icons.settings, label: 'Settings'),
-        ],
-      ),
-      OnboardingStep(
-        number: '12',
-        title: 'Real-World Purchase Flow',
-        subtitle: 'From Search to Visit',
-        headerColor: Color(0xFF0EA5E9),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.compare_arrows,
-          accent: Color(0xFF0EA5E9),
-          title: 'Compare & Visit',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.search, label: 'Search'),
-          FlowIcon(icon: Icons.store, label: 'Find Shops'),
-          FlowIcon(icon: Icons.compare_arrows, label: 'Compare'),
-          FlowIcon(icon: Icons.directions_walk, label: 'Visit'),
-        ],
-      ),
-      OnboardingStep(
-        number: '13',
-        title: 'Complete Journey',
-        subtitle: 'Hyperlocal Experience Delivered',
-        headerColor: Color(0xFF1E3A8A),
-        illustration: ListScreenIllustration(
-          heroIcon: Icons.emoji_events,
-          accent: Color(0xFF1E3A8A),
-          title: 'Journey Complete',
-        ),
-        sideIcons: [
-          FlowIcon(icon: Icons.map, label: 'Discover'),
-          FlowIcon(icon: Icons.storefront, label: 'Shop Local'),
-          FlowIcon(icon: Icons.thumb_up, label: 'Trust'),
-          FlowIcon(icon: Icons.emoji_events, label: 'Success'),
-        ],
-      ),
     ];
+  }
+
+  Future<void> _finishOnboarding() async {
+    await ref.read(onboardingCompletedProvider.notifier).completeOnboarding();
+    if (mounted) context.go('/welcome');
   }
 
   @override
@@ -294,7 +175,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
                 Icon(Icons.phone_android, color: Colors.white, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'Customer App Flow',
+                  'HyperLocal',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -348,22 +229,27 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   Widget _buildOnboardingPage(OnboardingStep step) {
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              children: [
-                _buildStepHeader(step),
-                const SizedBox(height: 16),
-                Expanded(child: _buildPhoneMockup(step)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          _buildSideIcons(step.sideIcons, step.headerColor),
-        ],
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final content = Column(
+            children: [
+              _buildStepHeader(step),
+              const SizedBox(height: AppSpacing.md),
+              Expanded(child: _buildPhoneMockup(step)),
+            ],
+          );
+
+          if (constraints.maxWidth < 720) return content;
+
+          return Row(
+            children: [
+              Expanded(flex: 3, child: content),
+              const SizedBox(width: AppSpacing.md),
+              _buildSideIcons(step.sideIcons, step.headerColor),
+            ],
+          );
+        },
       ),
     );
   }
@@ -409,6 +295,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
               children: [
                 Text(
                   step.title,
+                  key: const Key('onboardingStepTitle'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -454,8 +341,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.signal_cellular_4_bar,
-                      color: Colors.white, size: 12),
+                  Icon(
+                    Icons.signal_cellular_4_bar,
+                    color: Colors.white,
+                    size: 12,
+                  ),
                   SizedBox(width: 4),
                   Icon(Icons.wifi, color: Colors.white, size: 12),
                   SizedBox(width: 4),
@@ -473,49 +363,54 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   Widget _buildSideIcons(List<FlowIcon> icons, Color headerColor) {
     return SizedBox(
       width: 110,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: icons.map((item) {
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0D000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: headerColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+      // Scrollable so short viewports (small phones, landscape, and the test
+      // harness' 600px height) never trigger a RenderFlex overflow.
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: icons.map((item) {
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
                   ),
-                  child: Icon(item.icon, color: headerColor, size: 22),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: headerColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(item.icon, color: headerColor, size: 22),
                   ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -541,7 +436,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
               onPressed: _currentPage > 0
                   ? () => _pageController.previousPage(
                       duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut)
+                      curve: Curves.easeInOut,
+                    )
                   : null,
               icon: const Icon(Icons.arrow_back, size: 18),
               label: const Text('Previous'),
@@ -553,7 +449,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
             child: ElevatedButton.icon(
               onPressed: () {
                 if (isLast) {
-                  context.go('/');
+                  _finishOnboarding();
                 } else {
                   _pageController.nextPage(
                     duration: const Duration(milliseconds: 300),

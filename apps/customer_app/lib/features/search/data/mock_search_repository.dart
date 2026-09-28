@@ -2,6 +2,9 @@ import '../domain/search_repository.dart';
 import '../domain/models/search_models.dart';
 
 class MockSearchRepository implements SearchRepository {
+  /// The single barcode this mock recognises.
+  static const String _knownBarcode = '8901234567890';
+
   static const List<String> _recentSearches = [
     'Paracetamol 500mg',
     'Bosch Drill',
@@ -29,6 +32,35 @@ class MockSearchRepository implements SearchRepository {
   }
 
   @override
+  Future<List<ShopProductResult>> lookupBarcode(
+    String barcode, {
+    double? latitude,
+    double? longitude,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    // Only the known demo barcode resolves; anything else is an honest miss so
+    // the "not found" path can be exercised.
+    if (barcode.trim() != _knownBarcode) return const [];
+    return [
+      ShopProductResult(
+        id: 'sp-barcode-1',
+        productId: 'p1',
+        productName: 'Bosch Impact Drill 13mm',
+        productImageUrl: 'https://via.placeholder.com/300',
+        shopId: 's1',
+        shopName: 'Gupta Electronics',
+        price: 2400,
+        isAvailable: true,
+        distanceInKm: 1.2,
+        shopRating: 4.5,
+        lastUpdated: DateTime(2026, 1, 1),
+        availability: InventoryAvailability.inStock,
+        freshness: FreshnessLevel.fresh,
+      ),
+    ];
+  }
+
+  @override
   Future<List<SearchSuggestion>> getSuggestions(String query) async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (query.isEmpty) return [];
@@ -46,7 +78,7 @@ class MockSearchRepository implements SearchRepository {
     required String query,
     required int page,
     required int limit,
-    SortOption sort = SortOption.nearest,
+    SortOption sort = kDefaultSortOption,
     Map<String, dynamic>? filters,
     double? latitude,
     double? longitude,
@@ -78,8 +110,8 @@ class MockSearchRepository implements SearchRepository {
       final availability = index % 4 == 0
           ? InventoryAvailability.outOfStock
           : (index % 5 == 0
-              ? InventoryAvailability.lowStock
-              : InventoryAvailability.inStock);
+                ? InventoryAvailability.lowStock
+                : InventoryAvailability.inStock);
 
       return ShopProductResult(
         id: 'res_${page}_$index',
@@ -89,7 +121,8 @@ class MockSearchRepository implements SearchRepository {
         shopId: 's_${page}_$index',
         shopName: 'Local Shop ${index + 1}',
         price: price,
-        isAvailable: availability == InventoryAvailability.inStock ||
+        isAvailable:
+            availability == InventoryAvailability.inStock ||
             availability == InventoryAvailability.lowStock,
         distanceInKm: distance,
         shopRating: rating,
@@ -104,6 +137,8 @@ class MockSearchRepository implements SearchRepository {
         category: 'Household Goods',
         brand: index % 3 == 0 ? 'Dettol' : 'Local',
         reviewCount: 10 + index * 5,
+        isOpenNow: index % 3 != 2,
+        isAcceptingOrders: index % 3 != 2,
         availability: availability,
         freshness: _deriveFreshness(lastUpdated, now),
       );
@@ -134,17 +169,27 @@ class MockSearchRepository implements SearchRepository {
           return aPurchasable.compareTo(bPurchasable);
         });
         break;
+      case SortOption.offers:
+        results.sort((a, b) {
+          final aHasOffer = (a.offerText != null || a.hasDiscount) ? 0 : 1;
+          final bHasOffer = (b.offerText != null || b.hasDiscount) ? 0 : 1;
+          return aHasOffer.compareTo(bHasOffer);
+        });
+        break;
     }
 
     // Apply filters locally to simulate backend filtering
     if (filters != null) {
       if (filters['max_distance'] is num) {
-        final maxDistance =
-            (filters['max_distance'] as num).toDouble();
+        final maxDistance = (filters['max_distance'] as num).toDouble();
         results = results.where((r) => r.distanceInKm <= maxDistance).toList();
       }
       if (filters['in_stock'] == true) {
         results = results.where((r) => r.isPurchasableNow).toList();
+      }
+      if (filters['min_price'] is num) {
+        final minPrice = (filters['min_price'] as num).toDouble();
+        results = results.where((r) => r.price >= minPrice).toList();
       }
       if (filters['max_price'] is num) {
         final maxPrice = (filters['max_price'] as num).toDouble();
@@ -153,6 +198,14 @@ class MockSearchRepository implements SearchRepository {
       if (filters['min_rating'] is num) {
         final minRating = (filters['min_rating'] as num).toDouble();
         results = results.where((r) => r.shopRating >= minRating).toList();
+      }
+      if (filters['offers_only'] == true) {
+        results = results
+            .where((r) => r.offerText != null || r.hasDiscount)
+            .toList();
+      }
+      if (filters['open_now'] == true) {
+        results = results.where((r) => r.isOpenNow == true).toList();
       }
       if (filters['category'] is String) {
         final category = filters['category'] as String;

@@ -4,10 +4,14 @@ import '../domain/models/shop_details_models.dart';
 class MockShopDetailsRepository implements ShopDetailsRepository {
   @override
   Future<ShopProfile> getShopProfile(String shopId) async {
-    await Future.delayed(const Duration(milliseconds: 700)); // Network simulation
+    await Future.delayed(
+      const Duration(milliseconds: 700),
+    ); // Network simulation
 
     if (shopId == 'error') throw Exception('Failed to connect to server');
-    if (shopId == 'unavailable') throw Exception('Shop is temporarily unavailable or closed');
+    if (shopId == 'unavailable') {
+      throw Exception('Shop is temporarily unavailable or closed');
+    }
     if (shopId == 'closed') {
       // A closed shop scenario for UI testing
       return ShopProfile(
@@ -71,16 +75,23 @@ class MockShopDetailsRepository implements ShopDetailsRepository {
       lastInventoryUpdate: DateTime.now().subtract(const Duration(hours: 2)),
       activeOffers: [
         '10% instant discount on HDFC credit cards',
-        'Free screen guard with every new smartphone'
+        'Free screen guard with every new smartphone',
       ],
-      availableProducts: List.generate(6, (i) => ShopProductSummary(
-        productId: 'p_$i',
-        name: 'Smart Device Model $i',
-        imageUrl: 'https://via.placeholder.com/200',
-        price: 15000.0 + (i * 5000),
-        isAvailable: i % 5 != 0, // 1 in 5 out of stock
-      )),
-      categories: const ['Hardware', 'Household Goods', 'Automotive Parts & Tools'],
+      availableProducts: List.generate(
+        6,
+        (i) => ShopProductSummary(
+          productId: 'p_$i',
+          name: 'Smart Device Model $i',
+          imageUrl: 'https://via.placeholder.com/200',
+          price: 15000.0 + (i * 5000),
+          isAvailable: i % 5 != 0, // 1 in 5 out of stock
+        ),
+      ),
+      categories: const [
+        'Hardware',
+        'Household Goods',
+        'Automotive Parts & Tools',
+      ],
       isVerified: true,
       latitude: 28.7150,
       longitude: 77.1150,

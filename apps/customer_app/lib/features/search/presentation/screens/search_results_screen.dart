@@ -8,6 +8,7 @@ import '../../domain/search_state.dart';
 import '../controllers/search_controller.dart';
 import '../widgets/search_filter_sort_bar.dart';
 import '../widgets/search_result_states.dart';
+import '../widgets/search_results_map_view.dart';
 import '../widgets/shop_product_card.dart';
 
 /// Displays search results for a given query.
@@ -21,11 +22,16 @@ class SearchResultsScreen extends ConsumerStatefulWidget {
   const SearchResultsScreen({super.key, required this.query});
 
   @override
-  ConsumerState<SearchResultsScreen> createState() => _SearchResultsScreenState();
+  ConsumerState<SearchResultsScreen> createState() =>
+      _SearchResultsScreenState();
 }
 
 class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   final ScrollController _scrollController = ScrollController();
+
+  /// View mode for results: default list; toggling shows every mappable
+  /// shop on the map (SearchResultsMapView) with a peek bar of results.
+  bool _showMap = false;
 
   @override
   void initState() {
@@ -43,9 +49,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
     if (_scrollController.hasClients &&
         _scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200) {
-      ref
-          .read(searchResultsProvider(widget.query).notifier)
-          .fetchNextPage();
+      ref.read(searchResultsProvider(widget.query).notifier).fetchNextPage();
     }
   }
 
@@ -57,7 +61,24 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Text(widget.query),
+        // Spec header: Search Results for "<query>" — long queries ellipsize
+        // rather than overflow the toolbar.
+        title: Text(
+          'Search Results for "${widget.query}"',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          if (state.stage == SearchStage.results)
+            IconButton(
+              key: const Key('searchViewToggle'),
+              tooltip: _showMap ? 'List view' : 'Map view',
+              icon: Icon(
+                _showMap ? Icons.view_list_outlined : Icons.map_outlined,
+              ),
+              onPressed: () => setState(() => _showMap = !_showMap),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: FilterSortBar(query: widget.query),
@@ -68,7 +89,9 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   }
 
   Widget _buildBody(
-      SearchPaginationState state, SearchResultsController controller) {
+    SearchPaginationState state,
+    SearchResultsController controller,
+  ) {
     switch (state.stage) {
       case SearchStage.loading:
         return const SearchLoadingView(message: 'Finding products…');
@@ -95,7 +118,18 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   }
 
   Widget _buildResults(
-      SearchPaginationState state, SearchResultsController controller) {
+    SearchPaginationState state,
+    SearchResultsController controller,
+  ) {
+    // Map view: every result with coordinates rendered around the customer,
+    // with a horizontal peek bar; tapping a result opens the product page.
+    if (_showMap) {
+      return SearchResultsMapView(
+        results: state.results,
+        onResultTap: (result) => context.push('/product/${result.productId}'),
+      );
+    }
+
     // Relevance / result count header.
     final header = Padding(
       padding: const EdgeInsets.symmetric(
@@ -130,8 +164,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
         header,
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async =>
-                controller.updateSort(state.sort),
+            onRefresh: () async => controller.updateSort(state.sort),
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -146,9 +179,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                 final result = state.results[index];
                 return ShopProductCard(
                   result: result,
-                  onTap: () => context.push(
-                    '/product/${result.productId}',
-                  ),
+                  onTap: () => context.push('/product/${result.productId}'),
                   onShopTap: () => context.push('/shop/${result.shopId}'),
                   onShare: () => shareProduct(
                     context,

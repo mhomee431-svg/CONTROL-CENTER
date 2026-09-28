@@ -46,8 +46,7 @@ class ApiProfileRepository implements ProfileRepository {
       email: json['email']?.toString() ?? '',
       phoneNumber: json['phone_number']?.toString() ?? '',
       avatarUrl: json['avatar_url']?.toString(),
-      accountStatus:
-          AccountStatus.fromApi(json['account_status']?.toString()),
+      accountStatus: AccountStatus.fromApi(json['account_status']?.toString()),
     );
   }
 }

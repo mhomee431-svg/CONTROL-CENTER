@@ -123,6 +123,8 @@ _ShopInventoryOffer _$ShopInventoryOfferFromJson(Map<String, dynamic> json) =>
       stockStatus: json['stockStatus'] as String?,
       freshnessStatus: json['freshnessStatus'] as String?,
       offerText: json['offerText'] as String?,
+      isOpenNow: json['isOpenNow'] as bool?,
+      isAcceptingOrders: json['isAcceptingOrders'] as bool?,
     );
 
 Map<String, dynamic> _$ShopInventoryOfferToJson(_ShopInventoryOffer instance) =>
@@ -139,6 +141,8 @@ Map<String, dynamic> _$ShopInventoryOfferToJson(_ShopInventoryOffer instance) =>
       'stockStatus': instance.stockStatus,
       'freshnessStatus': instance.freshnessStatus,
       'offerText': instance.offerText,
+      'isOpenNow': instance.isOpenNow,
+      'isAcceptingOrders': instance.isAcceptingOrders,
     };
 
 _ProductDetails _$ProductDetailsFromJson(Map<String, dynamic> json) =>
@@ -153,10 +157,16 @@ _ProductDetails _$ProductDetailsFromJson(Map<String, dynamic> json) =>
               )
               .toList() ??
           const <ShopInventoryOffer>[],
+      servedFromCache: json['servedFromCache'] as bool? ?? false,
+      cachedAt: json['cachedAt'] == null
+          ? null
+          : DateTime.parse(json['cachedAt'] as String),
     );
 
 Map<String, dynamic> _$ProductDetailsToJson(_ProductDetails instance) =>
     <String, dynamic>{
       'product': instance.product,
       'shopOffers': instance.shopOffers,
+      'servedFromCache': instance.servedFromCache,
+      'cachedAt': instance.cachedAt?.toIso8601String(),
     };

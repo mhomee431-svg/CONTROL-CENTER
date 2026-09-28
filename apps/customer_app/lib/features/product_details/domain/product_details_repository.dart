@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/cache/local_cache_service.dart';
 import '../../../core/network/api_client.dart';
 import '../../location/presentation/controllers/location_controller.dart';
 import 'models/product_details_models.dart';
 import '../data/api_product_details_repository.dart';
 
-final productDetailsRepositoryProvider = Provider<ProductDetailsRepository>((ref) {
+final productDetailsRepositoryProvider = Provider<ProductDetailsRepository>((
+  ref,
+) {
   final location = ref.watch(locationControllerProvider).location;
   return ApiProductDetailsRepository(
     ref.watch(apiClientProvider),

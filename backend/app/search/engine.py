@@ -42,13 +42,17 @@ class SearchParams:
         longitude: Optional[float] = None,
         radius_km: float = 10.0,
         category_id: Optional[int] = None,
+        category_name: Optional[str] = None,
         brand_id: Optional[int] = None,
+        brand_name: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         min_rating: Optional[float] = None,
         in_stock_only: bool = False,
         exclude_stale: bool = False,
         exclude_unavailable: bool = False,
+        offers_only: bool = False,
+        open_now: bool = False,
         sort: str = "relevance",
         page: int = 1,
         limit: int = 20,
@@ -58,13 +62,17 @@ class SearchParams:
         self.longitude = longitude
         self.radius_km = radius_km
         self.category_id = category_id
+        self.category_name = category_name.strip() if category_name else None
         self.brand_id = brand_id
+        self.brand_name = brand_name.strip() if brand_name else None
         self.min_price = min_price
         self.max_price = max_price
         self.min_rating = min_rating
         self.in_stock_only = in_stock_only
         self.exclude_stale = exclude_stale
         self.exclude_unavailable = exclude_unavailable
+        self.offers_only = offers_only
+        self.open_now = open_now
         self.sort = sort
         self.page = page
         self.limit = limit
@@ -166,8 +174,13 @@ def _search_products_inner(db: Session, params: "SearchParams") -> dict:
     # ── 3. Category / Brand filters ────────────────────────────────────────
     if params.category_id is not None:
         query = query.filter(SearchIndex.category_id == params.category_id)
+    elif params.category_name:
+        query = query.filter(SearchIndex.category_name.ilike(f"%{params.category_name}%"))
+
     if params.brand_id is not None:
         query = query.filter(SearchIndex.brand_id == params.brand_id)
+    elif params.brand_name:
+        query = query.filter(SearchIndex.brand_name.ilike(f"%{params.brand_name}%"))
 
     # ── 4. Price filter ─────────────────────────────────────────────────────
     if params.min_price is not None:
@@ -194,7 +207,11 @@ def _search_products_inner(db: Session, params: "SearchParams") -> dict:
 
     # ── 6. Sort ────────────────────────────────────────────────────────────
     sort_mode = _resolve_sort(params.sort)
-    distance_col = query.column_descriptions[-1]["expr"] if params.latitude is not None else None
+    distance_col = (
+        query.column_descriptions[-1]["expr"]
+        if (params.latitude is not None and hasattr(query, "column_descriptions") and query.column_descriptions)
+        else None
+    )
 
     if sort_mode == SearchSort.DISTANCE and distance_col is not None:
         query = query.order_by(distance_col.asc())
@@ -269,13 +286,27 @@ def _search_products_inner(db: Session, params: "SearchParams") -> dict:
             "offer_text": None,
         })
 
-    # If relevance sort, sort in Python
-    if sort_mode == SearchSort.RELEVANCE:
+    # Resolve offer text for each result (cheap join)
+    _attach_offer_texts(db, results)
+    # Attach open/closed + order-acceptance state so the result card can show it.
+    _attach_shop_open_state(db, results)
+
+    # Dynamic filters (after enrichment)
+    if params.offers_only:
+        results = [
+            r for r in results
+            if bool(r.get("offer_text") or (r.get("mrp") and r.get("price") and r["mrp"] > r["price"]))
+        ]
+    if params.open_now:
+        results = [r for r in results if r.get("is_open_now") is True]
+
+    # If relevance or offers sort, sort in Python
+    if sort_mode in (SearchSort.RELEVANCE, SearchSort.OFFERS):
         key = default_sort_key(sort_mode)
         results.sort(key=key)
 
-    # Resolve offer text for each result (cheap join)
-    _attach_offer_texts(db, results)
+    if params.offers_only or params.open_now:
+        total = min(total, len(results))
 
     has_more = (params.page * params.limit) < total
 
@@ -304,6 +335,7 @@ def _resolve_sort(sort: str) -> SearchSort:
         "availability": SearchSort.AVAILABILITY,
         "freshness": SearchSort.FRESHNESS,
         "recently_updated": SearchSort.FRESHNESS,
+        "offers": SearchSort.OFFERS,
     }
     return mapping.get(sort, SearchSort.RELEVANCE)
 
@@ -318,6 +350,55 @@ def _attach_offer_texts(db: Session, results: list[dict]) -> None:
             pass
         except Exception:  # noqa: BLE001 — offer lookup is enrichment; never fail the result
             r["offer_text"] = None
+
+
+def _attach_shop_open_state(db: Session, results: list[dict]) -> None:
+    """Populate ``is_open_now`` / ``is_accepting_orders`` for each result.
+
+    One batched query for all shops on the page (rather than a join in the main
+    search query, which would change its shape and row semantics). Both keys
+    default to ``None`` so the client can distinguish "closed" from "unknown".
+
+    Opening hours are evaluated with the canonical
+    :func:`app.services.shop_service.is_shop_open` helper, so search results
+    never disagree with the shop page about whether a shop is open.
+    """
+    from app.models.shop import Shop
+    from app.services.shop_service import is_shop_open
+
+    # Default to "unknown" before attempting enrichment.
+    for r in results:
+        r.setdefault("is_open_now", None)
+        r.setdefault("is_accepting_orders", None)
+
+    shop_ids = {
+        r.get("shop_id")
+        for r in results
+        if isinstance(r.get("shop_id"), int)
+    }
+    if not shop_ids:
+        return
+
+    try:
+        shops = db.query(Shop).filter(Shop.id.in_(shop_ids)).all()
+        now = datetime.now(timezone.utc)
+        by_id = {s.id: s for s in shops if hasattr(s, "id")}
+        for r in results:
+            shop = by_id.get(r.get("shop_id"))
+            if shop is None:
+                continue
+            try:
+                r["is_open_now"] = bool(is_shop_open(shop, now))
+                r["is_accepting_orders"] = bool(getattr(shop, "is_accepting_orders", False))
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "shop open-state computation failed for shop=%s",
+                    getattr(shop, "id", None),
+                    exc_info=True,
+                )
+    except Exception:  # noqa: BLE001 — enrichment must never fail search
+        logger.warning("shop open-state enrichment failed", exc_info=True)
+        return
 
 
 # ── Nearby shops ───────────────────────────────────────────────────────────
@@ -507,6 +588,10 @@ def barcode_lookup(
             "is_available": entry.is_available,
             "stock_status": entry.stock_status,
             "freshness_status": entry.freshness_status,
+            # A scanned product must show the same factual freshness signal as a
+            # typed one, so the timestamp travels with the hit. getattr keeps
+            # partial/lightweight rows working (the value is simply unknown).
+            "last_inventory_update": getattr(entry, "last_inventory_update", None),
             "shop_id": entry.shop_id,
             "shop_name": entry.shop_name,
             "distance_km": distance,
@@ -514,6 +599,9 @@ def barcode_lookup(
         })
 
     result.sort(key=lambda r: r["distance_km"] if r["distance_km"] is not None else float("inf"))
+    # Same open/closed enrichment as text search, so a scanned product and a
+    # typed one never disagree about shop state.
+    _attach_shop_open_state(db, result)
     return result
 
 

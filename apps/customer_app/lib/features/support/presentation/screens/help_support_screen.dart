@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../data/support_repository.dart';
+import '../../application/support_form_view_model.dart';
 
 /// Help & Support screen — covers Master Prompt §58:
 ///   - FAQ (expandable tiles)
@@ -49,11 +49,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _FaqTab(),
-          _ContactTab(),
-          _ReportIssueTab(),
-        ],
+        children: const [_FaqTab(), _ContactTab(), _ReportIssueTab()],
       ),
     );
   }
@@ -143,7 +139,8 @@ class _FaqTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       itemCount: _faqs.length,
-      separatorBuilder: (_, _) => const Divider(height: 1, indent: AppSpacing.md),
+      separatorBuilder: (_, _) =>
+          const Divider(height: 1, indent: AppSpacing.md),
       itemBuilder: (context, index) {
         final faq = _faqs[index];
         return ExpansionTile(
@@ -154,15 +151,15 @@ class _FaqTab extends StatelessWidget {
           ),
           title: Text(
             faq.question,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, 0, AppSpacing.md, AppSpacing.md,
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
               ),
               child: Text(
                 faq.answer,
@@ -209,7 +206,11 @@ class _ContactTab extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.support_agent, size: 44, color: AppColors.primary),
+            child: const Icon(
+              Icons.support_agent,
+              size: 44,
+              color: AppColors.primary,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -236,7 +237,8 @@ class _ContactTab extends StatelessWidget {
           icon: Icons.email_outlined,
           label: 'Email Support',
           value: 'support@hyperlocal.app',
-          onTap: () => _launch('mailto:support@hyperlocal.app?subject=App Support'),
+          onTap: () =>
+              _launch('mailto:support@hyperlocal.app?subject=App Support'),
         ),
         const SizedBox(height: AppSpacing.md),
 
@@ -324,7 +326,11 @@ class _LegalTile extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: AppColors.textMuted),
       title: Text(label),
-      trailing: const Icon(Icons.open_in_new, size: 18, color: AppColors.textMuted),
+      trailing: const Icon(
+        Icons.open_in_new,
+        size: 18,
+        color: AppColors.textMuted,
+      ),
       onTap: onTap,
     );
   }
@@ -346,10 +352,6 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   final _descController = TextEditingController();
   final _emailController = TextEditingController();
 
-  SupportIssueCategory _selectedCategory = SupportIssueCategory.other;
-  bool _isSubmitting = false;
-  bool _submitted = false;
-
   @override
   void dispose() {
     _descController.dispose();
@@ -358,33 +360,23 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   }
 
   Future<void> _submit() async {
+    // Form validation is a VIEW concern: it needs the FormState to know which
+    // field is invalid, so it stays here rather than in the ViewModel.
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() => _isSubmitting = true);
-    try {
-      await ref.read(supportRepositoryProvider).submitIssue(
-            category: _selectedCategory,
-            description: _descController.text.trim(),
-            contactEmail: _emailController.text.trim(),
-          );
-      if (mounted) setState(() => _submitted = true);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to submit. Please try again.'),
-            behavior: SnackBarBehavior.floating,
-          ),
+    await ref
+        .read(supportFormViewModelProvider.notifier)
+        .submit(
+          description: _descController.text,
+          contactEmail: _emailController.text,
         );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_submitted) return const _SuccessView();
+    final form = ref.watch(supportFormViewModelProvider);
+
+    if (form.isSubmitted) return const _SuccessView();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -403,8 +395,7 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
               'Found something wrong? Tell us about it and we will look into it.',
               style: TextStyle(color: AppColors.textMuted),
             ),
-            const SizedBox(height: AppSpacing.lg),
-
+            const SizedBox(height: AppSpacing.md),
             // Category
             const Text(
               'Issue Category',
@@ -413,19 +404,22 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<SupportIssueCategory>(
               key: const Key('issueCategoryDropdown'),
-              initialValue: _selectedCategory,
+              initialValue: form.category,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 12,
+                ),
               ),
               items: SupportIssueCategory.values
-                  .map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c.label)),
-                  )
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c.label)))
                   .toList(),
               onChanged: (v) {
-                if (v != null) setState(() => _selectedCategory = v);
+                if (v == null) return;
+                ref
+                    .read(supportFormViewModelProvider.notifier)
+                    .selectCategory(v);
               },
             ),
             const SizedBox(height: AppSpacing.md),
@@ -481,17 +475,57 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
+            // A failed submission must be visible and must NOT look like a
+            // success. The report text is deliberately preserved above.
+            if (form.errorMessage != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                key: const Key('issueSubmitError'),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        form.errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             ElevatedButton.icon(
               key: const Key('submitIssueButton'),
-              onPressed: _isSubmitting ? null : _submit,
-              icon: _isSubmitting
+              // Disabled while in flight, so a double tap cannot file two
+              // tickets. The ViewModel also guards this; the disabled button is
+              // what the customer SEES.
+              onPressed: form.isSubmitting ? null : _submit,
+              icon: form.isSubmitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_outlined),
-              label: Text(_isSubmitting ? 'Submitting...' : 'Submit Report'),
+              label: Text(
+                form.isSubmitting ? 'Submitting...' : 'Submit Report',
+              ),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -522,8 +556,11 @@ class _SuccessView extends StatelessWidget {
                 color: AppColors.secondary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_outline,
-                  size: 48, color: AppColors.secondary),
+              child: const Icon(
+                Icons.check_circle_outline,
+                size: 48,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(

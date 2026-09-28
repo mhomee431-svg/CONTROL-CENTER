@@ -7,15 +7,23 @@ import '../../features/shell/app_shell.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/home/presentation/screens/coming_soon_screen.dart';
 import '../../features/home/presentation/screens/search_results_by_pin_screen.dart';
+import '../../features/search/presentation/screens/barcode_scan_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/search/presentation/screens/search_results_screen.dart';
 import '../../features/saved_and_history/presentation/screens/saved_items_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/notifications/presentation/screens/notification_settings_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/account_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/profile/presentation/screens/legal_document_screen.dart';
+import '../../features/profile/presentation/screens/privacy_screen.dart';
+import '../../features/profile/presentation/screens/delete_account_screen.dart';
 import '../../features/profile/presentation/screens/addresses_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/settings/presentation/screens/about_screen.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
+import '../../features/location/presentation/screens/location_settings_screen.dart';
 import '../../features/location/presentation/screens/location_permission_screen.dart';
 import '../../features/location/presentation/screens/select_location_screen.dart';
 import '../../features/product_details/presentation/screens/product_details_screen.dart';
@@ -26,14 +34,21 @@ import '../../features/customer/presentation/screens/customer_favorites_screen.d
 import '../../features/customer/presentation/screens/customer_recently_viewed_screen.dart';
 import '../../features/support/presentation/screens/help_support_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/otp_screen.dart';
+import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/welcome_screen.dart';
+import '../../features/onboarding/presentation/screens/onboarding_flow_screen.dart';
+import '../../features/location/presentation/screens/map_picker_screen.dart';
+import '../../features/onboarding/presentation/controllers/onboarding_controller.dart';
+
 import '../../features/order/presentation/screens/my_orders_screen.dart';
 import '../../features/order/presentation/screens/order_detail_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
-
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
+  final onboardingCompleted = ref.watch(onboardingCompletedProvider);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -42,18 +57,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       final location = state.matchedLocation;
       final isGoingToSplash = location == '/splash';
 
-      // Guest-first routing: customers can browse immediately. Login remains
-      // available as an explicit route for account-only actions.
-
-      // While auth status is being resolved, show the splash screen.
+      // Startup gate: splash stays visible until BOTH the persisted onboarding
+      // flag and the auth status are resolved.
       if (authState.status == AuthStatus.initial ||
-          authState.status == AuthStatus.loading) {
+          onboardingCompleted == null ||
+          (isGoingToSplash && authState.status == AuthStatus.loading)) {
         return isGoingToSplash ? null : '/splash';
       }
 
-      // Every settled state (guest, authenticated, session expired, etc.)
-      // moves from splash to the main discovery shell.
-      if (isGoingToSplash) return '/';
+      if (isGoingToSplash) {
+        return onboardingCompleted ? '/' : '/onboarding';
+      }
+
+      // A completed tour cannot be replayed by entering its URL directly.
+      if (location == '/onboarding' && onboardingCompleted) {
+        return '/welcome';
+      }
+
+      // First launch presents the tour before any other destination. `/welcome`
+      // stays reachable so the tour's final CTA can finish it deliberately.
+      if (!onboardingCompleted &&
+          location != '/onboarding' &&
+          location != '/welcome') {
+        return '/onboarding';
+      }
+
       return null;
     },
     routes: [
@@ -130,7 +158,41 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        builder: (context, state) => SettingsScreen(
+          initialSection: state.uri.queryParameters['section'],
+        ),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) =>
+            const LegalDocumentScreen(document: LegalDocument.privacy),
+      ),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) =>
+            const LegalDocumentScreen(document: LegalDocument.terms),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/location-settings',
+        builder: (context, state) => const LocationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/delete-account',
+        builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        // Distinct from '/privacy' (the legal document). This is the
+        // interactive privacy & data centre: switches and account actions.
+        path: '/privacy-data',
+        builder: (context, state) => const PrivacyScreen(),
       ),
       GoRoute(
         path: '/help',
@@ -146,6 +208,38 @@ final routerProvider = Provider<GoRouter>((ref) {
           final orderId = state.pathParameters['id'] ?? '';
           return OrderDetailScreen(orderId: orderId);
         },
+      ),
+      // OTP verification — pushed by login and registration after a
+      // successful sendOtp (args travel via `extra`).
+      GoRoute(
+        path: '/otp',
+        builder: (context, state) {
+          final extra = state.extra;
+          final args = extra is Map<String, dynamic>
+              ? extra
+              : const <String, dynamic>{};
+          return OtpVerificationScreen(
+            phoneNumber: (args['phone'] as String?) ?? '',
+            name: args['name'] as String?,
+            isNewUser: (args['isNewUser'] as bool?) ?? false,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingFlowScreen(),
+      ),
+      GoRoute(
+        path: '/map-picker',
+        builder: (context, state) => const MapPickerScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       StatefulShellRoute.indexedStack(
@@ -174,6 +268,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                       return SearchResultsScreen(query: query);
                     },
                   ),
+                  // Camera scan — pushed from the search field's scanner icon.
+                  // Reached only when the entry point is offered, but the route
+                  // itself stays registered so deep links and a mid-session
+                  // kill-switch flip cannot strand the user on a 404 page.
+                  GoRoute(
+                    path: 'scan',
+                    builder: (context, state) => const BarcodeScanScreen(),
+                  ),
                 ],
               ),
             ],
@@ -182,7 +284,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/saved',
-                builder: (context, state) => const SavedItemsScreen(),
+                builder: (context, state) => SavedItemsScreen(
+                  // Lets the account hub deep-link straight to Saved
+                  // Products / Saved Shops / Search History instead of
+                  // dumping the customer on tab 0 every time.
+                  initialTab: SavedItemsTab.fromQuery(
+                    state.uri.queryParameters['tab'],
+                  ),
+                ),
               ),
             ],
           ),
@@ -196,6 +305,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
+              // The nav's "Profile" tab is the account HUB: the customer's
+              // single entry point for profile, saved items, addresses,
+              // notifications, settings, help and logout. The identity page
+              // itself stays reachable at /profile (pushed from the hub).
+              GoRoute(
+                path: '/account',
+                builder: (context, state) => const AccountScreen(),
+              ),
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfileScreen(),

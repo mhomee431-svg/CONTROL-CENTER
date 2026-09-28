@@ -11,8 +11,10 @@ final myOrdersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
 });
 
 /// A single order with its live status, timestamps and line items.
-final orderDetailProvider =
-    FutureProvider.autoDispose.family<Order, String>((ref, orderId) async {
+final orderDetailProvider = FutureProvider.autoDispose.family<Order, String>((
+  ref,
+  orderId,
+) async {
   final repo = ref.watch(orderRepositoryProvider);
   return repo.getOrderById(orderId);
 });
@@ -23,8 +25,8 @@ final orderDetailProvider =
 /// and surface failures without discarding the loaded order.
 final cancelOrderControllerProvider =
     NotifierProvider<CancelOrderController, AsyncValue<Order?>>(
-  CancelOrderController.new,
-);
+      CancelOrderController.new,
+    );
 
 class CancelOrderController extends Notifier<AsyncValue<Order?>> {
   @override

@@ -39,20 +39,19 @@ void main() {
     final store = <String, String>{};
     when(mockStorage.write(key: anyNamed('key'), value: anyNamed('value')))
         .thenAnswer((invocation) async {
-      final key = invocation.namedArguments[#key] as String;
-      final value = invocation.namedArguments[#value] as String;
-      store[key] = value;
-    });
-    when(mockStorage.read(key: anyNamed('key')))
-        .thenAnswer((invocation) async {
+          final key = invocation.namedArguments[#key] as String;
+          final value = invocation.namedArguments[#value] as String;
+          store[key] = value;
+        });
+    when(mockStorage.read(key: anyNamed('key'))).thenAnswer((invocation) async {
       final key = invocation.namedArguments[#key] as String;
       return store[key];
     });
     when(mockStorage.delete(key: anyNamed('key')))
         .thenAnswer((invocation) async {
-      final key = invocation.namedArguments[#key] as String;
-      store.remove(key);
-    });
+          final key = invocation.namedArguments[#key] as String;
+          store.remove(key);
+        });
 
     container = ProviderContainer(
       overrides: [
@@ -69,12 +68,18 @@ void main() {
   });
 
   test('Initial state should be LocationStatus.initial', () {
-    expect(container.read(locationControllerProvider).status, LocationStatus.initial);
+    expect(
+      container.read(locationControllerProvider).status,
+      LocationStatus.initial,
+    );
     expect(container.read(locationControllerProvider).location, isNull);
   });
 
   test('loadSavedLocation with stored location sets success state', () async {
-    await mockStorage.write(key: 'user_saved_location', value: jsonEncode(testLocation.toJson()));
+    await mockStorage.write(
+      key: 'user_saved_location',
+      value: jsonEncode(testLocation.toJson()),
+    );
 
     await controller.loadSavedLocation();
 
@@ -83,45 +88,63 @@ void main() {
     expect(state.location, testLocation);
   });
 
-  test('loadSavedLocation with no stored location keeps initial state', () async {
-    await controller.loadSavedLocation();
+  test(
+    'loadSavedLocation with no stored location keeps initial state',
+    () async {
+      await controller.loadSavedLocation();
 
-    expect(container.read(locationControllerProvider).status, LocationStatus.initial);
-    expect(container.read(locationControllerProvider).location, isNull);
-  });
+      expect(
+        container.read(locationControllerProvider).status,
+        LocationStatus.initial,
+      );
+      expect(container.read(locationControllerProvider).location, isNull);
+    },
+  );
 
   test('loadSavedLocation with corrupt data keeps initial state', () async {
     await mockStorage.write(key: 'user_saved_location', value: 'not-json');
 
     await controller.loadSavedLocation();
 
-    expect(container.read(locationControllerProvider).status, LocationStatus.initial);
+    expect(
+      container.read(locationControllerProvider).status,
+      LocationStatus.initial,
+    );
   });
 
-  test('fetchCurrentLocation with GPS off sets serviceDisabled state', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => false);
+  test(
+    'fetchCurrentLocation with GPS off sets serviceDisabled state',
+    () async {
+      when(mockRepository.isLocationServiceEnabled())
+          .thenAnswer((_) async => false);
 
-    await controller.fetchCurrentLocation();
+      await controller.fetchCurrentLocation();
 
-    final state = container.read(locationControllerProvider);
-    expect(state.status, LocationStatus.serviceDisabled);
-    expect(state.errorMessage, contains('GPS'));
-  });
+      final state = container.read(locationControllerProvider);
+      expect(state.status, LocationStatus.serviceDisabled);
+      expect(state.errorMessage, contains('GPS'));
+    },
+  );
 
-  test('fetchCurrentLocation with denied permission sets permissionDenied state', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
-    when(mockRepository.requestPermission())
-        .thenAnswer((_) async => LocationPermissionStatus.denied);
+  test(
+    'fetchCurrentLocation with denied permission sets permissionDenied state',
+    () async {
+      when(mockRepository.isLocationServiceEnabled())
+          .thenAnswer((_) async => true);
+      when(mockRepository.requestPermission())
+          .thenAnswer((_) async => LocationPermissionStatus.denied);
 
-    await controller.fetchCurrentLocation();
+      await controller.fetchCurrentLocation();
 
-    final state = container.read(locationControllerProvider);
-    expect(state.status, LocationStatus.permissionDenied);
-    expect(state.errorMessage, contains('permission'));
-  });
+      final state = container.read(locationControllerProvider);
+      expect(state.status, LocationStatus.permissionDenied);
+      expect(state.errorMessage, contains('permission'));
+    },
+  );
 
   test('fetchCurrentLocation with permanently denied permission sets permissionPermanentlyDenied state', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
+    when(mockRepository.isLocationServiceEnabled())
+        .thenAnswer((_) async => true);
     when(mockRepository.requestPermission())
         .thenAnswer((_) async => LocationPermissionStatus.permanentlyDenied);
 
@@ -132,40 +155,55 @@ void main() {
     expect(state.errorMessage, contains('permanently denied'));
   });
 
-  test('fetchCurrentLocation success saves location and sets success state', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
-    when(mockRepository.requestPermission())
-        .thenAnswer((_) async => LocationPermissionStatus.granted);
-    when(mockRepository.getCurrentLocation()).thenAnswer((_) async => testLocation);
+  test(
+    'fetchCurrentLocation success saves location and sets success state',
+    () async {
+      when(mockRepository.isLocationServiceEnabled())
+          .thenAnswer((_) async => true);
+      when(mockRepository.requestPermission())
+          .thenAnswer((_) async => LocationPermissionStatus.granted);
+      when(mockRepository.getCurrentLocation())
+          .thenAnswer((_) async => testLocation);
 
-    await controller.fetchCurrentLocation();
+      await controller.fetchCurrentLocation();
 
-    final state = container.read(locationControllerProvider);
-    expect(state.status, LocationStatus.success);
-    expect(state.location, testLocation);
-    final saved = await mockStorage.read(key: 'user_saved_location');
-    expect(saved, jsonEncode(testLocation.toJson()));
-  });
+      final state = container.read(locationControllerProvider);
+      expect(state.status, LocationStatus.success);
+      expect(state.location, testLocation);
+      final saved = await mockStorage.read(key: 'user_saved_location');
+      expect(saved, jsonEncode(testLocation.toJson()));
+    },
+  );
 
-  test('fetchCurrentLocation with LocationException sets error state', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
+  test(
+    'fetchCurrentLocation with LocationException sets error state',
+    () async {
+      when(mockRepository.isLocationServiceEnabled())
+          .thenAnswer((_) async => true);
+      when(mockRepository.requestPermission())
+          .thenAnswer((_) async => LocationPermissionStatus.granted);
+      when(mockRepository.getCurrentLocation()).thenThrow(
+        const LocationException(
+          LocationErrorType.locationUnavailable,
+          'No GPS fix',
+        ),
+      );
+
+      await controller.fetchCurrentLocation();
+
+      final state = container.read(locationControllerProvider);
+      expect(state.status, LocationStatus.error);
+      expect(state.errorMessage, contains('No GPS fix'));
+    },
+  );
+
+  test('fetchCurrentLocation with generic error sets error state', () async {
+    when(mockRepository.isLocationServiceEnabled())
+        .thenAnswer((_) async => true);
     when(mockRepository.requestPermission())
         .thenAnswer((_) async => LocationPermissionStatus.granted);
     when(mockRepository.getCurrentLocation())
-        .thenThrow(const LocationException(LocationErrorType.locationUnavailable, 'No GPS fix'));
-
-    await controller.fetchCurrentLocation();
-
-    final state = container.read(locationControllerProvider);
-    expect(state.status, LocationStatus.error);
-    expect(state.errorMessage, contains('No GPS fix'));
-  });
-
-  test('fetchCurrentLocation with generic error sets error state', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
-    when(mockRepository.requestPermission())
-        .thenAnswer((_) async => LocationPermissionStatus.granted);
-    when(mockRepository.getCurrentLocation()).thenThrow(Exception('GPS failure'));
+        .thenThrow(Exception('GPS failure'));
 
     await controller.fetchCurrentLocation();
 
@@ -174,36 +212,43 @@ void main() {
     expect(state.errorMessage, contains('GPS failure'));
   });
 
-  test('fetchCurrentLocation throttles repeated calls within interval', () async {
-    // First call succeeds
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
-    when(mockRepository.requestPermission())
-        .thenAnswer((_) async => LocationPermissionStatus.granted);
-    when(mockRepository.getCurrentLocation()).thenAnswer((_) async => testLocation);
+  test(
+    'fetchCurrentLocation throttles repeated calls within interval',
+    () async {
+      // First call succeeds
+      when(mockRepository.isLocationServiceEnabled())
+          .thenAnswer((_) async => true);
+      when(mockRepository.requestPermission())
+          .thenAnswer((_) async => LocationPermissionStatus.granted);
+      when(mockRepository.getCurrentLocation())
+          .thenAnswer((_) async => testLocation);
 
-    await controller.fetchCurrentLocation();
+      await controller.fetchCurrentLocation();
 
-    // Second call within 5 min should use saved location, not GPS
-    await mockStorage.write(
-      key: 'last_location_fetch_ms',
-      value: DateTime.now().millisecondsSinceEpoch.toString(),
-    );
+      // Second call within 5 min should use saved location, not GPS
+      await mockStorage.write(
+        key: 'last_location_fetch_ms',
+        value: DateTime.now().millisecondsSinceEpoch.toString(),
+      );
 
-    await controller.fetchCurrentLocation();
+      await controller.fetchCurrentLocation();
 
-    final state = container.read(locationControllerProvider);
-    expect(state.status, LocationStatus.success);
-    expect(state.location, testLocation);
-    // GPS should not be called again
-    verify(mockRepository.getCurrentLocation()).called(1);
-  });
+      final state = container.read(locationControllerProvider);
+      expect(state.status, LocationStatus.success);
+      expect(state.location, testLocation);
+      // GPS should not be called again
+      verify(mockRepository.getCurrentLocation()).called(1);
+    },
+  );
 
   test('refreshLocation bypasses throttle', () async {
     // First call succeeds
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
+    when(mockRepository.isLocationServiceEnabled())
+        .thenAnswer((_) async => true);
     when(mockRepository.requestPermission())
         .thenAnswer((_) async => LocationPermissionStatus.granted);
-    when(mockRepository.getCurrentLocation()).thenAnswer((_) async => testLocation);
+    when(mockRepository.getCurrentLocation())
+        .thenAnswer((_) async => testLocation);
 
     await controller.fetchCurrentLocation();
 
@@ -219,17 +264,23 @@ void main() {
   });
 
   test('retry re-attempts a failed location request', () async {
-    when(mockRepository.isLocationServiceEnabled()).thenAnswer((_) async => true);
+    when(mockRepository.isLocationServiceEnabled())
+        .thenAnswer((_) async => true);
     when(mockRepository.requestPermission())
         .thenAnswer((_) async => LocationPermissionStatus.granted);
-    when(mockRepository.getCurrentLocation())
-        .thenThrow(const LocationException(LocationErrorType.locationUnavailable, 'No fix'));
+    when(mockRepository.getCurrentLocation()).thenThrow(
+      const LocationException(LocationErrorType.locationUnavailable, 'No fix'),
+    );
 
     await controller.fetchCurrentLocation();
-    expect(container.read(locationControllerProvider).status, LocationStatus.error);
+    expect(
+      container.read(locationControllerProvider).status,
+      LocationStatus.error,
+    );
 
     // Now GPS works
-    when(mockRepository.getCurrentLocation()).thenAnswer((_) async => testLocation);
+    when(mockRepository.getCurrentLocation())
+        .thenAnswer((_) async => testLocation);
 
     await controller.retry();
 

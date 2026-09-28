@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../features/home/domain/models/home_data.dart';
 import '../theme/app_theme.dart';
 import 'network_image_view.dart';
@@ -33,7 +34,11 @@ class ProductCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              NetworkImageView(imageUrl: product.imageUrl, height: 100, borderRadius: 12),
+              NetworkImageView(
+                imageUrl: product.imageUrl,
+                height: 100,
+                borderRadius: 12,
+              ),
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 child: Column(
@@ -51,7 +56,10 @@ class ProductCard extends StatelessWidget {
                       product.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(

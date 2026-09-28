@@ -97,3 +97,8 @@ apps/shopkeeper_app/ios/Flutter/MapsAPIKey.xcconfig
 .DS_Store
 Thumbs.db
 
+
+# Stray tool output — never commit these
+test_err.txt
+test_out.txt
+temp_file.txt

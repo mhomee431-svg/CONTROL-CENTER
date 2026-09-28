@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/cache/local_cache_service.dart';
 import '../../../core/network/api_client.dart';
 import 'models/shop_details_models.dart';

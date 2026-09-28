@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../domain/models/storage_models.dart';
 import '../../domain/saved_and_history_repository.dart';
 
 // --- SAVED PRODUCTS NOTIFIER ---
-final savedProductsNotifierProvider = AsyncNotifierProvider<SavedProductsNotifier, List<SavedProductItem>>(
-  SavedProductsNotifier.new,
-);
+final savedProductsNotifierProvider =
+    AsyncNotifierProvider<SavedProductsNotifier, List<SavedProductItem>>(
+      SavedProductsNotifier.new,
+    );
 
 class SavedProductsNotifier extends AsyncNotifier<List<SavedProductItem>> {
   @override
@@ -35,9 +37,10 @@ class SavedProductsNotifier extends AsyncNotifier<List<SavedProductItem>> {
 }
 
 // --- SAVED SHOPS NOTIFIER ---
-final savedShopsNotifierProvider = AsyncNotifierProvider<SavedShopsNotifier, List<SavedShopItem>>(
-  SavedShopsNotifier.new,
-);
+final savedShopsNotifierProvider =
+    AsyncNotifierProvider<SavedShopsNotifier, List<SavedShopItem>>(
+      SavedShopsNotifier.new,
+    );
 
 class SavedShopsNotifier extends AsyncNotifier<List<SavedShopItem>> {
   @override
@@ -67,9 +70,10 @@ class SavedShopsNotifier extends AsyncNotifier<List<SavedShopItem>> {
 }
 
 // --- RECENT SEARCHES NOTIFIER ---
-final recentSearchesNotifierProvider = AsyncNotifierProvider<RecentSearchesNotifier, List<RecentSearchItem>>(
-  RecentSearchesNotifier.new,
-);
+final recentSearchesNotifierProvider =
+    AsyncNotifierProvider<RecentSearchesNotifier, List<RecentSearchItem>>(
+      RecentSearchesNotifier.new,
+    );
 
 class RecentSearchesNotifier extends AsyncNotifier<List<RecentSearchItem>> {
   @override
@@ -97,9 +101,10 @@ class RecentSearchesNotifier extends AsyncNotifier<List<RecentSearchItem>> {
 }
 
 // --- RECENTLY VIEWED NOTIFIER ---
-final recentlyViewedNotifierProvider = AsyncNotifierProvider<RecentlyViewedNotifier, List<RecentlyViewedItem>>(
-  RecentlyViewedNotifier.new,
-);
+final recentlyViewedNotifierProvider =
+    AsyncNotifierProvider<RecentlyViewedNotifier, List<RecentlyViewedItem>>(
+      RecentlyViewedNotifier.new,
+    );
 
 class RecentlyViewedNotifier extends AsyncNotifier<List<RecentlyViewedItem>> {
   @override
@@ -129,15 +134,18 @@ class RecentlyViewedNotifier extends AsyncNotifier<List<RecentlyViewedItem>> {
 
 // --- RECENTLY VIEWED SHOPS NOTIFIER ---
 final recentlyViewedShopsNotifierProvider =
-    AsyncNotifierProvider<RecentlyViewedShopsNotifier, List<RecentlyViewedShopItem>>(
-  RecentlyViewedShopsNotifier.new,
-);
+    AsyncNotifierProvider<
+      RecentlyViewedShopsNotifier,
+      List<RecentlyViewedShopItem>
+    >(RecentlyViewedShopsNotifier.new);
 
 class RecentlyViewedShopsNotifier
     extends AsyncNotifier<List<RecentlyViewedShopItem>> {
   @override
   Future<List<RecentlyViewedShopItem>> build() async {
-    return ref.watch(savedAndHistoryRepositoryProvider).getRecentlyViewedShops();
+    return ref
+        .watch(savedAndHistoryRepositoryProvider)
+        .getRecentlyViewedShops();
   }
 
   /// Called when a shop details page is opened. Deduping and the

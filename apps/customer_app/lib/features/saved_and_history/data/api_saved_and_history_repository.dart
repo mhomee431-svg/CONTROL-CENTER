@@ -39,7 +39,6 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
     }
   }
 
-
   SavedProductItem _mapSavedProduct(Map<String, dynamic> json) {
     return SavedProductItem(
       productId: json['product_id']?.toString() ?? '',
@@ -47,7 +46,9 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
       brand: json['brand']?.toString() ?? '',
       lowestPrice: (json['lowest_price'] as num?)?.toDouble() ?? 0,
       imageUrl: json['image_url']?.toString() ?? '',
-      savedAt: DateTime.tryParse(json['saved_at']?.toString() ?? '') ?? DateTime.now(),
+      savedAt:
+          DateTime.tryParse(json['saved_at']?.toString() ?? '') ??
+          DateTime.now(),
       isSynced: true,
     );
   }
@@ -75,7 +76,6 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
     await _local.clearSavedProducts();
   }
 
-
   // --- SAVED SHOPS (backend-synced) ---
   @override
   Future<List<SavedShopItem>> getSavedShops() async {
@@ -94,7 +94,6 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
     }
   }
 
-
   SavedShopItem _mapSavedShop(Map<String, dynamic> json) {
     return SavedShopItem(
       shopId: json['shop_id']?.toString() ?? '',
@@ -102,7 +101,9 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
       address: json['address']?.toString() ?? '',
       imageUrl: json['image_url']?.toString() ?? '',
       rating: (json['rating'] as num?)?.toDouble() ?? 0,
-      savedAt: DateTime.tryParse(json['saved_at']?.toString() ?? '') ?? DateTime.now(),
+      savedAt:
+          DateTime.tryParse(json['saved_at']?.toString() ?? '') ??
+          DateTime.now(),
       isSynced: true,
     );
   }
@@ -144,7 +145,6 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
   @override
   Future<void> clearRecentSearches() => _local.clearRecentSearches();
 
-
   // --- RECENTLY VIEWED PRODUCTS (always local-only) ---
   @override
   Future<List<RecentlyViewedItem>> getRecentlyViewed() =>
@@ -175,8 +175,7 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
       _local.removeRecentlyViewedShop(shopId);
 
   @override
-  Future<void> clearRecentlyViewedShops() =>
-      _local.clearRecentlyViewedShops();
+  Future<void> clearRecentlyViewedShops() => _local.clearRecentlyViewedShops();
 
   // --- LOGIN SYNC ---
   @override
@@ -195,8 +194,9 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
         await _local.clearSavedProducts();
       }
 
-      final pendingShops =
-          (await _local.getSavedShops()).where((s) => !s.isSynced).toList();
+      final pendingShops = (await _local.getSavedShops())
+          .where((s) => !s.isSynced)
+          .toList();
       for (final shop in pendingShops) {
         await _apiClient.post(ApiEndpoints.savedShop(shop.shopId));
       }

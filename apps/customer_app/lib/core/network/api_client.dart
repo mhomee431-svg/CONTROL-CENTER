@@ -8,6 +8,7 @@ import '../security/safe_logger.dart';
 import '../storage/secure_storage_service.dart';
 import 'api_endpoints.dart';
 import 'api_error_handler.dart';
+import 'connectivity_service.dart';
 import 'retry_interceptor.dart';
 
 /// A thin wrapper around Dio that:
@@ -92,10 +93,7 @@ class ApiClient {
   }
 
   /// Performs a DELETE request and returns the `data` field of the envelope.
-  Future<dynamic> delete(
-    String path, {
-    bool requiresAuth = true,
-  }) async {
+  Future<dynamic> delete(String path, {bool requiresAuth = true}) async {
     try {
       final response = await _dio.delete(
         ApiEndpoints.apiPath(path),
@@ -109,7 +107,10 @@ class ApiClient {
 
   Future<Options> _buildOptions(bool requiresAuth) async {
     final options = Options(
-      headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
     );
     if (requiresAuth) {
       final token = await _storage.getToken();
@@ -153,11 +154,7 @@ class TokenRefreshInterceptor extends Interceptor {
   /// Shared, in-flight refresh future (single-flight guard).
   Future<bool>? _refreshing;
 
-  TokenRefreshInterceptor(
-    this._dio,
-    this._storage,
-    this._onSessionExpired,
-  );
+  TokenRefreshInterceptor(this._dio, this._storage, this._onSessionExpired);
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
@@ -206,24 +203,25 @@ class TokenRefreshInterceptor extends Interceptor {
 
     // A bare Dio instance without interceptors: a failing refresh must never
     // recurse into this interceptor again.
-    final authDio = Dio(BaseOptions(
-      baseUrl: EnvConfig.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      responseType: ResponseType.json,
-    ));
+    final authDio = Dio(
+      BaseOptions(
+        baseUrl: EnvConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        responseType: ResponseType.json,
+      ),
+    );
 
     try {
       final response = await authDio.post(
         ApiEndpoints.apiPath(ApiEndpoints.refreshToken),
-        data: {
-          'refresh_token': refreshToken,
-          'device_id': deviceId,
-        },
-        options: Options(headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }),
+        data: {'refresh_token': refreshToken, 'device_id': deviceId},
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        ),
       );
 
       final body = response.data;
@@ -269,6 +267,38 @@ class TokenRefreshInterceptor extends Interceptor {
   }
 }
 
+/// Correlation id for a single outbound request.
+///
+/// Time-based rather than random so it sorts chronologically in logs and stays
+/// unique enough to trace one customer-reported failure without a UUID
+/// dependency. Deliberately not derived from any token or user data.
+String _newRequestId() {
+  final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+  return 'req_${now.toUpperCase()}';
+}
+
+/// Promotes connectivity to `online` after a successful response.
+///
+/// Guarded by [read] so this never *builds* the connectivity service in a
+/// context that has not opted into it; a failure here must not take down a
+/// request that actually succeeded.
+Future<void> _confirmReachable(Ref ref) async {
+  try {
+    ref.read(connectivityServiceProvider).confirmReachable();
+  } catch (_) {
+    // Connectivity tracking is advisory; never let it break a good response.
+  }
+}
+
+/// Marks connectivity as degraded after a network-shaped failure.
+Future<void> _noteFailure(Ref ref) async {
+  try {
+    ref.read(connectivityServiceProvider).noteRequestFailure();
+  } catch (_) {
+    // As above — advisory only.
+  }
+}
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = Dio(
     BaseOptions(
@@ -285,16 +315,38 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   dio.interceptors.addAll([
     ExponentialRetryInterceptor(dio: dio),
     InterceptorsWrapper(
+      // Stamps a correlation id on every outbound request so a customer
+      // reporting "it failed at 14:32" can be traced to an exact request in
+      // the logs, without logging bodies or tokens.
       onRequest: (options, handler) {
-        SafeLogger.debug('HTTP Outbound: [${options.method}] ${options.path}');
+        options.headers['X-Request-ID'] ??= _newRequestId();
+        SafeLogger.debug(
+          'HTTP Outbound: [${options.method}] ${options.path} '
+          '(${options.headers['X-Request-ID']})',
+        );
         return handler.next(options);
       },
       onResponse: (response, handler) {
-        SafeLogger.debug('HTTP Inbound: [${response.statusCode}] ${response.requestOptions.path}');
+        SafeLogger.debug(
+          'HTTP Inbound: [${response.statusCode}] ${response.requestOptions.path}',
+        );
+        // A response is the only proof that connectivity genuinely works, so it
+        // is what promotes `reconnecting` back to `online`. Without this the
+        // banner would sit on "Reconnecting…" forever even though requests are
+        // succeeding again.
+        unawaited(_confirmReachable(ref));
         return handler.next(response);
       },
       onError: (DioException e, handler) {
-        SafeLogger.error('HTTP Error: [${e.response?.statusCode}] ${e.requestOptions.path}');
+        SafeLogger.error(
+          'HTTP Error: [${e.response?.statusCode}] ${e.requestOptions.path}',
+        );
+        // Only network-shaped failures mark the device offline. A 404 or a 422
+        // proves the network works fine, and treating those as an outage would
+        // show a false "You're offline" banner over a mere missing record.
+        if (isConnectivityError(ApiException.fromDioError(e))) {
+          unawaited(_noteFailure(ref));
+        }
         return handler.next(e);
       },
     ),
@@ -304,11 +356,9 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
   // Registered last so it sees errors only after logging/retry decided not
   // to handle them (Dio runs error interceptors in registration order).
-  dio.interceptors.add(TokenRefreshInterceptor(
-    dio,
-    storage,
-    client.notifySessionExpired,
-  ));
+  dio.interceptors.add(
+    TokenRefreshInterceptor(dio, storage, client.notifySessionExpired),
+  );
 
   ref.onDispose(client._sessionExpiredController.close);
   return client;

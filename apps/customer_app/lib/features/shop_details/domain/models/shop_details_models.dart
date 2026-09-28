@@ -13,7 +13,8 @@ abstract class ShopProductSummary with _$ShopProductSummary {
     required bool isAvailable,
   }) = _ShopProductSummary;
 
-  factory ShopProductSummary.fromJson(Map<String, dynamic> json) => _$ShopProductSummaryFromJson(json);
+  factory ShopProductSummary.fromJson(Map<String, dynamic> json) =>
+      _$ShopProductSummaryFromJson(json);
 }
 
 @freezed
@@ -56,11 +57,15 @@ abstract class ShopProfile with _$ShopProfile {
 
   const ShopProfile._();
 
-  factory ShopProfile.fromJson(Map<String, dynamic> json) => _$ShopProfileFromJson(json);
+  factory ShopProfile.fromJson(Map<String, dynamic> json) =>
+      _$ShopProfileFromJson(json);
 
   /// Whether the shop has usable coordinates for map/directions.
   bool get hasValidCoordinates =>
-      latitude != 0 && longitude != 0 &&
-      latitude >= -90 && latitude <= 90 &&
-      longitude >= -180 && longitude <= 180;
+      latitude != 0 &&
+      longitude != 0 &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180;
 }

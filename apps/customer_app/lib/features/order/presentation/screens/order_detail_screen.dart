@@ -13,6 +13,7 @@ import '../order_status_ui.dart';
 /// Live tracking view for a single order: status timeline, line items,
 /// bill breakdown, delivery address and a cancel action while the order is
 /// still cancellable (mirrors the backend `is_cancellable` rule).
+
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
 
@@ -51,19 +52,19 @@ class OrderDetailScreen extends ConsumerWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    final cancelled =
-        await ref.read(cancelOrderControllerProvider.notifier).cancel(orderId);
+    final cancelled = await ref
+        .read(cancelOrderControllerProvider.notifier)
+        .cancel(orderId);
 
     if (!context.mounted) return;
     if (cancelled == null) {
       final error = ref.read(cancelOrderControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not cancel order: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not cancel order: $error')));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order cancelled.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Order cancelled.')));
     }
   }
 
@@ -149,6 +150,15 @@ bool _isCancellable(OrderStatus status) =>
     status == OrderStatus.pending ||
     status == OrderStatus.confirmed ||
     status == OrderStatus.preparing;
+
+/// Formats an amount using the order's currency code (`INR` → `₹`).
+///
+/// Mirrors the file-private helper in `my_orders_screen.dart` (Dart library
+/// privacy keeps each screen's helper independent).
+String _money(double amount, String currency) {
+  final symbol = currency == 'INR' ? '\u20B9' : '$currency ';
+  return '$symbol${amount.toStringAsFixed(2)}';
+}
 
 /// Order number, live status pill, payment state and placed timestamp.
 class _StatusHeader extends StatelessWidget {
@@ -351,17 +361,17 @@ class _TrackerStep extends StatelessWidget {
                 child: isDone
                     ? Icon(Icons.check, size: 13, color: color)
                     : isCurrent
-                        ? Center(
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: color,
-                              ),
-                            ),
-                          )
-                        : null,
+                    ? Center(
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: color,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
               if (!isLast)
                 Expanded(
@@ -440,10 +450,7 @@ class _TerminalBanner extends StatelessWidget {
                   if (order.cancelReason != null &&
                       order.cancelReason!.trim().isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      order.cancelReason!,
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    Text(order.cancelReason!, style: theme.textTheme.bodySmall),
                   ],
                   if (order.cancelledAt != null) ...[
                     const SizedBox(height: AppSpacing.xs),
@@ -509,8 +516,8 @@ class _ItemsCard extends StatelessWidget {
                           color: AppColors.backgroundLight,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: item.imageUrl != null &&
-                                item.imageUrl!.isNotEmpty
+                        child:
+                            item.imageUrl != null && item.imageUrl!.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
@@ -747,11 +754,3 @@ class _AddressCard extends StatelessWidget {
     return raw;
   }
 }
-
-/// Formats an amount using the order's currency code (`INR` → `₹`).
-String _money(double amount, String currency) {
-  final symbol = currency == 'INR' ? '\u20B9' : '$currency ';
-  return '$symbol${amount.toStringAsFixed(2)}';
-}
-
-

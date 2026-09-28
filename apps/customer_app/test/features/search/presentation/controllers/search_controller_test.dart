@@ -102,32 +102,35 @@ void main() {
   });
 
   group('SearchResultsController', () {
-    test('loads initial results and appends next page on fetchNextPage', () async {
-      final container = ProviderContainer(
-        overrides: [
-          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'loads initial results and appends next page on fetchNextPage',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final provider = searchResultsProvider('Paracetamol');
-      final controller = container.read(provider.notifier);
+        final provider = searchResultsProvider('Paracetamol');
+        final controller = container.read(provider.notifier);
 
-      await Future.delayed(const Duration(milliseconds: 900));
+        await Future.delayed(const Duration(milliseconds: 900));
 
-      var state = container.read(provider);
-      expect(state.isLoading, false);
-      expect(state.results.length, 10);
-      expect(state.hasReachedMax, false);
-      expect(state.stage, SearchStage.results);
+        var state = container.read(provider);
+        expect(state.isLoading, false);
+        expect(state.results.length, 10);
+        expect(state.hasReachedMax, false);
+        expect(state.stage, SearchStage.results);
 
-      await controller.fetchNextPage();
-      await Future.delayed(const Duration(milliseconds: 900));
+        await controller.fetchNextPage();
+        await Future.delayed(const Duration(milliseconds: 900));
 
-      state = container.read(provider);
-      expect(state.results.length, 20);
-      expect(state.isFetchingMore, false);
-    });
+        state = container.read(provider);
+        expect(state.results.length, 20);
+        expect(state.isFetchingMore, false);
+      },
+    );
 
     test('sets hasReachedMax when results are fewer than limit', () async {
       final container = ProviderContainer(
@@ -209,6 +212,40 @@ void main() {
       final state = container.read(provider);
       expect(state.sort, SortOption.lowestPrice);
     });
+
+    test(
+      'updateFilters preserves active category and brand selections',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final provider = searchResultsProvider('Paracetamol');
+        final controller = container.read(provider.notifier);
+
+        controller.updateFilters({
+          'in_stock': true,
+          'max_distance': 5.0,
+          'max_price': 250.0,
+          'min_rating': 4.0,
+          'category': 'Health',
+          'brand': 'Dettol',
+        });
+        await Future.delayed(const Duration(milliseconds: 900));
+
+        final state = container.read(provider);
+        expect(state.inStockOnly, isTrue);
+        expect(state.maxDistance, 5.0);
+        expect(state.maxPrice, 250.0);
+        expect(state.minRating, 4.0);
+        expect(state.categoryFilter, 'Health');
+        expect(state.brandFilter, 'Dettol');
+        expect(state.hasActiveFilters, isTrue);
+      },
+    );
   });
 
   group('SearchEventTracker', () {

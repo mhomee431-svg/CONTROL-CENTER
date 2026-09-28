@@ -40,6 +40,13 @@
 -keep class io.flutter.plugins.connectivity.** { *; }
 -keep class dev.fluttercommunity.plus.connectivity.** { *; }
 
+# --- firebase_auth + Google Credential Manager (native Google Sign-In) ---
+-keep class com.google.firebase.auth.** { *; }
+-keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class androidx.credentials.** { *; }
+-dontwarn androidx.credentials.**
+-dontwarn com.google.android.libraries.identity.googleid.**
+
 # --- General: keep native methods ---
 -keepclasseswithmembernames class * {
     native <methods>;

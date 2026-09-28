@@ -13,7 +13,8 @@ abstract class Product with _$Product {
     required String priceRange,
   }) = _Product;
 
-  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  factory Product.fromJson(Map<String, dynamic> json) =>
+      _$ProductFromJson(json);
 }
 
 @freezed
@@ -38,7 +39,8 @@ abstract class Category with _$Category {
     required String iconUrl,
   }) = _Category;
 
-  factory Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
+  factory Category.fromJson(Map<String, dynamic> json) =>
+      _$CategoryFromJson(json);
 }
 
 @freezed
@@ -52,7 +54,8 @@ abstract class Promotion with _$Promotion {
     String? ctaTarget,
   }) = _Promotion;
 
-  factory Promotion.fromJson(Map<String, dynamic> json) => _$PromotionFromJson(json);
+  factory Promotion.fromJson(Map<String, dynamic> json) =>
+      _$PromotionFromJson(json);
 }
 
 @freezed
@@ -67,5 +70,6 @@ abstract class HomeData with _$HomeData {
     @Default([]) List<Promotion> promotions,
   }) = _HomeData;
 
-  factory HomeData.fromJson(Map<String, dynamic> json) => _$HomeDataFromJson(json);
+  factory HomeData.fromJson(Map<String, dynamic> json) =>
+      _$HomeDataFromJson(json);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/network/api_client.dart';
 import '../data/api_search_repository.dart';
 import 'models/search_models.dart';
@@ -18,7 +19,18 @@ abstract class SearchRepository {
     required int page,
     required int limit,
     SortOption sort = SortOption.nearest,
-    Map<String, dynamic>? filters, // e.g., {'max_distance': 5.0, 'in_stock': true}
+    Map<String, dynamic>?
+    filters, // e.g., {'max_distance': 5.0, 'in_stock': true}
+    double? latitude,
+    double? longitude,
+  });
+
+  /// Looks up the shops selling the product identified by [barcode].
+  ///
+  /// Returns an empty list when the barcode is unknown to the platform — never
+  /// a placeholder product.
+  Future<List<ShopProductResult>> lookupBarcode(
+    String barcode, {
     double? latitude,
     double? longitude,
   });

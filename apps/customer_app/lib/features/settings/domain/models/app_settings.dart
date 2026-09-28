@@ -63,21 +63,22 @@ class AppSettings {
       pushNotificationsEnabled:
           pushNotificationsEnabled ?? this.pushNotificationsEnabled,
       analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
-      crashReportingEnabled: crashReportingEnabled ?? this.crashReportingEnabled,
+      crashReportingEnabled:
+          crashReportingEnabled ?? this.crashReportingEnabled,
       personalizedRecommendations:
           personalizedRecommendations ?? this.personalizedRecommendations,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        _themeKey: themeMode.name,
-        _languageKey: languageCode,
-        _locationKey: locationEnabled,
-        _pushKey: pushNotificationsEnabled,
-        _analyticsKey: analyticsEnabled,
-        _crashKey: crashReportingEnabled,
-        _personalizationKey: personalizedRecommendations,
-      };
+    _themeKey: themeMode.name,
+    _languageKey: languageCode,
+    _locationKey: locationEnabled,
+    _pushKey: pushNotificationsEnabled,
+    _analyticsKey: analyticsEnabled,
+    _crashKey: crashReportingEnabled,
+    _personalizationKey: personalizedRecommendations,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(

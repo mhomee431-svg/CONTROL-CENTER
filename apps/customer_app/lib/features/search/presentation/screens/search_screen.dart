@@ -37,13 +37,17 @@ class SearchScreen extends ConsumerWidget {
               // Persist search into history then navigate to results.
               await saveRecentSearch(ref, value);
               if (context.mounted) {
-                context.push(
-                  '/search/results?q=${Uri.encodeComponent(value)}',
-                );
+                context.push('/search/results?q=${Uri.encodeComponent(value)}');
               }
             },
-            // Barcode scan is hidden until the backend lookup endpoint exists.
-            // Passing null keeps the scanner icon off (spec: disable gracefully).
+            // The scanner icon opens the camera flow (which also offers manual
+            // entry as its fallback). It is hidden entirely when the barcode
+            // lookup is unavailable — the env kill-switch, or a first lookup
+            // that proved the backend has no barcode route — because an icon
+            // that leads to a dead end is worse than no icon.
+            onBarcodeTap: barcodeEntryPointAvailable(ref)
+                ? () => context.push('/search/scan')
+                : null,
           ),
         ),
         actions: [

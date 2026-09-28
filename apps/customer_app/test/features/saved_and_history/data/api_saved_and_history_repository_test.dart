@@ -39,14 +39,14 @@ void main() {
       );
 
   SavedShopItem shop(String id, {bool synced = false}) => SavedShopItem(
-        shopId: id,
-        name: 'Shop $id',
-        address: 'Address',
-        imageUrl: '',
-        rating: 4,
-        savedAt: DateTime.now(),
-        isSynced: synced,
-      );
+    shopId: id,
+    name: 'Shop $id',
+    address: 'Address',
+    imageUrl: '',
+    rating: 4,
+    savedAt: DateTime.now(),
+    isSynced: synced,
+  );
 
   group('local-only state stays on the device', () {
     test('recent searches are delegated to the local store', () async {
@@ -64,21 +64,25 @@ void main() {
     });
 
     test('recently viewed products and shops never hit the API', () async {
-      await repo.addRecentlyViewed(RecentlyViewedItem(
-        productId: 'p1',
-        name: 'P1',
-        imageUrl: '',
-        price: 10,
-        viewedAt: DateTime.now(),
-      ));
-      await repo.addRecentlyViewedShop(RecentlyViewedShopItem(
-        shopId: 's1',
-        name: 'S1',
-        address: '',
-        imageUrl: '',
-        rating: 4,
-        viewedAt: DateTime.now(),
-      ));
+      await repo.addRecentlyViewed(
+        RecentlyViewedItem(
+          productId: 'p1',
+          name: 'P1',
+          imageUrl: '',
+          price: 10,
+          viewedAt: DateTime.now(),
+        ),
+      );
+      await repo.addRecentlyViewedShop(
+        RecentlyViewedShopItem(
+          shopId: 's1',
+          name: 'S1',
+          address: '',
+          imageUrl: '',
+          rating: 4,
+          viewedAt: DateTime.now(),
+        ),
+      );
 
       verifyZeroInteractions(api);
       expect((await repo.getRecentlyViewed()).first.productId, 'p1');
@@ -87,15 +91,17 @@ void main() {
   });
 
   group('saved items are backend-synced', () {
-    test('saveProduct posts to the backend and mirrors locally as synced',
-        () async {
-      await repo.saveProduct(product('p9'));
+    test(
+      'saveProduct posts to the backend and mirrors locally as synced',
+      () async {
+        await repo.saveProduct(product('p9'));
 
-      verify(api.post('/saved-products/p9')).called(1);
-      final mirrored = await local.getSavedProducts();
-      expect(mirrored.first.productId, 'p9');
-      expect(mirrored.first.isSynced, isTrue);
-    });
+        verify(api.post('/saved-products/p9')).called(1);
+        final mirrored = await local.getSavedProducts();
+        expect(mirrored.first.productId, 'p9');
+        expect(mirrored.first.isSynced, isTrue);
+      },
+    );
 
     test('removeProduct deletes from backend and local mirror', () async {
       await repo.saveProduct(product('p9'));
@@ -106,18 +112,20 @@ void main() {
     });
 
     test('getSavedProducts maps the API envelope', () async {
-      when(api.get('/saved-products')).thenAnswer((_) async => {
-            'items': [
-              {
-                'product_id': '42',
-                'name': 'Keyboard',
-                'brand': 'KeyBrand',
-                'lowest_price': 1499,
-                'image_url': 'img.png',
-                'saved_at': '2026-01-02T03:04:05.000',
-              }
-            ],
-          });
+      when(api.get('/saved-products')).thenAnswer(
+        (_) async => {
+          'items': [
+            {
+              'product_id': '42',
+              'name': 'Keyboard',
+              'brand': 'KeyBrand',
+              'lowest_price': 1499,
+              'image_url': 'img.png',
+              'saved_at': '2026-01-02T03:04:05.000',
+            },
+          ],
+        },
+      );
 
       final items = await repo.getSavedProducts();
       expect(items.single.productId, '42');
@@ -125,8 +133,7 @@ void main() {
       expect(items.single.isSynced, isTrue);
     });
 
-    test('getSavedProducts falls back to the local queue on failure',
-        () async {
+    test('getSavedProducts falls back to the local queue on failure', () async {
       await local.saveProduct(product('offline'));
       when(api.get('/saved-products')).thenThrow(Exception('offline'));
 
@@ -154,17 +161,19 @@ void main() {
       expect(await local.getSavedShops(), isEmpty);
     });
 
-    test('keeps pending items queued when the backend is unreachable',
-        () async {
-      await local.saveProduct(product('guest-p1'));
-      when(api.post('/saved-products/guest-p1'))
-          .thenThrow(Exception('network down'));
+    test(
+      'keeps pending items queued when the backend is unreachable',
+      () async {
+        await local.saveProduct(product('guest-p1'));
+        when(api.post('/saved-products/guest-p1'))
+            .thenThrow(Exception('network down'));
 
-      await repo.syncPendingSaves();
+        await repo.syncPendingSaves();
 
-      final stillPending = await local.getSavedProducts();
-      expect(stillPending.single.productId, 'guest-p1');
-      expect(stillPending.single.isSynced, isFalse);
-    });
+        final stillPending = await local.getSavedProducts();
+        expect(stillPending.single.productId, 'guest-p1');
+        expect(stillPending.single.isSynced, isFalse);
+      },
+    );
   });
 }

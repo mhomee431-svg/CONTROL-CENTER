@@ -36,7 +36,33 @@ GoRouter _router() {
       ),
       GoRoute(
         path: '/profile/addresses',
-        builder: (_, _) => const Scaffold(body: Text('AddressesPage')),
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
+      ),
+      GoRoute(
+        path: '/help',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('HelpPage')),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('PrivacyPage')),
+      ),
+      GoRoute(
+        path: '/terms',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('TermsPage')),
+      ),
+      GoRoute(
+        path: '/account',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('AccountHubPage')),
+      ),
+      GoRoute(
+        path: '/delete-account',
+        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('DeleteAccountPage')),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (_, state) => Scaffold(
+          body: Text('SettingsPage:${state.uri.queryParameters['section']}'),
+        ),
       ),
     ],
   );
@@ -59,12 +85,13 @@ Future<void> pump(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
-  testWidgets('guest sees sign-in prompt instead of profile data',
-      (tester) async {
+  testWidgets('guest sees sign-in prompt instead of profile data', (
+    tester,
+  ) async {
     final auth = _StubAuthController(AuthStatus.guest);
-    final container = ProviderContainer(overrides: [
-      authControllerProvider.overrideWith(() => auth),
-    ]);
+    final container = ProviderContainer(
+      overrides: [authControllerProvider.overrideWith(() => auth)],
+    );
     addTearDown(container.dispose);
 
     await pump(tester, container);
@@ -77,13 +104,16 @@ void main() {
     expect(find.byKey(const Key('editProfileButton')), findsNothing);
   });
 
-  testWidgets('authenticated user sees profile info and account sections',
-      (tester) async {
+  testWidgets('authenticated user sees profile info and account sections', (
+    tester,
+  ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
-    final container = ProviderContainer(overrides: [
-      authControllerProvider.overrideWith(() => auth),
-      profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+      ],
+    );
     addTearDown(container.dispose);
 
     await pump(tester, container);
@@ -95,39 +125,43 @@ void main() {
     expect(find.text('Active'), findsOneWidget);
   });
 
-  testWidgets('logout requires confirmation and signs out via auth controller',
-      (tester) async {
-    final auth = _StubAuthController(AuthStatus.authenticated);
-    final container = ProviderContainer(overrides: [
-      authControllerProvider.overrideWith(() => auth),
-      profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
-    ]);
-    addTearDown(container.dispose);
+  testWidgets(
+    'logout requires confirmation and signs out via auth controller',
+    (tester) async {
+      final auth = _StubAuthController(AuthStatus.authenticated);
+      final container = ProviderContainer(
+        overrides: [
+          authControllerProvider.overrideWith(() => auth),
+          profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await pump(tester, container);
+      await pump(tester, container);
 
-    await tester.tap(find.byKey(const Key('logoutButton')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('logoutButton')));
+      await tester.pumpAndSettle();
 
-    // Confirmation dialog is shown first.
-    expect(find.byKey(const Key('confirmLogout')), findsOneWidget);
-    expect(auth.logoutCalled, isFalse);
+      // Confirmation dialog is shown first.
+      expect(find.byKey(const Key('confirmLogout')), findsOneWidget);
+      expect(auth.logoutCalled, isFalse);
 
-    await tester.tap(find.byKey(const Key('confirmLogout')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirmLogout')));
+      await tester.pumpAndSettle();
 
-    expect(auth.logoutCalled, isTrue);
-    expect(
-      container.read(authControllerProvider).status,
-      AuthStatus.unauthenticated,
-    );
-  });
+      expect(auth.logoutCalled, isTrue);
+      expect(
+        container.read(authControllerProvider).status,
+        AuthStatus.unauthenticated,
+      );
+    },
+  );
 
   testWidgets('addresses tile navigates to the address book', (tester) async {
     final auth = _StubAuthController(AuthStatus.guest);
-    final container = ProviderContainer(overrides: [
-      authControllerProvider.overrideWith(() => auth),
-    ]);
+    final container = ProviderContainer(
+      overrides: [authControllerProvider.overrideWith(() => auth)],
+    );
     addTearDown(container.dispose);
 
     await pump(tester, container);
@@ -138,14 +172,190 @@ void main() {
     expect(find.text('AddressesPage'), findsOneWidget);
   });
 
-  testWidgets('edit profile rejects invalid email and saves valid input',
-      (tester) async {
+  testWidgets('every spec entry is present for a signed-in customer', (
+    tester,
+  ) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+
+    // Identity
+    expect(find.text('Rahul Sharma'), findsOneWidget); // Full name
+    expect(find.text('rahul.sharma@example.com'), findsOneWidget); // Email
+    expect(find.text('+91 98765 43210'), findsOneWidget); // Mobile
+    // Entries
+    expect(find.byKey(const Key('addressesTile')), findsOneWidget);
+    expect(find.byKey(const Key('notificationsSettingsTile')), findsOneWidget);
+    expect(find.byKey(const Key('appSettingsTile')), findsOneWidget);
+    expect(find.byKey(const Key('privacyTile')), findsOneWidget);
+    expect(find.byKey(const Key('termsTile')), findsOneWidget);
+    expect(find.byKey(const Key('helpSupportTile')), findsOneWidget);
+    expect(find.byKey(const Key('logoutButton')), findsOneWidget);
+    expect(find.byKey(const Key('deleteAccountTile')), findsOneWidget);
+  });
+
+  testWidgets('no internal identifiers are rendered anywhere', (tester) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+
+    // The mock profile's id is "1" — it must never surface as user-facing text.
+    for (final text in tester.widgetList<Text>(find.byType(Text))) {
+      final value = text.data?.toLowerCase() ?? '';
+      expect(value.contains('user id'), isFalse);
+      expect(value.contains('customer id'), isFalse);
+      expect(value.contains('uuid'), isFalse);
+    }
+  });
+
+  testWidgets('privacy opens the privacy document, not the help page', (
+    tester,
+  ) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+    await tester.tap(find.byKey(const Key('privacyTile')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PrivacyPage'), findsOneWidget);
+    expect(find.text('HelpPage'), findsNothing);
+  });
+
+  testWidgets('terms opens the terms document', (tester) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+    await tester.tap(find.byKey(const Key('termsTile')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TermsPage'), findsOneWidget);
+  });
+
+  testWidgets('notifications deep-links to the notifications section', (
+    tester,
+  ) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+    await tester.tap(find.byKey(const Key('notificationsSettingsTile')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SettingsPage:notifications'), findsOneWidget);
+  });
+
+  testWidgets('delete account hands off to the dedicated flow', (
+    tester,
+  ) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final repository = MockProfileRepository(delay: Duration.zero);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+    await tester.tap(find.byKey(const Key('deleteAccountTile')));
+    await tester.pumpAndSettle();
+
+    // The old inline confirm dialog is gone. Tapping the entry must not
+    // delete anything by itself — the real flow (impact -> confirm ->
+    // backend call -> teardown) lives on its own screen and is covered by
+    // delete_account_screen_test.dart.
+    expect(find.byKey(const Key('confirmDeleteAccount')), findsNothing);
+    expect(repository.isDeleted, isFalse);
+    expect(auth.logoutCalled, isFalse);
+  });
+
+  testWidgets('leaving the profile screen does not delete the account', (
+    tester,
+  ) async {
+    final auth = _StubAuthController(AuthStatus.authenticated);
+    final repository = MockProfileRepository(delay: Duration.zero);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+    // Navigating away without confirming must leave everything intact.
+    await tester.tap(find.byKey(const Key('editProfileButton')));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(repository.isDeleted, isFalse);
+    expect(auth.logoutCalled, isFalse);
+  });
+
+  testWidgets('guests are not offered destructive account actions', (
+    tester,
+  ) async {
+    final auth = _StubAuthController(AuthStatus.guest);
+    final container = ProviderContainer(
+      overrides: [authControllerProvider.overrideWith(() => auth)],
+    );
+    addTearDown(container.dispose);
+
+    await pump(tester, container);
+
+    expect(find.byKey(const Key('deleteAccountTile')), findsNothing);
+    // Read-only legal/help entries remain available.
+    expect(find.byKey(const Key('privacyTile')), findsOneWidget);
+    expect(find.byKey(const Key('termsTile')), findsOneWidget);
+  });
+
+  testWidgets('edit profile rejects invalid email and saves valid input', (
+    tester,
+  ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
     final repository = MockProfileRepository();
-    final container = ProviderContainer(overrides: [
-      authControllerProvider.overrideWith(() => auth),
-      profileRepositoryProvider.overrideWithValue(repository),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(() => auth),
+        profileRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
     addTearDown(container.dispose);
 
     // Pre-load the profile so the edit form initializes with values.
@@ -162,7 +372,9 @@ void main() {
     await tester.enterText(find.byKey(const Key('nameField')), 'Priya Verma');
     await tester.enterText(find.byKey(const Key('emailField')), 'not-an-email');
     await tester.enterText(
-        find.byKey(const Key('phoneField')), '+91 98765 43210');
+      find.byKey(const Key('phoneField')),
+      '+91 98765 43210',
+    );
     await tester.tap(find.byKey(const Key('saveProfileButton')));
     await tester.pump();
 
@@ -170,7 +382,9 @@ void main() {
 
     // Fixing the input allows saving and pops back to the profile.
     await tester.enterText(
-        find.byKey(const Key('emailField')), 'priya@example.com');
+      find.byKey(const Key('emailField')),
+      'priya@example.com',
+    );
     await tester.tap(find.byKey(const Key('saveProfileButton')));
     await tester.pumpAndSettle();
 
@@ -179,7 +393,4 @@ void main() {
     expect(saved.name, 'Priya Verma');
     expect(saved.email, 'priya@example.com');
   });
-
-
 }
-

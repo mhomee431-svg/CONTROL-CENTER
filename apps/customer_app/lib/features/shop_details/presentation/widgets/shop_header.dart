@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/models/shop_details_models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
@@ -29,7 +30,10 @@ class ShopHeader extends StatelessWidget {
                 top: 8,
                 right: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary,
                     borderRadius: BorderRadius.circular(6),
@@ -65,20 +69,33 @@ class ShopHeader extends StatelessWidget {
                   Expanded(
                     child: Text(
                       shop.name,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.secondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.star, size: 16, color: AppColors.secondary),
+                        const Icon(
+                          Icons.star,
+                          size: 16,
+                          color: AppColors.secondary,
+                        ),
                         const SizedBox(width: 4),
-                        Text('${shop.rating}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          '${shop.rating}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                   ),
@@ -88,25 +105,40 @@ class ShopHeader extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: shop.isOpenNow ? AppColors.secondary : AppColors.error,
+                      color: shop.isOpenNow
+                          ? AppColors.secondary
+                          : AppColors.error,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       shop.isOpenNow ? 'OPEN' : 'CLOSED',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     '${shop.distanceInKm} km away',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     '${shop.reviewCount} reviews',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -118,7 +150,10 @@ class ShopHeader extends StatelessWidget {
                   children: shop.categories
                       .map(
                         (cat) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
@@ -140,12 +175,20 @@ class ShopHeader extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: AppColors.textMuted),
+                  const Icon(
+                    Icons.location_on,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       shop.address,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.3),
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 13,
+                        height: 1.3,
+                      ),
                     ),
                   ),
                 ],

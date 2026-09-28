@@ -26,6 +26,31 @@ class MerchantCategoryCode(str, enum.Enum):
     PERSONAL_TRANSPORT_TRAVEL = "PERSONAL_TRANSPORT_TRAVEL"
 
 
+# ── Canonical category registry (SINGLE SOURCE OF TRUTH) ──────────────────────
+# Codes live in ``MerchantCategoryCode`` (above). The human-readable display names
+# live HERE so every consumer — seed data, request validators, db_seed, the test
+# suite and the OpenAPI contract — derives from this ONE dict instead of re-typing
+# the 11-item list. Grocery / General Food are deliberately absent.
+MERCHANT_CATEGORY_NAMES: dict[str, str] = {
+    MerchantCategoryCode.PHARMACY_HEALTHCARE.value: "Pharmacy & Healthcare",
+    MerchantCategoryCode.BEAUTY_PERSONAL_CARE.value: "Beauty & Personal Care",
+    MerchantCategoryCode.FURNITURE_HOME_CARE.value: "Furniture & Home Care",
+    MerchantCategoryCode.HOUSEHOLD_GOODS.value: "Household Goods",
+    MerchantCategoryCode.SPORTS_FITNESS_OUTDOOR.value: "Sports, Fitness & Outdoor",
+    MerchantCategoryCode.BOOKS_MEDIA_STATIONERY.value: "Books, Media & Stationery",
+    MerchantCategoryCode.AUTOMOTIVE_PARTS_TOOLS.value: "Automotive Parts & Tools",
+    MerchantCategoryCode.HARDWARE.value: "Hardware",
+    MerchantCategoryCode.RESTAURANTS.value: "Restaurants",
+    MerchantCategoryCode.TRANSPORT.value: "Transport",
+    MerchantCategoryCode.PERSONAL_TRANSPORT_TRAVEL.value: "Personal Transport / Personal Travel",
+}
+
+# Ordered canonical (code, display-name) pairs preserving the spec numbering.
+MERCHANT_CATEGORIES: list[tuple[str, str]] = [
+    (code, name) for code, name in MERCHANT_CATEGORY_NAMES.items()
+]
+
+
 class MerchantCategory(Base, TimestampMixin):
     """Centralized merchant category configuration.
 

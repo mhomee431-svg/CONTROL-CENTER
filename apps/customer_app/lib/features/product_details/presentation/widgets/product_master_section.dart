@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/models/product_details_models.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -41,16 +42,24 @@ class ProductMasterSection extends StatelessWidget {
           // ── Category / Subcategory ─────────────────────────────────────
           Row(
             children: [
-              const Icon(Icons.category_outlined, size: 14, color: AppColors.textMuted),
+              const Icon(
+                Icons.category_outlined,
+                size: 14,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   [
                     if (product.category.isNotEmpty) product.category,
-                    if (product.subcategory != null && product.subcategory!.isNotEmpty)
+                    if (product.subcategory != null &&
+                        product.subcategory!.isNotEmpty)
                       ' • ${product.subcategory}',
                   ].join(),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
             ],
@@ -84,7 +93,10 @@ class ProductMasterSection extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     'per ${product.baseUnit}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
               ],
@@ -114,7 +126,10 @@ class ProductMasterSection extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Quantity: ${product.baseQuantity} ${product.baseUnit ?? ''}',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                ),
               ),
             ],
             const SizedBox(height: AppSpacing.md),
@@ -129,7 +144,8 @@ class ProductMasterSection extends StatelessWidget {
           ],
 
           // ── Description ────────────────────────────────────────────────
-          if (product.description != null && product.description!.isNotEmpty) ...[
+          if (product.description != null &&
+              product.description!.isNotEmpty) ...[
             const _SectionTitle('Description'),
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -184,7 +200,11 @@ class _VariantChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_outline, size: 16, color: AppColors.primary),
+          const Icon(
+            Icons.check_circle_outline,
+            size: 16,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -260,15 +280,16 @@ class _IdentifierRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              identifier.value,
-              style: const TextStyle(fontSize: 13),
-            ),
+            child: Text(identifier.value, style: const TextStyle(fontSize: 13)),
           ),
           if (identifier.isPrimary)
             const Text(
               'Primary',
-              style: TextStyle(fontSize: 11, color: AppColors.secondary, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
         ],
       ),

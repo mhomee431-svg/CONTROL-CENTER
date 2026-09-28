@@ -42,7 +42,8 @@ class _SearchInputFieldState extends ConsumerState<SearchInputField> {
   late final TextEditingController _internalController;
   late final FocusNode _internalFocusNode;
 
-  TextEditingController get _controller => widget.controller ?? _internalController;
+  TextEditingController get _controller =>
+      widget.controller ?? _internalController;
   FocusNode get _focusNode => widget.focusNode ?? _internalFocusNode;
 
   @override
@@ -92,10 +93,9 @@ class _SearchInputFieldState extends ConsumerState<SearchInputField> {
   void _handleSubmitted(String value) {
     if (value.trim().isEmpty) return;
     ref.read(searchQueryProvider.notifier).debouncedTextChanged(value.trim());
-    ref.read(searchEventTrackerProvider).track(SearchSubmittedEvent(
-          query: value.trim(),
-          source: 'keyboard',
-        ));
+    ref
+        .read(searchEventTrackerProvider)
+        .track(SearchSubmittedEvent(query: value.trim(), source: 'keyboard'));
     widget.onSubmitted?.call(value.trim());
   }
 
@@ -130,12 +130,12 @@ class _SearchInputFieldState extends ConsumerState<SearchInputField> {
                   onPressed: _handleClear,
                 )
               : (widget.onBarcodeTap == null
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.qr_code_scanner),
-                      tooltip: 'Scan barcode',
-                      onPressed: widget.onBarcodeTap,
-                    )),
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        tooltip: 'Scan barcode',
+                        onPressed: widget.onBarcodeTap,
+                      )),
         ),
       ),
     );

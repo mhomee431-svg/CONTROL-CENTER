@@ -5,7 +5,8 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_handler.dart';
 import 'phone_auth_service.dart';
-import 'phone_utils.dart';
+import '../domain/phone_utils.dart';
+import 'google_auth_service.dart';
 import '../domain/auth_repository.dart';
 
 /// Real backend implementation of [AuthRepository].
@@ -17,8 +18,9 @@ import '../domain/auth_repository.dart';
 class ApiAuthRepository implements AuthRepository {
   final ApiClient _apiClient;
   final PhoneAuthService _phoneAuth;
+  final GoogleAuthService _googleAuth;
 
-  ApiAuthRepository(this._apiClient, this._phoneAuth);
+  ApiAuthRepository(this._apiClient, this._phoneAuth, this._googleAuth);
 
   @override
   Future<void> sendOtp(String phoneNumber) async {
@@ -29,7 +31,9 @@ class ApiAuthRepository implements AuthRepository {
         if (!completer.isCompleted) completer.complete();
       },
       onError: (message) {
-        if (!completer.isCompleted) completer.completeError(ServerFailure(message));
+        if (!completer.isCompleted) {
+          completer.completeError(ServerFailure(message));
+        }
       },
     );
     return completer.future;
@@ -68,6 +72,37 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthResult> signInWithGoogle({
+    String? deviceId,
+    String? deviceName,
+    String? deviceType,
+    String? appVersion,
+  }) async {
+    try {
+      // 1. Obtain the Firebase ID token from native Google Sign-In.
+      final googleResult = await _googleAuth.signInWithGoogle();
+
+      // 2. Backend verifies the token (provider/email_verified/UID) and
+      //    returns our own session tokens.
+      final data = await _apiClient.post(
+        ApiEndpoints.googleLogin,
+        data: {
+          'firebase_id_token': googleResult.idToken,
+          'device_id': deviceId,
+          'device_name': deviceName,
+          'device_type': deviceType,
+          'app_version': appVersion,
+        },
+        requiresAuth: false,
+      );
+
+      return _parseAuthResult(data);
+    } catch (e) {
+      throw _mapToFailure(e, operation: 'google_login');
+    }
+  }
+
+  @override
   Future<AuthResult> register({
     required String phoneNumber,
     required String otpCode,
@@ -100,14 +135,14 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthResult> refreshToken(String refreshToken, {String? deviceId}) async {
+  Future<AuthResult> refreshToken(
+    String refreshToken, {
+    String? deviceId,
+  }) async {
     try {
       final data = await _apiClient.post(
         ApiEndpoints.refreshToken,
-        data: {
-          'refresh_token': refreshToken,
-          'device_id': deviceId,
-        },
+        data: {'refresh_token': refreshToken, 'device_id': deviceId},
         requiresAuth: false,
       );
 
@@ -138,6 +173,9 @@ class ApiAuthRepository implements AuthRepository {
     }
     // Also sign out of Firebase so the next user starts clean.
     await _phoneAuth.signOut();
+    // Clear any Google-linked Firebase session too (Google Sign-In runs
+    // through Firebase, so leaving it signed in would leak the prior user).
+    await _googleAuth.signOut();
   }
 
   /// Parse the backend's success-response envelope into [AuthResult].
@@ -202,13 +240,37 @@ class ApiAuthRepository implements AuthRepository {
           return ServerFailure(e.message);
       }
     }
+    if (e is GoogleAuthException) {
+      switch (e.code) {
+        case 'cancelled':
+        case 'canceled':
+          return const GoogleSignInCancelledFailure();
+        case 'network-request-failed':
+          return const NetworkFailure();
+        case 'no-google-accounts':
+          return ServerFailure(e.message);
+        case 'google-sign-in-unavailable':
+        case 'operation-not-allowed':
+          return ServerFailure(e.message);
+        default:
+          return ServerFailure(e.message);
+      }
+    }
     if (e is ApiException) {
       switch (e.type) {
         case ApiErrorType.offline:
         case ApiErrorType.timeout:
           return const NetworkFailure();
-        case ApiErrorType.unauthorized:
+        // Only 401 maps to an expired session. A 403 means the customer is
+        // authenticated but not allowed, which re-authenticating cannot fix —
+        // mapping it to SessionExpiredFailure would bounce them to the login
+        // screen to be rejected all over again.
+        case ApiErrorType.sessionExpired:
           return const SessionExpiredFailure();
+        // 429 is its own outcome on auth routes (OTP send/verify throttling)
+        // and is handled by the message inspection below.
+        case ApiErrorType.rateLimited:
+          return const TooManyAttemptsFailure();
         default:
           // For OTP-specific operations, map known backend error messages.
           final msg = e.message.toLowerCase();
@@ -220,7 +282,9 @@ class ApiAuthRepository implements AuthRepository {
             }
           }
           if (operation == 'send_otp') {
-            if (msg.contains('invalid phone')) return const InvalidPhoneNumberFailure();
+            if (msg.contains('invalid phone')) {
+              return const InvalidPhoneNumberFailure();
+            }
             if (msg.contains('rate limit') || msg.contains('too many')) {
               return const OtpRateLimitFailure();
             }

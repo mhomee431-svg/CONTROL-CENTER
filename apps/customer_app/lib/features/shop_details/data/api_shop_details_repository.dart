@@ -28,6 +28,22 @@ class ApiShopDetailsRepository implements ShopDetailsRepository {
             .map((e) => _mapProduct(e as Map<String, dynamic>))
             .toList();
 
+        // Public contact surface only: the backend exposes primary phone,
+        // a public alternate (`secondary_phone`/legacy `whatsapp_number`),
+        // and email. Anything else stays server-side.
+        final secondaryPhone =
+            data['secondary_phone']?.toString() ??
+            data['alternate_phone']?.toString() ??
+            data['whatsapp_number']?.toString() ??
+            '';
+        final email =
+            data['email']?.toString() ?? data['contact_email']?.toString() ?? '';
+
+        // Coordinates only count when they are real numbers in range; the
+        // [ShopProfile.hasValidCoordinates] gate keeps map/directions honest.
+        final latitude = (data['latitude'] as num?)?.toDouble() ?? 0;
+        final longitude = (data['longitude'] as num?)?.toDouble() ?? 0;
+
         final profile = ShopProfile(
           id: data['id']?.toString() ?? shopId,
           name: data['name']?.toString() ?? '',
@@ -41,8 +57,10 @@ class ApiShopDetailsRepository implements ShopDetailsRepository {
           phone: data['phone']?.toString() ?? '',
           about: data['description']?.toString() ?? '',
           lastInventoryUpdate:
-              DateTime.tryParse(data['last_inventory_update']?.toString() ?? '') ??
-                  DateTime.now(),
+              DateTime.tryParse(
+                data['last_inventory_update']?.toString() ?? '',
+              ) ??
+              DateTime.now(),
           activeOffers: (data['active_offers'] as List<dynamic>? ?? [])
               .map((e) => e.toString())
               .toList(),
@@ -52,10 +70,10 @@ class ApiShopDetailsRepository implements ShopDetailsRepository {
               .map((e) => e.toString())
               .toList(),
           isVerified: data['is_verified'] == true,
-          latitude: (data['latitude'] as num?)?.toDouble() ?? 0,
-          longitude: (data['longitude'] as num?)?.toDouble() ?? 0,
-          secondaryPhone: data['secondary_phone']?.toString() ?? '',
-          email: data['email']?.toString() ?? '',
+          latitude: latitude,
+          longitude: longitude,
+          secondaryPhone: secondaryPhone,
+          email: email,
         );
 
         // Cache shop profile (non-inventory data) for offline use

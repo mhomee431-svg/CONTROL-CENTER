@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../network/api_error_handler.dart';
 import '../theme/app_theme.dart';
 
@@ -33,7 +34,10 @@ class StateViewBuilder<T> extends StatelessWidget {
           children: [
             CircularProgressIndicator.adaptive(),
             SizedBox(height: AppSpacing.md),
-            Text('Loading details...', style: TextStyle(color: AppColors.textMuted)),
+            Text(
+              'Loading details...',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
           ],
         ),
       );
@@ -52,9 +56,19 @@ class StateViewBuilder<T> extends StatelessWidget {
             children: [
               Icon(emptyIcon, size: 64, color: AppColors.textMuted),
               const SizedBox(height: AppSpacing.md),
-              Text(emptyTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                emptyTitle,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
-              Text(emptyMessage, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted)),
+              Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
               const SizedBox(height: AppSpacing.lg),
               OutlinedButton.icon(
                 onPressed: onRetry,
@@ -87,6 +101,34 @@ class StateViewBuilder<T> extends StatelessWidget {
         icon = Icons.dns_outlined;
         title = 'Server Error';
         break;
+      case ApiErrorType.partialFailure:
+        icon = Icons.sync_problem_rounded;
+        title = 'Partial Failure';
+        break;
+      case ApiErrorType.sessionExpired:
+        icon = Icons.lock_clock_outlined;
+        title = 'Session Expired';
+        break;
+      case ApiErrorType.accessDenied:
+        icon = Icons.block_rounded;
+        title = 'Access Denied';
+        break;
+      case ApiErrorType.notFound:
+        icon = Icons.search_off_rounded;
+        title = 'Not Found';
+        break;
+      case ApiErrorType.conflict:
+        icon = Icons.merge_rounded;
+        title = 'Already Done';
+        break;
+      case ApiErrorType.validation:
+        icon = Icons.rule_rounded;
+        title = 'Check Your Details';
+        break;
+      case ApiErrorType.rateLimited:
+        icon = Icons.hourglass_top_rounded;
+        title = 'Too Many Attempts';
+        break;
       default:
         break;
     }
@@ -99,7 +141,10 @@ class StateViewBuilder<T> extends StatelessWidget {
           children: [
             Icon(icon, size: 64, color: AppColors.error),
             const SizedBox(height: AppSpacing.md),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               apiError.message,
@@ -107,15 +152,34 @@ class StateViewBuilder<T> extends StatelessWidget {
               style: const TextStyle(color: AppColors.textMuted),
             ),
             const SizedBox(height: AppSpacing.lg),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+            // "Retry" is only offered when retrying could actually work. A
+            // button on a 403/404/409 traps the customer on an action that can
+            // never succeed; those cases get a way back into the app instead.
+            if (apiError.isRetryable)
+              ElevatedButton.icon(
+                key: const Key('stateViewRetryButton'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              )
+            else
+              OutlinedButton.icon(
+                key: const Key('stateViewBackButton'),
+                onPressed: () {
+                  // Popping is the escape hatch: it guarantees the customer is
+                  // never stranded on a dead-end error screen.
+                  final navigator = Navigator.of(context);
+                  if (navigator.canPop()) {
+                    navigator.pop();
+                  }
+                },
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Go back'),
               ),
-            )
           ],
         ),
       ),

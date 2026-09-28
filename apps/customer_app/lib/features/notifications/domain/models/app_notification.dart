@@ -175,11 +175,13 @@ class NotificationDeepLink {
     // may use `product_id` instead.
     final productMasterId =
         validatedId(map['product_master_id']) ?? validatedId(map['product_id']);
-    final productId = text(map['product_id']) ??
+    final productId =
+        text(map['product_id']) ??
         text(map['productId']) ??
         (productMasterId != null ? '$productMasterId' : null) ??
         '';
-    final offerId = text(map['offer_id']) ??
+    final offerId =
+        text(map['offer_id']) ??
         text(map['offerId']) ??
         text(map['deal_id']) ??
         text(map['dealId']) ??
@@ -191,13 +193,16 @@ class NotificationDeepLink {
     // the whole link non-navigable and must never fall through to the URI.
     final safeProductId =
         productId.isNotEmpty && _safeIdPattern.hasMatch(productId)
-            ? productId
-            : '';
-    final safeOfferId =
-        offerId.isNotEmpty && _safeIdPattern.hasMatch(offerId) ? offerId : '';
-    final safeShopId =
-        shopId.isNotEmpty && _safeIdPattern.hasMatch(shopId) ? shopId : '';
-    final payloadHadIdKeys = productId.isNotEmpty ||
+        ? productId
+        : '';
+    final safeOfferId = offerId.isNotEmpty && _safeIdPattern.hasMatch(offerId)
+        ? offerId
+        : '';
+    final safeShopId = shopId.isNotEmpty && _safeIdPattern.hasMatch(shopId)
+        ? shopId
+        : '';
+    final payloadHadIdKeys =
+        productId.isNotEmpty ||
         offerId.isNotEmpty ||
         shopId.isNotEmpty ||
         map.containsKey('product_master_id');
@@ -250,7 +255,8 @@ class NotificationDeepLink {
     String? deepLink, {
     DateTime? expiresAt,
   }) {
-    final hasPayloadIds = map != null &&
+    final hasPayloadIds =
+        map != null &&
         (map.containsKey('product_id') ||
             map.containsKey('productId') ||
             map.containsKey('product_master_id') ||
@@ -276,8 +282,9 @@ class NotificationDeepLink {
     }
     // A URI whose id is not a single opaque token is hostile: the id must be
     // a single opaque token, never a path.
-    final segments =
-        uri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    final segments = uri.pathSegments
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
     if (segments.length != 1) return null;
     if (segments.any((s) => s.trim() == '.' || s.trim() == '..')) return null;
     final id = segments.last.trim();

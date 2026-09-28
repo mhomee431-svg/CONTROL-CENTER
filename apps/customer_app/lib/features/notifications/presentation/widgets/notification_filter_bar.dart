@@ -17,12 +17,15 @@ enum NotificationFilter {
   all('All', Icons.all_inbox_outlined, null),
   priceDrops('Price Drops', Icons.sell_outlined, {NotificationType.priceDrop}),
   offers('Offers', Icons.campaign_outlined, {NotificationType.offer}),
-  availability('Availability', Icons.inventory_2_outlined,
-      {NotificationType.productAvailable}),
-  shopUpdates('Shop Updates', Icons.storefront_outlined,
-      {NotificationType.shopUpdate}),
-  orders('Orders', Icons.local_shipping_outlined,
-      {NotificationType.orderUpdate}),
+  availability('Availability', Icons.inventory_2_outlined, {
+    NotificationType.productAvailable,
+  }),
+  shopUpdates('Shop Updates', Icons.storefront_outlined, {
+    NotificationType.shopUpdate,
+  }),
+  orders('Orders', Icons.local_shipping_outlined, {
+    NotificationType.orderUpdate,
+  }),
   system('System', Icons.notifications_outlined, {NotificationType.system});
 
   const NotificationFilter(this.label, this.icon, this.types);

@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'user_location.dart';
 
 part 'saved_address.freezed.dart';
@@ -25,14 +26,13 @@ abstract class SavedAddress with _$SavedAddress {
     @Default(false) bool isSelected,
 
     /// Epoch milliseconds when this address was saved.
-    @JsonKey(name: 'savedAtMs')
-    @Default(0)
-    int savedAtMs,
+    @JsonKey(name: 'savedAtMs') @Default(0) int savedAtMs,
   }) = _SavedAddress;
 
   const SavedAddress._();
 
-  factory SavedAddress.fromJson(Map<String, dynamic> json) => _$SavedAddressFromJson(json);
+  factory SavedAddress.fromJson(Map<String, dynamic> json) =>
+      _$SavedAddressFromJson(json);
 
   /// Convenience constructor with a `DateTime` for `savedAt`.
   factory SavedAddress.create({
@@ -41,18 +41,19 @@ abstract class SavedAddress with _$SavedAddress {
     required UserLocation location,
     bool isSelected = false,
     DateTime? savedAt,
-  }) =>
-      SavedAddress(
-        id: id,
-        label: label,
-        location: location,
-        isSelected: isSelected,
-        savedAtMs: savedAt?.millisecondsSinceEpoch ?? 0,
-      );
+  }) => SavedAddress(
+    id: id,
+    label: label,
+    location: location,
+    isSelected: isSelected,
+    savedAtMs: savedAt?.millisecondsSinceEpoch ?? 0,
+  );
 
   /// Time the address was saved (null if never set).
-  DateTime? get savedAt => savedAtMs == 0 ? null : DateTime.fromMillisecondsSinceEpoch(savedAtMs);
+  DateTime? get savedAt =>
+      savedAtMs == 0 ? null : DateTime.fromMillisecondsSinceEpoch(savedAtMs);
 
   /// Creates a copy marked as the selected address.
-  SavedAddress select() => copyWith(isSelected: true, location: location.select());
+  SavedAddress select() =>
+      copyWith(isSelected: true, location: location.select());
 }

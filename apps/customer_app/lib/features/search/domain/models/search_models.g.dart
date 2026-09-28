@@ -43,6 +43,8 @@ _ShopProductResult _$ShopProductResultFromJson(Map<String, dynamic> json) =>
       category: json['category'] as String?,
       brand: json['brand'] as String?,
       reviewCount: (json['reviewCount'] as num?)?.toInt(),
+      isOpenNow: json['isOpenNow'] as bool?,
+      isAcceptingOrders: json['isAcceptingOrders'] as bool?,
       availability:
           $enumDecodeNullable(
             _$InventoryAvailabilityEnumMap,
@@ -52,6 +54,7 @@ _ShopProductResult _$ShopProductResultFromJson(Map<String, dynamic> json) =>
       freshness:
           $enumDecodeNullable(_$FreshnessLevelEnumMap, json['freshness']) ??
           FreshnessLevel.unknown,
+      freshnessStatusRaw: json['freshnessStatusRaw'] as String?,
     );
 
 Map<String, dynamic> _$ShopProductResultToJson(_ShopProductResult instance) =>
@@ -77,8 +80,11 @@ Map<String, dynamic> _$ShopProductResultToJson(_ShopProductResult instance) =>
       'category': instance.category,
       'brand': instance.brand,
       'reviewCount': instance.reviewCount,
+      'isOpenNow': instance.isOpenNow,
+      'isAcceptingOrders': instance.isAcceptingOrders,
       'availability': _$InventoryAvailabilityEnumMap[instance.availability]!,
       'freshness': _$FreshnessLevelEnumMap[instance.freshness]!,
+      'freshnessStatusRaw': instance.freshnessStatusRaw,
     };
 
 const _$InventoryAvailabilityEnumMap = {

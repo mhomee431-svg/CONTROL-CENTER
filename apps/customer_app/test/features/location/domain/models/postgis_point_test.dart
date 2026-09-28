@@ -102,7 +102,10 @@ void main() {
         capturedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
       );
       expect(captured.capturedAtMs, 1700000000000);
-      expect(captured.capturedAt, DateTime.fromMillisecondsSinceEpoch(1700000000000));
+      expect(
+        captured.capturedAt,
+        DateTime.fromMillisecondsSinceEpoch(1700000000000),
+      );
     });
 
     test('JSON round-trip preserves new fields', () {

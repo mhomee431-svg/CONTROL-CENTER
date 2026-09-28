@@ -5,6 +5,47 @@ import '../env/env_config.dart';
 import '../theme/app_theme.dart';
 import 'google_map_adapter.dart';
 
+/// Shared failure panel for every map provider.
+///
+/// Lives in the platform-agnostic layer so the Google Maps SDK, the
+/// deterministic stub, and any future provider (Mapbox/OSM) all render the
+/// same "map unavailable" state instead of a blank grey tile. [onRetry] is
+/// optional: omit it when there is nothing meaningful to retry.
+class MapErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback? onRetry;
+
+  const MapErrorView({super.key, required this.message, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey.shade200,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.map_outlined, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A lightweight marker description for the multi-shop map.
 ///
 /// Kept in the platform-agnostic layer so search results, home, and other
@@ -21,6 +62,62 @@ class MapMarkerInfo {
     required this.label,
     this.subtitle,
   });
+}
+
+/// A lightweight description of a shop cluster on a dense multi-shop map.
+///
+/// Produced by [clusterMarkers] so the UI, search results, and tests share the
+/// same rule: a cluster is a *count shown at one position*, never a fake shop.
+class MapClusterInfo {
+  final double latitude;
+  final double longitude;
+  final int count;
+  final List<MapMarkerInfo> members;
+
+  const MapClusterInfo({
+    required this.latitude,
+    required this.longitude,
+    required this.count,
+    required this.members,
+  });
+}
+
+/// Groups nearby markers into clusters when the marker count exceeds
+/// [clusterThreshold] (default 12).
+///
+/// The grid is intentionally coarse: latitude/longitude are rounded to
+/// [cellSizeDegrees] (default ~1.1 km at the equator) and every marker in the
+/// same cell becomes one cluster positioned at the members' centroid. When the
+/// count is at/below the threshold the input list is returned untouched, so
+/// normal maps render every shop marker individually.
+List<Object> clusterMarkers(
+  List<MapMarkerInfo> shops, {
+  int clusterThreshold = 12,
+  double cellSizeDegrees = 0.01,
+}) {
+  if (shops.length <= clusterThreshold) return List<Object>.of(shops);
+  final cells = <String, List<MapMarkerInfo>>{};
+  for (final shop in shops) {
+    final key =
+        '${(shop.latitude / cellSizeDegrees).floor()}:'
+        '${(shop.longitude / cellSizeDegrees).floor()}';
+    (cells[key] ??= <MapMarkerInfo>[]).add(shop);
+  }
+  return cells.values.map((members) {
+    if (members.length == 1) return members.first;
+    var lat = 0.0;
+    var lng = 0.0;
+    for (final member in members) {
+      lat += member.latitude;
+      lng += member.longitude;
+    }
+    return MapClusterInfo(
+      latitude: lat / members.length,
+      longitude: lng / members.length,
+      count: members.length,
+      members: List<MapMarkerInfo>.unmodifiable(members),
+    );
+  }).toList();
 }
 
 /// Abstraction layer for Map Providers (Google Maps, Mapbox, OSM, etc.)

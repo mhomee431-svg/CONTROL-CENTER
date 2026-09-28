@@ -286,9 +286,6 @@ def _patch_shopkeeper_firebase_verify() -> None:
                 return phone
         raise FirebaseVerificationError("Invalid token")
 
-    def _verify(token: str) -> str:
-        return _phone_for(token)
-
     def _verify_claims(token: str) -> dict:
         phone = _phone_for(token)
         return {
@@ -302,13 +299,13 @@ def _patch_shopkeeper_firebase_verify() -> None:
         }
 
     def _verify_tuple(token: str) -> tuple[str, str]:
-        """``app.core.dependencies`` unpacks (firebase_uid, phone)."""
+        """``auth.py`` and ``app.core.dependencies`` unpack (firebase_uid, phone)."""
         phone = _phone_for(token)
         return ("phase20-firebase-" + phone.replace("+", ""), phone)
 
-    _sk_auth.verify_firebase_id_token = _verify
+    _sk_auth.verify_firebase_id_token = _verify_tuple
     _sk_auth.verify_firebase_id_token_claims = _verify_claims
-    _customer_auth.verify_firebase_id_token = _verify
+    _customer_auth.verify_firebase_id_token = _verify_tuple
     # Bearer-token requests resolve through ``get_current_user``, which probes
     # the real Firebase Admin first; without credentials that probe raises
     # RuntimeError (not FirebaseVerificationError) and 500s every request.

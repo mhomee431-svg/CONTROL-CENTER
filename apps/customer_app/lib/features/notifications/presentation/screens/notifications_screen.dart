@@ -248,7 +248,11 @@ class _ErrorStateView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 64, color: AppColors.error),
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 64,
+              color: AppColors.error,
+            ),
             const SizedBox(height: AppSpacing.md),
             const Text(
               'Couldn\'t load notifications',

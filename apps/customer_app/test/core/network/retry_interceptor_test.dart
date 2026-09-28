@@ -50,10 +50,7 @@ void main() {
       final dioError = DioException(
         requestOptions: requestOptions,
         type: DioExceptionType.badResponse,
-        response: Response(
-          requestOptions: requestOptions,
-          statusCode: 503,
-        ),
+        response: Response(requestOptions: requestOptions, statusCode: 503),
       );
 
       expect(interceptor.shouldRetry(dioError), isTrue);
@@ -71,10 +68,7 @@ void main() {
       final dioError = DioException(
         requestOptions: requestOptions,
         type: DioExceptionType.badResponse,
-        response: Response(
-          requestOptions: requestOptions,
-          statusCode: 400,
-        ),
+        response: Response(requestOptions: requestOptions, statusCode: 400),
       );
 
       expect(interceptor.shouldRetry(dioError), isFalse);
@@ -117,10 +111,7 @@ void main() {
       final dioError = DioException(
         requestOptions: requestOptions,
         type: DioExceptionType.badResponse,
-        response: Response(
-          requestOptions: requestOptions,
-          statusCode: 503,
-        ),
+        response: Response(requestOptions: requestOptions, statusCode: 503),
       );
 
       expect(interceptor.shouldRetry(dioError), isFalse);

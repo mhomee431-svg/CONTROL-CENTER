@@ -1,6 +1,8 @@
 import 'dart:math';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../core/env/env_config.dart';
 import '../domain/location_service.dart';
 import '../domain/models/location_models.dart';
@@ -20,7 +22,8 @@ class DeviceLocationService implements LocationService {
   void setMockGpsEnabled(bool enabled) => _mockGpsEnabled = enabled;
 
   /// Test helper to simulate permission denied state.
-  void setMockPermissionGranted(bool granted) => _mockPermissionGranted = granted;
+  void setMockPermissionGranted(bool granted) =>
+      _mockPermissionGranted = granted;
 
   @override
   Future<bool> isGpsEnabled() async {
@@ -88,7 +91,10 @@ class DeviceLocationService implements LocationService {
   }
 
   @override
-  Future<void> openExternalNavigation(Coordinates destination, String label) async {
+  Future<void> openExternalNavigation(
+    Coordinates destination,
+    String label,
+  ) async {
     // Creates universal map intent url
     final url = Uri.parse(
       'geo:${destination.latitude},${destination.longitude}'
@@ -111,11 +117,13 @@ class DeviceLocationService implements LocationService {
   double calculateDistance(Coordinates start, Coordinates end) {
     // Haversine formula abstraction
     var p = 0.017453292519943295; // Math.PI / 180
-    var a = 0.5 -
+    var a =
+        0.5 -
         cos((end.latitude - start.latitude) * p) / 2 +
         cos(start.latitude * p) *
             cos(end.latitude * p) *
-            (1 - cos((end.longitude - start.longitude) * p)) / 2;
+            (1 - cos((end.longitude - start.longitude) * p)) /
+            2;
     return 12742 * asin(sqrt(a)); // Distance in km
   }
 }

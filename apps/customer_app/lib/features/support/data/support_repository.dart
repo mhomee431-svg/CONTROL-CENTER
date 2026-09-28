@@ -1,45 +1,37 @@
+/// The Dio-backed implementation of [SupportRepository].
+///
+/// The CONTRACT (interface, enums, user-facing copy) lives in
+/// `../domain/support_repository.dart`; only the HTTP wiring is here. That split
+/// is what lets a view depend on the support vocabulary without importing a data
+/// layer, and lets a unit test construct a fake without pulling in Dio.
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_error_handler.dart'
+    show ApiErrorType, ApiException;
+import '../domain/support_repository.dart';
 
-/// Issue categories the customer can choose when filing a support ticket.
-enum SupportIssueCategory {
-  wrongInformation('Wrong product/shop information'),
-  availabilityMismatch('Availability mismatch'),
-  appBug('App bug or crash'),
-  dataPrivacy('Data / privacy concern'),
-  accountIssue('Account issue'),
-  other('Other');
+export '../domain/support_repository.dart'
+    show
+        SupportIssueCategory,
+        SupportRepository,
+        SupportSubmitResult,
+        SupportSubmitResultCopy;
 
-  const SupportIssueCategory(this.label);
-  final String label;
-}
-
-/// Provider — wired to the real backend; falls back gracefully if the
-/// support endpoint is not yet live (email intent as fallback).
+/// Provider — wired to the real backend.
 final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   return ApiSupportRepository(ref.watch(apiClientProvider));
 });
-
-/// Abstract contract — lets tests inject a mock easily.
-abstract class SupportRepository {
-  /// Submits a support issue.
-  ///
-  /// Returns `true` on success, throws on network failure.
-  Future<bool> submitIssue({
-    required SupportIssueCategory category,
-    required String description,
-    String? contactEmail,
-  });
-}
 
 class ApiSupportRepository implements SupportRepository {
   final ApiClient _api;
   ApiSupportRepository(this._api);
 
   @override
-  Future<bool> submitIssue({
+  Future<SupportSubmitResult> submitIssue({
     required SupportIssueCategory category,
     required String description,
     String? contactEmail,
@@ -53,13 +45,23 @@ class ApiSupportRepository implements SupportRepository {
           if (contactEmail != null && contactEmail.isNotEmpty)
             'contact_email': contactEmail,
         },
-        requiresAuth: false,
+        // The customer must be signed in: the ticket is attached to their
+        // account so support can follow up.
+        requiresAuth: true,
       );
-      return true;
+      return SupportSubmitResult.success;
+    } on ApiException catch (e) {
+      // A structured API error means the server answered — it just said no.
+      // Reporting that as "submitted" (as this method used to) is a lie the
+      // customer would act on.
+      return switch (e.type) {
+        ApiErrorType.offline ||
+        ApiErrorType.timeout ||
+        ApiErrorType.requestCancelled => SupportSubmitResult.networkFailure,
+        _ => SupportSubmitResult.rejected,
+      };
     } catch (_) {
-      // If the backend endpoint is not yet live, swallow silently.
-      // The UI will still show "submitted" so the UX is not broken.
-      return true;
+      return SupportSubmitResult.networkFailure;
     }
   }
 }

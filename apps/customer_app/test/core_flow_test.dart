@@ -20,9 +20,10 @@ void main() {
       when(mockStorage.getRefreshToken()).thenAnswer((_) async => null);
       when(mockStorage.getDeviceId()).thenAnswer((_) async => null);
       when(mockStorage.isGuestMode()).thenAnswer((_) async => false);
-      when(mockStorage.read(key: 'user_saved_location')).thenAnswer((_) async => null);
+      when(mockStorage.read(key: 'user_saved_location'))
+          .thenAnswer((_) async => null);
 
-            await tester.pumpWidget(
+      await tester.pumpWidget(
         ProviderScope(
           overrides: [
             secureStorageProvider.overrideWithValue(mockStorage),

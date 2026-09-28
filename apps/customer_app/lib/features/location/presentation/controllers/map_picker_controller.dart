@@ -116,8 +116,10 @@ const _unset = Object();
 /// Notifier owning the map-picker (pin-drop) flow.
 ///
 /// Auto-disposed when [MapPickerScreen] closes.
-final mapPickerControllerProvider = NotifierProvider.autoDispose<
-    MapPickerController, MapPickerState>(MapPickerController.new);
+final mapPickerControllerProvider =
+    NotifierProvider.autoDispose<MapPickerController, MapPickerState>(
+      MapPickerController.new,
+    );
 
 class MapPickerController extends Notifier<MapPickerState> {
   /// Debounce for reverse-geocoding while the map is dragged (avoids
@@ -146,8 +148,9 @@ class MapPickerController extends Notifier<MapPickerState> {
     var start = ref.read(locationControllerProvider).location;
     if (start == null || !start.hasValidCoordinates) {
       try {
-        start =
-            await ref.read(locationRepositoryProvider).getLastKnownLocation();
+        start = await ref
+            .read(locationRepositoryProvider)
+            .getLastKnownLocation();
       } catch (_) {
         start = null;
       }
@@ -195,7 +198,10 @@ class MapPickerController extends Notifier<MapPickerState> {
       route: null,
       errorMessage: null,
     );
-    _geocodeDebounce = Timer(_geocodeDebounceDuration, () => _reverseGeocode(point));
+    _geocodeDebounce = Timer(
+      _geocodeDebounceDuration,
+      () => _reverseGeocode(point),
+    );
   }
 
   Future<void> _reverseGeocode(MapLatLng point) async {
@@ -235,7 +241,9 @@ class MapPickerController extends Notifier<MapPickerState> {
       errorMessage: null,
     );
     try {
-      final route = await ref.read(mapServiceProvider).fetchDrivingRoute(
+      final route = await ref
+          .read(mapServiceProvider)
+          .fetchDrivingRoute(
             origin: MapLatLng(origin.latitude, origin.longitude),
             destination: pinned,
           );
@@ -264,7 +272,9 @@ class MapPickerController extends Notifier<MapPickerState> {
     final pinned = state.pinned;
     if (pinned == null) return;
     try {
-      final launched = await ref.read(mapServiceProvider).launchNavigation(
+      final launched = await ref
+          .read(mapServiceProvider)
+          .launchNavigation(
             destination: pinned,
             label: state.pinnedAddress?.label,
           );
@@ -287,7 +297,8 @@ class MapPickerController extends Notifier<MapPickerState> {
   Future<void> confirmLocation() async {
     final pinned = state.pinned;
     if (pinned == null) return;
-    final address = state.pinnedAddress ??
+    final address =
+        state.pinnedAddress ??
         UserLocation(
           latitude: pinned.latitude,
           longitude: pinned.longitude,

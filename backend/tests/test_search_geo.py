@@ -326,6 +326,7 @@ def test_resolve_sort():
     assert _resolve_sort("lowest_price") == SearchSort.PRICE_ASC
     assert _resolve_sort("highest_rated") == SearchSort.RATING
     assert _resolve_sort("recently_updated") == SearchSort.FRESHNESS
+    assert _resolve_sort("offers") == SearchSort.OFFERS
     assert _resolve_sort("unknown") == SearchSort.RELEVANCE
 
 
@@ -509,6 +510,7 @@ class MockSearchIndexEntry:
             "category_name": "Snacks",
             "variant_name": None,
             "search_text": "lays classic pepsico snacks",
+            "discovery_text": "lays classic pepsico snacks 8901234567890 sku123",
             "search_vector": "lays classic pepsico snacks",
             "barcode": "8901234567890",
             "sku": "SKU123",
@@ -571,12 +573,164 @@ class MockDBEngine:
 
 
 # ── Barcode lookup test with mocks ─────────────────────────────────────────
+def test_shop_offers_payload_includes_open_state():
+    """Product-detail shop offers must carry open/closed, like search does.
+
+    A customer comparing the same shop on the search page and the product page
+    must not see two different answers about whether it is open.
+    """
+    from app.api.routes.products import _shop_offers_payload
+
+    class _Shop:
+        id = 7
+        name = "Neighbour Market"
+        image_url = None
+        latitude = 25.5941
+        longitude = 85.1376
+        rating = 4.5
+        is_accepting_orders = True
+
+    class _Inv:
+        stock_status = "IN_STOCK"
+        is_available = True
+        updated_at = None
+        freshness_status = None
+
+    class _SP:
+        id = 11
+        shop_id = 7
+        price = 42.0
+        mrp = 50.0
+        last_inventory_update = None
+        is_available = True
+        inventory = _Inv()
+
+    class _Product:
+        id = 3
+
+    class _DB:
+        def query(self, model):
+            return self
+
+        def join(self, *a, **k):
+            return self
+
+        def options(self, *a, **k):
+            return self
+
+        def filter(self, *a, **k):
+            return self
+
+        def all(self):
+            return [_SP()]
+
+        def first(self):
+            return _Shop()
+
+    monkeypatched = {}
+
+    import app.api.routes.products as products_module
+
+    # The route computes open state through the canonical helper; stub it so the
+    # test asserts plumbing rather than opening-hours parsing (covered elsewhere).
+    original_is_shop_open = products_module.is_shop_open
+    original_offer_text = products_module.get_offer_text_for_shop_product
+    try:
+        products_module.is_shop_open = lambda shop, at_time=None: True
+        products_module.get_offer_text_for_shop_product = lambda db, sp_id: None
+        offers = _shop_offers_payload(_DB(), _Product(), None, None, 25.0)
+    finally:
+        products_module.is_shop_open = original_is_shop_open
+        products_module.get_offer_text_for_shop_product = original_offer_text
+
+    assert len(offers) == 1
+    assert offers[0]["is_open_now"] is True
+    assert offers[0]["is_accepting_orders"] is True
+    assert monkeypatched == {}
+
+
+def test_shop_offers_payload_tolerates_open_state_failure():
+    """A failing opening-hours lookup must not break the product page.
+
+    The offer still has to be returned with an *unknown* (None) open state, so
+    the UI hides the badge instead of guessing.
+    """
+    from app.api.routes.products import _shop_offers_payload
+
+    class _Shop:
+        id = 7
+        name = "Neighbour Market"
+        image_url = None
+        latitude = None
+        longitude = None
+        rating = 4.0
+        is_accepting_orders = True
+
+    class _Inv:
+        stock_status = "IN_STOCK"
+        is_available = True
+        updated_at = None
+        freshness_status = None
+
+    class _SP:
+        id = 11
+        shop_id = 7
+        price = 42.0
+        mrp = None
+        last_inventory_update = None
+        is_available = True
+        inventory = _Inv()
+
+    class _Product:
+        id = 3
+
+    class _DB:
+        def query(self, model):
+            return self
+
+        def join(self, *a, **k):
+            return self
+
+        def options(self, *a, **k):
+            return self
+
+        def filter(self, *a, **k):
+            return self
+
+        def all(self):
+            return [_SP()]
+
+        def first(self):
+            return _Shop()
+
+    import app.api.routes.products as products_module
+
+    def _boom(shop, at_time=None):
+        raise RuntimeError("opening hours unavailable")
+
+    original_is_shop_open = products_module.is_shop_open
+    original_offer_text = products_module.get_offer_text_for_shop_product
+    try:
+        products_module.is_shop_open = _boom
+        products_module.get_offer_text_for_shop_product = lambda db, sp_id: None
+        offers = _shop_offers_payload(_DB(), _Product(), None, None, 25.0)
+    finally:
+        products_module.is_shop_open = original_is_shop_open
+        products_module.get_offer_text_for_shop_product = original_offer_text
+
+    # The shop is still listed; only the open state is unknown.
+    assert len(offers) == 1
+    assert offers[0]["is_open_now"] is None
+    assert offers[0]["is_accepting_orders"] is None
+
+
 def test_barcode_lookup_works():
     """barcode_lookup should find products by barcode."""
     from app.search.engine import barcode_lookup
 
     # Mock a SearchIndex entry for barcode lookup
     class MockEntry:
+        id = 1
         shop_product_id = 1
         product_id = 1
         product_name = "Lays Classic"
@@ -587,6 +741,7 @@ def test_barcode_lookup_works():
         is_available = True
         stock_status = "IN_STOCK"
         freshness_status = "RECENTLY_UPDATED"
+        last_inventory_update = datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc)
         shop_id = 1
         shop_name = "Neighbour Market"
         distance_km = None
@@ -603,6 +758,8 @@ def test_barcode_lookup_works():
 
     class MockDBC:
         def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
             return MockQueryWrap()
 
     db = MockDBC()
@@ -610,6 +767,100 @@ def test_barcode_lookup_works():
     assert len(result) == 1
     assert result[0]["product_name"] == "Lays Classic"
     assert result[0]["shop_name"] == "Neighbour Market"
+
+
+def test_barcode_lookup_reports_freshness_timestamp():
+    """A scanned product must be dated exactly like a typed one.
+
+    Without `last_inventory_update` the client has no evidence for its
+    freshness copy and can only render "Unknown" — so the barcode path would
+    silently disagree with the text-search path about the same listing.
+    """
+    from app.search.engine import barcode_lookup
+
+    stamp = datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc)
+
+    class MockEntry:
+        id = 1
+        shop_product_id = 1
+        product_id = 1
+        product_name = "Amul Butter"
+        brand_name = "Amul"
+        category_name = "Dairy"
+        price = 55.0
+        mrp = 60.0
+        is_available = True
+        stock_status = "IN_STOCK"
+        freshness_status = "STALE"
+        last_inventory_update = stamp
+        shop_id = 1
+        shop_name = "Local Mart"
+        shop_rating = 4.2
+        latitude = 25.5941
+        longitude = 85.1376
+
+    class MockQueryWrap:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return [MockEntry()]
+
+    class MockDBC:
+        def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
+            return MockQueryWrap()
+
+    result = barcode_lookup(MockDBC(), "8901234567890")
+
+    assert len(result) == 1
+    assert result[0]["last_inventory_update"] == stamp
+    assert result[0]["freshness_status"] == "STALE"
+
+
+def test_barcode_lookup_tolerates_row_without_timestamp():
+    """A partial row must not crash the lookup — freshness is simply unknown."""
+
+    from app.search.engine import barcode_lookup
+
+    class MockEntry:
+        id = 1
+        shop_product_id = 1
+        product_id = 1
+        product_name = "Colgate MaxFresh"
+        brand_name = "Colgate"
+        category_name = "Oral Care"
+        price = 95.0
+        mrp = None
+        is_available = True
+        stock_status = "IN_STOCK"
+        freshness_status = None
+        shop_id = 2
+        shop_name = "Apothecary"
+        shop_rating = 4.0
+        latitude = 25.5941
+        longitude = 85.1376
+        # No last_inventory_update attribute at all.
+
+    class MockQueryWrap:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return [MockEntry()]
+
+    class MockDBC:
+        def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
+            return MockQueryWrap()
+
+    result = barcode_lookup(MockDBC(), "8901234567890")
+
+    assert len(result) == 1
+    assert result[0]["last_inventory_update"] is None
+    assert result[0]["freshness_status"] is None
 
 
 def test_barcode_lookup_empty():

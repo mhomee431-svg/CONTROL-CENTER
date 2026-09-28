@@ -55,6 +55,12 @@ dependencies:
   intl: ^0.19.0
   connectivity_plus: ^7.3.1
   shared_preferences: ^2.5.5
+  # Barcode search (customer): retail-format camera scanning, initialized only
+  # when the customer opens the scan screen.
+  mobile_scanner: ^7.4.1
+  # The one door to runtime permissions (camera for barcode scanning) — same
+  # versions and pattern as the shopkeeper app so both apps agree on behavior.
+  permission_handler: ^13.0.2
   # Firebase Phone Auth — OTP delivered client-side (no SMS gateway account)
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.0
@@ -77,6 +83,12 @@ dev_dependencies:
   json_serializable: ^6.14.1
   riverpod_generator: ^4.0.8
   mockito: ^5.8.1
+
+  # Drives the connectivity service's 12-second reconnect deadline in VIRTUAL
+  # time. The timer is a real `Timer` in production, so the test has to advance a
+  # real clock — waiting 12s per assertion would add minutes of wall-clock to the
+  # suite while testing nothing the clock owns.
+  fake_async: ^1.3.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

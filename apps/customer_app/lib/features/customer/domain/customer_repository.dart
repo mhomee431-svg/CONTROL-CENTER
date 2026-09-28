@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import 'models/customer_models.dart';
@@ -14,7 +15,11 @@ abstract class CustomerRepository {
   Future<Map<String, dynamic>> toggleFavorite(String itemType, int itemId);
   Future<List<String>> getFavoriteTypes();
   Future<List<RecentProduct>> getRecentlyViewed({int limit = 20});
-  Future<void> recordRecentView(int productMasterId, {int? variantId, int? shopProductId});
+  Future<void> recordRecentView(
+    int productMasterId, {
+    int? variantId,
+    int? shopProductId,
+  });
   Future<ProductSharePayload?> getSharePayload(int productMasterId);
   Future<void> recordShare(int productMasterId);
 }
@@ -38,7 +43,10 @@ class ApiCustomerRepository implements CustomerRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> toggleFavorite(String itemType, int itemId) async {
+  Future<Map<String, dynamic>> toggleFavorite(
+    String itemType,
+    int itemId,
+  ) async {
     return await _api.post(
       ApiEndpoints.customerFavorites,
       queryParameters: {'item_type': itemType, 'item_id': itemId},
@@ -52,7 +60,8 @@ class ApiCustomerRepository implements CustomerRepository {
       ApiEndpoints.customerFavoritesTypes,
       requiresAuth: true,
     );
-    final types = (data is Map ? data['item_types'] : data) as List<dynamic>? ?? [];
+    final types =
+        (data is Map ? data['item_types'] : data) as List<dynamic>? ?? [];
     return types.map((e) => e.toString()).toList();
   }
 
@@ -70,8 +79,11 @@ class ApiCustomerRepository implements CustomerRepository {
   }
 
   @override
-  Future<void> recordRecentView(int productMasterId,
-      {int? variantId, int? shopProductId}) async {
+  Future<void> recordRecentView(
+    int productMasterId, {
+    int? variantId,
+    int? shopProductId,
+  }) async {
     await _api.post(
       ApiEndpoints.customerRecentlyViewed,
       queryParameters: {
@@ -90,7 +102,8 @@ class ApiCustomerRepository implements CustomerRepository {
         ApiEndpoints.customerProductShare(productMasterId.toString()),
         requiresAuth: false,
       );
-      final payload = (data is Map ? data['data'] : data) as Map<String, dynamic>?;
+      final payload =
+          (data is Map ? data['data'] : data) as Map<String, dynamic>?;
       if (payload == null) return null;
       return ProductSharePayload.fromJson(payload);
     } catch (_) {

@@ -13,7 +13,9 @@ import '../../../core/error/failures.dart';
 class MockAuthRepository implements AuthRepository {
   @override
   Future<void> sendOtp(String phoneNumber) async {
-    await Future.delayed(const Duration(seconds: 2)); // Simulate network latency
+    await Future.delayed(
+      const Duration(seconds: 2),
+    ); // Simulate network latency
 
     if (phoneNumber.length < 10 || phoneNumber.length > 10) {
       throw const InvalidPhoneNumberFailure();
@@ -66,6 +68,26 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthResult> signInWithGoogle({
+    String? deviceId,
+    String? deviceName,
+    String? deviceType,
+    String? appVersion,
+  }) async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Simulate a successful Google login returning backend session tokens.
+    return const AuthResult(
+      accessToken: 'mock_google_jwt_token_header.payload.signature',
+      refreshToken: 'mock_refresh_token_value',
+      sessionId: 'mock-session-id-google',
+      userId: 3,
+      name: 'Google Customer',
+      role: 'customer',
+    );
+  }
+
+  @override
   Future<AuthResult> register({
     required String phoneNumber,
     required String otpCode,
@@ -101,7 +123,10 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthResult> refreshToken(String refreshToken, {String? deviceId}) async {
+  Future<AuthResult> refreshToken(
+    String refreshToken, {
+    String? deviceId,
+  }) async {
     await Future.delayed(const Duration(seconds: 1));
     return const AuthResult(
       accessToken: 'mock_refreshed_jwt_token_header.payload.signature',

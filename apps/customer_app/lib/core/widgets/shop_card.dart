@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../features/home/domain/models/home_data.dart';
 import '../theme/app_theme.dart';
 import 'network_image_view.dart';
@@ -35,13 +36,20 @@ class ShopCard extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  NetworkImageView(imageUrl: shop.imageUrl, height: 100, borderRadius: 12),
+                  NetworkImageView(
+                    imageUrl: shop.imageUrl,
+                    height: 100,
+                    borderRadius: 12,
+                  ),
                   if (shop.isVerified)
                     Positioned(
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.secondary,
                           borderRadius: BorderRadius.circular(4),
@@ -53,7 +61,11 @@ class ShopCard extends StatelessWidget {
                             SizedBox(width: 2),
                             Text(
                               'Verified',
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -70,7 +82,10 @@ class ShopCard extends StatelessWidget {
                       shop.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Row(
@@ -79,14 +94,24 @@ class ShopCard extends StatelessWidget {
                         const SizedBox(width: 2),
                         Text(
                           shop.rating.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
-                        const Icon(Icons.location_on, size: 14, color: AppColors.textMuted),
+                        const Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: AppColors.textMuted,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           '${shop.distance.toStringAsFixed(1)} km',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ],
                     ),

@@ -3,17 +3,54 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/domain/auth_service.dart' show authAppVersion;
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/controllers/notification_preferences_controller.dart';
-import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../saved_and_history/domain/saved_and_history_repository.dart';
+import '../../../saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
 import '../controllers/settings_controller.dart';
 
-class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends ConsumerStatefulWidget {
+  const SettingsScreen({super.key, this.initialSection});
+
+  /// Optional section to scroll to on open, so profile entries such as
+  /// "Notifications" can deep-link to the relevant part of this long page.
+  /// Supported: `notifications`, `privacy`.
+  final String? initialSection;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _notificationsKey = GlobalKey();
+  final _privacyKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSection());
+  }
+
+  void _scrollToSection() {
+    if (!mounted) return;
+    final target = switch (widget.initialSection) {
+      'notifications' => _notificationsKey,
+      'privacy' => _privacyKey,
+      _ => null,
+    };
+    final targetContext = target?.currentContext;
+    if (targetContext == null) return;
+    Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // `ref` is provided by ConsumerState.
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
     final authState = ref.watch(authControllerProvider);
@@ -39,24 +76,50 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(strings.get('settingsTitle'))),
       body: ListView(
         children: [
-          // ── Notifications ────────────────────────────────────────────
-          const _SectionHeader('Notifications'),
-          SwitchListTile(
-            secondary: Icon(
-              Icons.notifications_active,
-              color: settings.pushNotificationsEnabled
-                  ? AppColors.primary
-                  : AppColors.textMuted,
-            ),
-            title: Text(strings.get('pushNotifications')),
-            subtitle: const Text('Allow push alerts on this device'),
-            value: settings.pushNotificationsEnabled,
-            onChanged: controller.toggleNotifications,
+          // -- Account --
+          // Identity links live at the top: they are the most common reason
+          // someone opens Settings, and the account hub is now the single
+          // place for profile / saved items / addresses / notifications.
+          const _SectionHeader('Account'),
+          ListTile(
+            key: const Key('settingsAccountHubTile'),
+            leading: const Icon(Icons.account_circle_outlined),
+            title: const Text('My account'),
+            subtitle: const Text('Profile, saved items and notifications'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/account'),
           ),
-          const _NotificationPreferencesSection(),
+          if (!isGuest)
+            ListTile(
+              key: const Key('settingsEditProfileTile'),
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Edit profile'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/profile/edit'),
+            ),
           const Divider(indent: AppSpacing.md),
 
-          // ── Location ─────────────────────────────────────────────────
+          // -- Notifications --
+          // The switches now live on a dedicated screen, so this row is a
+          // pointer rather than a summary that would drift out of sync with
+          // it. Keeping one home for the toggles means the account-wide
+          // matrix can only be described in one place.
+          _SectionHeader('Notifications', key: _notificationsKey),
+          ListTile(
+            key: const Key('notificationSettingsTile'),
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notification settings'),
+            subtitle: Text(
+              settings.pushNotificationsEnabled
+                  ? 'Price, availability and offer alerts'
+                  : 'Push alerts are off on this device',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/notification-settings'),
+          ),
+          const Divider(indent: AppSpacing.md),
+
+          // -- Location --
           const _SectionHeader('Location preferences'),
           SwitchListTile(
             secondary: const Icon(Icons.location_on),
@@ -66,33 +129,48 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: controller.toggleLocation,
           ),
           ListTile(
+            key: const Key('locationSettingsTile'),
+            leading: const Icon(Icons.my_location),
+            title: const Text('Location settings'),
+            subtitle: const Text(
+              'Current location, default address and permission',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/location-settings'),
+          ),
+          ListTile(
             leading: const Icon(Icons.bookmark_border),
             title: const Text('Default address'),
             subtitle: const Text('Manage saved addresses'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/profile/addresses'),
           ),
-
           const Divider(indent: AppSpacing.md),
 
-          // ── App preferences ─────────────────────────────────────────
-          const _SectionHeader('App preferences'),
+          // -- Appearance --
+          // "Appearance" rather than "Theme": the customer is choosing how
+          // the app looks to them, not picking an implementation detail.
+          const _SectionHeader('Appearance'),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('Theme'),
+            subtitle: Text(_themeLabel(settings.themeMode)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _pickTheme(context, ref),
+          ),
           ListTile(
             leading: const Icon(Icons.language),
             title: Text(strings.get('language')),
-            subtitle: Text(settings.languageCode == 'en' ? 'English' : 'हिंदी'),
+            subtitle: Text(
+              settings.languageCode == 'en' ? 'English' : 'हिन्दी',
+            ),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () => _pickLanguage(context, ref),
-          ),
-          ListTile(
-            leading: const Icon(Icons.brightness_6),
-            title: Text(strings.get('theme')),
-            subtitle: Text(_themeLabel(settings.themeMode)),
-            onTap: () => _pickTheme(context, ref),
           ),
           const Divider(indent: AppSpacing.md),
 
-          // ── Privacy ─────────────────────────────────────────────────
-          const _SectionHeader('Privacy & data'),
+          // -- Privacy --
+          _SectionHeader('Privacy & data', key: _privacyKey),
           SwitchListTile(
             secondary: const Icon(Icons.analytics_outlined),
             title: const Text('Usage analytics'),
@@ -122,45 +200,31 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _clearHistory(context, ref),
           ),
           ListTile(
+            key: const Key('clearAllLocalDataTile'),
+            leading: const Icon(Icons.delete_sweep_outlined),
+            title: const Text('Clear all local data'),
+            subtitle: const Text('Also removes saved products and shops'),
+            onTap: () => _clearAllLocalData(context, ref),
+          ),
+          ListTile(
+            key: const Key('privacyPolicyTile'),
             leading: const Icon(Icons.privacy_tip_outlined),
-            title: Text(strings.get('privacy')),
+            title: const Text('Privacy & data'),
+            subtitle: const Text(
+              'What we collect, location use and your controls',
+            ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showPrivacyInfo(context),
+            // The interactive centre. The legal policy document is one tap
+            // deeper from there, rather than duplicating it here.
+            onTap: () => context.push('/privacy-data'),
           ),
 
           const Divider(indent: AppSpacing.md),
 
-          // ── Account management ──────────────────────────────────────
-          const _SectionHeader('Account'),
-          if (!isGuest)
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Edit profile'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/profile/edit'),
-            ),
+          // -- Support --
+          const _SectionHeader('Support & About'),
           ListTile(
-            key: const Key('settingsLogoutTile'),
-            leading: const Icon(Icons.logout),
-            title: Text(isGuest ? 'Exit guest mode' : 'Sign out'),
-            onTap: () => _confirmSignOut(context, ref, isGuest),
-          ),
-          if (!isGuest)
-            ListTile(
-              key: const Key('deleteAccountTile'),
-              leading:
-                  const Icon(Icons.delete_forever, color: AppColors.error),
-              title: const Text(
-                'Delete account',
-                style: TextStyle(color: AppColors.error),
-              ),
-              subtitle: const Text('Permanently remove your account'),
-              onTap: () => _confirmDeleteAccount(context, ref),
-            ),
-          const Divider(indent: AppSpacing.md),
-
-          // ── About ───────────────────────────────────────────────────
-          ListTile(
+            key: const Key('settingsHelpTile'),
             leading: const Icon(Icons.help_outline),
             title: const Text('Help & Support'),
             subtitle: const Text('FAQ, contact us, report an issue'),
@@ -168,10 +232,71 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/help'),
           ),
           ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(strings.get('about')),
-            subtitle: const Text('Version 1.0.0'),
+            key: const Key('settingsTermsTile'),
+            leading: const Icon(Icons.gavel_outlined),
+            title: const Text('Terms of Service'),
+            subtitle: const Text('Rules for using Hyperlocal'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/terms'),
           ),
+          ListTile(
+            key: const Key('settingsAppTourTile'),
+            leading: const Icon(Icons.tour_outlined),
+            title: const Text('App tour'),
+            subtitle: const Text('See how Hyperlocal works, step by step'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/onboarding'),
+          ),
+          ListTile(
+            key: const Key('settingsAboutTile'),
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About'),
+            subtitle: const Text('Version $authAppVersion'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/about'),
+          ),
+          const Divider(indent: AppSpacing.md),
+
+          // -- Session --
+          const _SectionHeader('Session'),
+          ListTile(
+            key: const Key('settingsLogoutTile'),
+            leading: const Icon(Icons.logout),
+            title: Text(isGuest ? 'Exit guest mode' : 'Sign out'),
+            subtitle: const Text('Sign out of your account on this device'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _confirmSignOut(context, ref, isGuest),
+          ),
+
+          // Deleting an account is irreversible and is backed by a real
+          // endpoint (DELETE /users/me, API contract §7.3), so it earns its
+          // own "Danger zone" at the very bottom rather than sitting next to
+          // the ordinary sign-out row where a stray tap could destroy data.
+          if (!isGuest) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _SectionHeader('Danger zone'),
+            ListTile(
+              key: const Key('deleteAccountTile'),
+              leading: const Icon(
+                Icons.delete_forever,
+                color: AppColors.error,
+              ),
+              title: const Text(
+                'Delete account',
+                style: TextStyle(color: AppColors.error),
+              ),
+              subtitle: const Text(
+                'Permanently remove your account and synced data',
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: AppColors.error,
+              ),
+              // The full flow lives on its own screen: impact, confirmation,
+              // the real backend call, then session teardown.
+              onTap: () => context.push('/delete-account'),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
         ],
       ),
@@ -204,7 +329,7 @@ class SettingsScreen extends ConsumerWidget {
           SimpleDialogOption(
             key: const Key('langHiOption'),
             onPressed: () => Navigator.pop(dialogContext, 'hi'),
-            child: const Text('हिंदी (Hindi)'),
+            child: const Text('हिन्दी (Hindi)'),
           ),
         ],
       ),
@@ -231,8 +356,9 @@ class SettingsScreen extends ConsumerWidget {
                         ? Icons.radio_button_checked
                         : Icons.radio_button_off,
                     size: 20,
-                    color:
-                        current == mode ? AppColors.primary : AppColors.textMuted,
+                    color: current == mode
+                        ? AppColors.primary
+                        : AppColors.textMuted,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(switch (mode) {
@@ -288,35 +414,64 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showPrivacyInfo(BuildContext context) {
-    showModalBottomSheet<void>(
+  /// Wipes every piece of device-local personalization, saved items included.
+  ///
+  /// Deliberately broader than [_clearHistory]: that only drops searches and
+  /// recently viewed items, which left saved products and shops impossible to
+  /// remove from the device. Both are device-local; the backend copy is only
+  /// touched when the customer signs in, so this must say so plainly.
+  Future<void> _clearAllLocalData(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Privacy & Data',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'Hyperlocal stores your saved addresses, favorites and '
-              'preferences on this device. Account-backed data is synced '
-              'only while you are signed in.\n\n'
-              'Analytics are off by default. Clearing browsing history '
-              'removes device-local searches and viewed items immediately.',
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(sheetContext),
-                child: const Text('Got it'),
-              ),
-            ),
-          ],
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear all local data?'),
+        content: const Text(
+          'This removes your saved products, saved shops, recent searches '
+          'and recently viewed items from this device.\n\n'
+          'Items already synced to your account stay on your account, but '
+          'this device will have to download them again. This cannot be '
+          'undone.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('confirmClearAllLocalData'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Clear everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final repository = ref.read(savedAndHistoryRepositoryProvider);
+    // Every clear is independent: one failure must not abandon the rest, so
+    // they are run concurrently and each one's own error is swallowed by the
+    // repository contract (these are idempotent best-effort calls).
+    await Future.wait([
+      repository.clearRecentSearches(),
+      repository.clearRecentlyViewed(),
+      repository.clearRecentlyViewedShops(),
+      repository.clearSavedProducts(),
+      repository.clearSavedShops(),
+    ]);
+
+    if (!context.mounted) return;
+    // Refresh the visible lists so the change is not a lie on screen.
+    ref.invalidate(savedProductsNotifierProvider);
+    ref.invalidate(savedShopsNotifierProvider);
+    ref.invalidate(recentSearchesNotifierProvider);
+    ref.invalidate(recentlyViewedNotifierProvider);
+    ref.invalidate(recentlyViewedShopsNotifierProvider);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('All local data cleared.'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -326,6 +481,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     bool isGuest,
   ) async {
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -352,63 +508,25 @@ class SettingsScreen extends ConsumerWidget {
       await ref.read(authControllerProvider.notifier).logout();
     }
   }
-
-  Future<void> _confirmDeleteAccount(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'This permanently removes your account and synced data from our '
-          'servers. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const Key('confirmDeleteAccount'),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete forever'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    final deleted =
-        await ref.read(profileControllerProvider.notifier).deleteAccount();
-    if (!context.mounted) return;
-    if (!deleted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not delete your account. Please try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    // Sign out locally after the deletion request.
-    await ref.read(authControllerProvider.notifier).logout();
-  }
 }
 
 /// Uppercase group label used between setting sections.
+///
+/// Accepts a [key] so callers can anchor a deep-link scroll position to a
+/// specific section.
 class _SectionHeader extends StatelessWidget {
   final String title;
 
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {super.key});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.xs,
       ),
       child: Text(
         title.toUpperCase(),
@@ -419,101 +537,6 @@ class _SectionHeader extends StatelessWidget {
           color: AppColors.textMuted,
         ),
       ),
-    );
-  }
-}
-
-/// Per-type and per-channel notification switches.
-///
-/// Reads/writes through [NotificationPreferencesController]; the master
-/// device switch above gates whether any of this matters on-device.
-class _NotificationPreferencesSection extends ConsumerWidget {
-  const _NotificationPreferencesSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(notificationPreferencesControllerProvider);
-    final controller =
-        ref.read(notificationPreferencesControllerProvider.notifier);
-    final prefs = state.preferences;
-
-    if (state.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-
-    return Column(
-      children: [
-        _prefSwitch(
-          key: const Key('prefPriceDrop'),
-          icon: Icons.sell_outlined,
-          title: 'Price drop alerts',
-          value: prefs.priceAlerts,
-          onChanged: controller.setPriceAlerts,
-        ),
-        _prefSwitch(
-          key: const Key('prefAvailability'),
-          icon: Icons.inventory_2_outlined,
-          title: 'Product availability',
-          value: prefs.availabilityAlerts,
-          onChanged: controller.setAvailabilityAlerts,
-        ),
-        _prefSwitch(
-          key: const Key('prefOffers'),
-          icon: Icons.local_offer_outlined,
-          title: 'Deal alerts',
-          value: prefs.dealAlerts,
-          onChanged: controller.setDealAlerts,
-        ),
-        _prefSwitch(
-          key: const Key('prefPromotional'),
-          icon: Icons.campaign_outlined,
-          title: 'Promotions',
-          value: prefs.promotional,
-          onChanged: controller.setPromotional,
-        ),
-        _prefSwitch(
-          key: const Key('prefShopUpdates'),
-          icon: Icons.storefront_outlined,
-          title: 'Shop updates',
-          value: prefs.shopUpdates,
-          onChanged: controller.setShopUpdates,
-        ),
-        const Divider(indent: AppSpacing.md),
-        _prefSwitch(
-          key: const Key('prefEmailChannel'),
-          icon: Icons.mail_outline,
-          title: 'Email notifications',
-          value: prefs.emailEnabled,
-          onChanged: controller.setEmail,
-        ),
-        _prefSwitch(
-          key: const Key('prefSmsChannel'),
-          icon: Icons.sms_outlined,
-          title: 'SMS notifications',
-          value: prefs.smsEnabled,
-          onChanged: controller.setSms,
-        ),
-      ],
-    );
-  }
-
-  Widget _prefSwitch({
-    Key? key,
-    required IconData icon,
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return SwitchListTile(
-      key: key,
-      secondary: Icon(icon, size: 22, color: AppColors.textMuted),
-      title: Text(title, style: const TextStyle(fontSize: 15)),
-      dense: true,
-      value: value,
-      onChanged: onChanged,
     );
   }
 }

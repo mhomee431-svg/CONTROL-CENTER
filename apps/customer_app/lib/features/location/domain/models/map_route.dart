@@ -9,7 +9,10 @@ class MapLatLng {
   final double longitude;
 
   bool get hasValidCoordinates =>
-      latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180;
 
   @override
   bool operator ==(Object other) =>

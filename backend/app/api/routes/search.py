@@ -21,15 +21,17 @@ async def v2_search_products(
     latitude: float | None = Query(None, ge=-90, le=90, description="User latitude for geo search"),
     longitude: float | None = Query(None, ge=-180, le=180, description="User longitude for geo search"),
     radius_km: float = Query(10.0, gt=0, le=100, description="Search radius in km"),
-    category: int | None = Query(None, description="Category ID filter"),
-    brand: int | None = Query(None, description="Brand ID filter"),
+    category: str | None = Query(None, description="Category ID or name filter"),
+    brand: str | None = Query(None, description="Brand ID or name filter"),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
     min_rating: float | None = Query(None, ge=0, le=5),
     in_stock: bool = Query(False, description="Only show in-stock items"),
     exclude_stale: bool = Query(False, description="Exclude stale inventory"),
     exclude_unavailable: bool = Query(False, description="Exclude unavailable items"),
-    sort: str = Query("relevance", pattern="^(relevance|distance|nearest|lowest_price|price_asc|highest_price|price_desc|highest_rated|rating|availability|freshness|recently_updated)$"),
+    offers_only: bool = Query(False, description="Only show items with active offers"),
+    open_now: bool = Query(False, description="Only show shops currently open"),
+    sort: str = Query("relevance", pattern="^(relevance|distance|nearest|lowest_price|price_asc|highest_price|price_desc|highest_rated|rating|availability|freshness|recently_updated|offers)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
@@ -42,19 +44,39 @@ async def v2_search_products(
     Combines text search (with typo tolerance), geo proximity, and
     all discovery filters in one query.
     """
+    cat_id = None
+    cat_name = None
+    if category:
+        try:
+            cat_id = int(category)
+        except ValueError:
+            cat_name = category
+
+    br_id = None
+    br_name = None
+    if brand:
+        try:
+            br_id = int(brand)
+        except ValueError:
+            br_name = brand
+
     params = SearchParams(
         q=q,
         latitude=latitude,
         longitude=longitude,
         radius_km=radius_km,
-        category_id=category,
-        brand_id=brand,
+        category_id=cat_id,
+        category_name=cat_name,
+        brand_id=br_id,
+        brand_name=br_name,
         min_price=min_price,
         max_price=max_price,
         min_rating=min_rating,
         in_stock_only=in_stock,
         exclude_stale=exclude_stale,
         exclude_unavailable=exclude_unavailable,
+        offers_only=offers_only,
+        open_now=open_now,
         sort=sort,
         page=page,
         limit=limit,

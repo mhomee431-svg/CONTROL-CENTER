@@ -110,6 +110,10 @@ class SearchIndex(Base, TimestampMixin):
             postgresql_using="gin", postgresql_ops={"search_text": "gin_trgm_ops"},
         ),
         Index(
+            "ix_search_index_discovery_text_trgm", "discovery_text",
+            postgresql_using="gin", postgresql_ops={"discovery_text": "gin_trgm_ops"},
+        ),
+        Index(
             "ix_search_index_barcode_trgm", "barcode",
             postgresql_using="gin", postgresql_ops={"barcode": "gin_trgm_ops"},
         ),
@@ -142,8 +146,13 @@ class SearchIndex(Base, TimestampMixin):
     category_name: Mapped[str | None] = mapped_column(String(100))
     subcategory_name: Mapped[str | None] = mapped_column(String(100))
     variant_name: Mapped[str | None] = mapped_column(String(255))
-    search_text: Mapped[str] = mapped_column(Text, nullable=False)  # normalized, concatenated
-    search_vector: Mapped[str | None] = mapped_column(Text)  # tsvector representation stored for GIN
+    search_text: Mapped[str] = mapped_column(Text, nullable=False)  # legacy all-field projection
+    # Canonical discovery document: product name + brand + taxonomy + variant
+    # + SKU/identifiers. Descriptions/specifications are intentionally excluded.
+    # Nullable only to allow a zero-downtime production backfill; indexer-created
+    # rows always populate it.
+    discovery_text: Mapped[str | None] = mapped_column(Text)
+    search_vector: Mapped[str | None] = mapped_column(Text)  # legacy compatibility projection
     barcode: Mapped[str | None] = mapped_column(String(100))
     sku: Mapped[str | None] = mapped_column(String(100))
 

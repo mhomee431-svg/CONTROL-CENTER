@@ -25,6 +25,7 @@ class ApiEndpoints {
   // --- Auth ---
   static const String sendOtp = '/auth/send-otp';
   static const String verifyOtp = '/auth/verify-otp';
+  static const String googleLogin = '/auth/google-login';
   static const String register = '/auth/register';
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
@@ -61,6 +62,9 @@ class ApiEndpoints {
   static const String searchPopular = '/search/v2/popular';
   static const String searchHistory = '/search/v2/history';
 
+  /// Barcode lookup — finds the shops selling the product with this barcode.
+  static String searchBarcode(String barcode) => '/search/v2/barcodes/$barcode';
+
   // --- Saved Products ---
   static const String savedProducts = '/saved-products';
   static String savedProduct(String id) => '/saved-products/$id';
@@ -92,7 +96,7 @@ class ApiEndpoints {
   static String customerProductShare(String productId) =>
       '/customer/products/$productId/share';
 
-    // --- Support ---
+  // --- Support ---
   static const String supportIssue = '/support/issues';
   static const String supportFaq = '/support/faq';
 

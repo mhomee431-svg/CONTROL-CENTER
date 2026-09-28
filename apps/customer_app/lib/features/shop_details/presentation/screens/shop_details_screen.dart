@@ -3,20 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../controllers/shop_details_controller.dart';
 import '../../domain/models/shop_details_models.dart';
 import '../widgets/shop_header.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 
 class ShopDetailsScreen extends ConsumerWidget {
   final String shopId;
   const ShopDetailsScreen({super.key, required this.shopId});
 
-  Future<void> _launchUrl(String url) async {
+  /// Phone numbers arrive display-formatted ("+91 98765 43210"); the `tel:`
+  /// scheme accepts only digits and a leading `+`, so strip formatting before
+  /// building the intent. Returns '' when nothing dialable remains.
+  String _sanitizePhone(String raw) {
+    final cleaned = raw.replaceAll(RegExp(r'[^0-9+]'), '');
+    // Keep a single leading '+' at most — anything else is not dialable.
+    if (cleaned.isEmpty || cleaned == '+') return '';
+    final plusStripped = cleaned.replaceAll('+', '');
+    return cleaned.startsWith('+') ? '+$plusStripped' : plusStripped;
+  }
+
+  Future<void> _launchUrl(BuildContext context, String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    if (!await canLaunchUrl(uri)) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this link right now.')),
+      );
+      return;
+    }
+    await launchUrl(uri);
   }
 
   Future<void> _shareShop(ShopProfile shop) async {
@@ -27,10 +47,57 @@ class ShopDetailsScreen extends ConsumerWidget {
     await SharePlus.instance.share(ShareParams(text: text));
   }
 
-  void _openDirections(BuildContext context, ShopProfile shop) {
+  Future<void> _openDirections(
+    BuildContext context,
+    WidgetRef ref,
+    ShopProfile shop,
+  ) async {
+    final allowed = await requireAuthentication(
+      context,
+      ref,
+      actionLabel: 'get directions to this shop',
+    );
+    if (!allowed || !context.mounted) return;
     context.push(
       '/directions?shopId=${shop.id}&name=${Uri.encodeComponent(shop.name)}',
     );
+  }
+
+  Future<void> _callShop(
+    BuildContext context,
+    WidgetRef ref,
+    String phone,
+  ) async {
+    final allowed = await requireAuthentication(
+      context,
+      ref,
+      actionLabel: 'call this shop',
+    );
+    if (!allowed || !context.mounted) return;
+    final dialable = _sanitizePhone(phone);
+    if (dialable.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This phone number cannot be dialed.')),
+      );
+      return;
+    }
+    await _launchUrl(context, 'tel:$dialable');
+  }
+
+  Future<void> _guardedLaunch(
+    BuildContext context,
+    WidgetRef ref,
+    String url,
+    String actionLabel,
+  ) async {
+    final allowed = await requireAuthentication(
+      context,
+      ref,
+      actionLabel: actionLabel,
+    );
+    if (!allowed || !context.mounted) return;
+    await _launchUrl(context, url);
   }
 
   @override
@@ -44,7 +111,11 @@ class ShopDetailsScreen extends ConsumerWidget {
         actions: [
           shopAsync.maybeWhen(
             data: (shop) => IconButton(
-              icon: Icon(isSaved ? Icons.favorite : Icons.favorite_border, color: AppColors.error),
+              icon: Icon(
+                isSaved ? Icons.favorite : Icons.favorite_border,
+                color: AppColors.error,
+              ),
+              tooltip: isSaved ? 'Remove from favorites' : 'Save shop',
               onPressed: () {
                 ref.read(shopIsSavedProvider(shopId).notifier).toggle();
               },
@@ -54,6 +125,7 @@ class ShopDetailsScreen extends ConsumerWidget {
           shopAsync.maybeWhen(
             data: (shop) => IconButton(
               icon: const Icon(Icons.share_outlined),
+              tooltip: 'Share shop',
               onPressed: () => _shareShop(shop),
             ),
             orElse: () => const SizedBox.shrink(),
@@ -61,13 +133,18 @@ class ShopDetailsScreen extends ConsumerWidget {
         ],
       ),
       body: shopAsync.when(
-        data: (shop) => _buildBody(context, shop),
-        loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+        data: (shop) => _buildBody(context, ref, shop),
+        loading: () =>
+            const Center(child: CircularProgressIndicator.adaptive()),
         error: (err, stack) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.store_outlined, size: 64, color: AppColors.textMuted),
+              const Icon(
+                Icons.store_outlined,
+                size: 64,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(height: AppSpacing.md),
               const Text(
                 'Unable to load shop\nPlease try again.',
@@ -76,7 +153,7 @@ class ShopDetailsScreen extends ConsumerWidget {
               TextButton(
                 onPressed: () => ref.refresh(shopDetailsProvider(shopId)),
                 child: const Text('Retry'),
-              )
+              ),
             ],
           ),
         ),
@@ -84,7 +161,7 @@ class ShopDetailsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, ShopProfile shop) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, ShopProfile shop) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,21 +175,30 @@ class ShopDetailsScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed:
-                        shop.phone.isNotEmpty ? () => _launchUrl('tel:${shop.phone}') : null,
+                    onPressed: shop.phone.isNotEmpty
+                        ? () => _callShop(context, ref, shop.phone)
+                        : null,
                     icon: const Icon(Icons.call),
                     label: const Text('Call'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openDirections(context, shop),
-                    icon: const Icon(Icons.directions),
-                    label: const Text('Directions'),
+                if (shop.phone.isNotEmpty && shop.hasValidCoordinates)
+                  const SizedBox(width: AppSpacing.md),
+                // Directions stay hidden when the backend has no usable shop
+                // coordinates — a button that opens a map error state would be
+                // a dead action.
+                if (shop.hasValidCoordinates)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openDirections(context, ref, shop),
+                      icon: const Icon(Icons.directions),
+                      label: const Text('Directions'),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -124,15 +210,21 @@ class ShopDetailsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildContactSection(shop),
+                _buildContactSection(context, ref, shop),
                 const SizedBox(height: AppSpacing.lg),
 
                 _buildSectionTitle('Operating Hours'),
-                Text(shop.openingHours, style: const TextStyle(color: AppColors.textMuted)),
+                Text(
+                  shop.openingHours,
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
                 if (!shop.isOpenNow) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
@@ -147,35 +239,66 @@ class ShopDetailsScreen extends ConsumerWidget {
 
                 if (shop.activeOffers.isNotEmpty) ...[
                   _buildSectionTitle('Shop Offers'),
-                  ...shop.activeOffers.map((offer) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.local_offer, size: 16, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(offer, style: const TextStyle(fontWeight: FontWeight.w500))),
-                          ],
-                        ),
-                      )),
+                  ...shop.activeOffers.map(
+                    (offer) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.local_offer,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              offer,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                 ],
 
                 _buildSectionTitle('About Shop'),
-                Text(shop.about, style: const TextStyle(color: AppColors.textMuted, height: 1.4)),
+                Text(
+                  shop.about,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.lg),
 
                 // INVENTORY FRESHNESS
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.update, size: 20, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.update,
+                        size: 20,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(
-                        'Inventory last updated ${DateTime.now().difference(shop.lastInventoryUpdate).inHours} hours ago',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                      )),
+                      Expanded(
+                        child: Text(
+                          'Inventory last updated ${DateTime.now().difference(shop.lastInventoryUpdate).inHours} hours ago',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -192,12 +315,19 @@ class ShopDetailsScreen extends ConsumerWidget {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.location_off, size: 20, color: Colors.orange),
+                        Icon(
+                          Icons.location_off,
+                          size: 20,
+                          color: Colors.orange,
+                        ),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Shop coordinates are temporarily unavailable. You can still call the shop for directions.',
-                            style: TextStyle(fontSize: 12, color: Colors.orange),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange,
+                            ),
                           ),
                         ),
                       ],
@@ -226,12 +356,13 @@ class ShopDetailsScreen extends ConsumerWidget {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.75,
-                      crossAxisSpacing: AppSpacing.md,
-                      mainAxisSpacing: AppSpacing.md,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.75,
+                          crossAxisSpacing: AppSpacing.md,
+                          mainAxisSpacing: AppSpacing.md,
+                        ),
                     itemCount: shop.availableProducts.length,
                     itemBuilder: (context, index) {
                       final product = shop.availableProducts[index];
@@ -240,13 +371,17 @@ class ShopDetailsScreen extends ConsumerWidget {
                   ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildContactSection(ShopProfile shop) {
+  Widget _buildContactSection(
+    BuildContext context,
+    WidgetRef ref,
+    ShopProfile shop,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -255,14 +390,46 @@ class ShopDetailsScreen extends ConsumerWidget {
           _buildContactRow(
             icon: Icons.call_outlined,
             text: shop.phone,
-            onTap: () => _launchUrl('tel:${shop.phone}'),
+            onTap: () {
+              final dialable = _sanitizePhone(shop.phone);
+              if (dialable.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This phone number cannot be dialed.'),
+                  ),
+                );
+                return;
+              }
+              _guardedLaunch(
+                context,
+                ref,
+                'tel:$dialable',
+                'call this shop',
+              );
+            },
           ),
         if (shop.secondaryPhone.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           _buildContactRow(
             icon: Icons.phone_android_outlined,
             text: shop.secondaryPhone,
-            onTap: () => _launchUrl('tel:${shop.secondaryPhone}'),
+            onTap: () {
+              final dialable = _sanitizePhone(shop.secondaryPhone);
+              if (dialable.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This phone number cannot be dialed.'),
+                  ),
+                );
+                return;
+              }
+              _guardedLaunch(
+                context,
+                ref,
+                'tel:$dialable',
+                'call this shop',
+              );
+            },
           ),
         ],
         if (shop.email.isNotEmpty) ...[
@@ -270,12 +437,21 @@ class ShopDetailsScreen extends ConsumerWidget {
           _buildContactRow(
             icon: Icons.email_outlined,
             text: shop.email,
-            onTap: () => _launchUrl('mailto:${shop.email}'),
+            onTap: () => _guardedLaunch(
+              context,
+              ref,
+              'mailto:${shop.email}',
+              'email this shop',
+            ),
           ),
         ],
-        if (shop.phone.isEmpty && shop.secondaryPhone.isEmpty && shop.email.isEmpty)
-          const Text('No contact info available',
-              style: TextStyle(color: AppColors.textMuted)),
+        if (shop.phone.isEmpty &&
+            shop.secondaryPhone.isEmpty &&
+            shop.email.isEmpty)
+          const Text(
+            'No contact info available',
+            style: TextStyle(color: AppColors.textMuted),
+          ),
       ],
     );
   }
@@ -294,11 +470,13 @@ class ShopDetailsScreen extends ConsumerWidget {
           children: [
             Icon(icon, size: 18, color: AppColors.primary),
             const SizedBox(width: 10),
-            Expanded(
-              child: Text(text, style: const TextStyle(fontSize: 14)),
-            ),
+            Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
             if (onTap != null)
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textMuted,
+              ),
           ],
         ),
       ),
@@ -308,7 +486,10 @@ class ShopDetailsScreen extends ConsumerWidget {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
@@ -320,7 +501,9 @@ class _ProductSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/product/${product.productId}'), // Navigation -> Product Profile
+      onTap: () => context.push(
+        '/product/${product.productId}',
+      ), // Navigation -> Product Profile
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade200),
@@ -329,19 +512,45 @@ class _ProductSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: NetworkImageView(imageUrl: product.imageUrl, width: double.infinity, borderRadius: 12)),
+            Expanded(
+              child: NetworkImageView(
+                imageUrl: product.imageUrl,
+                width: double.infinity,
+                borderRadius: 12,
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('₹${product.price.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Text(
+                    '₹${product.price.toInt()}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     product.isAvailable ? 'In Stock' : 'Out of Stock',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: product.isAvailable ? AppColors.secondary : AppColors.error),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: product.isAvailable
+                          ? AppColors.secondary
+                          : AppColors.error,
+                    ),
                   ),
                 ],
               ),

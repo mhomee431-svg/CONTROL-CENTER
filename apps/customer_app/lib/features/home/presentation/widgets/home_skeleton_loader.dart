@@ -22,7 +22,10 @@ class HomeSkeletonLoader extends StatelessWidget {
                 (index) => Container(
                   width: 60,
                   height: 60,
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ),

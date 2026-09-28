@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/error/failures.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import 'auth_repository.dart';
@@ -35,7 +36,9 @@ class AuthService {
       result = await _repository.register(
         phoneNumber: phoneNumber,
         otpCode: otpCode,
-        name: (name != null && name.trim().isNotEmpty) ? name.trim() : 'Customer',
+        name: (name != null && name.trim().isNotEmpty)
+            ? name.trim()
+            : 'Customer',
         deviceId: deviceId,
         deviceName: authDeviceName,
         deviceType: authDeviceType,
@@ -57,6 +60,23 @@ class AuthService {
     return session;
   }
 
+  /// Sign in with Google, persist the resulting backend session and return it.
+  ///
+  /// The repository/native layer obtains the Firebase ID token; the backend
+  /// verifies it before issuing our session tokens.
+  Future<AuthSession> signInWithGoogle() async {
+    final deviceId = await _getOrCreateDeviceId();
+    final result = await _repository.signInWithGoogle(
+      deviceId: deviceId,
+      deviceName: authDeviceName,
+      deviceType: authDeviceType,
+      appVersion: authAppVersion,
+    );
+    final session = AuthSession.fromAuthResult(result);
+    await _persistSession(session);
+    return session;
+  }
+
   /// Persist all auth session data securely.
   Future<void> _persistSession(AuthSession session) async {
     await _storage.saveToken(session.accessToken);
@@ -73,7 +93,10 @@ class AuthService {
   Future<AuthSession?> restoreSession() async {
     final token = await _storage.getToken();
     final sessionId = await _storage.getSessionId();
-    if (token == null || token.isEmpty || sessionId == null || sessionId.isEmpty) {
+    if (token == null ||
+        token.isEmpty ||
+        sessionId == null ||
+        sessionId.isEmpty) {
       return null;
     }
 
@@ -107,8 +130,10 @@ class AuthService {
       return null;
     }
     final deviceId = await _storage.getDeviceId();
-    final result =
-        await _repository.refreshToken(refreshToken, deviceId: deviceId);
+    final result = await _repository.refreshToken(
+      refreshToken,
+      deviceId: deviceId,
+    );
 
     // The backend ROTATES the refresh token on every use (with reuse
     // detection). Persisting only the access token here would leave a stale
@@ -128,7 +153,10 @@ class AuthService {
     final refreshToken = await _storage.getRefreshToken();
     final sessionId = await _storage.getSessionId();
     try {
-      await _repository.logout(refreshToken: refreshToken, sessionId: sessionId);
+      await _repository.logout(
+        refreshToken: refreshToken,
+        sessionId: sessionId,
+      );
     } catch (_) {
       // Even if backend revocation fails, clear local state.
     }

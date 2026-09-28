@@ -59,7 +59,10 @@ void main() {
     });
 
     test('removeAddress deletes only the matching entry', () async {
-      final first = await repository.addAddress(label: 'Home', location: location);
+      final first = await repository.addAddress(
+        label: 'Home',
+        location: location,
+      );
       final both = await repository.addAddress(
         label: 'Work',
         location: const UserLocation(
@@ -77,22 +80,31 @@ void main() {
       expect(both.length, 2);
     });
 
-    test('rapid consecutive adds produce unique ids (no clock-tick collision)',
-        () async {
-      // Regression: ids were pure DateTime.now() microseconds and could
-      // repeat on coarse timers, making removeAddress delete both entries.
-      for (var i = 0; i < 25; i++) {
-        await repository.addAddress(label: 'Addr $i', location: location);
-      }
+    test(
+      'rapid consecutive adds produce unique ids (no clock-tick collision)',
+      () async {
+        // Regression: ids were pure DateTime.now() microseconds and could
+        // repeat on coarse timers, making removeAddress delete both entries.
+        for (var i = 0; i < 25; i++) {
+          await repository.addAddress(label: 'Addr $i', location: location);
+        }
 
-      final addresses = await repository.getAddresses();
-      final ids = addresses.map((a) => a.id).toList();
-      expect(ids.length, 25);
-      expect(ids.toSet().length, 25, reason: 'every address id must be unique');
-    });
+        final addresses = await repository.getAddresses();
+        final ids = addresses.map((a) => a.id).toList();
+        expect(ids.length, 25);
+        expect(
+          ids.toSet().length,
+          25,
+          reason: 'every address id must be unique',
+        );
+      },
+    );
 
     test('setDefaultAddress makes exactly one address the default', () async {
-      final home = await repository.addAddress(label: 'Home', location: location);
+      final home = await repository.addAddress(
+        label: 'Home',
+        location: location,
+      );
       final work = await repository.addAddress(
         label: 'Work',
         location: const UserLocation(
@@ -112,14 +124,76 @@ void main() {
 
       // Switching defaults clears the previous one.
       final switched = await repository.setDefaultAddress(home.first.id);
-      expect(switched.where((a) => a.isSelected).map((a) => a.id),
-          [home.first.id]);
+      expect(switched.where((a) => a.isSelected).map((a) => a.id), [
+        home.first.id,
+      ]);
     });
 
     test('corrupt stored payload degrades to an empty list', () async {
       await storage.write(key: 'user_saved_addresses', value: '{broken');
 
       expect(await repository.getAddresses(), isEmpty);
+    });
+
+    test('updateAddress changes the label and keeps the id', () async {
+      final added = await repository.addAddress(
+        label: 'Home',
+        location: location,
+      );
+      final id = added.last.id;
+
+      final updated = await repository.updateAddress(
+        id: id,
+        label: 'Home (parents)',
+        location: const UserLocation(
+          latitude: 1.5,
+          longitude: 2.5,
+          address: 'New place',
+        ),
+      );
+
+      expect(updated.length, 1);
+      expect(updated.first.id, id, reason: 'the id must stay stable');
+      expect(updated.first.label, 'Home (parents)');
+      expect(updated.first.location.address, 'New place');
+    });
+
+    test(
+      'updateAddress preserves the default flag on the active address',
+      () async {
+        final added = await repository.addAddress(
+          label: 'Home',
+          location: location,
+        );
+        final id = added.last.id;
+        await repository.setDefaultAddress(id);
+
+        final updated = await repository.updateAddress(
+          id: id,
+          label: 'Home',
+          location: const UserLocation(latitude: 9, longitude: 9),
+        );
+
+        expect(updated.first.isSelected, isTrue);
+        expect(updated.first.location.isSelected, isTrue);
+      },
+    );
+
+    test('updateAddress on an unknown id is a safe no-op', () async {
+      final added = await repository.addAddress(
+        label: 'Home',
+        location: location,
+      );
+
+      final updated = await repository.updateAddress(
+        id: 'does-not-exist',
+        label: 'Nope',
+        location: location,
+      );
+
+      expect(updated.length, 1);
+      expect(updated.first.label, 'Home');
+      expect(added.length, 1);
     });
   });
 }

@@ -45,9 +45,7 @@ void main() {
     setUp(() {
       storage = _InMemorySecureStorage();
       container = ProviderContainer(
-        overrides: [
-          secureStorageProvider.overrideWithValue(storage),
-        ],
+        overrides: [secureStorageProvider.overrideWithValue(storage)],
       );
     });
 
@@ -67,7 +65,9 @@ void main() {
         key: 'user_saved_location',
         value: jsonEncode(location.toJson()),
       );
-      await container.read(locationControllerProvider.notifier).loadSavedLocation();
+      await container
+          .read(locationControllerProvider.notifier)
+          .loadSavedLocation();
     }
 
     test('loads persisted addresses', () async {
@@ -86,22 +86,25 @@ void main() {
       expect(container.read(addressesControllerProvider).value ?? [], isEmpty);
     });
 
-    test('addFromCurrentLocation saves the active location under a label',
-        () async {
-      await waitForLoad();
-      await seedActiveLocation(patnaLocation);
+    test(
+      'addFromCurrentLocation saves the active location under a label',
+      () async {
+        await waitForLoad();
+        await seedActiveLocation(patnaLocation);
 
-      final ok = await container
-          .read(addressesControllerProvider.notifier)
-          .addFromCurrentLocation('Home');
-      await container.pump();
+        final ok = await container
+            .read(addressesControllerProvider.notifier)
+            .addFromCurrentLocation('Home');
+        await container.pump();
 
-      expect(ok, isTrue);
-      final addresses = container.read(addressesControllerProvider).value ?? [];
-      expect(addresses.length, 1);
-      expect(addresses.first.label, 'Home');
-      expect(addresses.first.location.latitude, patnaLocation.latitude);
-    });
+        expect(ok, isTrue);
+        final addresses =
+            container.read(addressesControllerProvider).value ?? [];
+        expect(addresses.length, 1);
+        expect(addresses.first.label, 'Home');
+        expect(addresses.first.location.latitude, patnaLocation.latitude);
+      },
+    );
 
     test('removeAddress deletes the entry and updates state', () async {
       await waitForLoad();
@@ -118,42 +121,47 @@ void main() {
       expect(container.read(addressesControllerProvider).value ?? [], isEmpty);
     });
 
-    test('setDefaultAddress marks the default and syncs the active location',
-        () async {
-      await waitForLoad();
-      // Start with Patna as active.
-      await seedActiveLocation(patnaLocation);
-      final controller = container.read(addressesControllerProvider.notifier);
-      await controller.addFromCurrentLocation('Home');
+    test(
+      'setDefaultAddress marks the default and syncs the active location',
+      () async {
+        await waitForLoad();
+        // Start with Patna as active.
+        await seedActiveLocation(patnaLocation);
+        final controller = container.read(addressesControllerProvider.notifier);
+        await controller.addFromCurrentLocation('Home');
 
-      // Add a second address from a different location.
-      const gayaLocation = UserLocation(
-        latitude: 24.7914,
-        longitude: 85.0002,
-        address: 'Gaya Center',
-        city: 'Gaya',
-        isSelected: true,
-      );
-      await seedActiveLocation(gayaLocation);
-      await controller.addFromCurrentLocation('Work');
-      await container.pump();
+        // Add a second address from a different location.
+        const gayaLocation = UserLocation(
+          latitude: 24.7914,
+          longitude: 85.0002,
+          address: 'Gaya Center',
+          city: 'Gaya',
+          isSelected: true,
+        );
+        await seedActiveLocation(gayaLocation);
+        await controller.addFromCurrentLocation('Work');
+        await container.pump();
 
-      final addresses = container.read(addressesControllerProvider).value ?? [];
-      expect(addresses.length, 2);
+        final addresses =
+            container.read(addressesControllerProvider).value ?? [];
+        expect(addresses.length, 2);
 
-      // Make the first ("Home") the default.
-      await controller.setDefaultAddress(addresses.first.id);
-      await container.pump();
+        // Make the first ("Home") the default.
+        await controller.setDefaultAddress(addresses.first.id);
+        await container.pump();
 
-      final updated = container.read(addressesControllerProvider).value ?? [];
-      final selected = updated.where((a) => a.isSelected).toList();
-      expect(selected.length, 1);
-      expect(selected.first.label, 'Home');
+        final updated = container.read(addressesControllerProvider).value ?? [];
+        final selected = updated.where((a) => a.isSelected).toList();
+        expect(selected.length, 1);
+        expect(selected.first.label, 'Home');
 
-      // Active app location now points at the default address.
-      final activeLocation = container.read(locationControllerProvider).location;
-      expect(activeLocation, isNotNull);
-      expect(activeLocation!.latitude, patnaLocation.latitude);
-    });
+        // Active app location now points at the default address.
+        final activeLocation = container
+            .read(locationControllerProvider)
+            .location;
+        expect(activeLocation, isNotNull);
+        expect(activeLocation!.latitude, patnaLocation.latitude);
+      },
+    );
   });
 }

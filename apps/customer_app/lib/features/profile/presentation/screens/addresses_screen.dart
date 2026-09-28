@@ -30,8 +30,11 @@ class AddressesScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.location_off_outlined,
-                  size: 64, color: AppColors.error),
+              const Icon(
+                Icons.location_off_outlined,
+                size: 64,
+                color: AppColors.error,
+              ),
               const SizedBox(height: AppSpacing.md),
               const Text(
                 'Couldn\'t load your addresses',
@@ -40,9 +43,8 @@ class AddressesScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton.icon(
                 key: const Key('addressesRetryButton'),
-                onPressed: () => ref
-                    .read(addressesControllerProvider.notifier)
-                    .refresh(),
+                onPressed: () =>
+                    ref.read(addressesControllerProvider.notifier).refresh(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Try Again'),
               ),
@@ -55,7 +57,10 @@ class AddressesScreen extends ConsumerWidget {
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, AppSpacing.md, AppSpacing.md, 96,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              96,
             ),
             itemCount: addresses.length,
             separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
@@ -70,12 +75,15 @@ class AddressesScreen extends ConsumerWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('"${address.label}" is now your default address.'),
+                        content: Text(
+                          '"${address.label}" is now your default address.',
+                        ),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
                   }
                 },
+                onEdit: () => _openEditSheet(context, ref, address),
                 onDelete: () => _confirmDelete(context, ref, address),
               );
             },
@@ -90,6 +98,28 @@ class AddressesScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => const _AddAddressSheet(),
+    );
+  }
+
+  /// Opens the same label sheet in edit mode, pre-filled with the current
+  /// label. Coordinates are preserved unless the customer picks a new spot.
+  void _openEditSheet(
+    BuildContext context,
+    WidgetRef ref,
+    SavedAddress address,
+  ) {
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AddAddressSheet(
+        existing: address,
+        onSubmit: (label) async {
+          final ok = await ref
+              .read(addressesControllerProvider.notifier)
+              .updateAddress(id: address.id, label: label);
+          return ok;
+        },
+      ),
     );
   }
 
@@ -118,7 +148,9 @@ class AddressesScreen extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      await ref.read(addressesControllerProvider.notifier).removeAddress(address.id);
+      await ref
+          .read(addressesControllerProvider.notifier)
+          .removeAddress(address.id);
     }
   }
 }
@@ -126,11 +158,13 @@ class AddressesScreen extends ConsumerWidget {
 class _AddressCard extends StatelessWidget {
   final SavedAddress address;
   final VoidCallback onSetDefault;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _AddressCard({
     required this.address,
     required this.onSetDefault,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -151,7 +185,7 @@ class _AddressCard extends StatelessWidget {
     final summary = address.location.displayAddress.isNotEmpty
         ? address.location.displayAddress
         : '${address.location.latitude.toStringAsFixed(4)}, '
-            '${address.location.longitude.toStringAsFixed(4)}';
+              '${address.location.longitude.toStringAsFixed(4)}';
 
     return Card(
       margin: EdgeInsets.zero,
@@ -183,8 +217,7 @@ class _AddressCard extends StatelessWidget {
             if (address.isSelected) ...[
               const SizedBox(width: AppSpacing.sm),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.secondary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
@@ -205,6 +238,7 @@ class _AddressCard extends StatelessWidget {
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'default') onSetDefault();
+            if (value == 'edit') onEdit();
             if (value == 'delete') onDelete();
           },
           itemBuilder: (context) => [
@@ -218,6 +252,16 @@ class _AddressCard extends StatelessWidget {
                   dense: true,
                 ),
               ),
+            const PopupMenuItem(
+              key: Key('editAddressMenuItem'),
+              value: 'edit',
+              child: ListTile(
+                leading: Icon(Icons.edit_outlined),
+                title: Text('Edit'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ),
             const PopupMenuItem(
               value: 'delete',
               child: ListTile(
@@ -245,8 +289,11 @@ class _EmptyAddressesView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.location_off_outlined,
-                size: 64, color: AppColors.textMuted),
+            const Icon(
+              Icons.location_off_outlined,
+              size: 64,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: AppSpacing.md),
             const Text(
               'No saved addresses',
@@ -272,8 +319,14 @@ class _EmptyAddressesView extends StatelessWidget {
 }
 
 /// Bottom sheet that labels the current active location and saves it.
+///
+/// Also serves the edit flow: pass [existing] to pre-fill the label and route
+/// the submit through [onSubmit] instead of creating a new address.
 class _AddAddressSheet extends ConsumerStatefulWidget {
-  const _AddAddressSheet();
+  const _AddAddressSheet({this.existing, this.onSubmit});
+
+  final SavedAddress? existing;
+  final Future<bool> Function(String label)? onSubmit;
 
   @override
   ConsumerState<_AddAddressSheet> createState() => _AddAddressSheetState();
@@ -282,6 +335,16 @@ class _AddAddressSheet extends ConsumerStatefulWidget {
 class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
   final _labelController = TextEditingController();
   String? _labelError;
+  bool _saving = false;
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing != null) _labelController.text = existing.label;
+  }
 
   @override
   void dispose() {
@@ -299,6 +362,27 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
       setState(() => _labelError = 'Label is too long (max 40 characters).');
       return;
     }
+
+    setState(() => _saving = true);
+
+    // Edit mode: update the existing entry, coordinates preserved.
+    final submit = widget.onSubmit;
+    if (_isEditing && submit != null) {
+      final ok = await submit(label);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      Navigator.pop(context, ok);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok ? '"$label" updated.' : 'Could not update "$label".',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final saved = await ref
         .read(addressesControllerProvider.notifier)
         .addFromCurrentLocation(label);
@@ -337,15 +421,17 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            location == null
+            _isEditing
+                ? 'Update the label for this address.'
+                : location == null
                 ? 'No location selected yet.'
                 : location.displayAddress.isNotEmpty
-                    ? location.displayAddress
-                    : '${location.latitude.toStringAsFixed(4)}, '
-                        '${location.longitude.toStringAsFixed(4)}',
+                ? location.displayAddress
+                : '${location.latitude.toStringAsFixed(4)}, '
+                      '${location.longitude.toStringAsFixed(4)}',
             style: const TextStyle(color: AppColors.textMuted),
           ),
-          if (location == null) ...[
+          if (!_isEditing && location == null) ...[
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: () {
@@ -375,9 +461,13 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
           const SizedBox(height: AppSpacing.md),
           ElevatedButton.icon(
             key: const Key('saveAddressButton'),
-            onPressed: location == null ? null : _save,
-            icon: const Icon(Icons.bookmark_add_outlined),
-            label: const Text('Save address'),
+            // In edit mode the coordinates already exist, so the button is
+            // always enabled; in add mode a location is required first.
+            onPressed: (!_isEditing && location == null) || _saving
+                ? null
+                : _save,
+            icon: Icon(_isEditing ? Icons.check : Icons.bookmark_add_outlined),
+            label: Text(_isEditing ? 'Save changes' : 'Save address'),
           ),
         ],
       ),

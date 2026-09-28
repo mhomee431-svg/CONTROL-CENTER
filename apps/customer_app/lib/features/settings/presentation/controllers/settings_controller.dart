@@ -8,9 +8,7 @@ import '../../../../core/storage/local_storage_driver.dart';
 import '../../domain/models/app_settings.dart';
 
 final settingsControllerProvider =
-    NotifierProvider<SettingsController, AppSettings>(
-  SettingsController.new,
-);
+    NotifierProvider<SettingsController, AppSettings>(SettingsController.new);
 
 final appStringsProvider = Provider<AppStrings>((ref) {
   final settings = ref.watch(settingsControllerProvider);
@@ -35,9 +33,9 @@ class SettingsController extends Notifier<AppSettings> {
 
   Future<void> _hydrate() async {
     try {
-      final raw = await ref.read(localStorageDriverProvider).getString(
-            appSettingsStorageKey,
-          );
+      final raw = await ref
+          .read(localStorageDriverProvider)
+          .getString(appSettingsStorageKey);
       if (raw == null || raw.isEmpty) return;
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) {
@@ -50,10 +48,9 @@ class SettingsController extends Notifier<AppSettings> {
 
   Future<void> _persist() async {
     try {
-      await ref.read(localStorageDriverProvider).setString(
-            appSettingsStorageKey,
-            jsonEncode(state.toJson()),
-          );
+      await ref
+          .read(localStorageDriverProvider)
+          .setString(appSettingsStorageKey, jsonEncode(state.toJson()));
     } catch (_) {
       // Persistence is best-effort; in-memory state remains authoritative.
     }
