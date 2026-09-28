@@ -552,8 +552,18 @@ def barcode_lookup(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     radius_km: float = 10.0,
+    page: int = 1,
+    limit: int = 20,
 ) -> list[dict]:
-    """Look up all shops selling a product identified by barcode."""
+    """Look up the shops selling a product identified by barcode.
+
+    One GS1 code can be stocked by an arbitrary number of shops, so the hits
+    are paged like every other search list rather than materialised whole.
+    The order is fixed in SQL *before* the slice — distance when coordinates
+    exist, otherwise shop_product_id — because a page sorted afterwards in
+    Python is only nearest-first within that page, and page 2 would then
+    repeat or skip shops depending on what the database happened to return.
+    """
     query = (
         db.query(SearchIndex)
         .filter(
@@ -567,9 +577,18 @@ def barcode_lookup(
         query = query.filter(
             func.ST_DWithin(SearchIndex.location, func.ST_GeogFromText(point_wkt), radius_km * 1000)
         )
+        # id tiebreak keeps the slice stable when two shops tie on distance.
+        query = query.order_by(
+            func.ST_Distance(SearchIndex.location, func.ST_GeogFromText(point_wkt)),
+            SearchIndex.shop_product_id,
+        )
+    else:
+        query = query.order_by(SearchIndex.shop_product_id)
+
+    rows = query.offset((page - 1) * limit).limit(limit).all()
 
     result = []
-    for entry in query.all():
+    for entry in rows:
         distance = None
         if latitude is not None and longitude is not None:
             # small haversine
@@ -598,7 +617,8 @@ def barcode_lookup(
             "shop_rating": entry.shop_rating,
         })
 
-    result.sort(key=lambda r: r["distance_km"] if r["distance_km"] is not None else float("inf"))
+    # No Python re-sort: the page was already ordered by distance in SQL, and
+    # re-sorting here would only reorder rows inside one page.
     # Same open/closed enrichment as text search, so a scanned product and a
     # typed one never disagree about shop state.
     _attach_shop_open_state(db, result)

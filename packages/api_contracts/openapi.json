@@ -4972,7 +4972,7 @@
           "search"
         ],
         "summary": "V2 Barcode Lookup",
-        "description": "Look up shops selling the product identified by this barcode.",
+        "description": "Look up shops selling the product identified by this barcode.\n\nBounded like every other search list: ``page``/``limit`` slice the shop\nhits so one widely stocked barcode cannot materialise an unbounded\ncatalogue into a single response.",
         "operationId": "v2_barcode_lookup_api_v1_search_v2_barcodes__barcode__get",
         "parameters": [
           {
@@ -5030,6 +5030,29 @@
               "exclusiveMinimum": 0,
               "default": 10.0,
               "title": "Radius Km"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
             }
           }
         ],
@@ -18286,6 +18309,109 @@
         }
       }
     },
+    "/api/v1/support/issues": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Create Support Issue",
+        "description": "Files a support ticket for the signed-in customer.\n\nThe endpoint behind the customer app's *Report an issue* form. Before it\nexisted that screen could only copy text to the clipboard, because a Send\nbutton with no intake route behind it would have silently thrown the\nreport away.\n\nReturns the created ticket INCLUDING its real ``status`` and\n``status_label``, so the app can show the ticket reference and the true\ntriage state instead of assuming \"submitted\" locally.\n\n``priority`` is intentionally NOT accepted from the client. It is a triage\ndecision made by the support team, and a field the app could set would just\nbe a field a caller could set to \"URGENT\". The service defaults it to\nMEDIUM.",
+        "operationId": "create_support_issue_api_v1_support_issues_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerSupportTicketCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "List Support Issues",
+        "description": "Issues the signed-in customer has reported, newest first.",
+        "operationId": "list_support_issues_api_v1_support_issues_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/businesses/categories": {
       "get": {
         "tags": [
@@ -21227,6 +21353,96 @@
         ],
         "title": "CustomerGoogleAuthRequest",
         "description": "Firebase Google sign-in payload for the Customer App.\n\nProfile values are intentionally absent: the backend derives the Firebase\nUID, provider, email, name, and picture from its server-side token\nverification rather than trusting client-supplied identity data."
+      },
+      "CustomerSupportTicketCreate": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Category",
+            "description": "Issue category code (CUST_WRONG_PRICE, CUST_AVAILABILITY, ...). Validated against CUSTOMER_CATEGORIES by the service."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 10,
+            "title": "Description",
+            "description": "What happened, in the customer's own words"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject",
+            "description": "Optional one-line title"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps",
+            "description": "Optional steps to reproduce"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version",
+            "description": "Client build the report came from"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email",
+            "description": "Optional reply address. Recorded on the ticket as context; it is NOT used to identify the reporter, which is always the authenticated user."
+          },
+          "shop_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shop Id",
+            "description": "Optional shop the report is about. Recorded as context only \u2014 a shopkeeper filing against their own shop is authorized through the shop-access check, so a shopper supplying this id is NOT authorized against it and must not be treated as a shop owner."
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "title": "CustomerSupportTicketCreate",
+        "description": "A support ticket filed from the customer app.\n\nThe shopper-facing twin of :class:`ShopkeeperSupportTicketCreate`. Field\nlimits deliberately match the shopkeeper schema and the service constants so\none set of validation rules covers both audiences \u2014 a limit that differs\nbetween the two intake routes is a limit that will eventually differ from\nthe database column too.\n\nThe two differences that matter:\n\n* ``category`` accepts only the ``CUST_*`` codes (enforced by the service,\n  which is passed ``CUSTOMER_CATEGORIES``), so a shopper cannot file a\n  ticket the shopkeeper triage queue is watching; and\n* ``shop_id`` is context, not subject. A shopper may name the shop a ticket\n  is about, but unlike a merchant they do not *own* a shop, so the id is\n  never treated as proof of anything \u2014 see the field description."
       },
       "DeviceTokenPayload": {
         "properties": {

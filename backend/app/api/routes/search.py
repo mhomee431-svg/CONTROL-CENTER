@@ -180,15 +180,24 @@ def v2_barcode_lookup(
     latitude: float | None = Query(None, ge=-90, le=90),
     longitude: float | None = Query(None, ge=-180, le=180),
     radius_km: float = Query(10.0, gt=0, le=100),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
-    """Look up shops selling the product identified by this barcode."""
+    """Look up shops selling the product identified by this barcode.
+
+    Bounded like every other search list: ``page``/``limit`` slice the shop
+    hits so one widely stocked barcode cannot materialise an unbounded
+    catalogue into a single response.
+    """
     result = search_engine.barcode_lookup(
         db,
         barcode,
         latitude=latitude,
         longitude=longitude,
         radius_km=radius_km,
+        page=page,
+        limit=limit,
     )
 
     # Record barcode scan

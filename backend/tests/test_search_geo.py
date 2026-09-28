@@ -724,6 +724,43 @@ def test_shop_offers_payload_tolerates_open_state_failure():
     assert offers[0]["is_accepting_orders"] is None
 
 
+class _BarcodeQuery:
+    """SearchIndex query stub honouring the barcode page contract.
+
+    `filter`/`order_by` keep the chain and record the order request; `offset`
+    and `limit` record what the engine asked for and slice the queued rows, so
+    a test can assert on the page the engine actually requested rather than on
+    the rows it happened to receive.
+    """
+
+    def __init__(self, rows):
+        self.rows = list(rows)
+        self.ordered_by = []
+        self.requested_offset = None
+        self.requested_limit = None
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def order_by(self, *args, **kwargs):
+        self.ordered_by.append(args)
+        return self
+
+    def offset(self, value):
+        self.requested_offset = value
+        return self
+
+    def limit(self, value):
+        self.requested_limit = value
+        return self
+
+    def all(self):
+        start = self.requested_offset or 0
+        if self.requested_limit is None:
+            return self.rows[start:]
+        return self.rows[start:start + self.requested_limit]
+
+
 def test_barcode_lookup_works():
     """barcode_lookup should find products by barcode."""
     from app.search.engine import barcode_lookup
@@ -749,18 +786,11 @@ def test_barcode_lookup_works():
         latitude = 25.5941
         longitude = 85.1376
 
-    class MockQueryWrap:
-        def filter(self, *args, **kwargs):
-            return self
-
-        def all(self):
-            return [MockEntry()]
-
     class MockDBC:
         def query(self, model):
             if getattr(model, "__name__", str(model)) != "SearchIndex":
                 return _InertQuery()
-            return MockQueryWrap()
+            return _BarcodeQuery([MockEntry()])
 
     db = MockDBC()
     result = barcode_lookup(db, "8901234567890")
@@ -799,18 +829,11 @@ def test_barcode_lookup_reports_freshness_timestamp():
         latitude = 25.5941
         longitude = 85.1376
 
-    class MockQueryWrap:
-        def filter(self, *args, **kwargs):
-            return self
-
-        def all(self):
-            return [MockEntry()]
-
     class MockDBC:
         def query(self, model):
             if getattr(model, "__name__", str(model)) != "SearchIndex":
                 return _InertQuery()
-            return MockQueryWrap()
+            return _BarcodeQuery([MockEntry()])
 
     result = barcode_lookup(MockDBC(), "8901234567890")
 
@@ -843,18 +866,11 @@ def test_barcode_lookup_tolerates_row_without_timestamp():
         longitude = 85.1376
         # No last_inventory_update attribute at all.
 
-    class MockQueryWrap:
-        def filter(self, *args, **kwargs):
-            return self
-
-        def all(self):
-            return [MockEntry()]
-
     class MockDBC:
         def query(self, model):
             if getattr(model, "__name__", str(model)) != "SearchIndex":
                 return _InertQuery()
-            return MockQueryWrap()
+            return _BarcodeQuery([MockEntry()])
 
     result = barcode_lookup(MockDBC(), "8901234567890")
 
@@ -867,19 +883,114 @@ def test_barcode_lookup_empty():
     """barcode_lookup should return empty list when not found."""
     from app.search.engine import barcode_lookup
 
-    class MockQueryEmpty:
-        def filter(self, *args, **kwargs):
-            return self
-
-        def all(self):
-            return []
-
     class MockDBE:
         def query(self, model):
-            return MockQueryEmpty()
+            return _BarcodeQuery([])
 
     result = barcode_lookup(MockDBE(), "0000000000000")
     assert result == []
+
+
+def test_barcode_lookup_pages_shop_hits():
+    """A barcode stocked by many shops comes back one page at a time.
+
+    One GS1 code can be carried by every shop in a city, and the old lookup
+    materialised all of them for a single scan. The engine must ask the
+    database for a bounded page, and it must order that page in SQL: sorting
+    inside Python would only order the rows of one page, so a shop could move
+    between pages and be shown twice or never.
+    """
+    from app.search.engine import barcode_lookup
+
+    class _Entry:
+        def __init__(self, n):
+            self.id = n
+            self.shop_product_id = n
+            self.product_id = 1
+            self.product_name = f"Tin {n}"
+            self.brand_name = "Beans"
+            self.category_name = "Grocery"
+            self.price = 10.0 + n
+            self.mrp = None
+            self.is_available = True
+            self.stock_status = "IN_STOCK"
+            self.freshness_status = "RECENTLY_UPDATED"
+            self.last_inventory_update = None
+            self.shop_id = n
+            self.shop_name = f"Shop {n}"
+            self.shop_rating = 4.0
+            # No coordinates: the un-ordered-by-distance branch is the one
+            # under test, and a NULL location must not break the page.
+            self.latitude = None
+            self.longitude = None
+
+    rows = [_Entry(n) for n in range(1, 6)]
+
+    class _DB:
+        def __init__(self):
+            self.search_index_query = _BarcodeQuery(rows)
+
+        def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
+            return self.search_index_query
+
+    db = _DB()
+
+    first = barcode_lookup(db, "8901234567890", page=1, limit=2)
+    assert [r["product_name"] for r in first] == ["Tin 1", "Tin 2"]
+    assert db.search_index_query.requested_offset == 0
+    assert db.search_index_query.requested_limit == 2
+    assert db.search_index_query.ordered_by, (
+        "the page must be ordered in SQL before it is sliced"
+    )
+
+    second = barcode_lookup(db, "8901234567890", page=2, limit=2)
+    assert [r["product_name"] for r in second] == ["Tin 3", "Tin 4"]
+    assert db.search_index_query.requested_offset == 2
+
+    # The last partial page returns what is left instead of padding or
+    # repeating, and the page after it is honestly empty.
+    third = barcode_lookup(db, "8901234567890", page=3, limit=2)
+    assert [r["product_name"] for r in third] == ["Tin 5"]
+    assert barcode_lookup(db, "8901234567890", page=4, limit=2) == []
+
+
+def test_barcode_lookup_defaults_to_one_bounded_page():
+    """Callers that pass nothing still get a bounded query, not all rows."""
+    from app.search.engine import barcode_lookup
+
+    class _Entry:
+        id = 1
+        shop_product_id = 1
+        product_id = 1
+        product_name = "Tin"
+        brand_name = "Beans"
+        category_name = "Grocery"
+        price = 10.0
+        mrp = None
+        is_available = True
+        stock_status = "IN_STOCK"
+        freshness_status = "RECENTLY_UPDATED"
+        last_inventory_update = None
+        shop_id = 1
+        shop_name = "Shop"
+        shop_rating = 4.0
+        latitude = None
+        longitude = None
+
+    query = _BarcodeQuery([_Entry()])
+
+    class _DB:
+        def query(self, model):
+            if getattr(model, "__name__", str(model)) != "SearchIndex":
+                return _InertQuery()
+            return query
+
+    barcode_lookup(_DB(), "8901234567890")
+
+    assert query.requested_offset == 0
+    assert query.requested_limit == 20
 
 
 # ── Popular search aggregation test ────────────────────────────────────────
