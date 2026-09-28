@@ -103,9 +103,6 @@ DATABASE_AVAILABLE = _database_available()
 def test_chain_is_linear_with_single_head():
     revisions = rehearsal.parse_revisions(VERSIONS_DIR)
     assert rehearsal.chain_issues(revisions) == []
-<<<<<<< HEAD
-    assert rehearsal.head_revision(revisions) == "0026"
-=======
     # Derive the expected head from the chain itself: revisions must be a
     # contiguous 0001..N run, so the head is always the last one. Hardcoding a
     # revision here made this test fail every time a new migration landed.
@@ -114,7 +111,6 @@ def test_chain_is_linear_with_single_head():
         f"revisions must be a contiguous 0001..{len(nums):04d} run, got {nums}"
     )
     assert rehearsal.head_revision(revisions) == f"{len(nums):04d}"
->>>>>>> df52917a7cb5682bf046490fca274c80b8bb3b91
 
 
 def test_revision_ids_are_sequential_and_unique():
@@ -223,13 +219,9 @@ def test_no_silent_not_null_column_adds():
 # ═══════════════════════════════════════════════════════════════════════════
 def test_migration_generator_computes_next_revision():
     gen = _load_script_module("generate_migration", BACKEND_DIR / "scripts" / "generate_migration.py")
-<<<<<<< HEAD
-    assert gen.next_rev_id(VERSIONS_DIR) == "0027"
-=======
     revisions = rehearsal.parse_revisions(VERSIONS_DIR)
     expected = f"{len(revisions) + 1:04d}"
     assert gen.next_rev_id(VERSIONS_DIR) == expected
->>>>>>> df52917a7cb5682bf046490fca274c80b8bb3b91
 
 
 def test_drift_checker_self_consistent():

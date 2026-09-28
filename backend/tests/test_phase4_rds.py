@@ -3,11 +3,7 @@
 These tests require no live database. They validate the parts of the Phase 4
 deliverable that are statically verifiable:
 
-<<<<<<< HEAD
-- The Alembic migration chain is linear and its HEAD is "0026".
-=======
 - The Alembic migration chain is linear and has exactly one head.
->>>>>>> df52917a7cb5682bf046490fca274c80b8bb3b91
 - PostGIS is enabled by a migration (CREATE EXTENSION postgis).
 - PostGIS Geography columns exist in the migration chain.
 - The Phase 4 verifier (scripts/verify_rds.py) encodes the same approved
@@ -47,11 +43,7 @@ def _verifier_tables():
     return set(re.findall(r'"([\w_]+)"', block.group(1)))
 
 
-<<<<<<< HEAD
-def test_migration_chain_is_linear_and_head_is_0026():
-=======
 def test_migration_chain_is_linear_with_single_head():
->>>>>>> df52917a7cb5682bf046490fca274c80b8bb3b91
     revisions = {}
     for f in _migration_files():
         src = _source(f)
@@ -74,13 +66,9 @@ def test_migration_chain_is_linear_with_single_head():
         if nxt is None:
             break
         current = nxt
-<<<<<<< HEAD
-    assert current == "0026", f"migration HEAD should be 0026, got {current}"
-=======
     # The HEAD is whatever the newest migration is — derive it instead of
     # hardcoding a revision, so adding 0027/0028/... never fails this check
     # (it previously pinned "0025" and broke the moment 0026 landed).
->>>>>>> df52917a7cb5682bf046490fca274c80b8bb3b91
     assert sorted(revisions) == sorted(seen), "chain is not linear (branch/merge)"
     assert current == max(revisions), (
         f"HEAD {current} is not the highest revision {max(revisions)} — "

@@ -72,11 +72,7 @@ EXPECTED_TABLES: set[str] = {
     "verification_attempts", "verification_provider_logs",
     # 0024 media pipeline (S3 upload lifecycle: PENDING -> READY)
     "media",
-<<<<<<< HEAD
-    # 0026 customer orders & order items
-=======
     # 0026 orders & order line items (customer order capture)
->>>>>>> df52917a7cb5682bf046490fca274c80b8bb3b91
     "orders", "order_items",
 }
 

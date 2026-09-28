@@ -1,4 +1,4 @@
-a"""Customer support tickets — the shopper-facing half of the complaints queue.
+"""Customer support tickets — the shopper-facing half of the complaints queue.
 
 The customer app's *Report an issue* / *Contact us* screens previously had
 NOWHERE to send a report: the only intake route was
