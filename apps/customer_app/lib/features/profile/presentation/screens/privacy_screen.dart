@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../settings/presentation/controllers/settings_controller.dart';
 
@@ -41,7 +42,7 @@ class PrivacyScreen extends ConsumerWidget {
           AppSpacing.xl,
         ),
         children: [
-          const _SectionLabel('Your rights'),
+          const SectionLabel('Your rights', padding: SectionLabel.tight),
           const _PrivacyCard(
             icon: Icons.policy_outlined,
             title: 'Privacy Policy',
@@ -81,7 +82,7 @@ class PrivacyScreen extends ConsumerWidget {
           const Divider(indent: AppSpacing.md),
 
           // -- Data use --
-          const _SectionLabel('How your data is used'),
+          const SectionLabel('How your data is used', padding: SectionLabel.tight),
           const _PrivacyCard(
             icon: Icons.analytics_outlined,
             title: 'What we collect',
@@ -136,7 +137,7 @@ class PrivacyScreen extends ConsumerWidget {
           const Divider(indent: AppSpacing.md),
 
           // -- Account deletion --
-          const _SectionLabel('Your account'),
+          const SectionLabel('Your account', padding: SectionLabel.tight),
           if (isGuest)
             const _PrivacyCard(
               icon: Icons.person_outline,
@@ -225,28 +226,6 @@ class _PrivacyCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
-          color: AppColors.textMuted,
-        ),
       ),
     );
   }

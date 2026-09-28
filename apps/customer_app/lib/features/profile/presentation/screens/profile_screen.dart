@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/user_profile.dart';
 import '../controllers/profile_controller.dart';
@@ -78,7 +79,7 @@ class ProfileScreen extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.go('/account'),
             ),
-            const _SectionLabel('Account'),
+            const SectionLabel('Account', padding: SectionLabel.dense),
             ListTile(
               key: const Key('myOrdersTile'),
               leading: const Icon(Icons.receipt_long_outlined),
@@ -135,7 +136,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             const Divider(),
-            const _SectionLabel('Legal'),
+            const SectionLabel('Legal', padding: SectionLabel.dense),
             ListTile(
               key: const Key('helpSupportTile'),
               leading: const Icon(Icons.help_outline),
@@ -163,7 +164,7 @@ class ProfileScreen extends ConsumerWidget {
             if (!isGuest) ...[
               const SizedBox(height: AppSpacing.sm),
               const Divider(),
-              const _SectionLabel('Danger zone'),
+              const SectionLabel('Danger zone', padding: SectionLabel.dense),
               ListTile(
                 key: const Key('deleteAccountTile'),
                 leading: const Icon(
@@ -355,28 +356,6 @@ class _GuestHeader extends ConsumerWidget {
               label: const Text('Sign In'),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
-          color: AppColors.textMuted,
         ),
       ),
     );
