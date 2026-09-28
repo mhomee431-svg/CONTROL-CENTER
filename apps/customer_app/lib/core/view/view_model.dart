@@ -56,19 +56,25 @@ abstract class ViewModel<S> extends HotNotifier<S> {
     required D Function(R value) toDisplay,
     bool Function(R value)? isEmpty,
   }) async {
-    final current = publish(LoadState<D>.loading());
+    final current = publish(LoadLoading<D>());
     try {
       final result = await command();
       if (isEmpty?.call(result) ?? false) {
-        publish(LoadState<D>.empty());
+        // `LoadState<D>.empty()` is not valid: a redirecting factory cannot be
+        // invoked through a type parameter, so the concrete case is named
+        // directly.
+        publish(LoadEmpty<D>());
       } else {
         publish(LoadReady<D>(toDisplay(result)));
       }
-    } catch (error, stack) {
-      // Debug-log the stack, never surface it: the view must get a friendly
-      // message, and raw exception text is not customer-safe.
+    } catch (error) {
+      // Debug-log the error, never surface it: the view must get a friendly
+      // message, and raw exception text is not customer-safe. The stack is
+      // intentionally not bound — it would be an unused-catch-stack warning, and
+      // the error itself is already carried on `LoadFailed` for whoever renders
+      // or reports it.
       assert(() {
-        debugPrint('ViewModel load failed: $error\n$stack');
+        debugPrint('ViewModel load failed: $error');
         return true;
       }());
       publish(LoadFailed<D>(error, current.dataOrNull));

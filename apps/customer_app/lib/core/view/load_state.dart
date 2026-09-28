@@ -28,9 +28,6 @@ sealed class LoadState<T> {
   /// First load, with nothing to show yet.
   const factory LoadState.loading() = LoadLoading<T>;
 
-  /// Loaded successfully, and the answer is legitimately "nothing".
-  const factory LoadState.empty() = LoadEmpty<T>;
-
   /// The loaded value, or null when there is nothing to show.
   ///
   /// A REFRESH keeps the last good value rather than blanking it, so the
@@ -58,8 +55,14 @@ sealed class LoadState<T> {
   ///
   /// Returns [LoadLoading] when there is nothing to preserve, so a view never
   /// has to handle a "refreshing with no data" variant.
-  LoadState<T> refreshing([T? previous]) =>
-      previous == null ? LoadLoading<T>() : LoadRefreshing<T>(previous);
+  LoadState<T> refreshingOrLoading() => switch (this) {
+    LoadReady<T>(:final value) => LoadRefreshing(value),
+    LoadRefreshing<T>(:final previous) => LoadRefreshing(previous),
+    LoadFailed<T>(:final previous) when previous != null => LoadRefreshing(
+      previous,
+    ),
+    _ => const LoadLoading(),
+  };
 }
 
 /// A refresh is in flight, but [previous] is still on screen.
@@ -104,8 +107,6 @@ final class LoadEmpty<T> extends LoadState<T> {
 /// The request failed. [previous] is retained so a failed refresh degrades to
 /// "old content plus a retry affordance" instead of destroying it.
 final class LoadFailed<T> extends LoadState<T> {
-  /// A field may override a getter when its type is a subtype, which is what
-  /// makes the FIELD (not a hand-written accessor) the single source of truth.
   @override
   final Object error;
   final T? previous;
@@ -124,18 +125,12 @@ sealed class MutationState {
   /// Nothing in flight, nothing has succeeded yet.
   const factory MutationState.idle() = MutationIdle;
 
-  /// The backend confirmed success. Only this may drive a success screen.
-  const factory MutationState.succeeded() = MutationSucceeded;
-
   /// True while the mutation is in flight. Use to disable the submit control —
   /// a double-tap that fires two requests is a real duplicate-order bug.
   bool get isRunning => this is MutationRunning;
 
   bool get isFailed => this is MutationFailed;
 
-  /// The underlying error, for logging and assertions ONLY. A view must render
-  /// [MutationFailed.message], which is already user-safe — raw exception text
-  /// can contain backend internals the customer should never see.
   Object? get error => switch (this) {
     MutationFailed(:final error) => error,
     _ => null,
@@ -161,13 +156,8 @@ final class MutationSucceeded extends MutationState {
 
 /// The mutation failed. [message] is already user-safe.
 final class MutationFailed extends MutationState {
-  /// Overrides the base getter so the field is the single source of truth.
   @override
   final Object error;
-
-  /// Already user-safe. A view renders THIS, never [error] — raw exception text
-  /// can contain backend internals the customer should never see.
   final String message;
-
   const MutationFailed(this.error, this.message);
 }

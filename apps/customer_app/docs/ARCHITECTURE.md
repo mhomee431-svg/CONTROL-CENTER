@@ -1,3 +1,90 @@
+# State management
+
+**Use the existing project state-management approach. If it is sound, KEEP it.
+Do not migrate the entire app to another framework without a real architectural
+reason.**
+
+## Verdict: Riverpod is sound, and it stays
+
+I audited before changing anything, because the rule's first instruction is not
+"migrate" — it is "check whether it needs migrating". The counts:
+
+| Approach | In `lib/` |
+| --- | --- |
+| **Riverpod** (`Provider`, `FutureProvider`, `StreamProvider`, `NotifierProvider`) | **100+ sites — the only framework in use** |
+| `ChangeNotifier` | 0 |
+| `StateProvider` | 0 |
+| `provider` package | 0 |
+| bloc / getX / redux / mobx | 0 |
+| `ValueNotifier` / `ValueListenable` | 2 |
+
+The two `ValueListenable` uses are **not** our state: they wrap
+`MobileScannerState` from the third-party `mobile_scanner` camera API, which
+exposes its own listenable. Replacing that with Riverpod would mean fighting the
+package, not improving the app.
+
+`setState` appears 65 times, and that is also correct: every one is in a
+`presentation/screens/` or `presentation/widgets/` file, holding genuinely local
+UI state — a text controller's contents, which tab is open, whether a tile is
+expanded. That is what `setState` is for. Moving it to a provider would add
+indirection and make the widget harder to read for no benefit.
+
+**So: no migration. Riverpod remains the state layer.** The sealed state types
+(`LoadState`, `PagedState`, `MutationState`) are *models used inside* Riverpod
+notifiers, not a competing framework.
+
+## The eight conceptual states
+
+Every state the spec names, and where it lives. `state_vocabulary.dart` is the
+single source of truth and `state_vocabulary_test.dart` fails if this drifts.
+
+| Conceptual state | Implemented as | Why it is a separate state |
+| --- | --- | --- |
+| **Initial** | `LoadIdle`, `PageInitial`, `MutationIdle` | "we have not started" earns a different affordance than "still working" |
+| **Loading** | `LoadLoading`, `PageLoading`, `PageReplacing` | First fetch; nothing on screen yet |
+| **Loaded** | `LoadReady`, `PageHasMore`, `PageComplete` | The answer, with data |
+| **Empty** | `LoadEmpty` | A **success** that is not a failure — "widen your search", not a scary error |
+| **Refreshing** | `LoadRefreshing`, `PageLoadingMore` | In flight, but the previous value stays visible |
+| **Saving** | `MutationRunning` | A write is in flight; the control must be disabled |
+| **Success** | `MutationSucceeded` | The backend **confirmed** it. Never optimistic |
+| **Error** | `LoadFailed`, `PageFailed`, `MutationFailed` | Retains previous content, so a failure never destroys what the customer was reading |
+
+## Which type to use
+
+* A single thing that loads, searches, or filters → `LoadState<T>`
+* A list that pages → `PagedState<T>` + `PagePhase`
+* A write (submit, save, place) → `MutationState`
+
+They **compose** rather than merge. A search screen is typically
+`LoadState<List<Product>>` plus a `MutationState` if it can save a search.
+Folding them into one type is the mistake — a page that is simultaneously
+`Loading`, `Empty` and `Error` is the boolean-cluster bug in a sealed costume.
+
+## Why `Refreshing` is separate from `Loading`
+
+Both are "a request is in flight", and both report `isLoading == true`. But they
+render differently, and conflating them is the flash-of-empty bug:
+
+* `LoadLoading` → no data exists, so a full-screen skeleton is correct.
+* `LoadRefreshing` → data exists and must stay on screen, so the skeleton would
+  be a regression: the customer loses what they were reading to watch a spinner.
+
+A test asserts the two are different types, because a view genuinely cannot tell
+them apart if they are the same.
+
+## What is enforced
+
+| Rule | Test |
+| --- | --- |
+| No competing state framework (bloc/get/provider/hooks_riverpod) | `view_rule_guard_test.dart` — "no competing state-management framework is introduced" |
+| No feature state class with 3+ independent `bool` fields | `view_rule_guard_test.dart` — "no feature state class reintroduces the boolean-cluster antipattern" |
+| All eight states are named and covered | `state_vocabulary_test.dart` |
+| Each type covers at least one state | `state_vocabulary_test.dart` — "every state model covers at least one conceptual state" |
+
+The boolean-cluster check is deliberately **narrow**: it only inspects feature
+`*_state.dart` files outside `presentation/`, because a widget owning one or two
+booleans is fine and flagging that would be ceremony rather than safety.
+
 # Repository rule
 
 **Repositories own:** cached application data, API data, retry, refresh, mapping,
