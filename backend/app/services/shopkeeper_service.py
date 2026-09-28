@@ -36,6 +36,7 @@ from app.core.shopkeeper_permissions import (
 )
 from app.models.product import (
     Category,
+    FreshnessStatus,
     IdentifierType,
     Inventory,
     InventoryAdjustment,
@@ -648,12 +649,16 @@ def is_discontinued(sp: ShopProduct) -> bool:
 
 
 def _product_counts(
-    products: list[ShopProduct], inventories: Mapping[int, Inventory | None]
+    products: list[ShopProduct],
+    inventories: Mapping[int, Inventory | None],
+    *,
+    include_attention: bool = True,
 ) -> dict[str, Any]:
     total = len(products)
     active = 0
     in_stock = low_stock = out_of_stock = unknown = discontinued = 0
     units = 0
+    stale = 0
     needs_attention: list[dict[str, Any]] = []
     for p in products:
         inv = inventories.get(p.id)
@@ -670,6 +675,16 @@ def _product_counts(
         )
         status = raw_status or _derive_stock_status(qty, threshold)
         units += qty
+        # Freshness is a per-Inventory tier, so the STALE count is the same
+        # number the client used to derive by walking every item of
+        # `view=list`. Counting it here is what lets the home screen ask for a
+        # summary instead of downloading the whole catalogue to count rows.
+        if inv is not None and getattr(inv, "freshness_status", None) is not None:
+            freshness = inv.freshness_status
+            if hasattr(freshness, "value"):
+                freshness = freshness.value
+            if str(freshness) == FreshnessStatus.STALE.value:
+                stale += 1
         # A withdrawn listing is not "in stock" however many units remain: it
         # is counted once, in its own bucket, and never becomes a restock task.
         if is_discontinued(p):
@@ -696,7 +711,7 @@ def _product_counts(
             )
 
     inactive = total - active - discontinued
-    return {
+    counts: dict[str, Any] = {
         "total": total,
         "active": active,
         "inactive": inactive,
@@ -706,11 +721,19 @@ def _product_counts(
         "out_of_stock": out_of_stock,
         "unknown": unknown,
         "total_units": units,
-        "needs_attention": sorted(
+        "stale": stale,
+    }
+    if include_attention:
+        counts["needs_attention"] = sorted(
             needs_attention,
             key=lambda x: (x["stock_status"] != "OUT_OF_STOCK", -x["quantity"]),
-        )[:10],
-    }
+        )[:10]
+    else:
+        # Counts-only views ship the SIZE of the restock queue, not the rows:
+        # a home-screen badge never renders them, and the rows stay available
+        # from `view=overview` / `view=list` for the screens that do.
+        counts["needs_attention_count"] = len(needs_attention)
+    return counts
 
 
 def _iso(value: Any) -> str | None:  # pyright: ignore[reportRedeclaration]
@@ -1211,6 +1234,40 @@ def inventory_overview(access: ShopAccess, db: Session) -> dict[str, Any]:
     items.sort(key=lambda i: (i["stock_status"] != "OUT_OF_STOCK", -i["quantity"]))
     stats = _product_counts(products, inventories)
     return {"items": items, "summary": stats}
+
+
+def inventory_summary(access: ShopAccess, db: Session) -> dict[str, Any]:
+    """Counts ONLY — no ``items`` row is ever built or serialised.
+
+    This exists for the shopkeeper HOME screen. The dashboard's "needs
+    attention" card wants a single number — how many listings are STALE — and
+    used to get it by calling :func:`inventory_overview`, which downloads every
+    listing in the shop. For a catalogue of any size that is a full-catalogue
+    payload on the very first screen after login, purely to count rows the
+    server already has.
+
+    ``view=summary`` answers the same question with a fixed-size body: the
+    server's own counts, plus the STALE tally. The response is the SAME SHAPE
+    for every shop, so it stays small as the catalogue grows.
+
+    Inventories are fetched in ONE query rather than one-per-listing
+    (``inventory`` is 1:1 with ``shop_product`` via ``uq_inventory_shop_product``),
+    which also removes the N+1 this path would otherwise inherit.
+    """
+    products: list[ShopProduct] = (
+        db.query(ShopProduct).filter(ShopProduct.shop_id == access.shop.id).all()
+    )
+    inventories: dict[int, Inventory] = {}
+    if products:
+        rows = (
+            db.query(Inventory)
+            .filter(Inventory.shop_product_id.in_([p.id for p in products]))
+            .all()
+        )
+        for inv in rows:
+            inventories[inv.shop_product_id] = inv
+    counts = _product_counts(products, inventories, include_attention=False)
+    return {"summary": counts}
 
 
 def _media_resolver():

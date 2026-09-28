@@ -194,6 +194,12 @@ typedef InventorySummary = ({
   int lowStock,
   int outOfStock,
   int totalUnits,
+  /// Listings whose backend freshness tier is `STALE`.
+  ///
+  /// Served by the backend in the summary counts, so a home-screen badge can
+  /// read it without downloading every listing to count them. A backend that
+  /// predates the field reports 0 rather than failing the whole read.
+  int stale,
 });
 
 InventorySummary inventorySummaryFromJson(Map<String, dynamic> json) => (
@@ -203,6 +209,7 @@ InventorySummary inventorySummaryFromJson(Map<String, dynamic> json) => (
       lowStock: (json['low_stock'] as num?)?.toInt() ?? 0,
       outOfStock: (json['out_of_stock'] as num?)?.toInt() ?? 0,
       totalUnits: (json['total_units'] as num?)?.toInt() ?? 0,
+      stale: (json['stale'] as num?)?.toInt() ?? 0,
     );
 
 class InventoryOverview {

@@ -178,6 +178,49 @@ void main() {
       expect(state.status, DashboardStatus.ready);
       expect(state.alerts.isEmpty, isTrue);
     });
+
+    test('home reads the COUNTS-ONLY inventory view, never the catalogue',
+        () async {
+      // Startup performance guard. The "stale inventory" row needs ONE number.
+      // fetchInventoryOverview returns every listing in the shop, so using it
+      // here meant a full-catalogue download on the first screen after login
+      // purely to count rows. This asserts the small payload is the one used,
+      // so a later "simplification" back to the overview fails HERE instead of
+      // silently shipping a home screen whose cost grows with the catalogue.
+      final inventoryRepo = FakeProductRepo(
+        items: const [
+          ShopProductItem(
+            id: 1,
+            name: 'Amul Milk',
+            status: 'ACTIVE',
+            price: 30,
+            isActive: true,
+            isAvailable: true,
+            quantity: 0,
+            stockStatus: 'OUT_OF_STOCK',
+            freshnessStatus: 'STALE',
+          ),
+        ],
+      );
+      final container = makeContainer([
+        dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepo()),
+        inventoryImportRepositoryProvider.overrideWithValue(FakeImportRepo()),
+        notificationsRepositoryProvider
+            .overrideWithValue(FakeNotificationsRepo()),
+        productRepositoryProvider.overrideWithValue(FakeProductRepo()),
+        inventoryRepositoryProvider.overrideWithValue(inventoryRepo),
+      ]);
+
+      await container.read(dashboardControllerProvider.notifier).load();
+
+      final state = container.read(dashboardControllerProvider);
+      expect(state.status, DashboardStatus.ready);
+      // The number itself is unchanged...
+      expect(state.alerts.staleCount, 1);
+      // ...and it came from the counts-only view; the catalogue was never read.
+      expect(inventoryRepo.summaryCalls, 1);
+      expect(inventoryRepo.overviewCalls, 0);
+    });
   });
 
   group('ProductsController.createProduct payload (req 25)', () {
