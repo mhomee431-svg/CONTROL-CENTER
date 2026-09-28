@@ -49,13 +49,15 @@ from tests.test_shopkeeper_support import (  # noqa: E402,F401
 ISSUES_PATH = f"{settings.API_PREFIX}/support/issues"
 
 
-# ── Taxonomy ──────────────────────────────────────────────────────────────
-class TestCustomerTaxonomy:
-    """A shopper's ticket must land in a queue the support team can filter."""
-
-    # The exact codes the Flutter `SupportIssueCategory` enum sends. Pinned so
-    # a rename on either side fails a test instead of silently storing free text.
-    CUSTOMER_CODES = {
+# The exact codes the Flutter `SupportIssueCategory` enum sends. Pinned so a
+# rename on either side fails a test instead of silently storing free text.
+#
+# MODULE level, not a class attribute: neither `self` nor the class name is
+# bound while a class body is being evaluated, so a `@parametrize` decorator
+# inside the class could not read it. As a class attribute the file raised
+# NameError at import and broke collection for the entire backend suite.
+CUSTOMER_CODES = frozenset(
+    {
         "CUST_WRONG_PRICE",
         "CUST_AVAILABILITY",
         "CUST_WRONG_PRODUCT",
@@ -65,11 +67,21 @@ class TestCustomerTaxonomy:
         "CUST_PRIVACY",
         "CUST_OTHER",
     }
+)
+
+
+# ── Taxonomy ──────────────────────────────────────────────────────────────
+class TestCustomerTaxonomy:
+    """A shopper's ticket must land in a queue the support team can filter."""
 
     def test_customer_codes_match_the_client_contract(self):
-        assert set(support_service.CUSTOMER_CATEGORIES) == self.CUSTOMER_CODES
+        assert set(support_service.CUSTOMER_CATEGORIES) == set(CUSTOMER_CODES)
 
-    @pytest.mark.parametrize("code", sorted(self.CUSTOMER_CODES))
+    # `self` does not exist while the class BODY is being evaluated — it is
+    # only bound inside methods — so the decorator must name the class. Using
+    # `self.CUSTOMER_CODES` here raised NameError at import time and broke
+    # collection for the whole backend suite.
+    @pytest.mark.parametrize("code", sorted(CUSTOMER_CODES))
     def test_every_customer_code_is_accepted(self, code):
         assert (
             support_service.normalize_category(

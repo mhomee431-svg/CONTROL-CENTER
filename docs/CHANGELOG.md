@@ -357,3 +357,64 @@
 - Celery task queue for background jobs
 - S3 object storage integration
 - Rate limiting and security headers
+
+### Startup performance, duplication & legacy-code audit
+- **Startup (§113).** Audited the whole startup path for all three apps and the
+  backend lifespan hook. Already correct: neither splash loads data (each fires
+  only an auth-session check), `main()` loads nothing but Firebase + config +
+  bounded image-cache settings, customer home uses `autoDispose` providers, the
+  backend lifespan only runs security checks and `enable_postgis`. The
+  notification controllers are never read at startup.
+  - **Fixed — one real violation.** The shopkeeper dashboard's "needs
+    attention" card wanted ONE number (how many listings are `STALE`) and got
+    it from `fetchInventoryOverview`, which returns **every listing in the
+    shop** — a full-catalogue download on the first screen after login, purely
+    to count rows the server already owns, growing with the catalogue.
+    - Backend: new `view=summary` on `GET /shops/{id}/inventory` returns
+      `{"summary": {...}}` and never builds or serialises an item row, so the
+      body is the same size for a shop with 5 listings and one with 50,000.
+      Inventories are read in ONE batched query (1:1 via
+      `uq_inventory_shop_product`), which also removes the per-listing N+1.
+    - `_product_counts` derives `stale` from `Inventory.freshness_status`, and
+      takes `include_attention=False` for counts-only callers so the summary
+      reports `needs_attention_count` (a size) instead of up to ten rows.
+    - App: `InventorySummary` gains `stale`; `InventoryRepository` gains
+      `fetchInventorySummary`; the dashboard alert uses it. Screens that
+      genuinely render listings keep the full view.
+    - Guarded by tests in both layers: a backend suite pins "no items", the
+      stale tally, empty-shop zero-fill and that every number agrees with the
+      full view; a dashboard test asserts `summaryCalls == 1` and
+      `overviewCalls == 0`, so a regression to the full download fails a test
+      instead of quietly shipping.
+- **Duplication (§114).** No `AuthServiceV2` / `ProductRepositoryNew` /
+  `ApiClientNew` / `ProfileProvider2` style versioning exists, and no two
+  service / client / validator / store / repository classes share a name in
+  either app. The repeated names that do exist (`TokenStore` +
+  `SecureTokenStore` + `InMemoryTokenStore`, and the Permission/Storage
+  equivalents) are the correct interface + production + test-double seam.
+  - **Fixed — five private copies of one widget.** Five customer screens each
+    carried a private `_SectionLabel` whose type styling was byte-identical
+    (12 / w700 / 1.1 tracking / muted, uppercased); only the padding differed.
+    One design change meant five edits and a missed one silently drifted. A
+    single `SectionLabel` now lives beside `SectionHeader` in the existing
+    `core/widgets/section_header.dart` — the file that already owns section
+    typography, so no new file was introduced — with `SectionLabel.tight` /
+    `.dense` preserving each screen's exact spacing. A before/after class
+    diff confirms `_SectionLabel` is the only class removed from those files.
+  - Deliberately NOT merged: the three private `_SummaryChip` copies
+    (`import_preview`, `inventory_import`, `products`) differ in value type,
+    padding, corner radius, border and weight. Merging them would need ~6 knobs
+    and change pixels on shipping screens — duplication of *look*, not of code.
+- **Legacy code (§115).** Nothing deleted. A whole-repo reference sweep found
+  no orphan screens, no unreferenced screen/widget files, and no dead imports
+  (analyzer is clean).
+  - `core/widgets/rebuild_scoping.dart` was the single file nothing referenced
+    — and nothing tested. Kept, and given a real suite: `WatchSelected` must
+    render the selected value, rebuild exactly once when the selection changes,
+    and — the actual contract — NOT rebuild when an unrelated field of the same
+    provider changes; `RepaintIsolated` must render a real `RepaintBoundary`.
+  - **Fixed — the backend suite could not be collected at all.**
+    `tests/test_customer_support.py` raised `NameError` on import: a
+    `@pytest.mark.parametrize` decorator referenced `self.CUSTOMER_CODES`, and
+    `self` is not bound while a class body is evaluated. The codes are now a
+    module-level `frozenset` (the class name is not bound there either).
