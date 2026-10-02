@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/empty_state_view.dart';
 import '../../domain/models/app_notification.dart';
 import '../controllers/deep_link_handler.dart';
 import '../controllers/notifications_controller.dart';
@@ -22,6 +24,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   /// the loaded list stays the same, only the visible slice changes. Filtering
   /// client-side keeps switching instant and never refetches.
   NotificationFilter _filter = NotificationFilter.all;
+
+  /// Clears the active filter — the "Show all notifications" action on the
+  /// filtered-empty state.
+  ///
+  /// Guarded on already being `all` so tapping it never triggers a pointless
+  /// rebuild of the list.
+  void _clearFilter() {
+    if (_filter == NotificationFilter.all) return;
+    setState(() => _filter = NotificationFilter.all);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +90,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               const Divider(height: 1),
               Expanded(
                 child: visible.isEmpty
-                    ? _FilteredEmptyView(filter: _filter)
+                    ? _FilteredEmptyView(
+                        filter: _filter,
+                        onClearFilter: _clearFilter,
+                      )
                     : RefreshIndicator(
                         onRefresh: () => ref
                             .read(notificationsControllerProvider.notifier)
@@ -164,73 +179,46 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
+/// The inbox is genuinely empty (as opposed to filtered to nothing).
+///
+/// Carries a next action: an empty inbox is otherwise a dead end, and the useful
+/// thing to do is go find something worth being notified about.
 class EmptyNotificationsView extends StatelessWidget {
   const EmptyNotificationsView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_off_outlined,
-              size: 64,
-              color: AppColors.textMuted,
-            ),
-            SizedBox(height: AppSpacing.md),
-            Text(
-              'No notifications yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            Text(
-              'We will notify you about price drops, offers and shop updates.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
+    return EmptyStateView(
+      icon: Icons.notifications_off_outlined,
+      title: 'No notifications yet',
+      message: 'We will notify you about price drops, offers and shop updates.',
+      actionLabel: 'Explore shops',
+      actionIcon: Icons.search,
+      onActionTap: () => context.push('/search'),
     );
   }
 }
 
 /// Shown when the list has rows but none belong to the selected filter.
 ///
-/// The copy names the active filter so the empty screen explains itself and
-/// never looks like a broken inbox.
+/// The copy names the active filter so the empty screen explains itself, and the
+/// action removes that filter — the customer's real problem here is a filter they
+/// set, not a lack of notifications, so "clear the filter" is the useful next step.
 class _FilteredEmptyView extends StatelessWidget {
-  const _FilteredEmptyView({required this.filter});
+  const _FilteredEmptyView({required this.filter, this.onClearFilter});
 
   final NotificationFilter filter;
+  final VoidCallback? onClearFilter;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(filter.icon, size: 64, color: AppColors.textMuted),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'No ${filter.label} notifications',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'New ${filter.label.toLowerCase()} updates will appear here.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
+    return EmptyStateView(
+      icon: filter.icon,
+      title: 'No ${filter.label} notifications',
+      message: 'New ${filter.label.toLowerCase()} updates will appear here.',
+      actionLabel: 'Show all notifications',
+      actionIcon: Icons.filter_alt_off_outlined,
+      onActionTap: onClearFilter,
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../controllers/saved_and_history_controllers.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
 /// Index of the tab each deep-link target opens.
@@ -95,10 +96,15 @@ class _SavedProductsTab extends ConsumerWidget {
     return productsAsync.when(
       data: (items) {
         if (items.isEmpty) {
-          return const _EmptyStateView(
+          return EmptyStateView(
             icon: Icons.bookmark_border,
             title: 'No Saved Products',
             message: 'Items you save will appear here for easy price tracking.',
+            // A useful next action, not just an explanation: the only way to
+            // fill this list is to find a product first.
+            actionLabel: 'Browse Products',
+            actionIcon: Icons.search,
+            onActionTap: () => context.push('/search'),
           );
         }
         return Column(
@@ -173,11 +179,14 @@ class _SavedShopsTab extends ConsumerWidget {
     return shopsAsync.when(
       data: (shops) {
         if (shops.isEmpty) {
-          return const _EmptyStateView(
+          return EmptyStateView(
             icon: Icons.storefront_outlined,
             title: 'No Saved Shops',
             message:
                 'Favorite nearby stores to stay updated on their inventory.',
+            actionLabel: 'Find Shops',
+            actionIcon: Icons.search,
+            onActionTap: () => context.push('/search'),
           );
         }
         return Column(
@@ -272,10 +281,14 @@ class _RecentSearchesTab extends ConsumerWidget {
     return searchesAsync.when(
       data: (searches) {
         if (searches.isEmpty) {
-          return const _EmptyStateView(
+          return EmptyStateView(
             icon: Icons.search_off,
             title: 'No Recent Searches',
             message: 'Your search history will appear here.',
+            // History is only created by searching, so the next action IS a search.
+            actionLabel: 'Start Searching',
+            actionIcon: Icons.search,
+            onActionTap: () => context.push('/search'),
           );
         }
         return Column(
@@ -367,10 +380,13 @@ class _RecentlyViewedTab extends ConsumerWidget {
     return viewedAsync.when(
       data: (items) {
         if (items.isEmpty) {
-          return const _EmptyStateView(
+          return EmptyStateView(
             icon: Icons.visibility_outlined,
             title: 'No Recently Viewed',
             message: 'Products you view will appear here for quick access.',
+            actionLabel: 'Browse Products',
+            actionIcon: Icons.search,
+            onActionTap: () => context.push('/search'),
           );
         }
         return Column(
@@ -470,10 +486,13 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
     return viewedAsync.when(
       data: (shops) {
         if (shops.isEmpty) {
-          return const _EmptyStateView(
+          return EmptyStateView(
             icon: Icons.storefront_outlined,
             title: 'No Recently Viewed Shops',
             message: 'Shops you visit will appear here for quick access.',
+            actionLabel: 'Find Shops',
+            actionIcon: Icons.search,
+            onActionTap: () => context.push('/search'),
           );
         }
         return Column(
@@ -538,44 +557,6 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
       error: (err, _) =>
           Center(child: Text('Error loading recently viewed shops: $err')),
-    );
-  }
-}
-
-class _EmptyStateView extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-
-  const _EmptyStateView({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: AppColors.textMuted),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

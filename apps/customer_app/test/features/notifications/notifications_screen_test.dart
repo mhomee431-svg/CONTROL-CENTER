@@ -135,6 +135,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('an empty inbox offers a next action, not just an apology', (
+    tester,
+  ) async {
+    // Spec: every major list's empty state must give the customer something
+    // useful to do. An empty inbox with no action is a dead end.
+    await pumpAndSettleScreen(tester, _FakeNotificationRepository([]));
+
+    expect(find.text('No notifications yet'), findsOneWidget);
+    expect(find.text('Explore shops'), findsOneWidget);
+  });
+
   testWidgets('renders notifications with unread badge and read styling', (
     tester,
   ) async {
