@@ -281,4 +281,19 @@ abstract class ShopProductResult with _$ShopProductResult {
   }
 
   bool get hasCoordinates => shopLatitude != null && shopLongitude != null;
+
+  /// Whether the distance is a real measurement.
+  ///
+  /// The backend sends `0.0` when the customer's or the shop's coordinates could
+  /// not be resolved, so a raw zero means UNKNOWN — not "you are standing in it".
+  /// Lives here rather than in each card so the product-result card and the shop
+  /// card cannot drift into disagreeing about the same number.
+  bool get hasKnownDistance => distanceInKm > 0;
+
+  /// Whether the shop has any ratings at all.
+  ///
+  /// A `0` is an absent rating, not a rated shop that scored zero — showing a star
+  /// beside "0.0" tells a customer the shop is terrible when it has simply never
+  /// been reviewed.
+  bool get isRated => shopRating > 0;
 }

@@ -17,6 +17,9 @@ ShopProductResult _result({
   String? offerText,
   bool? isOpenNow,
   bool? isAcceptingOrders,
+  // 0 is the wire value for "unknown", so tests can exercise the absent cases.
+  double distanceInKm = 1.2,
+  double shopRating = 4.5,
 }) {
   return ShopProductResult(
     id: 'r1',
@@ -27,8 +30,8 @@ ShopProductResult _result({
     shopName: 'Gupta Electronics',
     price: 240,
     isAvailable: true,
-    distanceInKm: 1.2,
-    shopRating: 4.5,
+    distanceInKm: distanceInKm,
+    shopRating: shopRating,
     lastUpdated: DateTime(2026, 1, 1),
     offerText: offerText,
     isOpenNow: isOpenNow,
@@ -39,6 +42,60 @@ ShopProductResult _result({
 }
 
 void main() {
+  group('the model rules behind distance and rating', () {
+    test('a zero distance is unknown, not "you are standing in it"', () {
+      expect(_result(distanceInKm: 0).hasKnownDistance, isFalse);
+      expect(_result(distanceInKm: 1.2).hasKnownDistance, isTrue);
+    });
+
+    test('a zero rating means never reviewed, not rated-terrible', () {
+      expect(_result(shopRating: 0).isRated, isFalse);
+      expect(_result(shopRating: 4.5).isRated, isTrue);
+    });
+  });
+
+  group('the card only states facts the data contains', () {
+    Future<void> pumpCard(WidgetTester tester, ShopProductResult result) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ShopProductCard(result: result)),
+        ),
+      );
+    }
+
+    testWidgets('shows distance when it is known', (tester) async {
+      await pumpCard(tester, _result(distanceInKm: 1.2));
+      expect(find.text('1.2 km'), findsOneWidget);
+    });
+
+    testWidgets('prints no distance at all when it is unknown', (tester) async {
+      // Regression: a confident "0.0 km" tells the customer they are standing in
+      // the shop when the truth is that coordinates could not be resolved.
+      await pumpCard(tester, _result(distanceInKm: 0));
+      expect(find.textContaining('km'), findsNothing);
+    });
+
+    testWidgets('shows the rating when the shop has one', (tester) async {
+      await pumpCard(tester, _result(shopRating: 4.5));
+      expect(find.text('4.5'), findsOneWidget);
+    });
+
+    testWidgets('shows no star or 0.0 for an unrated shop', (tester) async {
+      // A star beside "0.0" claims the shop was rated and scored zero. It has not
+      // been rated at all.
+      await pumpCard(tester, _result(shopRating: 0));
+      expect(find.text('0.0'), findsNothing);
+      expect(find.byIcon(Icons.star), findsNothing);
+    });
+
+    testWidgets('availability survives both being unknown', (tester) async {
+      // The point of making the signals conditional: stripping distance and
+      // rating must not strip the row the customer most needs.
+      await pumpCard(tester, _result(distanceInKm: 0, shopRating: 0));
+      expect(find.text('In Stock'), findsOneWidget);
+    });
+  });
+
   group('result card', () {
     testWidgets('View Shop is primary and does not also fire product tap', (
       tester,
