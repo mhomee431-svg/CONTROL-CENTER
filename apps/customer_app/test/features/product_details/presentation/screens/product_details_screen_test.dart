@@ -37,10 +37,7 @@ void main() {
       expect(find.text('MRP ₹134999'), findsWidgets);
       // The offer text is surfaced by both the inventory card and the active
       // offers section, so presence (not uniqueness) is the right contract.
-      expect(
-        find.text('Free tempered glass & back cover combo'),
-        findsWidgets,
-      );
+      expect(find.text('Free tempered glass & back cover combo'), findsWidgets);
 
       // Verify Product Master sections
       expect(find.text('Variants'), findsOneWidget);

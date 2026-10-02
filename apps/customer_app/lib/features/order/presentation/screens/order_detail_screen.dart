@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/order_models.dart';
 import '../controllers/order_controller.dart';
 import '../order_status_ui.dart';
@@ -518,17 +519,15 @@ class _ItemsCard extends StatelessWidget {
                         ),
                         child:
                             item.imageUrl != null && item.imageUrl!.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  item.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => const Icon(
-                                    Icons.image_not_supported_outlined,
-                                    size: 20,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
+                            ? NetworkImageView(
+                                // Without the explicit size the decode cannot be
+                                // bounded, so a 4000px photo is decoded for a
+                                // 44px slot and every line of the order re-decodes
+                                // it on scroll.
+                                imageUrl: item.imageUrl,
+                                width: 44,
+                                height: 44,
+                                borderRadius: 8,
                               )
                             : const Icon(
                                 Icons.shopping_bag_outlined,

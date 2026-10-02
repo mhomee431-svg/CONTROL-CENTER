@@ -16,10 +16,7 @@ void main() {
 
   setUp(() {
     clock = DateTime(2026, 9, 27, 12, 0, 0);
-    service = ConnectivityService(
-      Connectivity(),
-      now: () => clock,
-    );
+    service = ConnectivityService(Connectivity(), now: () => clock);
   });
 
   tearDown(() {
@@ -193,10 +190,7 @@ void main() {
       await pumpEventQueue();
 
       // One offline event, not two: a redundant rebuild for an unchanged state.
-      expect(
-        seen.where((s) => s == ConnectivityStatus.offline).length,
-        1,
-      );
+      expect(seen.where((s) => s == ConnectivityStatus.offline).length, 1);
       await sub.cancel();
     });
   });

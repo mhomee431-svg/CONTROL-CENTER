@@ -41,15 +41,12 @@ class AboutScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 const Text(
                   'Hyperlocal',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
+                const Text(
                   'Version $authAppVersion',
-                  style: const TextStyle(color: AppColors.textMuted),
+                  style: TextStyle(color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 const Padding(

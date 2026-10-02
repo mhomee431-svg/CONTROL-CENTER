@@ -5,6 +5,53 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'map_adapter.dart';
 
+/// Marker icons, created once per hue instead of once per marker.
+///
+/// `BitmapDescriptor.defaultMarkerWithHue` is not a cheap constructor: it
+/// allocates a platform-side bitmap and hands back a descriptor that the map
+/// view then has to resolve. Calling it inside the marker loop meant a 40-shop
+/// search built 40 identical descriptors (three distinct hues) on every scene
+/// rebuild -- pure duplicated work that scaled with the result count, which is
+/// the one thing a results map must not do.
+///
+/// The descriptors are immutable and reusable, so caching them by hue makes the
+/// cost of N markers three allocations, paid once per process.
+class MapMarkerIcons {
+  const MapMarkerIcons._();
+
+  static BitmapDescriptor? _azure;
+  static BitmapDescriptor? _orange;
+  static BitmapDescriptor? _rose;
+
+  /// "Your location" pin.
+  static BitmapDescriptor get azure => _azure ??=
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+
+  /// Count marker for a cluster of shops.
+  static BitmapDescriptor get orange => _orange ??=
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+
+  /// Individual shop pin.
+  static BitmapDescriptor get rose =>
+      _rose ??= BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
+
+  /// Test seam: drops the cached descriptors so a test can assert that the
+  /// same instance is handed back rather than a freshly built one.
+  @visibleForTesting
+  static void resetForTesting() {
+    _azure = null;
+    _orange = null;
+    _rose = null;
+  }
+}
+
+/// Hard ceiling on markers rendered on the multi-shop map.
+///
+/// 60 keeps a dense city search legible while bounding the platform views,
+/// icon bitmaps and InfoWindows the map has to hold. Beyond this the extra pins
+/// are unreadable overlap anyway, and the nearest ones are the useful ones.
+const int kMaxRenderedShopMarkers = 60;
+
 /// A pure, device-independent description of a Google Map scene.
 ///
 /// Kept separate from the widget so marker/polyline/camera logic can be
@@ -46,9 +93,7 @@ class GoogleMapScene {
         Marker(
           markerId: const MarkerId('user_location'),
           position: userPoint,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueAzure,
-          ),
+          icon: MapMarkerIcons.azure,
           infoWindow: const InfoWindow(title: 'Your location'),
         ),
         Marker(
@@ -86,11 +131,16 @@ class GoogleMapScene {
       Marker(
         markerId: const MarkerId('user_location'),
         position: points.first,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        icon: MapMarkerIcons.azure,
         infoWindow: const InfoWindow(title: 'Your location'),
       ),
     ];
-    final clustered = clusterMarkers(shops);
+    final clustered = clusterMarkers(
+      shops,
+      maxMarkers: kMaxRenderedShopMarkers,
+      originLatitude: userLat,
+      originLongitude: userLng,
+    );
     for (var i = 0; i < clustered.length; i++) {
       final entry = clustered[i];
       if (entry is MapClusterInfo) {
@@ -100,9 +150,7 @@ class GoogleMapScene {
           Marker(
             markerId: MarkerId('cluster_$i'),
             position: point,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueOrange,
-            ),
+            icon: MapMarkerIcons.orange,
             infoWindow: InfoWindow(
               title: '${entry.count} shops',
               snippet: entry.members.map((m) => m.label).take(3).join(', '),
@@ -118,7 +166,7 @@ class GoogleMapScene {
         Marker(
           markerId: MarkerId('shop_$i'),
           position: point,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
+          icon: MapMarkerIcons.rose,
           infoWindow: InfoWindow(title: shop.label, snippet: shop.subtitle),
         ),
       );
@@ -143,7 +191,7 @@ class GoogleMapScene {
     return Marker(
       markerId: MarkerId('shop_$index'),
       position: LatLng(latitude, longitude),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
+      icon: MapMarkerIcons.rose,
       infoWindow: InfoWindow(title: label, snippet: subtitle),
     );
   }

@@ -5,7 +5,9 @@ import 'package:hyperlocal_app/core/widgets/shop_open_closed_badge.dart';
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) async {
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: Center(child: child))),
+      MaterialApp(
+        home: Scaffold(body: Center(child: child)),
+      ),
     );
   }
 
@@ -26,19 +28,18 @@ void main() {
       expect(find.text('Closed'), findsOneWidget);
     });
 
-    testWidgets(
-      'open but not accepting orders is a distinct label',
-      (tester) async {
-        // The shop is trading but cannot take orders — collapsing this into
-        // "Open" would hide a genuinely different situation.
-        await pump(
-          tester,
-          const ShopOpenClosedBadge(isOpenNow: true, acceptingOrders: false),
-        );
-        expect(find.text('Open · No orders'), findsOneWidget);
-        expect(find.text('Open'), findsNothing);
-      },
-    );
+    testWidgets('open but not accepting orders is a distinct label', (
+      tester,
+    ) async {
+      // The shop is trading but cannot take orders — collapsing this into
+      // "Open" would hide a genuinely different situation.
+      await pump(
+        tester,
+        const ShopOpenClosedBadge(isOpenNow: true, acceptingOrders: false),
+      );
+      expect(find.text('Open · No orders'), findsOneWidget);
+      expect(find.text('Open'), findsNothing);
+    });
   });
 
   group('ShopOpenClosedBadge — unknown is never "Open"', () {
@@ -49,8 +50,9 @@ void main() {
       expect(find.byType(Text), findsNothing);
     });
 
-    testWidgets('null state with acceptingOrders set still renders nothing',
-        (tester) async {
+    testWidgets('null state with acceptingOrders set still renders nothing', (
+      tester,
+    ) async {
       await pump(
         tester,
         const ShopOpenClosedBadge(isOpenNow: null, acceptingOrders: true),
@@ -58,8 +60,9 @@ void main() {
       expect(find.byType(Text), findsNothing);
     });
 
-    testWidgets('open with unreported acceptingOrders shows plain "Open"',
-        (tester) async {
+    testWidgets('open with unreported acceptingOrders shows plain "Open"', (
+      tester,
+    ) async {
       // Null acceptingOrders is unknown, not "not accepting", so the badge
       // must not add the "No orders" qualifier.
       await pump(

@@ -42,6 +42,13 @@ class ApiEndpoints {
   // --- Categories ---
   static const String categories = '/categories';
 
+  // --- Catalog (admin-managed master data) ---
+  //
+  // Public read, admin-only write. This is the SOURCE OF TRUTH for the brand
+  // vocabulary used by product discovery: a hardcoded brand list in the app
+  // would silently misclassify every brand added after it was written.
+  static const String catalogBrands = '/catalog/brands';
+
   // --- Products ---
   static String product(String id) => '/products/$id';
   static String productShops(String id) => '/products/$id/shops';
@@ -50,6 +57,34 @@ class ApiEndpoints {
   static const String nearbyShops = '/shops/nearby';
   static String shop(String id) => '/shops/$id';
   static String shopProducts(String id) => '/shops/$id/products';
+
+  // --- Restaurants (Master Spec §27: discovery-only) ---
+  //
+  // Display-only profiles + menus. There is deliberately NO cart / checkout /
+  // delivery endpoint behind them, so the app cannot grow one by accident.
+  static String restaurantByShop(String shopId) =>
+      '/restaurants/by-shop/$shopId';
+
+  // --- Transport (Master Spec §28-§29: a SERVICE domain) ---
+  //
+  // Vehicles are NOT shop products and bookings are NOT product orders, so these
+  // live here rather than under products/orders. `transportQuotes` is the only
+  // customer write: a quote REQUEST, whose price comes back FROM the provider.
+  static String transportProviderByShop(String shopId) =>
+      '/transport/providers/by-shop/$shopId';
+
+  /// The customer's OWN quotes — the list that carries the provider's price, so
+  /// a requested quote can actually be read and then accepted.
+  static const String transportQuotes = '/transport/quotes';
+  static String transportQuote(String id) => '/transport/quotes/$id';
+  static String transportAcceptQuote(String id) =>
+      '/transport/quotes/$id/accept';
+
+  /// The customer's own bookings, which are NOT product orders (Rule 6).
+  static const String transportBookings = '/transport/bookings';
+  static String transportBooking(String id) => '/transport/bookings/$id';
+  static String transportCancelBooking(String id) =>
+      '/transport/bookings/$id/cancel';
 
   // --- Inventory ---
   static String inventoryByProduct(String id) => '/inventory/product/$id';

@@ -14,6 +14,7 @@ import 'features/notifications/presentation/controllers/pending_deep_link_drain.
 import 'features/notifications/presentation/widgets/in_app_notification_host.dart';
 import 'features/saved_and_history/data/local_saved_and_history_repository.dart';
 import 'features/saved_and_history/domain/saved_and_history_repository.dart';
+import 'features/search/presentation/controllers/search_controller.dart';
 import 'features/settings/presentation/controllers/settings_controller.dart';
 import 'core/storage/local_storage_driver.dart';
 
@@ -75,6 +76,10 @@ class HyperlocalApp extends ConsumerWidget {
         // belonging to the signed-out account can never surface in the next
         // one's session.
         ref.read(inAppNotificationControllerProvider.notifier).clear();
+        // Forget the sort/filter choices remembered for each search. They are
+        // session UI state, not device history, so they must not carry over to
+        // whoever signs in next.
+        ref.read(searchQueryPreferencesProvider).clear();
       }
     });
 
@@ -89,9 +94,8 @@ class HyperlocalApp extends ConsumerWidget {
       // any screen, so a push that lands while the customer is on the map,
       // mid-search, or in a half-typed field still surfaces — and still
       // never forces navigation.
-      builder: (context, child) => InAppNotificationHost(
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) =>
+          InAppNotificationHost(child: child ?? const SizedBox.shrink()),
     );
   }
 }

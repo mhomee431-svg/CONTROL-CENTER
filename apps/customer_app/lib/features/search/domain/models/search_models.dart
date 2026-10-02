@@ -153,7 +153,6 @@ bool isFreshnessWarning(String label) {
   return label == kFreshnessStale || label == kFreshnessUnknown;
 }
 
-
 /// Central default sort option across all discovery and search screens.
 /// Defined centrally rather than separately in multiple screens.
 const kDefaultSortOption = SortOption.nearest;

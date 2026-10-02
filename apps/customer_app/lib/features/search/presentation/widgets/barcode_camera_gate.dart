@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/permissions/data/permission_service.dart';
-import '../../../../core/permissions/permission_models.dart';
 import '../../../../core/permissions/widgets/permission_prompt_view.dart';
+import '../controllers/barcode_scanner_view_model.dart';
 
 /// Every camera-permission string in one place.
 ///
@@ -35,6 +34,11 @@ abstract final class BarcodeCameraCopy {
     'Open Permissions > Camera and choose "Allow"',
     'Return to the app and tap "Check Again"',
   ];
+
+  static const String errorTitle = 'Camera permission error';
+  static const String errorDetail =
+      'Could not verify camera permission. You can retry or enter the barcode manually.';
+  static const String retry = 'Retry';
 }
 
 /// Owns the whole camera-permission conversation for barcode scanning.
@@ -69,85 +73,23 @@ class BarcodeCameraGate extends ConsumerStatefulWidget {
   ConsumerState<BarcodeCameraGate> createState() => _BarcodeCameraGateState();
 }
 
-enum _CameraGate { asking, denied, blocked, ready }
-
 class _BarcodeCameraGateState extends ConsumerState<BarcodeCameraGate> {
-  _CameraGate _gate = _CameraGate.asking;
-  bool _busy = true;
-
-  PermissionService get _permissions => ref.read(permissionServiceProvider);
-
   @override
   void initState() {
     super.initState();
-    Future.microtask(_start);
-  }
-
-  /// Read (never prompt) first: a customer who already granted the camera must
-  /// land straight on the viewfinder, without a second dialog.
-  Future<void> _start() async {
-    final snapshot = await _permissions.status(PermissionKind.camera);
-    if (!mounted) return;
-    if (snapshot.isGranted || snapshot.outcome == PermissionOutcome.unknown) {
-      // `unknown` means the platform could not answer (e.g. a desktop run):
-      // show the camera and let it report its own failure rather than claiming
-      // a denial that was never observed.
-      setState(() {
-        _gate = _CameraGate.ready;
-        _busy = false;
-      });
-      return;
-    }
-    if (snapshot.needsSystemSettings) {
-      setState(() {
-        _gate = _CameraGate.blocked;
-        _busy = false;
-      });
-      return;
-    }
-    await _ask();
-  }
-
-  /// Explain → request. Runs on first open and again from "Allow Camera".
-  Future<void> _ask() async {
-    setState(() => _busy = true);
-    final result = await _permissions.request(PermissionKind.camera);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (result.isGranted || result.outcome == PermissionOutcome.unknown) {
-        _gate = _CameraGate.ready;
-      } else if (result.needsSystemSettings) {
-        _gate = _CameraGate.blocked;
-      } else {
-        _gate = _CameraGate.denied;
-      }
+    Future.microtask(() {
+      ref.read(barcodeScannerViewModelProvider.notifier).checkPermission();
     });
   }
-
-  /// Re-reads the status — the way back after the customer allowed the camera
-  /// in the system settings.
-  Future<void> _recheck() async {
-    setState(() => _busy = true);
-    final snapshot = await _permissions.status(PermissionKind.camera);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (snapshot.isGranted || snapshot.outcome == PermissionOutcome.unknown) {
-        _gate = _CameraGate.ready;
-      } else if (snapshot.needsSystemSettings) {
-        _gate = _CameraGate.blocked;
-      } else {
-        _gate = _CameraGate.denied;
-      }
-    });
-  }
-
-  Future<void> _openSystemSettings() => _permissions.openSystemSettings();
 
   @override
   Widget build(BuildContext context) {
-    if (_gate == _CameraGate.ready) return widget.cameraBuilder(context);
+    final state = ref.watch(barcodeScannerViewModelProvider);
+    final status = state.permissionStatus;
+
+    if (status == BarcodeCameraPermissionStatus.ready) {
+      return widget.cameraBuilder(context);
+    }
 
     final manual = PermissionPromptAction(
       key: const Key('barcode_camera_manual'),
@@ -156,7 +98,7 @@ class _BarcodeCameraGateState extends ConsumerState<BarcodeCameraGate> {
       onPressed: widget.onEnterManually,
     );
 
-    if (_gate == _CameraGate.blocked) {
+    if (status == BarcodeCameraPermissionStatus.blocked) {
       return PermissionPromptView(
         icon: Icons.no_photography_outlined,
         title: BarcodeCameraCopy.blockedTitle,
@@ -167,37 +109,59 @@ class _BarcodeCameraGateState extends ConsumerState<BarcodeCameraGate> {
           key: const Key('barcode_camera_open_settings'),
           label: BarcodeCameraCopy.openSettings,
           icon: Icons.settings_outlined,
-          onPressed: _openSystemSettings,
+          onPressed: () => ref
+              .read(barcodeScannerViewModelProvider.notifier)
+              .openSystemSettings(),
         ),
         fallbacks: [
           PermissionPromptAction(
             key: const Key('barcode_camera_recheck'),
             label: BarcodeCameraCopy.recheck,
             icon: Icons.refresh,
-            onPressed: _recheck,
+            onPressed: () => ref
+                .read(barcodeScannerViewModelProvider.notifier)
+                .recheckPermission(),
           ),
           manual,
         ],
       );
     }
 
-    final denied = _gate == _CameraGate.denied;
+    if (status == BarcodeCameraPermissionStatus.error) {
+      return PermissionPromptView(
+        icon: Icons.error_outline,
+        title: BarcodeCameraCopy.errorTitle,
+        message:
+            '${BarcodeCameraCopy.rationale}\n\n${BarcodeCameraCopy.errorDetail}',
+        primary: PermissionPromptAction(
+          key: const Key('barcode_camera_retry'),
+          label: BarcodeCameraCopy.retry,
+          icon: Icons.refresh,
+          onPressed: () => ref
+              .read(barcodeScannerViewModelProvider.notifier)
+              .checkPermission(),
+        ),
+        fallbacks: [manual],
+      );
+    }
+
+    final denied = status == BarcodeCameraPermissionStatus.denied;
     return PermissionPromptView(
       icon: Icons.photo_camera_outlined,
       title: denied ? BarcodeCameraCopy.deniedTitle : 'Camera permission',
       message: denied
           ? '${BarcodeCameraCopy.rationale}\n\n${BarcodeCameraCopy.deniedDetail}'
           : '${BarcodeCameraCopy.rationale}\n\nWaiting for your answer…',
-      busy: _busy,
+      busy: state.isBusy,
       primary: PermissionPromptAction(
         key: const Key('barcode_camera_allow'),
         label: BarcodeCameraCopy.allow,
         icon: Icons.photo_camera_outlined,
-        onPressed: _ask,
+        onPressed: () => ref
+            .read(barcodeScannerViewModelProvider.notifier)
+            .requestPermission(),
       ),
       fallbacks: [manual],
     );
   }
 }
-
-

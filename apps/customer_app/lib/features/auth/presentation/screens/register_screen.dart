@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../data/phone_utils.dart';
+import '../../domain/phone_utils.dart';
 import '../controllers/auth_controller.dart';
 
 /// Registration screen for first-time users.

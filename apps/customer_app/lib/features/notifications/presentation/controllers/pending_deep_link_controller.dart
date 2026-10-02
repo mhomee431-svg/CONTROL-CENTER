@@ -50,7 +50,8 @@ class PendingDeepLink {
     final path = json['path']?.toString() ?? '';
     if (path.isEmpty) return null;
     final queuedAt =
-        DateTime.tryParse(json['queued_at']?.toString() ?? '') ?? DateTime.now();
+        DateTime.tryParse(json['queued_at']?.toString() ?? '') ??
+        DateTime.now();
     return PendingDeepLink(
       path: path,
       notificationId: json['notification_id']?.toString() ?? '',
@@ -167,4 +168,3 @@ final pendingDeepLinkControllerProvider =
     NotifierProvider<PendingDeepLinkController, PendingDeepLink?>(
       PendingDeepLinkController.new,
     );
-

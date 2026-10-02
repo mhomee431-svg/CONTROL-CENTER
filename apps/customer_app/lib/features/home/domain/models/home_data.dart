@@ -26,6 +26,25 @@ abstract class Shop with _$Shop {
     required double distance,
     required double rating,
     required bool isVerified,
+
+    /// The backend's opening-hours verdict for this shop.
+    ///
+    /// Nullable on purpose, and the null case is load-bearing: a payload that
+    /// carries no verdict is NOT evidence that the shop is open. The card renders
+    /// nothing for null rather than a reassuring "Open" it cannot back up (see
+    /// [ShopOpenClosedBadge]).
+    bool? isOpenNow,
+
+    /// Whether the shop is taking orders right now. Null = not reported.
+    bool? isAcceptingOrders,
+
+    /// A one-line, context-specific figure for the card: a price range for a shop
+    /// being browsed for a product, an availability count for a restaurant.
+    ///
+    /// Deliberately a preformatted STRING supplied by the caller that actually
+    /// has the context. The card must not invent one, and a shop with no context
+    /// shows no line at all rather than a hollow "N/A".
+    String? contextLabel,
   }) = _Shop;
 
   factory Shop.fromJson(Map<String, dynamic> json) => _$ShopFromJson(json);

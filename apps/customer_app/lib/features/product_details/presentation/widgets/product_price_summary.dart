@@ -69,7 +69,6 @@ class ProductPriceSummary extends StatelessWidget {
   }
 }
 
-
 /// The current price, or an honest "no current price" when nothing is in stock.
 class _PriceLine extends StatelessWidget {
   final double? lowest;
@@ -154,7 +153,10 @@ class _AvailabilityLine extends StatelessWidget {
   /// claim at all — not even a negative one.
   final bool unverified;
 
-  const _AvailabilityLine({required this.inStockCount, this.unverified = false});
+  const _AvailabilityLine({
+    required this.inStockCount,
+    this.unverified = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +168,10 @@ class _AvailabilityLine extends StatelessWidget {
     final unknown = unverified;
 
     final (label, color) = unknown
-        ? ('Availability not confirmed — connect to refresh', AppColors.textMuted)
+        ? (
+            'Availability not confirmed — connect to refresh',
+            AppColors.textMuted,
+          )
         : none
         ? ('Not reported in stock at any nearby shop', AppColors.error)
         : (
@@ -183,14 +188,13 @@ class _AvailabilityLine extends StatelessWidget {
               ? Icons.cancel_outlined
               : Icons.storefront,
           size: 14,
-          color: unknown ? AppColors.textMuted : (none ? AppColors.error : AppColors.secondary),
+          color: unknown
+              ? AppColors.textMuted
+              : (none ? AppColors.error : AppColors.secondary),
         ),
         const SizedBox(width: 4),
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 12, color: color),
-          ),
+          child: Text(label, style: TextStyle(fontSize: 12, color: color)),
         ),
       ],
     );

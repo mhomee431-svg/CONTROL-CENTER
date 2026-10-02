@@ -37,7 +37,7 @@ enum OrderStatus {
   /// throwing. Falling back to the earliest state is a recoverable misreading;
   /// crashing the order list is not. Use [isRecognised] to detect the fallback
   /// and offer a refresh instead of presenting it as a current state.
-  static OrderStatus fromValue(String? value) => EnumCodec<OrderStatus>(
+  static OrderStatus fromValue(String? value) => enumCodec<OrderStatus>(
     value,
     OrderStatus.values,
     OrderStatus.pending,
@@ -66,7 +66,7 @@ enum PaymentStatus {
   const PaymentStatus(this.value);
 
   /// Decodes a backend payment status, never throwing. See [OrderStatus].
-  static PaymentStatus fromValue(String? value) => EnumCodec<PaymentStatus>(
+  static PaymentStatus fromValue(String? value) => enumCodec<PaymentStatus>(
     value,
     PaymentStatus.values,
     PaymentStatus.pending,
@@ -336,19 +336,24 @@ class OrderListResponse {
       // `orders` has also been called `results` on paginated endpoints; the
       // alias keeps one response shape working across both.
       orders: json.has('orders')
-          ? json.objectList('orders').map(Order.fromJson).toList(growable: false)
-          : json.objectList('results').map(Order.fromJson).toList(growable: false),
+          ? json
+                .objectList('orders')
+                .map(Order.fromJson)
+                .toList(growable: false)
+          : json
+                .objectList('results')
+                .map(Order.fromJson)
+                .toList(growable: false),
       total: json.integerOr('total'),
       page: json.integerOr('page'),
       pageSize: json.integerOr('page_size'),
       // A missing `has_next` must not silently claim there is no more: derive it
       // from the page when possible, since a false here hides further orders.
       hasNext: json.booleanOr(
-            'has_next',
-            json.integer('total') != null &&
-                json.objectList('orders').length >=
-                    json.integerOr('page_size'),
-          ),
+        'has_next',
+        json.integer('total') != null &&
+            json.objectList('orders').length >= json.integerOr('page_size'),
+      ),
     );
   }
 }
@@ -380,12 +385,3 @@ class OrderNotFoundException implements Exception {
   @override
   String toString() => 'No order with id $orderId';
 }
-
-int _asInt(Object? value) => value is num ? value.toInt() : 0;
-
-int? _asNullableInt(Object? value) => value == null ? null : _asInt(value);
-
-double _asDouble(Object? value) => value is num ? value.toDouble() : 0;
-
-DateTime? _asDateTime(Object? value) =>
-    value is String ? DateTime.tryParse(value) : null;

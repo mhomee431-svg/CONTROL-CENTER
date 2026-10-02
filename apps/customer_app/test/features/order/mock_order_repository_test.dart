@@ -73,26 +73,28 @@ void main() {
       expect(order.status, OrderStatus.pending);
     });
 
-    test('a discount larger than the basket never yields a negative total',
-        () async {
-      final order = await repo.createOrder(
-        const OrderCreate(
-          shopId: 7,
-          discountAmount: 500,
-          items: [
-            OrderItemCreate(
-              productMasterId: 1,
-              productName: 'Cheap thing',
-              quantity: 1,
-              price: 10,
-            ),
-          ],
-        ),
-      );
+    test(
+      'a discount larger than the basket never yields a negative total',
+      () async {
+        final order = await repo.createOrder(
+          const OrderCreate(
+            shopId: 7,
+            discountAmount: 500,
+            items: [
+              OrderItemCreate(
+                productMasterId: 1,
+                productName: 'Cheap thing',
+                quantity: 1,
+                price: 10,
+              ),
+            ],
+          ),
+        );
 
-      // The backend raises on a negative computed total, so the mock clamps.
-      expect(order.totalAmount, 0);
-    });
+        // The backend raises on a negative computed total, so the mock clamps.
+        expect(order.totalAmount, 0);
+      },
+    );
 
     test('an empty basket is rejected, matching the backend', () async {
       // "Succeeding" here would create a nonsense order in the customer's
@@ -103,7 +105,6 @@ void main() {
       );
     });
   });
-
 
   group('MockOrderRepository status transitions', () {
     test('a legal transition is applied', () async {
@@ -263,10 +264,7 @@ void main() {
       final secondPage = await repo.listOrders(limit: 2, offset: 2);
       // No overlap between pages.
       final firstIds = firstPage.orders.map((o) => o.id).toSet();
-      expect(
-        secondPage.orders.every((o) => !firstIds.contains(o.id)),
-        isTrue,
-      );
+      expect(secondPage.orders.every((o) => !firstIds.contains(o.id)), isTrue);
     });
 
     test('an offset past the end yields an empty page, not an error', () async {
@@ -288,4 +286,3 @@ OrderCreate _basket() => const OrderCreate(
     ),
   ],
 );
-

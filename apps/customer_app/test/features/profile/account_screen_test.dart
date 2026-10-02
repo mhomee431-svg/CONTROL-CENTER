@@ -12,11 +12,14 @@ import 'package:hyperlocal_app/features/profile/domain/profile_repository.dart';
 import 'package:hyperlocal_app/features/profile/presentation/screens/account_screen.dart';
 import 'package:hyperlocal_app/features/saved_and_history/presentation/screens/saved_items_screen.dart';
 
-class _StubAuthController extends AuthController {
+/// Public because [pump]'s named parameter exposes it: a library-private type in
+/// a public signature is a leak, and this stub is genuinely part of the helper's
+/// contract (tests pass their own configured controller).
+class StubAuthController extends AuthController {
   final AuthStatus initialStatus;
   bool logoutCalled = false;
 
-  _StubAuthController(this.initialStatus);
+  StubAuthController(this.initialStatus);
 
   @override
   AuthState build() => AuthState(status: initialStatus);
@@ -54,11 +57,13 @@ GoRouter _router() {
       GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
       GoRoute(
         path: '/profile',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('ProfilePage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('ProfilePage')),
       ),
       GoRoute(
         path: '/profile/addresses',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('AddressesPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
       ),
       GoRoute(
         path: '/saved',
@@ -69,23 +74,28 @@ GoRouter _router() {
       ),
       GoRoute(
         path: '/notifications',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('NotificationsPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('NotificationsPage')),
       ),
       GoRoute(
         path: '/settings',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('SettingsPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('SettingsPage')),
       ),
       GoRoute(
         path: '/help',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('HelpPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('HelpPage')),
       ),
       GoRoute(
         path: '/privacy',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('PrivacyPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('PrivacyPage')),
       ),
       GoRoute(
         path: '/terms',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('TermsPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('TermsPage')),
       ),
     ],
   );
@@ -95,7 +105,7 @@ Future<ProviderContainer> pump(
   WidgetTester tester,
   AuthStatus status, {
   ProfileRepository? profileRepository,
-  _StubAuthController? authOverride,
+  StubAuthController? authOverride,
 }) async {
   // Tall surface so every account row is built and hittable.
   tester.view.physicalSize = const Size(1080, 2400);
@@ -106,7 +116,7 @@ Future<ProviderContainer> pump(
   final container = ProviderContainer(
     overrides: [
       authControllerProvider.overrideWith(
-        () => authOverride ?? _StubAuthController(status),
+        () => authOverride ?? StubAuthController(status),
       ),
       profileRepositoryProvider.overrideWithValue(
         profileRepository ?? MockProfileRepository(delay: Duration.zero),
@@ -152,26 +162,27 @@ void main() {
     expect(find.text('Log out'), findsOneWidget);
   });
 
-  testWidgets('profile, addresses, settings, help, privacy and terms navigate', (
-    tester,
-  ) async {
-    await pump(tester, AuthStatus.authenticated);
+  testWidgets(
+    'profile, addresses, settings, help, privacy and terms navigate',
+    (tester) async {
+      await pump(tester, AuthStatus.authenticated);
 
-    Future<void> expectOpens(String key, String destination) async {
-      await tester.tap(find.byKey(Key(key)));
-      await tester.pumpAndSettle();
-      expect(find.text(destination), findsOneWidget, reason: '$key target');
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-    }
+      Future<void> expectOpens(String key, String destination) async {
+        await tester.tap(find.byKey(Key(key)));
+        await tester.pumpAndSettle();
+        expect(find.text(destination), findsOneWidget, reason: '$key target');
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+      }
 
-    await expectOpens('accountProfileTile', 'ProfilePage');
-    await expectOpens('accountAddressesTile', 'AddressesPage');
-    await expectOpens('accountSettingsTile', 'SettingsPage');
-    await expectOpens('accountHelpTile', 'HelpPage');
-    await expectOpens('accountPrivacyTile', 'PrivacyPage');
-    await expectOpens('accountTermsTile', 'TermsPage');
-  });
+      await expectOpens('accountProfileTile', 'ProfilePage');
+      await expectOpens('accountAddressesTile', 'AddressesPage');
+      await expectOpens('accountSettingsTile', 'SettingsPage');
+      await expectOpens('accountHelpTile', 'HelpPage');
+      await expectOpens('accountPrivacyTile', 'PrivacyPage');
+      await expectOpens('accountTermsTile', 'TermsPage');
+    },
+  );
 
   testWidgets('saved products, shops and history each open their own tab', (
     tester,
@@ -207,12 +218,8 @@ void main() {
   });
 
   testWidgets('logout is confirmed before it runs', (tester) async {
-    final auth = _StubAuthController(AuthStatus.authenticated);
-    await pump(
-      tester,
-      AuthStatus.authenticated,
-      authOverride: auth,
-    );
+    final auth = StubAuthController(AuthStatus.authenticated);
+    await pump(tester, AuthStatus.authenticated, authOverride: auth);
 
     await tester.tap(find.byKey(const Key('accountLogoutTile')));
     await tester.pumpAndSettle();
@@ -256,7 +263,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(
-          () => _StubAuthController(AuthStatus.authenticated),
+          () => StubAuthController(AuthStatus.authenticated),
         ),
         profileRepositoryProvider.overrideWithValue(
           MockProfileRepository(delay: Duration.zero),
@@ -318,4 +325,3 @@ void main() {
     });
   });
 }
-

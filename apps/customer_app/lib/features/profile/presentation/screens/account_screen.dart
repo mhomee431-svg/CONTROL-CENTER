@@ -49,7 +49,7 @@ class AccountScreen extends ConsumerWidget {
           const _AccountSummaryCard(),
           const SizedBox(height: AppSpacing.lg),
 
-          _SectionLabel('Account'),
+          const _SectionLabel('Account'),
           _AccountTile(
             key: const Key('accountProfileTile'),
             icon: Icons.person_outline,
@@ -86,7 +86,7 @@ class AccountScreen extends ConsumerWidget {
             onTap: () => context.push('/profile/addresses'),
           ),
 
-          _SectionLabel('Preferences'),
+          const _SectionLabel('Preferences'),
           _AccountTile(
             key: const Key('accountNotificationsTile'),
             icon: Icons.notifications_outlined,
@@ -105,7 +105,7 @@ class AccountScreen extends ConsumerWidget {
             onTap: () => context.push('/settings'),
           ),
 
-          _SectionLabel('Support & Legal'),
+          const _SectionLabel('Support & Legal'),
           _AccountTile(
             key: const Key('accountHelpTile'),
             icon: Icons.help_outline,
@@ -160,9 +160,10 @@ class _AccountSummaryCard extends ConsumerWidget {
     };
     final subtitle = switch (profile) {
       final UserProfile p when p.phoneNumber.trim().isNotEmpty => p.phoneNumber,
-      _ => isGuest
-          ? 'Sign in to sync across devices'
-          : 'Tap Profile to see your details',
+      _ =>
+        isGuest
+            ? 'Sign in to sync across devices'
+            : 'Tap Profile to see your details',
     };
     final avatarUrl = profile?.avatarUrl;
 

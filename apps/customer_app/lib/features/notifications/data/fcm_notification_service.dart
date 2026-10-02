@@ -149,9 +149,7 @@ class FcmNotificationService implements PushNotificationService {
     // page. It is surfaced as an in-app banner/snackbar/dialog instead.
     if (onForeground != null) {
       _foregroundSub = FirebaseMessaging.onMessage.listen((message) {
-        SafeLogger.debug(
-          'FCM foreground message ${message.messageId ?? ''}',
-        );
+        SafeLogger.debug('FCM foreground message ${message.messageId ?? ''}');
         onForeground(_messageData(message));
       });
     }

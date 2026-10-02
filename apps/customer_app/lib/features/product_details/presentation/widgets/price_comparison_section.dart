@@ -282,4 +282,3 @@ class _ComparisonRow extends StatelessWidget {
     );
   }
 }
-

@@ -1,4 +1,4 @@
-a"""Customer support tickets — the shopper-facing half of the complaints queue.
+"""Customer support tickets — the shopper-facing half of the complaints queue.
 
 The customer app's *Report an issue* / *Contact us* screens previously had
 NOWHERE to send a report: the only intake route was
@@ -50,26 +50,36 @@ ISSUES_PATH = f"{settings.API_PREFIX}/support/issues"
 
 
 # ── Taxonomy ──────────────────────────────────────────────────────────────
+#
+# Module level, NOT a class attribute: `@pytest.mark.parametrize` is a
+# decorator, and decorators are evaluated in the class body — where neither
+# `self` nor the class name is bound yet, so a class attribute is invisible
+# there. Only module globals resolve at that point. The class keeps an alias
+# below so `self.CUSTOMER_CODES` still reads naturally inside the test methods.
+#
+# The exact codes the Flutter `SupportIssueCategory` enum sends. Pinned so a
+# rename on either side fails a test instead of silently storing free text.
+CUSTOMER_CODES = {
+    "CUST_WRONG_PRICE",
+    "CUST_AVAILABILITY",
+    "CUST_WRONG_PRODUCT",
+    "CUST_SHOP_ISSUE",
+    "CUST_APP_BUG",
+    "CUST_ACCOUNT",
+    "CUST_PRIVACY",
+    "CUST_OTHER",
+}
+
+
 class TestCustomerTaxonomy:
     """A shopper's ticket must land in a queue the support team can filter."""
 
-    # The exact codes the Flutter `SupportIssueCategory` enum sends. Pinned so
-    # a rename on either side fails a test instead of silently storing free text.
-    CUSTOMER_CODES = {
-        "CUST_WRONG_PRICE",
-        "CUST_AVAILABILITY",
-        "CUST_WRONG_PRODUCT",
-        "CUST_SHOP_ISSUE",
-        "CUST_APP_BUG",
-        "CUST_ACCOUNT",
-        "CUST_PRIVACY",
-        "CUST_OTHER",
-    }
+    CUSTOMER_CODES = CUSTOMER_CODES
 
     def test_customer_codes_match_the_client_contract(self):
         assert set(support_service.CUSTOMER_CATEGORIES) == self.CUSTOMER_CODES
 
-    @pytest.mark.parametrize("code", sorted(self.CUSTOMER_CODES))
+    @pytest.mark.parametrize("code", sorted(CUSTOMER_CODES))
     def test_every_customer_code_is_accepted(self, code):
         assert (
             support_service.normalize_category(

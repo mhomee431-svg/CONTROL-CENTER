@@ -229,9 +229,6 @@ class PriceRange {
       'PriceRange: unrecognised fields ${map.unknownKeys(_priceRangeKeys)}',
     );
 
-    return PriceRange(
-      min: map.decimalOr('min'),
-      max: map.decimalOr('max'),
-    );
+    return PriceRange(min: map.decimalOr('min'), max: map.decimalOr('max'));
   }
 }

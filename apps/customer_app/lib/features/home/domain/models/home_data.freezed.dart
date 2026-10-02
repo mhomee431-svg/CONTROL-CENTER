@@ -291,7 +291,20 @@ as String,
 /// @nodoc
 mixin _$Shop {
 
- String get id; String get name; String get imageUrl; double get distance; double get rating; bool get isVerified;
+ String get id; String get name; String get imageUrl; double get distance; double get rating; bool get isVerified;/// The backend's opening-hours verdict for this shop.
+///
+/// Nullable on purpose, and the null case is load-bearing: a payload that
+/// carries no verdict is NOT evidence that the shop is open. The card renders
+/// nothing for null rather than a reassuring "Open" it cannot back up (see
+/// [ShopOpenClosedBadge]).
+ bool? get isOpenNow;/// Whether the shop is taking orders right now. Null = not reported.
+ bool? get isAcceptingOrders;/// A one-line, context-specific figure for the card: a price range for a shop
+/// being browsed for a product, an availability count for a restaurant.
+///
+/// Deliberately a preformatted STRING supplied by the caller that actually
+/// has the context. The card must not invent one, and a shop with no context
+/// shows no line at all rather than a hollow "N/A".
+ String? get contextLabel;
 /// Create a copy of Shop
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -304,16 +317,16 @@ $ShopCopyWith<Shop> get copyWith => _$ShopCopyWithImpl<Shop>(this as Shop, _$ide
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Shop&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Shop&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.isAcceptingOrders, isAcceptingOrders) || other.isAcceptingOrders == isAcceptingOrders)&&(identical(other.contextLabel, contextLabel) || other.contextLabel == contextLabel));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,imageUrl,distance,rating,isVerified);
+int get hashCode => Object.hash(runtimeType,id,name,imageUrl,distance,rating,isVerified,isOpenNow,isAcceptingOrders,contextLabel);
 
 @override
 String toString() {
-  return 'Shop(id: $id, name: $name, imageUrl: $imageUrl, distance: $distance, rating: $rating, isVerified: $isVerified)';
+  return 'Shop(id: $id, name: $name, imageUrl: $imageUrl, distance: $distance, rating: $rating, isVerified: $isVerified, isOpenNow: $isOpenNow, isAcceptingOrders: $isAcceptingOrders, contextLabel: $contextLabel)';
 }
 
 
@@ -324,7 +337,7 @@ abstract mixin class $ShopCopyWith<$Res>  {
   factory $ShopCopyWith(Shop value, $Res Function(Shop) _then) = _$ShopCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, String imageUrl, double distance, double rating, bool isVerified
+ String id, String name, String imageUrl, double distance, double rating, bool isVerified, bool? isOpenNow, bool? isAcceptingOrders, String? contextLabel
 });
 
 
@@ -341,7 +354,7 @@ class _$ShopCopyWithImpl<$Res>
 
 /// Create a copy of Shop
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? distance = null,Object? rating = null,Object? isVerified = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? distance = null,Object? rating = null,Object? isVerified = null,Object? isOpenNow = freezed,Object? isAcceptingOrders = freezed,Object? contextLabel = freezed,}) {
   return _then(Shop(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -349,7 +362,10 @@ as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast
 as String,distance: null == distance ? _self.distance : distance // ignore: cast_nullable_to_non_nullable
 as double,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double,isVerified: null == isVerified ? _self.isVerified : isVerified // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,isOpenNow: freezed == isOpenNow ? _self.isOpenNow : isOpenNow // ignore: cast_nullable_to_non_nullable
+as bool?,isAcceptingOrders: freezed == isAcceptingOrders ? _self.isAcceptingOrders : isAcceptingOrders // ignore: cast_nullable_to_non_nullable
+as bool?,contextLabel: freezed == contextLabel ? _self.contextLabel : contextLabel // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -434,10 +450,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double distance,  double rating,  bool isVerified)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double distance,  double rating,  bool isVerified,  bool? isOpenNow,  bool? isAcceptingOrders,  String? contextLabel)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Shop() when $default != null:
-return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_that.isVerified);case _:
+return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_that.isVerified,_that.isOpenNow,_that.isAcceptingOrders,_that.contextLabel);case _:
   return orElse();
 
 }
@@ -455,10 +471,10 @@ return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double distance,  double rating,  bool isVerified)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String imageUrl,  double distance,  double rating,  bool isVerified,  bool? isOpenNow,  bool? isAcceptingOrders,  String? contextLabel)  $default,) {final _that = this;
 switch (_that) {
 case _Shop():
-return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_that.isVerified);case _:
+return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_that.isVerified,_that.isOpenNow,_that.isAcceptingOrders,_that.contextLabel);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -475,10 +491,10 @@ return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String imageUrl,  double distance,  double rating,  bool isVerified)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String imageUrl,  double distance,  double rating,  bool isVerified,  bool? isOpenNow,  bool? isAcceptingOrders,  String? contextLabel)?  $default,) {final _that = this;
 switch (_that) {
 case _Shop() when $default != null:
-return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_that.isVerified);case _:
+return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_that.isVerified,_that.isOpenNow,_that.isAcceptingOrders,_that.contextLabel);case _:
   return null;
 
 }
@@ -490,7 +506,7 @@ return $default(_that.id,_that.name,_that.imageUrl,_that.distance,_that.rating,_
 @JsonSerializable()
 
 class _Shop implements Shop {
-  const _Shop({required this.id, required this.name, required this.imageUrl, required this.distance, required this.rating, required this.isVerified});
+  const _Shop({required this.id, required this.name, required this.imageUrl, required this.distance, required this.rating, required this.isVerified, this.isOpenNow, this.isAcceptingOrders, this.contextLabel});
   factory _Shop.fromJson(Map<String, dynamic> json) => _$ShopFromJson(json);
 
 @override final  String id;
@@ -499,6 +515,22 @@ class _Shop implements Shop {
 @override final  double distance;
 @override final  double rating;
 @override final  bool isVerified;
+/// The backend's opening-hours verdict for this shop.
+///
+/// Nullable on purpose, and the null case is load-bearing: a payload that
+/// carries no verdict is NOT evidence that the shop is open. The card renders
+/// nothing for null rather than a reassuring "Open" it cannot back up (see
+/// [ShopOpenClosedBadge]).
+@override final  bool? isOpenNow;
+/// Whether the shop is taking orders right now. Null = not reported.
+@override final  bool? isAcceptingOrders;
+/// A one-line, context-specific figure for the card: a price range for a shop
+/// being browsed for a product, an availability count for a restaurant.
+///
+/// Deliberately a preformatted STRING supplied by the caller that actually
+/// has the context. The card must not invent one, and a shop with no context
+/// shows no line at all rather than a hollow "N/A".
+@override final  String? contextLabel;
 
 /// Create a copy of Shop
 /// with the given fields replaced by the non-null parameter values.
@@ -513,16 +545,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Shop&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Shop&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.isAcceptingOrders, isAcceptingOrders) || other.isAcceptingOrders == isAcceptingOrders)&&(identical(other.contextLabel, contextLabel) || other.contextLabel == contextLabel));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,imageUrl,distance,rating,isVerified);
+int get hashCode => Object.hash(runtimeType,id,name,imageUrl,distance,rating,isVerified,isOpenNow,isAcceptingOrders,contextLabel);
 
 @override
 String toString() {
-  return 'Shop(id: $id, name: $name, imageUrl: $imageUrl, distance: $distance, rating: $rating, isVerified: $isVerified)';
+  return 'Shop(id: $id, name: $name, imageUrl: $imageUrl, distance: $distance, rating: $rating, isVerified: $isVerified, isOpenNow: $isOpenNow, isAcceptingOrders: $isAcceptingOrders, contextLabel: $contextLabel)';
 }
 
 
@@ -533,7 +565,7 @@ abstract mixin class _$ShopCopyWith<$Res> implements $ShopCopyWith<$Res> {
   factory _$ShopCopyWith(_Shop value, $Res Function(_Shop) _then) = __$ShopCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, String imageUrl, double distance, double rating, bool isVerified
+ String id, String name, String imageUrl, double distance, double rating, bool isVerified, bool? isOpenNow, bool? isAcceptingOrders, String? contextLabel
 });
 
 
@@ -550,7 +582,7 @@ class __$ShopCopyWithImpl<$Res>
 
 /// Create a copy of Shop
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? distance = null,Object? rating = null,Object? isVerified = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? imageUrl = null,Object? distance = null,Object? rating = null,Object? isVerified = null,Object? isOpenNow = freezed,Object? isAcceptingOrders = freezed,Object? contextLabel = freezed,}) {
   return _then(_Shop(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -558,7 +590,10 @@ as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast
 as String,distance: null == distance ? _self.distance : distance // ignore: cast_nullable_to_non_nullable
 as double,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double,isVerified: null == isVerified ? _self.isVerified : isVerified // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,isOpenNow: freezed == isOpenNow ? _self.isOpenNow : isOpenNow // ignore: cast_nullable_to_non_nullable
+as bool?,isAcceptingOrders: freezed == isAcceptingOrders ? _self.isAcceptingOrders : isAcceptingOrders // ignore: cast_nullable_to_non_nullable
+as bool?,contextLabel: freezed == contextLabel ? _self.contextLabel : contextLabel // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

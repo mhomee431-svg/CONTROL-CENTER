@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../../../notifications/presentation/controllers/notification_preferences_controller.dart';
 import '../../../settings/presentation/controllers/settings_controller.dart';
 
 /// Privacy & data centre.
@@ -149,10 +148,7 @@ class PrivacyScreen extends ConsumerWidget {
           else ...[
             ListTile(
               key: const Key('privacyDeleteAccountTile'),
-              leading: const Icon(
-                Icons.delete_forever,
-                color: AppColors.error,
-              ),
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
               title: const Text(
                 'Delete account',
                 style: TextStyle(color: AppColors.error),
@@ -160,10 +156,7 @@ class PrivacyScreen extends ConsumerWidget {
               subtitle: const Text(
                 'Permanently remove your account and synced data',
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: AppColors.error,
-              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.error),
               onTap: () => context.push('/delete-account'),
             ),
             const _PrivacyCard(

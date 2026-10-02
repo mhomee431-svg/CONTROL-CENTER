@@ -47,10 +47,17 @@ class ApiSearchRepository implements SearchRepository {
     String barcode, {
     double? latitude,
     double? longitude,
+    int page = 1,
+    int limit = 20,
   }) async {
     final data = await _apiClient.get(
       ApiEndpoints.searchBarcode(Uri.encodeComponent(barcode.trim())),
-      queryParameters: {'latitude': ?latitude, 'longitude': ?longitude},
+      queryParameters: {
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+        'page': page,
+        'limit': limit,
+      },
       requiresAuth: false,
     );
 
@@ -103,7 +110,7 @@ class ApiSearchRepository implements SearchRepository {
 
   /// Availability for the barcode hit, which reports `stock_status` directly.
   static InventoryAvailability _availabilityFrom(JsonMap json) =>
-      EnumCodec<InventoryAvailability>(
+      enumCodec<InventoryAvailability>(
         json.firstOf(['stock_status', 'availability']),
         InventoryAvailability.values,
         InventoryAvailability.unknown,
@@ -185,10 +192,7 @@ class ApiSearchRepository implements SearchRepository {
     final root = JsonMap.tryParse(data);
     if (root.has('results')) {
       // A malformed row costs that row, not the whole results page.
-      return root
-          .objectList('results')
-          .map(_mapResult)
-          .toList(growable: false);
+      return root.objectList('results').map(_mapResult).toList(growable: false);
     }
     return const [];
   }
@@ -250,7 +254,7 @@ class ApiSearchRepository implements SearchRepository {
       'stock_status',
       'availability_status',
     ]);
-    final parsed = EnumCodec<InventoryAvailability>(
+    final parsed = enumCodec<InventoryAvailability>(
       raw,
       InventoryAvailability.values,
       InventoryAvailability.unknown,
@@ -285,7 +289,7 @@ class ApiSearchRepository implements SearchRepository {
   /// [FreshnessLevel.unknown] rather than throwing, so one new value cannot
   /// take down the results list.
   static FreshnessLevel _parseFreshnessStatus(JsonMap json) =>
-      EnumCodec<FreshnessLevel>(
+      enumCodec<FreshnessLevel>(
         json.string('freshness_status'),
         FreshnessLevel.values,
         FreshnessLevel.unknown,

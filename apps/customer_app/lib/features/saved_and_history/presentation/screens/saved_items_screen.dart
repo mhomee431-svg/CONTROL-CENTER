@@ -55,9 +55,11 @@ class SavedItemsScreen extends ConsumerWidget {
       initialIndex: initialTab.tabIndex,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(initialTab == SavedItemsTab.products
-              ? 'Saved & History'
-              : initialTab.title),
+          title: Text(
+            initialTab == SavedItemsTab.products
+                ? 'Saved & History'
+                : initialTab.title,
+          ),
           bottom: const TabBar(
             isScrollable: true,
             tabs: [

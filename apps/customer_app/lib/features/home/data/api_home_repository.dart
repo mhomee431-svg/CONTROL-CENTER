@@ -2,6 +2,7 @@ import '../../../core/cache/local_cache_service.dart';
 import '../../../core/catalog/approved_categories.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/json_map.dart';
 import '../domain/home_repository.dart';
 import '../domain/models/home_data.dart';
 
@@ -44,44 +45,53 @@ class ApiHomeRepository implements HomeRepository {
   }
 
   @override
-  Future<List<Shop>> fetchShopsByPincode(String pincode) async {
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async {
     final data = await _apiClient.get(
       ApiEndpoints.nearbyShops,
-      queryParameters: {'pincode': pincode},
+      queryParameters: {'pincode': pincode, 'page': page, 'limit': limit},
       requiresAuth: false,
     );
 
     if (data is Map<String, dynamic> && data['shops'] is List) {
-      return (data['shops'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map(Shop.fromJson)
+      final shops = (data['shops'] as List)
+          .map(_shopFromJson)
           .toList(growable: false);
+      // A short page means the backend ran out, which is the only reliable
+      // end-of-list signal when the response carries no total count.
+      return ShopsByPinPage(shops: shops, hasMore: shops.length >= limit);
     }
-    return const [];
+    // No rows at all: an empty page is also the end of the list.
+    return ShopsByPinPage.empty;
   }
 
   HomeData _parseHomeData(Map<String, dynamic> data) {
     List<Product> parseProducts(String key) =>
-        (data[key] as List<dynamic>? ?? [])
-            .map((e) => Product.fromJson(e as Map<String, dynamic>))
-            .toList();
+        (data[key] as List<dynamic>? ?? []).map(_productFromJson).toList();
 
     List<Promotion> parsePromotions(String key) =>
-        (data[key] as List<dynamic>? ?? [])
-            .map((e) => Promotion.fromJson(e as Map<String, dynamic>))
-            .toList();
+        (data[key] as List<dynamic>? ?? []).map(_promotionFromJson).toList();
 
+    // Visibility is the backend's call (`is_active` on `/home/feed`). The only
+    // thing the client still filters is the one rule the database cannot
+    // express — grocery and restaurants are not product-discovery categories —
+    // and that is a deny-list, so a newly published category appears here
+    // immediately instead of needing an app release.
     final categories = (data['categories'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(Category.fromJson)
-        .where((category) => ApprovedCategories.isApproved(category.name))
+        .map(_categoryFromJson)
+        .where(
+          (category) => ApprovedCategories.isProductBrowsable(category.name),
+        )
         .toList(growable: false);
 
     return HomeData(
       categories: categories,
       popularProducts: parseProducts('popular_products'),
       nearbyShops: (data['nearby_shops'] as List<dynamic>? ?? [])
-          .map((e) => Shop.fromJson(e as Map<String, dynamic>))
+          .map(_shopFromJson)
           .toList(),
       recentSearches: (data['recent_searches'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
@@ -89,6 +99,70 @@ class ApiHomeRepository implements HomeRepository {
       recentlyViewed: parseProducts('recently_viewed'),
       recommendedProducts: parseProducts('recommended_products'),
       promotions: parsePromotions('promotions'),
+    );
+  }
+
+  // ── Tolerant field readers ──────────────────────────────────────────────
+  //
+  // These read the WIRE format directly rather than delegating to the models'
+  // generated `fromJson`, for one concrete reason: the backend sends snake_case
+  // (`image_url`, `price_range`, `is_verified`, `is_open_now`) while
+  // json_serializable generates camelCase lookups, so the generated parsers
+  // throw a TypeError on a real payload — taking out the whole Home screen,
+  // Nearby Shops included. Both spellings are accepted here, so a cached
+  // camelCase payload and a live snake_case one both parse.
+  //
+  // Every reader is total: missing or wrong-typed fields degrade to a default
+  // instead of throwing, because one malformed shop must not empty the row.
+
+  Shop _shopFromJson(Object? raw) {
+    final json = JsonMap.tryParse(raw);
+    return Shop(
+      id: json.stringOr('id'),
+      name: json.stringOr('name'),
+      imageUrl: json.stringOr('image_url', json.stringOr('imageUrl')),
+      distance: json.firstDecimalOf(['distance', 'distance_km']) ?? 0,
+      rating: json.firstDecimalOf(['rating', 'average_rating']) ?? 0,
+      isVerified: json.firstBooleanOf(['is_verified', 'isVerified']) ?? false,
+      // NOT defaulted: an absent verdict must stay absent so the card renders no
+      // badge instead of claiming the shop is open.
+      isOpenNow: json.firstBooleanOf(['is_open_now', 'isOpenNow']),
+      isAcceptingOrders: json.firstBooleanOf([
+        'is_accepting_orders',
+        'isAcceptingOrders',
+      ]),
+    );
+  }
+
+  Product _productFromJson(Object? raw) {
+    final json = JsonMap.tryParse(raw);
+    return Product(
+      id: json.stringOr('id'),
+      name: json.stringOr('name'),
+      brand: json.stringOr('brand'),
+      imageUrl: json.stringOr('image_url', json.stringOr('imageUrl')),
+      priceRange: json.stringOr('price_range', json.stringOr('priceRange')),
+    );
+  }
+
+  Category _categoryFromJson(Object? raw) {
+    final json = JsonMap.tryParse(raw);
+    return Category(
+      id: json.stringOr('id'),
+      name: json.stringOr('name'),
+      iconUrl: json.stringOr('icon_url', json.stringOr('iconUrl')),
+    );
+  }
+
+  Promotion _promotionFromJson(Object? raw) {
+    final json = JsonMap.tryParse(raw);
+    return Promotion(
+      id: json.stringOr('id'),
+      title: json.stringOr('title'),
+      subtitle: json.stringOr('subtitle'),
+      imageUrl: json.stringOr('image_url', json.stringOr('imageUrl')),
+      ctaLabel: json.firstOf(['cta_label', 'ctaLabel']),
+      ctaTarget: json.firstOf(['cta_target', 'ctaTarget']),
     );
   }
 }

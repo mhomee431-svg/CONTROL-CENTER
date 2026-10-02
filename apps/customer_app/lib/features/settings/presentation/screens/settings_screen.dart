@@ -6,7 +6,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/domain/auth_service.dart' show authAppVersion;
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/controllers/notification_preferences_controller.dart';
-import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../saved_and_history/domain/saved_and_history_repository.dart';
 import '../../../saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
 import '../controllers/settings_controller.dart';
@@ -252,7 +251,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             key: const Key('settingsAboutTile'),
             leading: const Icon(Icons.info_outline),
             title: const Text('About'),
-            subtitle: Text('Version $authAppVersion'),
+            subtitle: const Text('Version $authAppVersion'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/about'),
           ),
@@ -278,10 +277,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const _SectionHeader('Danger zone'),
             ListTile(
               key: const Key('deleteAccountTile'),
-              leading: const Icon(
-                Icons.delete_forever,
-                color: AppColors.error,
-              ),
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
               title: const Text(
                 'Delete account',
                 style: TextStyle(color: AppColors.error),
@@ -289,10 +285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: const Text(
                 'Permanently remove your account and synced data',
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: AppColors.error,
-              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.error),
               // The full flow lives on its own screen: impact, confirmation,
               // the real backend call, then session teardown.
               onTap: () => context.push('/delete-account'),
@@ -482,7 +475,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetRef ref,
     bool isGuest,
   ) async {
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

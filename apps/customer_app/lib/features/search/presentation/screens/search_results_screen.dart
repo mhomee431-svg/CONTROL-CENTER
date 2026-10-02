@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/product_share.dart';
+import '../../../../core/share/share_content.dart';
 import '../../domain/search_state.dart';
 import '../controllers/search_controller.dart';
 import '../widgets/search_filter_sort_bar.dart';
@@ -164,7 +165,13 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
         header,
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async => controller.updateSort(state.sort),
+            // `controller.refresh()`, not a re-apply of the current sort. The
+            // old callback passed `state.sort` back into `updateSort`, which
+            // returns early when the sort is unchanged -- and it always was --
+            // so pulling to refresh refreshed nothing while the spinner spun
+            // over stale rows. `refresh` re-runs the search itself and keeps
+            // the customer's sort and filters.
+            onRefresh: controller.refresh,
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -181,16 +188,21 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
                   result: result,
                   onTap: () => context.push('/product/${result.productId}'),
                   onShopTap: () => context.push('/shop/${result.shopId}'),
-                  onShare: () => shareProduct(
-                    context,
-                    productName: result.productName,
-                    price: result.price,
-                    mrp: result.mrp,
-                    discountPercent: result.discountPercent,
-                    shopName: result.shopName,
-                    distanceInKm: result.distanceInKm,
-                    variant: result.variant,
-                    brand: result.brand,
+                  onShare: () => shareProductContent(
+                    ref,
+                    buildProductShareContent(
+                      productName: result.productName,
+                      price: result.price,
+                      mrp: result.mrp,
+                      discountPercent: result.discountPercent,
+                      shopName: result.shopName,
+                      distanceInKm: result.distanceInKm,
+                      variant: result.variant,
+                      brand: result.brand,
+                      // The card knows the product's id, so the share can carry
+                      // a deep link -- but only into the URL, never the prose.
+                      productId: result.productId,
+                    ),
                   ),
                 );
               },

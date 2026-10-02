@@ -132,8 +132,10 @@ class _BarcodeResults extends ConsumerWidget {
         // is the phone's connection (fixable by the customer right now), the
         // second is ours. The message always comes from `friendlyErrorMessage`
         // — raw exception text never reaches the sheet.
-        final isOffline = err is ApiException &&
-            (err.type == ApiErrorType.offline || err.type == ApiErrorType.timeout);
+        final isOffline =
+            err is ApiException &&
+            (err.type == ApiErrorType.offline ||
+                err.type == ApiErrorType.timeout);
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           child: Column(
@@ -142,7 +144,7 @@ class _BarcodeResults extends ConsumerWidget {
               Text(
                 isOffline
                     ? 'You appear to be offline. Reconnect and try again, or fix '
-                        'a possible typo below.'
+                          'a possible typo below.'
                     : friendlyErrorMessage(err),
                 style: const TextStyle(color: AppColors.textMuted),
               ),

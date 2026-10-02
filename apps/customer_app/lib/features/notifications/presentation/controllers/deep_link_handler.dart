@@ -47,6 +47,12 @@ class DeepLinkResolution {
 /// Kept free of BuildContext so it is fully unit-testable. Unknown or
 /// expired targets never produce a route — they degrade to
 /// [DeepLinkAction.unavailable] so the UI can respond safely.
+///
+/// This maps a *payload* to a path. It performs no entity, availability or
+/// auth checks: those live in `core/router/deep_link_guard.dart`, which is the
+/// single place that decides whether a link may be opened. Keeping the two
+/// apart means the notification path and an externally-opened URL are judged
+/// by identical rules instead of drifting apart.
 DeepLinkResolution resolveNotificationDeepLink(AppNotification notification) {
   final link = notification.deepLink;
   if (link.targetType == DeepLinkTargetType.none) {
@@ -64,10 +70,10 @@ DeepLinkResolution resolveNotificationDeepLink(AppNotification notification) {
     case DeepLinkTargetType.shop:
       return DeepLinkResolution.navigate('/shop/${link.targetId}');
     case DeepLinkTargetType.offer:
-      // No offer detail screen exists yet — never crash, explain instead.
-      return const DeepLinkResolution.unavailable(
-        'Offers are coming soon. This one can\'t be opened yet.',
-      );
+      // The route is registered so a link can never 404, but there is no offer
+      // screen in this build: navigate to the graceful "unavailable" state
+      // rather than pretending the offer opened.
+      return const DeepLinkResolution.navigate('/offer/unavailable');
     case DeepLinkTargetType.none:
       return DeepLinkResolution.none;
   }

@@ -37,6 +37,10 @@ _SavedShopItem _$SavedShopItemFromJson(Map<String, dynamic> json) =>
       rating: (json['rating'] as num).toDouble(),
       savedAt: DateTime.parse(json['savedAt'] as String),
       isSynced: json['isSynced'] as bool? ?? false,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      isVerified: json['isVerified'] as bool? ?? false,
+      isOpenNow: json['isOpenNow'] as bool?,
+      isAcceptingOrders: json['isAcceptingOrders'] as bool?,
     );
 
 Map<String, dynamic> _$SavedShopItemToJson(_SavedShopItem instance) =>
@@ -48,6 +52,10 @@ Map<String, dynamic> _$SavedShopItemToJson(_SavedShopItem instance) =>
       'rating': instance.rating,
       'savedAt': instance.savedAt.toIso8601String(),
       'isSynced': instance.isSynced,
+      'distanceKm': instance.distanceKm,
+      'isVerified': instance.isVerified,
+      'isOpenNow': instance.isOpenNow,
+      'isAcceptingOrders': instance.isAcceptingOrders,
     };
 
 _RecentlyViewedItem _$RecentlyViewedItemFromJson(Map<String, dynamic> json) =>

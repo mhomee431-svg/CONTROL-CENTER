@@ -219,7 +219,6 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,

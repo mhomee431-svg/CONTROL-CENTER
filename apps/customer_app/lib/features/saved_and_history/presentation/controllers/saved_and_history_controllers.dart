@@ -1,7 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/storage_models.dart';
 import '../../domain/saved_and_history_repository.dart';
+
+final recentSearchesNotifierProvider =
+    AsyncNotifierProvider<RecentSearchesNotifier, List<RecentSearchItem>>(
+      RecentSearchesNotifier.new,
+    );
 
 // --- SAVED PRODUCTS NOTIFIER ---
 final savedProductsNotifierProvider =
@@ -70,15 +76,48 @@ class SavedShopsNotifier extends AsyncNotifier<List<SavedShopItem>> {
 }
 
 // --- RECENT SEARCHES NOTIFIER ---
-final recentSearchesNotifierProvider =
-    AsyncNotifierProvider<RecentSearchesNotifier, List<RecentSearchItem>>(
-      RecentSearchesNotifier.new,
-    );
 
+/// SINGLE SOURCE OF TRUTH for recent searches.
+///
+/// This notifier owns the list. The search feature's `recentSearchesProvider`
+/// is a `select`-style PROJECTION of this state, not a second copy, so the
+/// search screen and the Saved & History tab cannot disagree.
+///
+/// ## Why the legacy migration lives here
+///
+/// Search history used to be stored in SharedPreferences under
+/// `search_history_v1` while this feature stored it in the repository. The
+/// migration is kept here, next to the one place that now owns the data, so
+/// upgrading users keep their history and nobody has to remember to call a
+/// migration from a second feature.
 class RecentSearchesNotifier extends AsyncNotifier<List<RecentSearchItem>> {
+  /// The pre-repository key, migrated once on first load.
+  static const String _legacyPrefsKey = 'search_history_v1';
+
   @override
   Future<List<RecentSearchItem>> build() async {
-    return ref.watch(savedAndHistoryRepositoryProvider).getRecentSearches();
+    final repo = ref.watch(savedAndHistoryRepositoryProvider);
+    await _migrateLegacyHistory(repo);
+    return repo.getRecentSearches();
+  }
+
+  /// Copies any history written by the old SharedPreferences-based store into
+  /// the repository, then removes the old key so it cannot be applied twice.
+  ///
+  /// Best-effort by design: a migration failure must never stop the customer
+  /// from seeing their history, so every error is swallowed.
+  Future<void> _migrateLegacyHistory(SavedAndHistoryRepository repo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getStringList(_legacyPrefsKey);
+      if (legacy == null || legacy.isEmpty) return;
+      for (final query in legacy) {
+        await repo.addRecentSearch(query);
+      }
+      await prefs.remove(_legacyPrefsKey);
+    } catch (_) {
+      // Never block loading history on a migration problem.
+    }
   }
 
   Future<void> addQuery(String query) async {

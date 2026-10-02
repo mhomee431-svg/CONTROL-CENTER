@@ -75,8 +75,9 @@ class PermissionPromptView extends StatelessWidget {
               child: Text(
                 title,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -116,8 +117,9 @@ class PermissionPromptView extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 bullet,
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(height: 1.4),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  height: 1.4,
+                                ),
                               ),
                             ),
                           ],

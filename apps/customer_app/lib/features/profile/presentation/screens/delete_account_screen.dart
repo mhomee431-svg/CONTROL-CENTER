@@ -6,10 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/storage/local_storage_driver.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../auth/data/phone_auth_service.dart';
-import '../../../auth/domain/auth_repository.dart' show phoneAuthServiceProvider;
+import '../../../auth/domain/auth_repository.dart'
+    show phoneAuthServiceProvider;
 import '../../../auth/domain/auth_service.dart' show authServiceProvider;
-import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/controllers/in_app_notification_controller.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../domain/profile_repository.dart';
@@ -185,10 +184,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            _error!,
-            style: const TextStyle(color: AppColors.error),
-          ),
+          Text(_error!, style: const TextStyle(color: AppColors.error)),
         ],
         const SizedBox(height: AppSpacing.lg),
         ElevatedButton(
@@ -409,6 +405,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     });
   }
 }
+
 /// Plain-language list of what is lost, shown before confirmation.
 class _ImpactList extends StatelessWidget {
   const _ImpactList();

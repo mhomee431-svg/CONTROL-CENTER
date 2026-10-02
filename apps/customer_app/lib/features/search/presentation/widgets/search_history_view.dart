@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/search_event_tracker.dart';
+import '../../../saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
 import '../controllers/search_controller.dart';
 
 /// Displays recent and popular searches when the query is empty (idle state).
@@ -17,7 +18,9 @@ class SearchHistoryView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final recentAsync = ref.watch(recentSearchesProvider);
+    // Synchronous projection of the owning notifier: one list, one source of
+    // truth. There is no AsyncValue to branch on for recent searches.
+    final recent = ref.watch(recentSearchesProvider);
     final popularAsync = ref.watch(popularSearchesProvider);
 
     return ListView(
@@ -27,47 +30,39 @@ class SearchHistoryView extends ConsumerWidget {
           title: 'Recent Searches',
           trailing: TextButton(
             onPressed: () async {
-              await ref.read(searchHistoryStoreProvider).clear();
-              ref.read(recentSearchesVersionProvider.notifier).bump();
+              // Writes go through the single owner, so the search screen and the
+              // Saved & History tab cannot disagree about what was cleared.
+              await ref
+                  .read(recentSearchesNotifierProvider.notifier)
+                  .clearAll();
             },
             child: const Text('Clear'),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        recentAsync.when(
-          data: (recent) => recent.isEmpty
-              ? const Text(
-                  'No recent searches yet',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                )
-              : Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: recent
-                      .map(
-                        (search) => _SearchChip(
-                          label: search,
-                          icon: Icons.history,
-                          onTap: () => _select(ref, context, search),
-                          onDelete: () async {
-                            // Clear just this entry, then re-render the list.
-                            await ref
-                                .read(searchHistoryStoreProvider)
-                                .remove(search);
-                            ref
-                                .read(recentSearchesVersionProvider.notifier)
-                                .bump();
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-          loading: () => const LinearProgressIndicator(),
-          error: (err, stack) => Text(
-            friendlyErrorMessage(err),
-            style: const TextStyle(color: AppColors.textMuted),
-          ),
-        ),
+        // `recentSearchesProvider` is a synchronous projection of the owning
+        // notifier, so there is no AsyncValue to branch on here any more.
+        recent.isEmpty
+            ? const Text(
+                'No recent searches yet',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              )
+            : Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: recent
+                    .map(
+                      (search) => _SearchChip(
+                        label: search,
+                        icon: Icons.history,
+                        onTap: () => _select(ref, context, search),
+                        onDelete: () => ref
+                            .read(recentSearchesNotifierProvider.notifier)
+                            .removeQuery(search),
+                      ),
+                    )
+                    .toList(),
+              ),
         const SizedBox(height: AppSpacing.lg),
         const _SectionHeader(title: 'Popular Searches'),
         const SizedBox(height: AppSpacing.sm),

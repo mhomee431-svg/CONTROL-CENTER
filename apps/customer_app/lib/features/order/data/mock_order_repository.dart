@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import '../domain/models/order_models.dart';
 import '../domain/order_repository.dart';
 
@@ -23,7 +21,7 @@ import '../domain/order_repository.dart';
 /// dispatched" rule. A mock that allowed different transitions would let a
 /// customer rehearse a flow the real backend then rejects, which is the worst
 /// possible moment to discover the difference.
-/// 
+///
 class MockOrderRepository implements OrderRepository {
   /// Allowed forward transitions: current status -> {allowed next statuses}.
   /// Copied verbatim from the backend's `_VALID_STATUS_TRANSITIONS`.
@@ -52,14 +50,17 @@ class MockOrderRepository implements OrderRepository {
   };
 
   /// Deterministic seed keeps the mock reproducible across runs.
+  ///
+  /// [seed] is accepted and deliberately NOT used: the seed orders below are
+  /// fixed, so they are already identical on every run and every platform. It is
+  /// kept in the signature because callers pass it, and removing a parameter is a
+  /// breaking change for no behavioural gain.
   MockOrderRepository({DateTime Function()? now, int seed = 0})
-    : _now = now ?? DateTime.now,
-      _random = Random(seed) {
+    : _now = now ?? DateTime.now {
     _seedOrders();
   }
 
   final DateTime Function() _now;
-  final Random _random;
   final Map<int, Order> _orders = {};
   int _nextId = 1000;
   int _nextItemId = 1;
@@ -126,7 +127,6 @@ class MockOrderRepository implements OrderRepository {
     return created;
   }
 
-
   @override
   Future<Order> getOrderById(String orderId) async => _require(orderId);
 
@@ -186,8 +186,9 @@ class MockOrderRepository implements OrderRepository {
       confirmedAt: next == OrderStatus.confirmed ? now : existing.confirmedAt,
       preparingAt: next == OrderStatus.preparing ? now : existing.preparingAt,
       readyAt: next == OrderStatus.readyForPickup ? now : existing.readyAt,
-      outForDeliveryAt:
-          next == OrderStatus.outForDelivery ? now : existing.outForDeliveryAt,
+      outForDeliveryAt: next == OrderStatus.outForDelivery
+          ? now
+          : existing.outForDeliveryAt,
       deliveredAt: next == OrderStatus.delivered ? now : existing.deliveredAt,
       cancelledAt: next == OrderStatus.cancelled ? now : existing.cancelledAt,
     );
@@ -301,7 +302,9 @@ class MockOrderRepository implements OrderRepository {
         status: status,
         subtotalAmount: total,
         deliveryFee: status == OrderStatus.cancelled ? 0 : 25,
-        totalAmount: status == OrderStatus.cancelled ? total : _round(total + 25),
+        totalAmount: status == OrderStatus.cancelled
+            ? total
+            : _round(total + 25),
         totalItems: quantity,
         placedAt: now,
         createdAt: now,
@@ -331,4 +334,3 @@ class MockOrderRepository implements OrderRepository {
 
   static double _round(double value) => (value * 100).roundToDouble() / 100;
 }
-

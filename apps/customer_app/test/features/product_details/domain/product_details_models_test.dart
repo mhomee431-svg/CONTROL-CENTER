@@ -114,10 +114,7 @@ void main() {
         _offer(shopId: 'b', price: 100, isAvailable: true),
       ]);
 
-      expect(
-        details.comparableOffers.map((o) => o.price).toList(),
-        [100, 300],
-      );
+      expect(details.comparableOffers.map((o) => o.price).toList(), [100, 300]);
     });
 
     test('allOffersSorted keeps out-of-stock shops visible', () {

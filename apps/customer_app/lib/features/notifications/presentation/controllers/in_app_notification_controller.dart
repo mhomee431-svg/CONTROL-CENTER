@@ -195,4 +195,3 @@ final inAppNotificationControllerProvider =
     NotifierProvider<InAppNotificationController, InAppNotificationState>(
       InAppNotificationController.new,
     );
-

@@ -95,6 +95,13 @@ class NetworkImageView extends StatelessWidget {
                 fit: fit,
                 memCacheWidth: memCacheWidth,
                 memCacheHeight: memCacheHeight,
+                // The disk cache needs the same bound. `memCacheWidth` only
+                // limits what is held decoded in RAM; without these a 4000px
+                // photo is still written to disk in full on first view, so
+                // scrolling back and forth through 50 rows fills the cache with
+                // full-resolution bytes that are never displayed at that size.
+                maxWidthDiskCache: memCacheWidth,
+                maxHeightDiskCache: memCacheHeight,
                 fadeInDuration: const Duration(milliseconds: 200),
                 placeholder: (context, url) =>
                     placeholder ??

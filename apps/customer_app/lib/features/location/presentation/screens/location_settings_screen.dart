@@ -44,7 +44,9 @@ class _LocationSettingsScreenState
     // the screen never shows a blank "unknown" that it could have filled in.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(ref.read(locationControllerProvider.notifier).loadSavedLocation());
+      unawaited(
+        ref.read(locationControllerProvider.notifier).loadSavedLocation(),
+      );
       // `read` on an AsyncNotifierProvider BUILDS it and returns the value
       // synchronously — it is not a Future, so it must not be handed to
       // `unawaited` (which expects a Future<void>?). Reading is exactly what
@@ -79,7 +81,8 @@ class _LocationSettingsScreenState
                 Expanded(
                   child: OutlinedButton.icon(
                     key: const Key('locationUseCurrentButton'),
-                    onPressed: locationState.isRefreshing ||
+                    onPressed:
+                        locationState.isRefreshing ||
                             locationState.status == LocationStatus.loading
                         ? null
                         : () => _useCurrentLocation(context),
@@ -127,13 +130,11 @@ class _LocationSettingsScreenState
             key: const Key('locationManageAddressesTile'),
             leading: const Icon(Icons.edit_location_alt_outlined),
             title: const Text('Manage addresses'),
-            subtitle: Text(
-              switch (addressesAsync.value?.length) {
-                null => 'Add, edit or remove saved places',
-                final count =>
-                  '$count saved ${count == 1 ? 'address' : 'addresses'}',
-              },
-            ),
+            subtitle: Text(switch (addressesAsync.value?.length) {
+              null => 'Add, edit or remove saved places',
+              final count =>
+                '$count saved ${count == 1 ? 'address' : 'addresses'}',
+            }),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/profile/addresses'),
           ),
@@ -319,8 +320,7 @@ class _CurrentLocationCard extends StatelessWidget {
 
   String _emptyReason(LocationState state) => switch (state.status) {
     LocationStatus.permissionDenied ||
-    LocationStatus.permissionPermanentlyDenied =>
-      'Location permission needed',
+    LocationStatus.permissionPermanentlyDenied => 'Location permission needed',
     LocationStatus.serviceDisabled => 'Turn on GPS to find nearby shops',
     _ => 'Pick one below to see shops near you',
   };
@@ -436,7 +436,11 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }

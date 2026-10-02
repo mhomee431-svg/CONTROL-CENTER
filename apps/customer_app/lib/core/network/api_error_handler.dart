@@ -56,10 +56,8 @@ class ApiException implements Exception {
   /// example product master loaded but shop inventory did not. The customer
   /// keeps the part that worked and is offered a retry for the rest, which is
   /// strictly better than replacing good content with an error screen.
-  const ApiException.partial({
-    required this.message,
-    this.statusCode,
-  }) : type = ApiErrorType.partialFailure;
+  const ApiException.partial({required this.message, this.statusCode})
+    : type = ApiErrorType.partialFailure;
 
   /// Whether retrying the same request could plausibly succeed.
   ///
@@ -101,8 +99,7 @@ class ApiException implements Exception {
     if (dioError.type == DioExceptionType.connectionError) {
       return const ApiException(
         type: ApiErrorType.offline,
-        message:
-            'No internet connection detected. Please connect to Wi-Fi or mobile data.',
+        message: 'No internet connection detected. Please connect to Wi-Fi or mobile data.',
       );
     }
 
@@ -112,8 +109,7 @@ class ApiException implements Exception {
       // wrong; the honest framing is that the connection is not secure.
       return const ApiException(
         type: ApiErrorType.partialFailure,
-        message:
-            'We could not establish a secure connection. Please try again on a trusted network.',
+        message: 'We could not establish a secure connection. Please try again on a trusted network.',
       );
     }
 
@@ -240,6 +236,7 @@ class ApiException implements Exception {
         );
     }
   }
+
   /// Extracts a customer-safe message from a backend error body.
   ///
   /// Returns null — forcing the caller to fall back to its own copy — unless
@@ -291,7 +288,6 @@ class ApiException implements Exception {
   String toString() =>
       'ApiException [$type]: $message (Status Code: $statusCode)';
 }
-
 
 /// Maps any thrown error into a user-safe message suitable for display.
 ///

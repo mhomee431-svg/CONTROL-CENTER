@@ -86,6 +86,10 @@ async def get_public_shop(
     data = ShopPublicResponse.model_validate(shop).model_dump()
     data["is_open_now"] = shop_service.is_shop_open(shop)
     data["subcategories"] = shop_service.parse_subcategories(shop.subcategories)
+    # Business type + capabilities: what the customer may be shown for THIS
+    # business. Resolved server-side so a restaurant or a service provider can
+    # never be rendered with product-style price/stock UI by a client guess.
+    data.update(shop_service.customer_facing_business(db, shop))
     return success_response(data=data)
 
 
@@ -147,6 +151,10 @@ async def get_shop(
     # Public contact surface only: primary phone, alternate phone, and email.
     # Ownership, verification workflow, and internal flags stay server-side.
     data["secondary_phone"] = shop.alternate_phone
+    # Business type + capabilities, resolved from the merchant category (or the
+    # legacy category / business type as fallback). This is what drives the
+    # customer app's capability-based rendering of the shop profile.
+    data.update(shop_service.customer_facing_business(db, shop))
     return success_response(data=data)
 
 

@@ -297,7 +297,13 @@ as bool,
 /// @nodoc
 mixin _$SavedShopItem {
 
- String get shopId; String get name; String get address; String get imageUrl; double get rating; DateTime get savedAt; bool get isSynced;
+ String get shopId; String get name; String get address; String get imageUrl; double get rating; DateTime get savedAt; bool get isSynced;/// Distance from the customer, when the backend could compute it. Null means
+/// "not known" — the discovery card omits the distance rather than claiming
+/// the shop is 0.0 km away.
+ double? get distanceKm;/// Whether the shop is verified / open / taking orders. Same three verdicts
+/// the Nearby and Category rows carry, so all three discovery surfaces render
+/// the identical card from the identical facts.
+ bool get isVerified; bool? get isOpenNow; bool? get isAcceptingOrders;
 /// Create a copy of SavedShopItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -310,16 +316,16 @@ $SavedShopItemCopyWith<SavedShopItem> get copyWith => _$SavedShopItemCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedShopItem&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.savedAt, savedAt) || other.savedAt == savedAt)&&(identical(other.isSynced, isSynced) || other.isSynced == isSynced));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedShopItem&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.savedAt, savedAt) || other.savedAt == savedAt)&&(identical(other.isSynced, isSynced) || other.isSynced == isSynced)&&(identical(other.distanceKm, distanceKm) || other.distanceKm == distanceKm)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.isAcceptingOrders, isAcceptingOrders) || other.isAcceptingOrders == isAcceptingOrders));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,shopId,name,address,imageUrl,rating,savedAt,isSynced);
+int get hashCode => Object.hash(runtimeType,shopId,name,address,imageUrl,rating,savedAt,isSynced,distanceKm,isVerified,isOpenNow,isAcceptingOrders);
 
 @override
 String toString() {
-  return 'SavedShopItem(shopId: $shopId, name: $name, address: $address, imageUrl: $imageUrl, rating: $rating, savedAt: $savedAt, isSynced: $isSynced)';
+  return 'SavedShopItem(shopId: $shopId, name: $name, address: $address, imageUrl: $imageUrl, rating: $rating, savedAt: $savedAt, isSynced: $isSynced, distanceKm: $distanceKm, isVerified: $isVerified, isOpenNow: $isOpenNow, isAcceptingOrders: $isAcceptingOrders)';
 }
 
 
@@ -330,7 +336,7 @@ abstract mixin class $SavedShopItemCopyWith<$Res>  {
   factory $SavedShopItemCopyWith(SavedShopItem value, $Res Function(SavedShopItem) _then) = _$SavedShopItemCopyWithImpl;
 @useResult
 $Res call({
- String shopId, String name, String address, String imageUrl, double rating, DateTime savedAt, bool isSynced
+ String shopId, String name, String address, String imageUrl, double rating, DateTime savedAt, bool isSynced, double? distanceKm, bool isVerified, bool? isOpenNow, bool? isAcceptingOrders
 });
 
 
@@ -347,7 +353,7 @@ class _$SavedShopItemCopyWithImpl<$Res>
 
 /// Create a copy of SavedShopItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? shopId = null,Object? name = null,Object? address = null,Object? imageUrl = null,Object? rating = null,Object? savedAt = null,Object? isSynced = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? shopId = null,Object? name = null,Object? address = null,Object? imageUrl = null,Object? rating = null,Object? savedAt = null,Object? isSynced = null,Object? distanceKm = freezed,Object? isVerified = null,Object? isOpenNow = freezed,Object? isAcceptingOrders = freezed,}) {
   return _then(SavedShopItem(
 shopId: null == shopId ? _self.shopId : shopId // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -356,7 +362,11 @@ as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast
 as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double,savedAt: null == savedAt ? _self.savedAt : savedAt // ignore: cast_nullable_to_non_nullable
 as DateTime,isSynced: null == isSynced ? _self.isSynced : isSynced // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,distanceKm: freezed == distanceKm ? _self.distanceKm : distanceKm // ignore: cast_nullable_to_non_nullable
+as double?,isVerified: null == isVerified ? _self.isVerified : isVerified // ignore: cast_nullable_to_non_nullable
+as bool,isOpenNow: freezed == isOpenNow ? _self.isOpenNow : isOpenNow // ignore: cast_nullable_to_non_nullable
+as bool?,isAcceptingOrders: freezed == isAcceptingOrders ? _self.isAcceptingOrders : isAcceptingOrders // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -441,10 +451,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime savedAt,  bool isSynced)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime savedAt,  bool isSynced,  double? distanceKm,  bool isVerified,  bool? isOpenNow,  bool? isAcceptingOrders)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedShopItem() when $default != null:
-return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.savedAt,_that.isSynced);case _:
+return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.savedAt,_that.isSynced,_that.distanceKm,_that.isVerified,_that.isOpenNow,_that.isAcceptingOrders);case _:
   return orElse();
 
 }
@@ -462,10 +472,10 @@ return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.ratin
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime savedAt,  bool isSynced)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime savedAt,  bool isSynced,  double? distanceKm,  bool isVerified,  bool? isOpenNow,  bool? isAcceptingOrders)  $default,) {final _that = this;
 switch (_that) {
 case _SavedShopItem():
-return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.savedAt,_that.isSynced);case _:
+return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.savedAt,_that.isSynced,_that.distanceKm,_that.isVerified,_that.isOpenNow,_that.isAcceptingOrders);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -482,10 +492,10 @@ return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.ratin
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime savedAt,  bool isSynced)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shopId,  String name,  String address,  String imageUrl,  double rating,  DateTime savedAt,  bool isSynced,  double? distanceKm,  bool isVerified,  bool? isOpenNow,  bool? isAcceptingOrders)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedShopItem() when $default != null:
-return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.savedAt,_that.isSynced);case _:
+return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.rating,_that.savedAt,_that.isSynced,_that.distanceKm,_that.isVerified,_that.isOpenNow,_that.isAcceptingOrders);case _:
   return null;
 
 }
@@ -497,7 +507,7 @@ return $default(_that.shopId,_that.name,_that.address,_that.imageUrl,_that.ratin
 @JsonSerializable()
 
 class _SavedShopItem implements SavedShopItem {
-  const _SavedShopItem({required this.shopId, required this.name, required this.address, required this.imageUrl, required this.rating, required this.savedAt, this.isSynced = false});
+  const _SavedShopItem({required this.shopId, required this.name, required this.address, required this.imageUrl, required this.rating, required this.savedAt, this.isSynced = false, this.distanceKm, this.isVerified = false, this.isOpenNow, this.isAcceptingOrders});
   factory _SavedShopItem.fromJson(Map<String, dynamic> json) => _$SavedShopItemFromJson(json);
 
 @override final  String shopId;
@@ -507,6 +517,16 @@ class _SavedShopItem implements SavedShopItem {
 @override final  double rating;
 @override final  DateTime savedAt;
 @override@JsonKey() final  bool isSynced;
+/// Distance from the customer, when the backend could compute it. Null means
+/// "not known" — the discovery card omits the distance rather than claiming
+/// the shop is 0.0 km away.
+@override final  double? distanceKm;
+/// Whether the shop is verified / open / taking orders. Same three verdicts
+/// the Nearby and Category rows carry, so all three discovery surfaces render
+/// the identical card from the identical facts.
+@override@JsonKey() final  bool isVerified;
+@override final  bool? isOpenNow;
+@override final  bool? isAcceptingOrders;
 
 /// Create a copy of SavedShopItem
 /// with the given fields replaced by the non-null parameter values.
@@ -521,16 +541,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedShopItem&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.savedAt, savedAt) || other.savedAt == savedAt)&&(identical(other.isSynced, isSynced) || other.isSynced == isSynced));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedShopItem&&(identical(other.shopId, shopId) || other.shopId == shopId)&&(identical(other.name, name) || other.name == name)&&(identical(other.address, address) || other.address == address)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.savedAt, savedAt) || other.savedAt == savedAt)&&(identical(other.isSynced, isSynced) || other.isSynced == isSynced)&&(identical(other.distanceKm, distanceKm) || other.distanceKm == distanceKm)&&(identical(other.isVerified, isVerified) || other.isVerified == isVerified)&&(identical(other.isOpenNow, isOpenNow) || other.isOpenNow == isOpenNow)&&(identical(other.isAcceptingOrders, isAcceptingOrders) || other.isAcceptingOrders == isAcceptingOrders));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,shopId,name,address,imageUrl,rating,savedAt,isSynced);
+int get hashCode => Object.hash(runtimeType,shopId,name,address,imageUrl,rating,savedAt,isSynced,distanceKm,isVerified,isOpenNow,isAcceptingOrders);
 
 @override
 String toString() {
-  return 'SavedShopItem(shopId: $shopId, name: $name, address: $address, imageUrl: $imageUrl, rating: $rating, savedAt: $savedAt, isSynced: $isSynced)';
+  return 'SavedShopItem(shopId: $shopId, name: $name, address: $address, imageUrl: $imageUrl, rating: $rating, savedAt: $savedAt, isSynced: $isSynced, distanceKm: $distanceKm, isVerified: $isVerified, isOpenNow: $isOpenNow, isAcceptingOrders: $isAcceptingOrders)';
 }
 
 
@@ -541,7 +561,7 @@ abstract mixin class _$SavedShopItemCopyWith<$Res> implements $SavedShopItemCopy
   factory _$SavedShopItemCopyWith(_SavedShopItem value, $Res Function(_SavedShopItem) _then) = __$SavedShopItemCopyWithImpl;
 @override @useResult
 $Res call({
- String shopId, String name, String address, String imageUrl, double rating, DateTime savedAt, bool isSynced
+ String shopId, String name, String address, String imageUrl, double rating, DateTime savedAt, bool isSynced, double? distanceKm, bool isVerified, bool? isOpenNow, bool? isAcceptingOrders
 });
 
 
@@ -558,7 +578,7 @@ class __$SavedShopItemCopyWithImpl<$Res>
 
 /// Create a copy of SavedShopItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? shopId = null,Object? name = null,Object? address = null,Object? imageUrl = null,Object? rating = null,Object? savedAt = null,Object? isSynced = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? shopId = null,Object? name = null,Object? address = null,Object? imageUrl = null,Object? rating = null,Object? savedAt = null,Object? isSynced = null,Object? distanceKm = freezed,Object? isVerified = null,Object? isOpenNow = freezed,Object? isAcceptingOrders = freezed,}) {
   return _then(_SavedShopItem(
 shopId: null == shopId ? _self.shopId : shopId // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -567,7 +587,11 @@ as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast
 as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double,savedAt: null == savedAt ? _self.savedAt : savedAt // ignore: cast_nullable_to_non_nullable
 as DateTime,isSynced: null == isSynced ? _self.isSynced : isSynced // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,distanceKm: freezed == distanceKm ? _self.distanceKm : distanceKm // ignore: cast_nullable_to_non_nullable
+as double?,isVerified: null == isVerified ? _self.isVerified : isVerified // ignore: cast_nullable_to_non_nullable
+as bool,isOpenNow: freezed == isOpenNow ? _self.isOpenNow : isOpenNow // ignore: cast_nullable_to_non_nullable
+as bool?,isAcceptingOrders: freezed == isAcceptingOrders ? _self.isAcceptingOrders : isAcceptingOrders // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 

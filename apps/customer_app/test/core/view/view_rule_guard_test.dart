@@ -19,11 +19,9 @@ import 'package:hyperlocal_app/core/view/view_boundary.dart';
 ///   delete_account_screen.dart — already depends on `auth/domain/`, not a data
 ///     layer. (The stale-baseline test below is what surfaced this: the list
 ///     claimed a violation that no longer existed.)
-const Map<String, String> _knownViolations = {
-  'barcode_scan_screen.dart':
-      'Reads permission status directly. Needs a barcode ViewModel.',
-  'barcode_camera_gate.dart': 'Same as barcode_scan_screen.dart.',
-};
+///   barcode_scan_screen.dart, barcode_camera_gate.dart — migrated to
+///     `BarcodeScannerViewModel`, removing direct `data/` permission imports.
+const Map<String, String> _knownViolations = {};
 
 void main() {
   group('VIEW RULE enforcement', () {

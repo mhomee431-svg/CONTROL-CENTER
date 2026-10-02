@@ -128,24 +128,29 @@ class FilterSortBar extends ConsumerWidget {
                       // Availability & Operations
                       SwitchListTile(
                         title: const Text('In Stock Only'),
-                        subtitle: const Text('Hide items that are out of stock'),
+                        subtitle: const Text(
+                          'Hide items that are out of stock',
+                        ),
                         value: inStockOnly,
                         onChanged: (value) =>
                             setState(() => inStockOnly = value),
                       ),
                       SwitchListTile(
                         title: const Text('Offers Only'),
-                        subtitle: const Text('Items with active discounts or deals'),
+                        subtitle: const Text(
+                          'Items with active discounts or deals',
+                        ),
                         value: offersOnly,
                         onChanged: (value) =>
                             setState(() => offersOnly = value),
                       ),
                       SwitchListTile(
                         title: const Text('Open Now'),
-                        subtitle: const Text('Shops currently open and accepting orders'),
+                        subtitle: const Text(
+                          'Shops currently open and accepting orders',
+                        ),
                         value: openNow,
-                        onChanged: (value) =>
-                            setState(() => openNow = value),
+                        onChanged: (value) => setState(() => openNow = value),
                       ),
                       const Divider(),
 

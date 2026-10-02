@@ -184,6 +184,32 @@ def get_provider_detail(db: Session, provider_id: int) -> Optional[dict]:
         ],
     }
 
+def get_provider_detail_by_shop(db: Session, shop_id: int) -> Optional[dict]:
+    """Transport provider profile for a SHOP.
+
+    ``transport_providers.shop_id`` is what links a service provider to its
+    customer-facing shop row, so a customer who opened the shop profile can be
+    shown that provider's services and fleet without knowing a provider id.
+
+    Returns None when the shop has no provider record — in which case the app
+    shows no service section, and never a BOOKING button: a request entry point
+    with nothing behind it would be faking a booking.
+    """
+    provider = (
+        db.execute(
+            select(TransportProvider).where(
+                TransportProvider.shop_id == shop_id,
+                TransportProvider.is_deleted == False,  # noqa: E712
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if provider is None:
+        return None
+    return get_provider_detail(db, provider.id)
+
+
 def get_vehicle_detail(db: Session, vehicle_id: int) -> Optional[dict]:
     """Get vehicle detail with availability."""
     vehicle = db.get(Vehicle, vehicle_id)
@@ -405,6 +431,75 @@ def accept_quote(db: Session, user_id: int, quote_id: int) -> Optional[Transport
     db.commit()
     db.refresh(booking)
     return booking
+
+def _quote_summary(quote: TransportQuote) -> dict:
+    """A customer's own quote, shaped for the trips list.
+
+    Built here rather than serialized straight from the row for two reasons:
+    the model carries OPERATOR fields (requested_by, the provider's internal
+    notes) that are not the customer's, and the customer needs the provider's
+    NAME to recognise which trip the price belongs to — which is a join, not a
+    column.
+
+    `quote_amount` is the PROVIDER's price, and it is only meaningful once the
+    status is QUOTED or later: a REQUESTED quote carries the column's 0 default,
+    which must never reach the customer as "₹0" and read as a free trip.
+    """
+    return {
+        "id": quote.id,
+        "provider_id": quote.provider_id,
+        "provider_name": quote.provider.company_name if quote.provider else None,
+        "status": quote.status,
+        "trip_purpose": quote.trip_purpose,
+        "pickup_address": quote.pickup_address,
+        "destination_address": quote.destination_address,
+        "trip_date": str(quote.trip_date),
+        "trip_days": quote.trip_days,
+        "passenger_count": quote.passenger_count,
+        "quote_amount": float(quote.quote_amount) if quote.status != "REQUESTED" else None,
+        "currency": quote.currency,
+        "notes": quote.notes,
+        "created_at": str(quote.created_at),
+    }
+
+
+def get_user_quotes(
+    db: Session, user_id: int, status: Optional[str] = None
+) -> list[dict]:
+    """The current customer's own quote requests, newest first.
+
+    The missing half of the customer flow: a quote can be REQUESTED and the
+    provider can answer it with QUOTED, but without a way to LIST the customer's
+    own quotes the quoted price is unreachable and `accept_quote` can never be
+    called. So this is what makes the request → price → accept → booking chain
+    completable end to end.
+
+    Scoped to `customer_user_id` only — never `provider_id` — so a provider
+    cannot read another customer's trips through the customer route.
+    """
+    stmt = select(TransportQuote).where(
+        TransportQuote.customer_user_id == user_id
+    )
+    if status:
+        stmt = stmt.where(TransportQuote.status == status)
+    stmt = stmt.order_by(TransportQuote.created_at.desc())
+    quotes = list(db.execute(stmt).scalars().all())
+    return [_quote_summary(quote) for quote in quotes]
+
+
+def get_quote_detail(db: Session, user_id: int, quote_id: int) -> Optional[dict]:
+    """One of the current customer's own quotes.
+
+    403-shaped: another customer's quote reads as absent rather than forbidden,
+    matching `get_booking_detail`'s access rule.
+    """
+    quote = db.get(TransportQuote, quote_id)
+    if not quote:
+        return None
+    if quote.customer_user_id != user_id:
+        raise PermissionError("You are not the customer for this quote")
+    return _quote_summary(quote)
+
 
 def get_user_bookings(
     db: Session, user_id: int, status: Optional[str] = None

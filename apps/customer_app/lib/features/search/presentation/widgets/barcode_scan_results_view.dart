@@ -74,21 +74,22 @@ class BarcodeScanResultsView extends ConsumerWidget {
         // answer may exist. Auth and server failures may also be transient, but
         // hammering them with silent auto-retries hides an outage, so the retry
         // is explicit and one tap away.
-        final offline = error is ApiException &&
+        final offline =
+            error is ApiException &&
             (error.type == ApiErrorType.offline ||
                 error.type == ApiErrorType.timeout);
         final icon = offline
             ? Icons.wifi_off_outlined
             : error is ApiException && error.type == ApiErrorType.serverError
-                ? Icons.dns_outlined
-                : Icons.wifi_tethering_error_outlined;
+            ? Icons.dns_outlined
+            : Icons.wifi_tethering_error_outlined;
         return _message(
           icon: icon,
           title: offline
               ? 'You are offline'
               : error is ApiException && error.type == ApiErrorType.serverError
-                  ? 'Our servers had a hiccup'
-                  : 'Could not look up this barcode',
+              ? 'Our servers had a hiccup'
+              : 'Could not look up this barcode',
           // Always the user-safe message; raw exception text never reaches UI.
           message: friendlyErrorMessage(error),
           onScanAnother: onScanAnother,
@@ -150,10 +151,9 @@ class BarcodeScanResultsView extends ConsumerWidget {
             actionLabel: onRetry != null
                 ? 'Try again'
                 : onScanAnother == null
-                    ? null
-                    : 'Scan another barcode',
-            actionIcon:
-                onRetry != null ? Icons.refresh : Icons.qr_code_scanner,
+                ? null
+                : 'Scan another barcode',
+            actionIcon: onRetry != null ? Icons.refresh : Icons.qr_code_scanner,
             onActionTap: onRetry ?? onScanAnother,
           ),
         ),
@@ -239,9 +239,7 @@ class BarcodeScanResultsView extends ConsumerWidget {
             children: [
               Text(
                 'Barcode $barcode',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
+                style: Theme.of(context).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
@@ -261,8 +259,9 @@ class BarcodeScanResultsView extends ConsumerWidget {
             itemBuilder: (context, index) {
               final hits = entries[index].value;
               final first = hits.first;
-              final cheapest =
-                  hits.map((h) => h.price).reduce((a, b) => a < b ? a : b);
+              final cheapest = hits
+                  .map((h) => h.price)
+                  .reduce((a, b) => a < b ? a : b);
               final priceText = cheapest.truncateToDouble() == cheapest
                   ? cheapest.toStringAsFixed(0)
                   : cheapest.toStringAsFixed(2);
@@ -335,9 +334,7 @@ class BarcodeScanResultsView extends ConsumerWidget {
               child: Text(
                 productName,
                 key: const Key('barcode_group_sheet_title'),
-                style: Theme.of(sheetContext)
-                    .textTheme
-                    .titleMedium
+                style: Theme.of(sheetContext).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
@@ -394,9 +391,7 @@ class BarcodeScanResultsView extends ConsumerWidget {
             children: [
               Text(
                 'Barcode $barcode',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
+                style: Theme.of(context).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
@@ -439,4 +434,3 @@ class BarcodeScanResultsView extends ConsumerWidget {
     );
   }
 }
-

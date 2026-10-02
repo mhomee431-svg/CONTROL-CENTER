@@ -195,7 +195,10 @@ void main() {
         controller().enqueue(_n('a'), presentation: InAppPresentation.silent),
         isFalse,
       );
-      expect(container.read(inAppNotificationControllerProvider).isIdle, isTrue);
+      expect(
+        container.read(inAppNotificationControllerProvider).isIdle,
+        isTrue,
+      );
     });
 
     test('duplicate ids never show twice', () {
@@ -234,21 +237,28 @@ void main() {
         'c',
       );
       controller().dismissActive();
-      expect(container.read(inAppNotificationControllerProvider).isIdle, isTrue);
+      expect(
+        container.read(inAppNotificationControllerProvider).isIdle,
+        isTrue,
+      );
     });
 
     test('waiting queue is capped, dropping the oldest', () {
-      controller().enqueue(_n('active'), presentation: InAppPresentation.banner);
+      controller().enqueue(
+        _n('active'),
+        presentation: InAppPresentation.banner,
+      );
       for (final id in ['a', 'b', 'c', 'd', 'e']) {
         controller().enqueue(_n(id), presentation: InAppPresentation.banner);
       }
       final state = container.read(inAppNotificationControllerProvider);
       expect(state.queue.length, InAppNotificationController.maxQueueLength);
       // Newest three survive; a burst never becomes a chore to dismiss.
-      expect(
-        state.queue.map((i) => i.notification.id).toList(),
-        ['c', 'd', 'e'],
-      );
+      expect(state.queue.map((i) => i.notification.id).toList(), [
+        'c',
+        'd',
+        'e',
+      ]);
     });
 
     test('clear drops the active message and the whole backlog', () {

@@ -54,17 +54,20 @@ void main() {
       }
     });
 
-    test('onboarding not yet completed still blocks a first-launch deep link', () {
-      // The redirect sends everything to /onboarding while the tour is
-      // pending, so navigating now would be undone immediately.
-      expect(
-        isRouterReadyForDeepLink(
-          authStatus: AuthStatus.guest,
-          onboardingCompleted: false,
-        ),
-        isFalse,
-      );
-    });
+    test(
+      'onboarding not yet completed still blocks a first-launch deep link',
+      () {
+        // The redirect sends everything to /onboarding while the tour is
+        // pending, so navigating now would be undone immediately.
+        expect(
+          isRouterReadyForDeepLink(
+            authStatus: AuthStatus.guest,
+            onboardingCompleted: false,
+          ),
+          isFalse,
+        );
+      },
+    );
   });
 
   group('PendingDeepLinkController', () {
@@ -93,7 +96,10 @@ void main() {
     test('the newest tap wins', () async {
       await controller().enqueue('/product/1');
       await controller().enqueue('/shop/9');
-      expect(container.read(pendingDeepLinkControllerProvider)!.path, '/shop/9');
+      expect(
+        container.read(pendingDeepLinkControllerProvider)!.path,
+        '/shop/9',
+      );
     });
 
     test('empty paths are ignored', () async {
@@ -138,7 +144,9 @@ void main() {
       );
       addTearDown(relaunched.dispose);
 
-      await relaunched.read(pendingDeepLinkControllerProvider.notifier).restore();
+      await relaunched
+          .read(pendingDeepLinkControllerProvider.notifier)
+          .restore();
       final restored = relaunched.read(pendingDeepLinkControllerProvider);
       expect(restored!.path, '/product/42');
       expect(restored.notificationId, 'n1');
@@ -160,7 +168,10 @@ void main() {
         notificationId: 'n1',
         queuedAt: DateTime.now().subtract(const Duration(days: 1)),
       );
-      await storage.setString(pendingDeepLinkStorageKey, jsonEncode(old.toJson()));
+      await storage.setString(
+        pendingDeepLinkStorageKey,
+        jsonEncode(old.toJson()),
+      );
       // Sanity: the stale payload round-trips as expired.
       expect(PendingDeepLink.fromJson(old.toJson())!.isExpired(), isTrue);
 

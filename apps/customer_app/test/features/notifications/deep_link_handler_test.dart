@@ -38,7 +38,7 @@ void main() {
       expect(resolution.path, '/shop/shop_3');
     });
 
-    test('offer links degrade to unavailable (no offer screen yet)', () {
+    test('offer links route to the registered unavailable screen', () {
       final resolution = resolveNotificationDeepLink(
         _withLink(
           const NotificationDeepLink(
@@ -47,8 +47,13 @@ void main() {
           ),
         ),
       );
-      expect(resolution.action, DeepLinkAction.unavailable);
-      expect(resolution.message, isNotNull);
+      // The offer route is now registered, so the link resolves to a real
+      // screen that explains the offer cannot be opened, rather than a
+      // transient snackbar over the inbox. The customer still never sees a
+      // 404 and still never sees a falsely-successful "offer opened".
+      expect(resolution.action, DeepLinkAction.navigate);
+      expect(resolution.path, '/offer/unavailable');
+      expect(resolution.message, isNull);
     });
 
     test('expired links degrade to unavailable with message', () {

@@ -10,6 +10,7 @@ import 'package:hyperlocal_app/features/search/domain/models/search_models.dart'
 import 'package:hyperlocal_app/features/search/domain/search_repository.dart';
 import 'package:hyperlocal_app/features/search/presentation/screens/barcode_scan_screen.dart';
 import 'package:hyperlocal_app/features/search/presentation/widgets/shop_product_card.dart';
+import 'package:hyperlocal_app/features/search/presentation/widgets/barcode_camera_gate.dart';
 
 /// A fake that fails the route itself: the backend has no barcode endpoint.
 class _MissingRouteRepository implements SearchRepository {
@@ -18,6 +19,8 @@ class _MissingRouteRepository implements SearchRepository {
     String barcode, {
     double? latitude,
     double? longitude,
+    int page = 1,
+    int limit = 20,
   }) async {
     throw const ApiException(
       type: ApiErrorType.notFound,
@@ -35,8 +38,7 @@ class _MissingRouteRepository implements SearchRepository {
     Map<String, dynamic>? filters,
     double? latitude,
     double? longitude,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<String>> getPopularSearches() async => const [];
@@ -45,8 +47,7 @@ class _MissingRouteRepository implements SearchRepository {
   Future<List<String>> getRecentSearches() async => const [];
 
   @override
-  Future<List<SearchSuggestion>> getSuggestions(String query) async =>
-      const [];
+  Future<List<SearchSuggestion>> getSuggestions(String query) async => const [];
 }
 
 /// A repository whose barcode lookup fails until the test flips [failing].
@@ -73,6 +74,8 @@ class _FailOnceRepository implements SearchRepository {
     String barcode, {
     double? latitude,
     double? longitude,
+    int page = 1,
+    int limit = 20,
   }) async {
     attempts++;
     if (failing) throw error;
@@ -80,6 +83,8 @@ class _FailOnceRepository implements SearchRepository {
       barcode,
       latitude: latitude,
       longitude: longitude,
+      page: page,
+      limit: limit,
     );
   }
 
@@ -92,16 +97,15 @@ class _FailOnceRepository implements SearchRepository {
     Map<String, dynamic>? filters,
     double? latitude,
     double? longitude,
-  }) =>
-      inner.searchProducts(
-        query: query,
-        page: page,
-        limit: limit,
-        sort: sort,
-        filters: filters,
-        latitude: latitude,
-        longitude: longitude,
-      );
+  }) => inner.searchProducts(
+    query: query,
+    page: page,
+    limit: limit,
+    sort: sort,
+    filters: filters,
+    latitude: latitude,
+    longitude: longitude,
+  );
 
   @override
   Future<List<String>> getPopularSearches() => inner.getPopularSearches();
@@ -122,6 +126,8 @@ class _MultiProductRepository implements SearchRepository {
     String barcode, {
     double? latitude,
     double? longitude,
+    int page = 1,
+    int limit = 20,
   }) async {
     ShopProductResult hit({
       required String id,
@@ -185,8 +191,7 @@ class _MultiProductRepository implements SearchRepository {
     Map<String, dynamic>? filters,
     double? latitude,
     double? longitude,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<String>> getPopularSearches() async => const [];
@@ -195,8 +200,7 @@ class _MultiProductRepository implements SearchRepository {
   Future<List<String>> getRecentSearches() async => const [];
 
   @override
-  Future<List<SearchSuggestion>> getSuggestions(String query) async =>
-      const [];
+  Future<List<SearchSuggestion>> getSuggestions(String query) async => const [];
 }
 
 /// Pumps the real scan screen with a granted camera and a fake viewfinder.
@@ -256,27 +260,26 @@ void main() {
       },
     );
 
-    testWidgets(
-      'an empty lookup reports honestly and offers another scan',
-      (tester) async {
-        await pumpScanScreen(
-          tester,
-          repository: MockSearchRepository(),
-          barcode: '0000000000000',
-        );
-        await tester.pumpAndSettle();
+    testWidgets('an empty lookup reports honestly and offers another scan', (
+      tester,
+    ) async {
+      await pumpScanScreen(
+        tester,
+        repository: MockSearchRepository(),
+        barcode: '0000000000000',
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.byKey(const Key('fake_detect')));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('fake_detect')));
+      await tester.pumpAndSettle();
 
-        expect(find.byKey(const Key('barcode_results_empty')), findsOneWidget);
-        expect(find.text('Gupta Electronics'), findsNothing);
-        // "Scan another" returns to a live viewfinder…
-        await tester.tap(find.text('Scan another barcode'));
-        await tester.pumpAndSettle();
-        expect(find.byKey(const Key('fake_detect')), findsOneWidget);
-      },
-    );
+      expect(find.byKey(const Key('barcode_results_empty')), findsOneWidget);
+      expect(find.text('Gupta Electronics'), findsNothing);
+      // "Scan another" returns to a live viewfinder…
+      await tester.tap(find.text('Scan another barcode'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('fake_detect')), findsOneWidget);
+    });
 
     testWidgets(
       'a missing route shows the unavailable copy and hides re-scan',
@@ -299,119 +302,196 @@ void main() {
       },
     );
 
-    testWidgets(
-      'manual entry stays reachable from the AppBar while scanning',
-      (tester) async {
-        await pumpScanScreen(tester, repository: MockSearchRepository());
-        await tester.pumpAndSettle();
+    testWidgets('manual entry stays reachable from the AppBar while scanning', (
+      tester,
+    ) async {
+      await pumpScanScreen(tester, repository: MockSearchRepository());
+      await tester.pumpAndSettle();
 
-        expect(find.byKey(const Key('scan_manual_entry')), findsOneWidget);
-      },
-    );
+      expect(find.byKey(const Key('scan_manual_entry')), findsOneWidget);
+    });
   });
 
   group('BarcodeScanScreen failure and retry', () {
-    testWidgets(
-      'a transient failure can be retried and then resolves',
-      (tester) async {
-        final repository = _FailOnceRepository(
-          MockSearchRepository(),
-          const ApiException(
-            type: ApiErrorType.timeout,
-            message: 'The lookup timed out.',
-          ),
-        );
-        await pumpScanScreen(tester, repository: repository);
-        await tester.pumpAndSettle();
+    testWidgets('a transient failure can be retried and then resolves', (
+      tester,
+    ) async {
+      final repository = _FailOnceRepository(
+        MockSearchRepository(),
+        const ApiException(
+          type: ApiErrorType.timeout,
+          message: 'The lookup timed out.',
+        ),
+      );
+      await pumpScanScreen(tester, repository: repository);
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.byKey(const Key('fake_detect')));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('fake_detect')));
+      await tester.pumpAndSettle();
 
-        // The lookup failed, so the error state is shown and no results are
-        // claimed. The repository keeps failing until the test allows a retry.
-        expect(find.byKey(const Key('barcode_results_error')), findsOneWidget);
-        expect(find.byKey(const Key('barcode_results_list')), findsNothing);
-        final attemptsBeforeRetry = repository.attempts;
-        expect(attemptsBeforeRetry, greaterThan(0));
+      // The lookup failed, so the error state is shown and no results are
+      // claimed. The repository keeps failing until the test allows a retry.
+      expect(find.byKey(const Key('barcode_results_error')), findsOneWidget);
+      expect(find.byKey(const Key('barcode_results_list')), findsNothing);
+      final attemptsBeforeRetry = repository.attempts;
+      expect(attemptsBeforeRetry, greaterThan(0));
 
-        // Let the next lookup through and retry the SAME code.
-        repository.failing = false;
-        await tester.tap(find.text('Try again'));
-        await tester.pumpAndSettle();
+      // Let the next lookup through and retry the SAME code.
+      repository.failing = false;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
 
-        // Retry genuinely re-hit the repository…
-        expect(repository.attempts, greaterThan(attemptsBeforeRetry));
-        // …and the recovered result is rendered, not the error.
-        expect(find.byKey(const Key('barcode_results_error')), findsNothing);
-        expect(find.byKey(const Key('barcode_results_list')), findsOneWidget);
-        expect(find.text('Gupta Electronics'), findsOneWidget);
-      },
-    );
+      // Retry genuinely re-hit the repository…
+      expect(repository.attempts, greaterThan(attemptsBeforeRetry));
+      // …and the recovered result is rendered, not the error.
+      expect(find.byKey(const Key('barcode_results_error')), findsNothing);
+      expect(find.byKey(const Key('barcode_results_list')), findsOneWidget);
+      expect(find.text('Gupta Electronics'), findsOneWidget);
+    });
   });
 
   group('BarcodeScanScreen multi-match results', () {
+    testWidgets('one barcode resolving to several products lists every match', (
+      tester,
+    ) async {
+      await pumpScanScreen(tester, repository: _MultiProductRepository());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('fake_detect')));
+      await tester.pumpAndSettle();
+
+      // Two DISTINCT products behind one barcode are grouped so the customer
+      // picks WHAT first, then WHERE — not a flat N-shops-x-M-products list.
+      expect(find.byKey(const Key('barcode_results_list')), findsNothing);
+      expect(find.byKey(const Key('barcode_product_groups')), findsOneWidget);
+      expect(
+        find.textContaining('2 products share this barcode'),
+        findsOneWidget,
+      );
+
+      // Both products are offered…
+      expect(find.text('Multipack Beans 4x125g'), findsOneWidget);
+      expect(find.text('Single Tin Beans 125g'), findsOneWidget);
+      // …with the cheapest price and the shop count for that product, so the
+      // choice is made on facts (Multipack is stocked by 2 shops).
+      expect(find.textContaining('From ₹235 · 2 shops'), findsOneWidget);
+      expect(find.textContaining('From ₹65 · 1 shop'), findsOneWidget);
+
+      // Tapping a product opens ITS shops, not a camera restart.
+      await tester.tap(find.text('Multipack Beans 4x125g'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('barcode_group_sheet_title')),
+        findsOneWidget,
+      );
+      // Scoped to the sheet: the group list stays mounted underneath it.
+      final sheet = find.descendant(
+        of: find.byType(DraggableScrollableSheet),
+        matching: find.byType(ShopProductCard),
+      );
+      expect(sheet, findsNWidgets(2));
+      expect(
+        find.descendant(
+          of: find.byType(DraggableScrollableSheet),
+          matching: find.text('Gupta Electronics'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DraggableScrollableSheet),
+          matching: find.text('Sharma Store'),
+        ),
+        findsOneWidget,
+      );
+      // The OTHER product is not offered in this product's sheet.
+      expect(
+        find.descendant(
+          of: find.byType(DraggableScrollableSheet),
+          matching: find.text('Single Tin Beans 125g'),
+        ),
+        findsNothing,
+      );
+    });
+  });
+  group('BarcodeScanScreen permission and validation states', () {
     testWidgets(
-      'one barcode resolving to several products lists every match',
+      'denied permission renders explanation, allow button and manual entry',
       (tester) async {
-        await pumpScanScreen(tester, repository: _MultiProductRepository());
+        final permissions = InMemoryPermissionService(
+          requestOutcomes: {PermissionKind.camera: PermissionOutcome.denied},
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              searchRepositoryProvider.overrideWithValue(
+                MockSearchRepository(),
+              ),
+              permissionServiceProvider.overrideWithValue(permissions),
+            ],
+            child: const MaterialApp(home: BarcodeScanScreen()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text(BarcodeCameraCopy.deniedTitle), findsOneWidget);
+        expect(find.byKey(const Key('barcode_camera_allow')), findsOneWidget);
+        expect(find.byKey(const Key('barcode_camera_manual')), findsOneWidget);
+      },
+    );
+
+    testWidgets('blocked permission provides system settings link', (
+      tester,
+    ) async {
+      final permissions = InMemoryPermissionService(
+        requestOutcomes: {
+          PermissionKind.camera: PermissionOutcome.permanentlyDenied,
+        },
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+            permissionServiceProvider.overrideWithValue(permissions),
+          ],
+          child: const MaterialApp(home: BarcodeScanScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(BarcodeCameraCopy.blockedTitle), findsOneWidget);
+      expect(
+        find.byKey(const Key('barcode_camera_open_settings')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('barcode_camera_open_settings')));
+      await tester.pump();
+      expect(permissions.openSettingsCalls, 1);
+    });
+
+    testWidgets(
+      'invalid barcode capture displays dedicated notice and scan again',
+      (tester) async {
+        await pumpScanScreen(
+          tester,
+          repository: MockSearchRepository(),
+          barcode: '123', // invalid length for retail barcode
+        );
         await tester.pumpAndSettle();
 
         await tester.tap(find.byKey(const Key('fake_detect')));
         await tester.pumpAndSettle();
 
-        // Two DISTINCT products behind one barcode are grouped so the customer
-        // picks WHAT first, then WHERE — not a flat N-shops-x-M-products list.
-        expect(find.byKey(const Key('barcode_results_list')), findsNothing);
-        expect(find.byKey(const Key('barcode_product_groups')), findsOneWidget);
-        expect(
-          find.textContaining('2 products share this barcode'),
-          findsOneWidget,
-        );
+        expect(find.text('That does not look like a barcode'), findsOneWidget);
+        expect(find.byKey(const Key('barcode_invalid_notice')), findsOneWidget);
 
-        // Both products are offered…
-        expect(find.text('Multipack Beans 4x125g'), findsOneWidget);
-        expect(find.text('Single Tin Beans 125g'), findsOneWidget);
-        // …with the cheapest price and the shop count for that product, so the
-        // choice is made on facts (Multipack is stocked by 2 shops).
-        expect(find.textContaining('From ₹235 · 2 shops'), findsOneWidget);
-        expect(find.textContaining('From ₹65 · 1 shop'), findsOneWidget);
-
-        // Tapping a product opens ITS shops, not a camera restart.
-        await tester.tap(find.text('Multipack Beans 4x125g'));
+        // Tapping scan again returns to camera
+        await tester.tap(find.text('Scan again'));
         await tester.pumpAndSettle();
 
-        expect(
-          find.byKey(const Key('barcode_group_sheet_title')),
-          findsOneWidget,
-        );
-        // Scoped to the sheet: the group list stays mounted underneath it.
-        final sheet = find.descendant(
-          of: find.byType(DraggableScrollableSheet),
-          matching: find.byType(ShopProductCard),
-        );
-        expect(sheet, findsNWidgets(2));
-        expect(
-          find.descendant(
-            of: find.byType(DraggableScrollableSheet),
-            matching: find.text('Gupta Electronics'),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: find.byType(DraggableScrollableSheet),
-            matching: find.text('Sharma Store'),
-          ),
-          findsOneWidget,
-        );
-        // The OTHER product is not offered in this product's sheet.
-        expect(
-          find.descendant(
-            of: find.byType(DraggableScrollableSheet),
-            matching: find.text('Single Tin Beans 125g'),
-          ),
-          findsNothing,
-        );
+        expect(find.byKey(const Key('fake_detect')), findsOneWidget);
       },
     );
   });

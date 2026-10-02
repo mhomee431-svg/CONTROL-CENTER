@@ -171,8 +171,7 @@ void main() {
       final e = map(
         500,
         body: {
-          'message':
-              'Traceback (most recent call last):\n  File "app/main.py", line 42',
+          'message': 'Traceback (most recent call last):\n  File "app/main.py", line 42',
         },
       );
       expect(e.message, isNot(contains('Traceback')));

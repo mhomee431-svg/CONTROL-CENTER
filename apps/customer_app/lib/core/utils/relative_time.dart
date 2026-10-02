@@ -47,7 +47,9 @@ String formatLastUpdated(DateTime? lastUpdated, {DateTime? now}) {
   if (days < 7) return 'Last updated $days days ago';
 
   final weeks = days ~/ 7;
-  if (weeks < 5) return 'Last updated $weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+  if (weeks < 5) {
+    return 'Last updated $weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+  }
 
   // Beyond a month the exact day stops being useful, but the month and year
   // keep the customer oriented without pretending to minute-level precision.

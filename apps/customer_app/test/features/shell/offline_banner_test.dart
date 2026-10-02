@@ -4,11 +4,12 @@ import 'package:hyperlocal_app/core/network/connectivity_service.dart';
 import 'package:hyperlocal_app/features/shell/offline_banner.dart';
 
 void main() {
-  Widget host(ConnectivityStatus status, {VoidCallback? onRetry}) => MaterialApp(
-    home: Scaffold(
-      body: OfflineBanner(status: status, onRetry: onRetry),
-    ),
-  );
+  Widget host(ConnectivityStatus status, {VoidCallback? onRetry}) =>
+      MaterialApp(
+        home: Scaffold(
+          body: OfflineBanner(status: status, onRetry: onRetry),
+        ),
+      );
 
   testWidgets('renders nothing while online', (tester) async {
     await tester.pumpWidget(host(ConnectivityStatus.online));
@@ -18,7 +19,9 @@ void main() {
     expect(find.byType(OfflineBanner), findsOneWidget);
   });
 
-  testWidgets('offline shows a clear status and a retry action', (tester) async {
+  testWidgets('offline shows a clear status and a retry action', (
+    tester,
+  ) async {
     var retried = 0;
     await tester.pumpWidget(
       host(ConnectivityStatus.offline, onRetry: () => retried++),
@@ -54,7 +57,9 @@ void main() {
 
     // A disabled-looking retry that does nothing is worse than none.
     expect(find.byKey(const Key('offlineBannerRetry')), findsNothing);
-    expect(find.text("You're offline — some content may be unavailable"),
-        findsOneWidget);
+    expect(
+      find.text("You're offline — some content may be unavailable"),
+      findsOneWidget,
+    );
   });
 }

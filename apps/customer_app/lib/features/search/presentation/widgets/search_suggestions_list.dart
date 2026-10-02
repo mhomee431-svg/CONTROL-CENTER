@@ -94,11 +94,10 @@ class SearchSuggestionsList extends ConsumerWidget {
     final trimmed = query.trim().toLowerCase();
     if (trimmed.isEmpty) return const [];
     final all =
-        ref.watch(recentSearchesProvider).asData?.value ?? const <String>[];
-    return all
-        .where((r) => r.toLowerCase().contains(trimmed))
-        .take(4)
-        .toList();
+        // `recentSearchesProvider` is a plain List projection now, not an
+        // AsyncValue, so there is no `.asData` to unwrap.
+        ref.watch(recentSearchesProvider);
+    return all.where((r) => r.toLowerCase().contains(trimmed)).take(4).toList();
   }
 
   /// Same outcome as tapping a backend suggestion: record the search and

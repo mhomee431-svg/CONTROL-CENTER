@@ -29,7 +29,11 @@ class _EmptyHomeRepository implements HomeRepository {
       );
 
   @override
-  Future<List<Shop>> fetchShopsByPincode(String pincode) async => const [];
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async => ShopsByPinPage.empty;
 }
 
 void main() {
@@ -336,5 +340,9 @@ class _EmptyNearbyShopsRepository implements HomeRepository {
   }
 
   @override
-  Future<List<Shop>> fetchShopsByPincode(String pincode) async => const [];
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async => ShopsByPinPage.empty;
 }

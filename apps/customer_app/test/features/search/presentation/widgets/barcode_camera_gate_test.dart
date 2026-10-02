@@ -21,9 +21,7 @@ Future<InMemoryPermissionService> pumpGate(
   );
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        permissionServiceProvider.overrideWithValue(permissions),
-      ],
+      overrides: [permissionServiceProvider.overrideWithValue(permissions)],
       child: MaterialApp(
         home: Scaffold(
           body: BarcodeCameraGate(
@@ -36,6 +34,28 @@ Future<InMemoryPermissionService> pumpGate(
     ),
   );
   return permissions;
+}
+
+class _FailingPermissionService implements PermissionService {
+  _FailingPermissionService(this.inner, this.shouldThrow);
+
+  final InMemoryPermissionService inner;
+  final bool Function() shouldThrow;
+
+  @override
+  Future<PermissionSnapshot> status(PermissionKind kind) async {
+    if (shouldThrow()) throw Exception('Platform status channel failure');
+    return inner.status(kind);
+  }
+
+  @override
+  Future<PermissionSnapshot> request(PermissionKind kind) async {
+    if (shouldThrow()) throw Exception('Platform request channel failure');
+    return inner.request(kind);
+  }
+
+  @override
+  Future<bool> openSystemSettings() => inner.openSystemSettings();
 }
 
 void main() {
@@ -63,46 +83,39 @@ void main() {
     },
   );
 
-  testWidgets(
-    'an existing grant never triggers a request',
-    (tester) async {
-      final permissions = await pumpGate(
-        tester,
-        statuses: {PermissionKind.camera: PermissionOutcome.granted},
-      );
-      await tester.pumpAndSettle();
+  testWidgets('an existing grant never triggers a request', (tester) async {
+    final permissions = await pumpGate(
+      tester,
+      statuses: {PermissionKind.camera: PermissionOutcome.granted},
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('fake_camera')), findsOneWidget);
-      expect(permissions.requestsFor(PermissionKind.camera), 0);
-    },
-  );
+    expect(find.byKey(const Key('fake_camera')), findsOneWidget);
+    expect(permissions.requestsFor(PermissionKind.camera), 0);
+  });
 
-  testWidgets(
-    'denial keeps "Allow Camera" and manual entry, both working',
-    (tester) async {
-      final permissions = await pumpGate(
-        tester,
-        requestOutcomes: {PermissionKind.camera: PermissionOutcome.denied},
-      );
-      await tester.pumpAndSettle();
+  testWidgets('denial keeps "Allow Camera" and manual entry, both working', (
+    tester,
+  ) async {
+    final permissions = await pumpGate(
+      tester,
+      requestOutcomes: {PermissionKind.camera: PermissionOutcome.denied},
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text(BarcodeCameraCopy.deniedTitle), findsOneWidget);
-      expect(find.byKey(const Key('fake_camera')), findsNothing);
-      // Manual entry is the escape hatch that never disappears.
-      expect(find.byKey(const Key('barcode_camera_manual')), findsOneWidget);
+    expect(find.text(BarcodeCameraCopy.deniedTitle), findsOneWidget);
+    expect(find.byKey(const Key('fake_camera')), findsNothing);
+    // Manual entry is the escape hatch that never disappears.
+    expect(find.byKey(const Key('barcode_camera_manual')), findsOneWidget);
 
-      // Tapping "Allow Camera" asks again — the ONLY path back from a denial.
-      permissions.scriptRequest(
-        PermissionKind.camera,
-        PermissionOutcome.granted,
-      );
-      await tester.tap(find.byKey(const Key('barcode_camera_allow')));
-      await tester.pumpAndSettle();
+    // Tapping "Allow Camera" asks again — the ONLY path back from a denial.
+    permissions.scriptRequest(PermissionKind.camera, PermissionOutcome.granted);
+    await tester.tap(find.byKey(const Key('barcode_camera_allow')));
+    await tester.pumpAndSettle();
 
-      expect(permissions.requestsFor(PermissionKind.camera), 2);
-      expect(find.byKey(const Key('fake_camera')), findsOneWidget);
-    },
-  );
+    expect(permissions.requestsFor(PermissionKind.camera), 2);
+    expect(find.byKey(const Key('fake_camera')), findsOneWidget);
+  });
 
   testWidgets(
     'blocked permission guides to settings, rechecks, and manual entry',
@@ -120,8 +133,10 @@ void main() {
       for (final step in BarcodeCameraCopy.settingsPath) {
         expect(find.text(step), findsOneWidget);
       }
-      expect(find.byKey(const Key('barcode_camera_open_settings')),
-          findsOneWidget);
+      expect(
+        find.byKey(const Key('barcode_camera_open_settings')),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('barcode_camera_manual')), findsOneWidget);
       expect(find.byKey(const Key('fake_camera')), findsNothing);
 
@@ -155,4 +170,46 @@ void main() {
       expect(find.byKey(const Key('fake_camera')), findsOneWidget);
     },
   );
+
+  testWidgets('error state displays retry prompt and recovers on retry', (
+    tester,
+  ) async {
+    final permissions = InMemoryPermissionService();
+    var shouldThrow = true;
+    final testService = _FailingPermissionService(
+      permissions,
+      () => shouldThrow,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [permissionServiceProvider.overrideWithValue(testService)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: BarcodeCameraGate(
+              cameraBuilder: (_) =>
+                  const Text('camera live', key: Key('fake_camera')),
+              onEnterManually: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(BarcodeCameraCopy.errorTitle), findsOneWidget);
+    expect(find.textContaining(BarcodeCameraCopy.errorDetail), findsOneWidget);
+    expect(find.byKey(const Key('barcode_camera_retry')), findsOneWidget);
+    expect(find.byKey(const Key('barcode_camera_manual')), findsOneWidget);
+    expect(find.byKey(const Key('fake_camera')), findsNothing);
+
+    // Now resolve error and retry
+    shouldThrow = false;
+    permissions.setStatus(PermissionKind.camera, PermissionOutcome.granted);
+    await tester.tap(find.byKey(const Key('barcode_camera_retry')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('fake_camera')), findsOneWidget);
+    expect(find.byKey(const Key('barcode_camera_retry')), findsNothing);
+  });
 }

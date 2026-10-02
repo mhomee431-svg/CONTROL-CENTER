@@ -8,11 +8,17 @@ void main() {
   group('formatFreshnessText — required label set', () {
     test('reports minutes for a sub-hour-old reading', () {
       expect(
-        formatFreshnessText(kNow.subtract(const Duration(minutes: 5)), now: kNow),
+        formatFreshnessText(
+          kNow.subtract(const Duration(minutes: 5)),
+          now: kNow,
+        ),
         'Updated 5 min ago',
       );
       expect(
-        formatFreshnessText(kNow.subtract(const Duration(minutes: 42)), now: kNow),
+        formatFreshnessText(
+          kNow.subtract(const Duration(minutes: 42)),
+          now: kNow,
+        ),
         'Updated 42 min ago',
       );
     });
@@ -45,16 +51,25 @@ void main() {
 
     test('a reading from seconds ago is "just now", never a fake "5 min"', () {
       expect(
-        formatFreshnessText(kNow.subtract(const Duration(seconds: 20)), now: kNow),
+        formatFreshnessText(
+          kNow.subtract(const Duration(seconds: 20)),
+          now: kNow,
+        ),
         'Updated just now',
       );
       // The boundary: 59s is still "just now", 60s becomes 1 min.
       expect(
-        formatFreshnessText(kNow.subtract(const Duration(seconds: 59)), now: kNow),
+        formatFreshnessText(
+          kNow.subtract(const Duration(seconds: 59)),
+          now: kNow,
+        ),
         'Updated just now',
       );
       expect(
-        formatFreshnessText(kNow.subtract(const Duration(seconds: 60)), now: kNow),
+        formatFreshnessText(
+          kNow.subtract(const Duration(seconds: 60)),
+          now: kNow,
+        ),
         'Updated 1 min ago',
       );
     });
@@ -71,7 +86,10 @@ void main() {
 
     test('an exactly-1-minute-old reading stays at 1 min, not 5', () {
       expect(
-        formatFreshnessText(kNow.subtract(const Duration(minutes: 1)), now: kNow),
+        formatFreshnessText(
+          kNow.subtract(const Duration(minutes: 1)),
+          now: kNow,
+        ),
         'Updated 1 min ago',
       );
     });

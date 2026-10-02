@@ -29,6 +29,7 @@ import '../../features/location/presentation/screens/select_location_screen.dart
 import '../../features/product_details/presentation/screens/product_details_screen.dart';
 import '../../features/product_details/presentation/screens/nearby_shops_screen.dart';
 import '../../features/shop_details/presentation/screens/shop_details_screen.dart';
+import '../../features/shop_details/presentation/screens/transport_trips_screen.dart';
 import '../../features/directions/presentation/screens/directions_screen.dart';
 import '../../features/customer/presentation/screens/customer_favorites_screen.dart';
 import '../../features/customer/presentation/screens/customer_recently_viewed_screen.dart';
@@ -43,6 +44,8 @@ import '../../features/onboarding/presentation/controllers/onboarding_controller
 
 import '../../features/order/presentation/screens/my_orders_screen.dart';
 import '../../features/order/presentation/screens/order_detail_screen.dart';
+import '../../core/widgets/deep_link_unavailable_screen.dart';
+import '../../features/search/presentation/controllers/search_controller.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -131,6 +134,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ShopDetailsScreen(shopId: shopId);
         },
       ),
+      // Deep-link target for `DeepLinkEntity.offer`.
+      //
+      // Registered so an offer link can never 404. There is no offer screen in
+      // this build, so it renders the shared "not available" state; the guard
+      // normally refuses these links before navigation even happens.
+      GoRoute(
+        path: '/offer/:id',
+        builder: (context, state) => const OfferLinkScreen(),
+      ),
       GoRoute(
         path: '/directions',
         builder: (context, state) {
@@ -172,10 +184,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             const LegalDocumentScreen(document: LegalDocument.terms),
       ),
-      GoRoute(
-        path: '/about',
-        builder: (context, state) => const AboutScreen(),
-      ),
+      GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
       GoRoute(
         path: '/notification-settings',
         builder: (context, state) => const NotificationSettingsScreen(),
@@ -208,6 +217,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           final orderId = state.pathParameters['id'] ?? '';
           return OrderDetailScreen(orderId: orderId);
         },
+      ),
+      // Transport trips — quotes and service bookings for the transport /
+      // personal-transport categories. Deliberately a SEPARATE route from
+      // '/orders': a transport booking is a service booking (Rule 6), not a
+      // product order, and sharing a route would give trips order vocabulary
+      // (items, delivery, stock) they do not have.
+      GoRoute(
+        path: '/trips',
+        builder: (context, state) => const TransportTripsScreen(),
       ),
       // OTP verification — pushed by login and registration after a
       // successful sendOtp (args travel via `extra`).
@@ -259,7 +277,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/search',
-                builder: (context, state) => const SearchScreen(),
+                builder: (context, state) {
+                  // Deep links land as `/search?q=dove`. The field starts
+                  // empty, so the query is handed to the notifier here rather
+                  // than only living in the field: suggestions and results
+                  // both key off provider state, and a field-only seed would
+                  // render an empty search screen until the customer tapped.
+                  final query = state.uri.queryParameters['q']?.trim() ?? '';
+                  if (query.isNotEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      ref.read(searchQueryProvider.notifier)
+                        ..onTextChanged(query)
+                        ..debouncedTextChanged(query);
+                    });
+                  }
+                  return const SearchScreen();
+                },
                 routes: [
                   GoRoute(
                     path: 'results',

@@ -105,6 +105,15 @@ class ApiSavedAndHistoryRepository implements SavedAndHistoryRepository {
           DateTime.tryParse(json['saved_at']?.toString() ?? '') ??
           DateTime.now(),
       isSynced: true,
+      // Discovery-card facts. `distance_km` is read as a raw nullable rather than
+      // defaulted to 0 so "unknown" stays distinguishable from a shop the
+      // customer is standing in.
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      isVerified: json['is_verified'] == true,
+      // Deliberately nullable: `as bool?` keeps a missing verdict missing, where
+      // `as bool? ?? false` would report every unverified payload as "Closed".
+      isOpenNow: json['is_open_now'] as bool?,
+      isAcceptingOrders: json['is_accepting_orders'] as bool?,
     );
   }
 

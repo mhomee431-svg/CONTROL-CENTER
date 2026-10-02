@@ -49,6 +49,14 @@ _ShopProfile _$ShopProfileFromJson(Map<String, dynamic> json) => _ShopProfile(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  capabilities:
+      (json['capabilities'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
+  businessCategoryName: json['businessCategoryName'] as String? ?? '',
+  businessCategoryCode: json['businessCategoryCode'] as String? ?? '',
+  businessType: json['businessType'] as String? ?? '',
   isVerified: json['isVerified'] as bool? ?? false,
   latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
   longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
@@ -74,6 +82,10 @@ Map<String, dynamic> _$ShopProfileToJson(_ShopProfile instance) =>
       'availableProducts': instance.availableProducts,
       'isSaved': instance.isSaved,
       'categories': instance.categories,
+      'capabilities': instance.capabilities,
+      'businessCategoryName': instance.businessCategoryName,
+      'businessCategoryCode': instance.businessCategoryCode,
+      'businessType': instance.businessType,
       'isVerified': instance.isVerified,
       'latitude': instance.latitude,
       'longitude': instance.longitude,

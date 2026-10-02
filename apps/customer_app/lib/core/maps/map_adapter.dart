@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,7 +27,11 @@ class MapErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.map_outlined, size: 48, color: AppColors.textMuted),
+            const Icon(
+              Icons.map_outlined,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -90,12 +96,26 @@ class MapClusterInfo {
 /// same cell becomes one cluster positioned at the members' centroid. When the
 /// count is at/below the threshold the input list is returned untouched, so
 /// normal maps render every shop marker individually.
+///
+/// Pass [maxMarkers] to bound the result regardless of clustering, together
+/// with [originLatitude]/[originLongitude] so the cap keeps the nearest
+/// entries. See [_capMarkers] for why the cap exists at all.
 List<Object> clusterMarkers(
   List<MapMarkerInfo> shops, {
   int clusterThreshold = 12,
   double cellSizeDegrees = 0.01,
+  int? maxMarkers,
+  double? originLatitude,
+  double? originLongitude,
 }) {
-  if (shops.length <= clusterThreshold) return List<Object>.of(shops);
+  if (shops.length <= clusterThreshold) {
+    return _capMarkers(
+      List<Object>.of(shops),
+      maxMarkers: maxMarkers,
+      originLatitude: originLatitude,
+      originLongitude: originLongitude,
+    );
+  }
   final cells = <String, List<MapMarkerInfo>>{};
   for (final shop in shops) {
     final key =
@@ -103,7 +123,7 @@ List<Object> clusterMarkers(
         '${(shop.longitude / cellSizeDegrees).floor()}';
     (cells[key] ??= <MapMarkerInfo>[]).add(shop);
   }
-  return cells.values.map((members) {
+  final clustered = cells.values.map((members) {
     if (members.length == 1) return members.first;
     var lat = 0.0;
     var lng = 0.0;
@@ -118,6 +138,103 @@ List<Object> clusterMarkers(
       members: List<MapMarkerInfo>.unmodifiable(members),
     );
   }).toList();
+  return _capMarkers(
+    clustered,
+    maxMarkers: maxMarkers,
+    originLatitude: originLatitude,
+    originLongitude: originLongitude,
+  );
+}
+
+/// Great-circle distance between two coordinates, in metres.
+///
+/// Exposed (and pure) so the marker cap can order by "nearest to the customer"
+/// without a device, and so tests can assert the ordering directly.
+double haversineMeters({
+  required double fromLat,
+  required double fromLng,
+  required double toLat,
+  required double toLng,
+}) {
+  const earthRadiusMeters = 6371000.0;
+  double toRadians(double degrees) => degrees * math.pi / 180.0;
+  final dLat = toRadians(toLat - fromLat);
+  final dLng = toRadians(toLng - fromLng);
+  final a =
+      math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(toRadians(fromLat)) *
+          math.cos(toRadians(toLat)) *
+          math.sin(dLng / 2) *
+          math.sin(dLng / 2);
+  return 2 * earthRadiusMeters * math.asin(math.min(1.0, math.sqrt(a)));
+}
+
+/// Truncates [entries] to [maxMarkers], keeping the ones closest to the origin.
+///
+/// WHY A CAP IS NEEDED EVEN AFTER CLUSTERING
+/// ---------------------------------------
+/// Clustering only collapses markers that share a grid cell. A search returning
+/// 40 shops spread over a city produces 40 markers and 40 InfoWindows, because
+/// no two of them ever land in the same cell. Every one of those is a platform
+/// view, an icon bitmap, and an InfoWindow to allocate on each rebuild, so the
+/// map gets steadily more expensive exactly as the customer pans toward the
+/// dense area they care about.
+///
+/// The nearest ones are kept because a customer scanning "dove shampoo" wants
+/// the shops they can actually walk to; a marker 30 km away is not a useful
+/// pin. Ties fall back to the incoming order so the result is deterministic
+/// (Dart's [List.sort] is not stable, so the index is an explicit tiebreak).
+///
+/// With no [maxMarkers] (the default) the input is returned untouched, which is
+/// what the plain cluster behaviour and its existing callers/tests expect.
+List<Object> _capMarkers(
+  List<Object> entries, {
+  required int? maxMarkers,
+  required double? originLatitude,
+  required double? originLongitude,
+}) {
+  if (maxMarkers == null || entries.length <= maxMarkers) return entries;
+  final bounded = maxMarkers < 0 ? 0 : maxMarkers;
+  if (bounded == 0) return const <Object>[];
+
+  final hasOrigin = originLatitude != null && originLongitude != null;
+  if (!hasOrigin) return entries.sublist(0, bounded);
+
+  final indexed = <({int index, Object entry, double distance})>[];
+  for (var i = 0; i < entries.length; i++) {
+    final entry = entries[i];
+    final latitude = switch (entry) {
+      MapMarkerInfo marker => marker.latitude,
+      MapClusterInfo cluster => cluster.latitude,
+      _ => null,
+    };
+    final longitude = switch (entry) {
+      MapMarkerInfo marker => marker.longitude,
+      MapClusterInfo cluster => cluster.longitude,
+      _ => null,
+    };
+    if (latitude == null || longitude == null) continue;
+    indexed.add((
+      index: i,
+      entry: entry,
+      distance: haversineMeters(
+        fromLat: originLatitude,
+        fromLng: originLongitude,
+        toLat: latitude,
+        toLng: longitude,
+      ),
+    ));
+  }
+  // An unrecognised entry type means the caller handed us something this
+  // function cannot order by distance. Dropping those silently would hide
+  // shops, so keep the original order rather than guessing.
+  if (indexed.length != entries.length) return entries.sublist(0, bounded);
+
+  indexed.sort((a, b) {
+    final byDistance = a.distance.compareTo(b.distance);
+    return byDistance != 0 ? byDistance : a.index.compareTo(b.index);
+  });
+  return <Object>[for (var i = 0; i < bounded; i++) indexed[i].entry];
 }
 
 /// Abstraction layer for Map Providers (Google Maps, Mapbox, OSM, etc.)

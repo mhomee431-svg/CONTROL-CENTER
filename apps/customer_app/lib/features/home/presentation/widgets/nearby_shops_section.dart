@@ -41,7 +41,10 @@ class NearbyShopsSection extends StatelessWidget {
           onActionTap: () => context.push('/search'),
         ),
         SizedBox(
-          height: 180,
+          // Taller than the plain card row: the shared card carries an optional
+          // context line, and a fixed height that is too short overflows rather
+          // than scrolling.
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),

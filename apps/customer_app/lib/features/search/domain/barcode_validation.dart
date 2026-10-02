@@ -40,8 +40,7 @@ const Set<int> kValidBarcodeLengths = {8, 12, 13, 14};
 /// manual-entry field error so a bad code reads the same everywhere.
 String invalidBarcodeMessage(BarcodeInvalidReason reason) {
   return switch (reason) {
-    BarcodeInvalidReason.empty =>
-      'No barcode was read. Hold the code steady inside the frame and try again.',
+    BarcodeInvalidReason.empty => 'No barcode was read. Hold the code steady inside the frame and try again.',
     BarcodeInvalidReason.nonNumeric =>
       'Only digits are valid in a product barcode. Re-scan, or type the digits '
           'printed under the bars.',

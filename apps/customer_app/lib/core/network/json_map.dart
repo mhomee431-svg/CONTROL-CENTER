@@ -233,10 +233,11 @@ class JsonMap {
   ///
   /// Dropping rather than failing is deliberate: one malformed row in a list of
   /// 20 shops should cost the customer that one row, not the whole screen.
-  List<JsonMap> objectList(String key) => list(key)
-      .whereType<Map<dynamic, dynamic>>()
-      .map(JsonMap.tryParse)
-      .toList(growable: false);
+  List<JsonMap> objectList(String key) =>
+      list(key)
+          .whereType<Map<dynamic, dynamic>>()
+          .map(JsonMap.tryParse)
+          .toList(growable: false);
 
   /// Reads [key] as a list of strings, dropping entries that are not strings.
   List<String> stringList(String key) => list(key)

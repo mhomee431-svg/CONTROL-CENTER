@@ -257,6 +257,10 @@ class ShopResponse(BaseModel):
     is_open_24x7: bool
     is_accepting_orders: bool
     category: Optional[ShopCategory] = None
+    # Free-form business type (Retail | Wholesale | Retail + Wholesale | Service
+    # | Other). Exposed because it is a customer-facing signal: a service
+    # business must not be presented as a product shop.
+    business_type: Optional[str] = None
     subcategories: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None

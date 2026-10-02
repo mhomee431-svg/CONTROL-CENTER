@@ -60,6 +60,24 @@ async def search_providers(
         return error_response(message=str(exc), error_code="PROVIDER_SEARCH_FAILED", status_code=400)
 
 
+@router.get("/providers/by-shop/{shop_id}")
+async def get_provider_detail_by_shop(
+    shop_id: int,
+    db: Session = Depends(get_db),
+):
+    """Transport provider profile for a SHOP (customer shop profile).
+
+    Declared BEFORE ``/providers/{provider_id}`` so ``by-shop`` is never parsed
+    as an id. 404 means the shop has no provider record: the customer app then
+    shows no service section at all, and in particular no request/booking entry
+    point, because there would be nothing to request from.
+    """
+    provider = transport_service.get_provider_detail_by_shop(db, shop_id)
+    if provider is None:
+        return error_response(message="Provider not found", error_code="PROVIDER_NOT_FOUND", status_code=404)
+    return success_response(data=provider)
+
+
 @router.get("/providers/{provider_id}")
 async def get_provider_detail(
     provider_id: int,
@@ -84,6 +102,46 @@ async def get_vehicle_detail(
     return success_response(data=vehicle)
 
 # -- Quote endpoints --------------------------------------------------------
+@router.get("/quotes")
+async def get_my_quotes(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """The current customer's own quote requests, newest first.
+
+    This is the missing link that makes the customer flow completable: a request
+    can be sent and the provider can answer it with a price, but the customer
+    needs to LIST their quotes to see that price and then accept it. Without it
+    `POST /quotes/{id}/accept` is unreachable from the app.
+    """
+    try:
+        quotes = transport_service.get_user_quotes(
+            db, user_id=current_user.id, status=status
+        )
+        return success_response(data=quotes)
+    except Exception as exc:  # noqa: BLE001
+        return error_response(message=str(exc), error_code="QUOTE_LIST_FAILED", status_code=500)
+
+
+@router.get("/quotes/{quote_id}")
+async def get_quote_detail(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """One of the current customer's own quotes, including the provider's price."""
+    try:
+        quote = transport_service.get_quote_detail(
+            db, user_id=current_user.id, quote_id=quote_id
+        )
+    except PermissionError as exc:
+        return error_response(message=str(exc), error_code="FORBIDDEN", status_code=403)
+    if quote is None:
+        return error_response(message="Quote not found", error_code="QUOTE_NOT_FOUND", status_code=404)
+    return success_response(data=quote)
+
+
 @router.post("/quotes")
 async def request_quote(
     data: TransportQuoteCreate,

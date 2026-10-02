@@ -146,9 +146,22 @@ class MockHomeRepository implements HomeRepository {
   }
 
   @override
-  Future<List<Shop>> fetchShopsByPincode(String pincode) async {
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async {
     // Simulate network latency
     await Future.delayed(const Duration(milliseconds: 600));
-    return _sampleNearbyShops;
+    // Sliced like a real paginated endpoint, so a caller that forgets to page
+    // sees fewer rows instead of the whole sample list.
+    final start = (page - 1) * limit;
+    if (start >= _sampleNearbyShops.length) return ShopsByPinPage.empty;
+    final end = (start + limit).clamp(0, _sampleNearbyShops.length);
+    final slice = _sampleNearbyShops.sublist(start, end);
+    return ShopsByPinPage(
+      shops: slice,
+      hasMore: end < _sampleNearbyShops.length,
+    );
   }
 }

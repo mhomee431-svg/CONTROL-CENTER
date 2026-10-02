@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../providers/product_details_providers.dart';
 import '../../../../features/customer/presentation/controllers/customer_controller.dart';
 import '../../domain/models/product_details_models.dart';
 import '../../../../core/network/api_error_handler.dart';
+import '../../../../core/share/share_content.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/product_share.dart';
 import '../../../../core/widgets/stale_data_notice.dart';
 import '../widgets/product_image_gallery.dart';
 import '../widgets/product_master_section.dart';
@@ -63,11 +64,23 @@ class ProductDetailsScreen extends ConsumerWidget {
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Share product',
             onPressed: () {
-              final name = productAsync.value?.product.name ?? 'this product';
-              SharePlus.instance.share(
-                ShareParams(
-                  text: 'Check out $name on Hyperlocal!',
-                  subject: 'Product: $name',
+              final details = productAsync.value;
+              if (details == null) return;
+              final master = details.product;
+              // The EAN/UPC is preferred for the link over the internal
+              // product id: it is printed on the box, so sharing it reveals
+              // nothing a customer was not already holding.
+              final identifiers = [
+                for (final id in master.identifiers)
+                  (type: id.type, value: id.value),
+              ];
+              shareProductContent(
+                ref,
+                buildProductShareContent(
+                  productName: master.name,
+                  brand: master.brand,
+                  productId: master.id,
+                  identifiers: identifiers,
                 ),
               );
             },
@@ -130,9 +143,7 @@ class ProductDetailsScreen extends ConsumerWidget {
             ),
 
             // ── SECTION: PRICE COMPARISON ────────────────────────────────
-            if (details.liveOffers.length > 1) ...const [
-              Divider(height: 1),
-            ],
+            if (details.liveOffers.length > 1) ...const [Divider(height: 1)],
             PriceComparisonSection(
               details: details,
               onShopTap: (offer) => context.push('/shop/${offer.shopId}'),

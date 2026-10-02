@@ -12,15 +12,18 @@ GoRouter _router() {
       GoRoute(path: '/about', builder: (_, _) => const AboutScreen()),
       GoRoute(
         path: '/help',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('HelpPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('HelpPage')),
       ),
       GoRoute(
         path: '/privacy',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('PrivacyPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('PrivacyPage')),
       ),
       GoRoute(
         path: '/terms',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('TermsPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('TermsPage')),
       ),
     ],
   );
