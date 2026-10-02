@@ -87,6 +87,18 @@ class AccountScreen extends ConsumerWidget {
             onTap: () => context.push('/profile/addresses'),
           ),
 
+          // The only PERMANENT route to trips. Without this, a customer could
+          // reach their quotes and bookings only from the quote-request success
+          // sheet — so the moment they walked away, the feature became
+          // unreachable. An account hub is where a returning customer looks.
+          _AccountTile(
+            key: const Key('accountTripsTile'),
+            icon: Icons.directions_car_outlined,
+            title: 'My Trips',
+            subtitle: 'Quotes and bookings for transport and travel',
+            onTap: () => context.push('/trips'),
+          ),
+
           const SectionLabel('Preferences', padding: SectionLabel.tight),
           _AccountTile(
             key: const Key('accountNotificationsTile'),

@@ -66,6 +66,11 @@ GoRouter _router() {
             Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
       ),
       GoRoute(
+        path: '/trips',
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('TripsPage')),
+      ),
+      GoRoute(
         path: '/saved',
         builder: (_, state) => Scaffold(
           appBar: AppBar(),
@@ -151,6 +156,7 @@ void main() {
       'Saved Shops',
       'Search History',
       'Saved Addresses',
+      'My Trips',
       'Notifications',
       'Settings',
       'Help',
@@ -181,6 +187,11 @@ void main() {
       await expectOpens('accountHelpTile', 'HelpPage');
       await expectOpens('accountPrivacyTile', 'PrivacyPage');
       await expectOpens('accountTermsTile', 'TermsPage');
+
+      // Reachability, asserted as navigation rather than as a widget existing.
+      // Trips was previously reachable ONLY from the quote-request success
+      // sheet, so a customer who came back later had no way back to them.
+      await expectOpens('accountTripsTile', 'TripsPage');
     },
   );
 
