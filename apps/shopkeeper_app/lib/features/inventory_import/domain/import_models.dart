@@ -201,6 +201,7 @@ class ImportRow {
     required this.status,
     this.productName,
     this.errorCode,
+    this.errorField,
     this.errorMessage,
   });
 
@@ -210,25 +211,64 @@ class ImportRow {
   final String status;
   final String? productName;
   final String? errorCode;
+
+  /// WHICH column the backend rejected — `barcode`, `price`, `mrp`, `row`, …
+  ///
+  /// The backend sends this as `error_field`, and spec §42 requires the error
+  /// screen to name the field ("Row number / Field / Error"). It used to be
+  /// dropped here, so the shopkeeper saw a bare code with no indication of
+  /// which cell to go and fix.
+  final String? errorField;
   final String? errorMessage;
 
   bool get isError => status == 'ERROR';
+
+  /// True when this row was rejected for repeating an earlier one.
+  ///
+  /// The backend tags these `DUPLICATE_ROW` ("Duplicate of an earlier row in
+  /// this file"), which is what makes §41's separate "Duplicate Rows" count
+  /// computable — a duplicate is a different mistake from any other error, and
+  /// folding it into one "Errors" total hides how much of a file is just
+  /// repeated lines.
+  bool get isDuplicate => errorCode == _duplicateCode;
+
+  /// The one code meaning "this row repeats an earlier one". Named once so the
+  /// count and the per-row badge cannot drift apart.
+  static const String _duplicateCode = 'DUPLICATE_ROW';
 
   factory ImportRow.fromJson(Map<String, dynamic> json) => ImportRow(
     rowNumber: (json['row_number'] as num?)?.toInt() ?? 0,
     status: json['status'] as String? ?? 'VALID',
     productName: (json['product_name'] ?? json['name']) as String?,
     errorCode: json['error_code'] as String?,
+    errorField: (json['error_field'] ?? json['field']) as String?,
     errorMessage: json['error_message'] as String?,
   );
 }
 
 /// Full preview payload for one job (meta + row-level outcomes).
 class ImportPreview {
-  const ImportPreview({required this.meta, this.rows = const []});
+  const ImportPreview({
+    required this.meta,
+    this.rows = const [],
+    this.isIdempotentReplay = false,
+  });
 
   final ImportJob meta;
   final List<ImportRow> rows;
+
+  /// True when the backend recognised this EXACT file as one it has already
+  /// uploaded and returned the earlier job instead of re-parsing it.
+  ///
+  /// The backend deduplicates on file content
+  /// (`excel_import_service.create_import` → `idempotent_replay`), which is
+  /// right: re-uploading the same workbook must not double-import. But the app
+  /// ignored the flag entirely, so a shopkeeper who corrected a file and
+  /// re-uploaded it was silently handed the PREVIOUS job's preview — and
+  /// "Apply valid rows" then applied the old staged rows. That defeats §40's
+  /// "never immediately push an unreviewed file": the rows on screen were never
+  /// in the file just picked. The preview now says so out loud.
+  final bool isIdempotentReplay;
 
   /// Rows that will be applied to inventory.
   ///
@@ -241,18 +281,41 @@ class ImportPreview {
   int get errorCount =>
       rows.isEmpty ? meta.errorRows : rows.where((r) => r.isError).length;
 
+  /// Rows rejected for repeating an earlier row (spec §41's "Duplicate Rows").
+  ///
+  /// Reported SEPARATELY from [errorCount] rather than folded into it: a
+  /// repeated line is a different mistake from a bad price, and the shopkeeper
+  /// fixes them differently. Zero when the payload carries no row detail (large
+  /// imports are summarised by the job counters), which is honest — the app
+  /// never invents a duplicate count it was not told.
+  int get duplicateCount =>
+      rows.isEmpty ? 0 : rows.where((r) => r.isDuplicate).length;
+
   factory ImportPreview.fromJson(Map<String, dynamic> json) {
     final meta = ImportJob.fromJson(json);
+    // The row array arrives under a DIFFERENT key depending on the endpoint:
+    //   * POST /inventory-imports (upload)  → "preview"
+    //   * GET  …/inventory-imports/{job}   → "rows"
+    //   * a nested "report.rows" envelope is also accepted.
+    // Only the GET shape was ever read, so on the UPLOAD path — the one the
+    // shopkeeper actually lands on — `rows` came back empty, the preview screen
+    // fell back to the job counters and showed "No rows found in this file".
+    // That silently erased the whole per-row error surface (spec §42) and made
+    // any row-derived count impossible to compute.
     final reportRows =
         ((json['report'] as Map<String, dynamic>?)?['rows']
             as List<dynamic>?) ??
-        (json['rows'] as List<dynamic>?);
+        (json['rows'] as List<dynamic>?) ??
+        (json['preview'] as List<dynamic>?);
     return ImportPreview(
       meta: meta,
       rows: (reportRows ?? const [])
           .whereType<Map<String, dynamic>>()
           .map(ImportRow.fromJson)
           .toList(growable: false),
+      // Only ever true when the server says so; a missing key is a normal
+      // first-time upload.
+      isIdempotentReplay: json['idempotent_replay'] as bool? ?? false,
     );
   }
 }

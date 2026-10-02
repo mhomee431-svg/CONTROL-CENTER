@@ -161,6 +161,10 @@ class ProductImageView extends StatelessWidget {
         height: height,
         fit: fit,
         cacheWidth: cacheWidth ?? _decodeWidthFor(context),
+        // Replacing a photo gives a NEW path, which Flutter treats as a
+        // different image: without this the preview blanks to the placeholder
+        // while the replacement decodes.
+        gaplessPlayback: true,
         semanticLabel: semanticLabel,
         errorBuilder: (ctx, err, stack) => _buildError(context),
       );
@@ -178,7 +182,19 @@ class ProductImageView extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        cacheWidth: cacheWidth,
+        // Same rule as the local-file branch above: `cacheWidth` when the caller
+        // states it, otherwise the size this widget actually paints. A bare
+        // `cacheWidth` left the network path (the common case — a catalog photo
+        // served by the backend) decoding at FULL source resolution, so the
+        // bitmap-cache cost the comment above describes was avoided only for
+        // local files.
+        cacheWidth: cacheWidth ?? _decodeWidthFor(context),
+        // The backend serves presigned URLs, so the URL string rotates on every
+        // refresh even though the picture is unchanged. Flutter treats a changed
+        // provider as a new image, so without this every pull-to-refresh blanks
+        // the decoded thumbnail back to the placeholder — a visible flash across
+        // the whole product list. Keeping the last frame makes the swap seamless.
+        gaplessPlayback: true,
         semanticLabel: semanticLabel,
         loadingBuilder: (ctx, child, progress) {
           if (progress == null) return child;

@@ -116,6 +116,22 @@ class ProductsController extends Notifier<ProductsState> {
   /// a fresh catalog may re-ask the server the same question.
   String? _serverAnsweredFor;
 
+  /// Monotonic sequence for stock WRITES, plus the newest one started per
+  /// product.
+  ///
+  /// The read paths are generation-guarded, but a write can also race ITSELF:
+  /// the shopkeeper saves +5, then saves +3 before the first answer lands, and
+  /// the second response can arrive first. Without this guard the older,
+  /// already-superseded answer lands last and silently rolls the row back to a
+  /// quantity the shopkeeper has moved past.
+  int _writeSeq = 0;
+  final Map<int, int> _latestWrite = <int, int>{};
+
+  /// True when [seq] is still the newest stock write for [productId] — i.e.
+  /// when this response is one the catalog should actually adopt.
+  bool _isLatestWrite(int productId, int seq) =>
+      _latestWrite[productId] == seq;
+
   /// Minimum submitted length worth a server round-trip — single letters are
   /// half-typed drafts (same rule as the recent-searches history).
   static const int _minServerQueryLength = 2;
@@ -272,12 +288,38 @@ class ProductsController extends Notifier<ProductsState> {
   void reset() {
     _generation++;
     _serverAnsweredFor = null;
+    // An in-flight write from the previous session must not claim a slot in
+    // the next account's catalog when it lands.
+    _latestWrite.clear();
     state = ProductsState.loading();
     unawaited(_inventoryRepo.clearOfflineSnapshot());
   }
 
   Future<bool> setAvailability(int productId, bool available) async {
     final updated = await _patch(productId, {'is_available': available});
+    return updated != null;
+  }
+
+  /// Deactivate or re-activate a LISTING (spec §74 / §75) — never a hard delete.
+  ///
+  /// The backend approves exactly ONE semantic for withdrawing a listing:
+  /// `PATCH /shops/{id}/products/{pid}` with `{"status": ...}`. `DISCONTINUED`
+  /// hides the listing from customers while leaving its price and inventory
+  /// history intact (the model carries a `SoftDeleteMixin`, so the row stays
+  /// queryable for reports) — which is precisely why the app offers deactivate
+  /// and deliberately does not offer delete, per §75.
+  ///
+  /// Deliberately NOT bundled with `is_available`: availability is a visibility
+  /// switch the shopkeeper toggles freely, whereas this is the lifecycle
+  /// decision the confirmation dialog is asking about. Sending both would make
+  /// one reversible action silently perform the other.
+  ///
+  /// Returns false and leaves the catalog untouched when the write is refused —
+  /// [ProductsState.message] carries the backend's own wording, so the calling
+  /// sheet can report it and keep the shopkeeper's place.
+  Future<bool> setListingStatus(
+      int productId, ListingStateView listing) async {
+    final updated = await _patch(productId, {'status': listing.value});
     return updated != null;
   }
 
@@ -303,6 +345,10 @@ class ProductsController extends Notifier<ProductsState> {
       return const StockAdjustOutcome(
           ok: false, error: 'Quantity change cannot be zero');
     }
+    // Claim this product's write slot BEFORE the request goes out, so a second
+    // save started before this one answers can supersede it.
+    final seq = ++_writeSeq;
+    _latestWrite[productId] = seq;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
       if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
@@ -311,6 +357,12 @@ class ProductsController extends Notifier<ProductsState> {
         'quantity_adjustment': delta,
         'reason': ?reason,
       }, token);
+      // The write itself SUCCEEDED — it is only stale. Reporting it as an
+      // error would be a lie, but repainting the row would roll the quantity
+      // back behind a newer edit, so the catalog keeps the newer answer.
+      if (!_isLatestWrite(productId, seq) || shopId != _shopId) {
+        return StockAdjustOutcome(ok: true, result: result);
+      }
       // Trust the server's post-update numbers, not the client's arithmetic.
       state = ProductsState(
         status: state.status == ProductsStatus.accessDenied
@@ -325,6 +377,13 @@ class ProductsController extends Notifier<ProductsState> {
                 isAvailable: result.newQuantity > 0,
                 lastUpdated: result.lastInventoryUpdate ?? DateTime.now(),
                 source: 'MANUAL',
+                // A manual adjustment IS the freshest data the platform holds,
+                // so the row must stop reading "Stale - needs a refresh" the
+                // moment the shopkeeper fixes it by hand. The server reaches the
+                // same tier (`compute_freshness(now, MANUAL)` →
+                // RECENTLY_UPDATED) but does not send it on this response, and
+                // the client is not guessing here: it just performed the write.
+                freshnessStatus: 'RECENTLY_UPDATED',
                 updatedBy: item.updatedBy,
               )
             else
@@ -343,25 +402,31 @@ class ProductsController extends Notifier<ProductsState> {
               : (e.statusCode == 404
                   ? 'This product is no longer in your inventory.'
                   : e.message);
-      state = ProductsState(
-        status: e.isForbidden
-            ? ProductsStatus.accessDenied
-            : (state.status == ProductsStatus.accessDenied
-                ? ProductsStatus.accessDenied
-                : ProductsStatus.ready),
-        items: state.items,
-        summary: state.summary,
-        message: message,
-      );
+      // A superseded write must not paint its error over a newer one that
+      // already landed: the row on screen is the newer truth.
+      if (_isLatestWrite(productId, seq) && shopId == _shopId) {
+        state = ProductsState(
+          status: e.isForbidden
+              ? ProductsStatus.accessDenied
+              : (state.status == ProductsStatus.accessDenied
+                  ? ProductsStatus.accessDenied
+                  : ProductsStatus.ready),
+          items: state.items,
+          summary: state.summary,
+          message: message,
+        );
+      }
       return StockAdjustOutcome(ok: false, error: message);
     } catch (_) {
       const message = 'Could not update stock. Please retry.';
-      state = ProductsState(
-        status: ProductsStatus.ready,
-        items: state.items,
-        summary: state.summary,
-        message: message,
-      );
+      if (_isLatestWrite(productId, seq) && shopId == _shopId) {
+        state = ProductsState(
+          status: ProductsStatus.ready,
+          items: state.items,
+          summary: state.summary,
+          message: message,
+        );
+      }
       return const StockAdjustOutcome(ok: false, error: message);
     }
   }

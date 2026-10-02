@@ -677,34 +677,53 @@ class _ProductTile extends StatelessWidget {
                     style: TextStyle(fontSize: 11, color: scheme.outline)),
               ],
               const SizedBox(height: 4),
+              // Each label is FLEXIBLE and ellipsises. Without that this Row
+              // reports its children at full intrinsic width and overflows a
+              // narrow phone: the stock word ("Out of stock") plus a
+              // stale/fresh badge needs ~33px more than a 320dp-wide screen has
+              // once the tile padding and the trailing switch are subtracted.
+              // Every neighbouring Text above already had `maxLines: 1` +
+              // ellipsis; this row was the one that did not.
               Row(children: [
                 Icon(Icons.inventory_2_outlined, size: 13, color: stockColor),
                 const SizedBox(width: 4),
-                Text(stockLabel,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: stockColor)),
+                Flexible(
+                  child: Text(stockLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: stockColor)),
+                ),
                 if (item.isStale) ...[
                   const SizedBox(width: 8),
                   Icon(Icons.history_toggle_off,
                       size: 13, color: AppTheme.pendingAmber),
                   const SizedBox(width: 2),
-                  Text('stale',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.pendingAmber)),
+                  Flexible(
+                    child: Text('stale',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.pendingAmber)),
+                  ),
                 ] else if (item.isFresh) ...[
                   const SizedBox(width: 8),
                   Icon(Icons.verified_outlined,
                       size: 13, color: AppTheme.brandSeed),
                   const SizedBox(width: 2),
-                  Text('fresh',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.brandSeed)),
+                  Flexible(
+                    child: Text('fresh',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.brandSeed)),
+                  ),
                 ],
               ]),
               const SizedBox(height: 2),
@@ -742,9 +761,18 @@ class _ProductTile extends StatelessWidget {
           ),
         ),
         // Quick actions: update stock + inspect audit trail (req 25).
+        //
+        // A Wrap, not a Row. The three parts (Stock, History, "by <user>") are
+        // each individually reasonable and together overflowed a 320dp phone by
+        // ~9px — a Row reports its children at full intrinsic width and cannot
+        // give ground, so the attribution had nowhere to go. Wrap flows onto the
+        // next line instead, which is what a shopkeeper on a small phone needs.
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-          child: Row(
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 0,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               TextButton.icon(
                 onPressed: onUpdateStock,
@@ -754,7 +782,6 @@ class _ProductTile extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ),
-              const SizedBox(width: 4),
               TextButton.icon(
                 onPressed: onHistory,
                 icon: const Icon(Icons.history, size: 18),
@@ -763,17 +790,17 @@ class _ProductTile extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ),
-              if (item.updatedBy != null) ...[
-                const Spacer(),
+              if (item.updatedBy != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(left: 8, right: 8),
                   child: Text(
                     'by ${item.updatedBy}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 11, color: Theme.of(context).colorScheme.outline),
                   ),
                 ),
-              ],
             ],
           ),
         ),

@@ -172,8 +172,55 @@ class _PreviewBody extends StatelessWidget {
                         ? AppTheme.rejectedRed
                         : AppTheme.verifiedGreen,
                   ),
+                  // §41 lists Duplicate Rows as its own count, separate from
+                  // errors. Shown only when the payload carried row detail, so a
+                  // summarised large import never displays a "0 duplicates"
+                  // the app cannot actually vouch for.
+                  if (preview.duplicateCount > 0)
+                    _SummaryChip(
+                      key: const Key('import-chip-duplicates'),
+                      label: 'Duplicates',
+                      value: preview.duplicateCount,
+                      color: AppTheme.pendingAmber,
+                    ),
                 ],
               ),
+              // The backend deduplicates identical uploads, so this preview can
+              // belong to an EARLIER job rather than the file just picked.
+              // Saying so is the difference between reviewing your own file and
+              // reviewing a ghost of it (§40: never push an unreviewed file).
+              if (preview.isIdempotentReplay)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Container(
+                    key: const Key('import-replay-notice'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.pendingAmber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.pendingAmber.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline,
+                            size: 18, color: AppTheme.pendingAmber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This exact file was already uploaded, so these '
+                            'are the rows from that earlier import. Pick a '
+                            'changed file to import different rows.',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -230,7 +277,16 @@ class _RowTile extends StatelessWidget {
       ),
       subtitle: row.isError
           ? Text(
-              appText(context).importPreviewScreenValueValue2(row.errorCode ?? 'ERROR', row.errorMessage ?? 'Invalid row'),
+              // §42 wants Row / Field / Error. The backend sends `error_field`
+              // ("barcode", "price", "row", …) and it used to be dropped, so the
+              // shopkeeper saw a bare code with nothing pointing at the cell.
+              [
+                if (row.errorField != null && row.errorField!.isNotEmpty)
+                  row.errorField!,
+                row.errorCode ?? 'ERROR',
+                if (row.errorMessage != null && row.errorMessage!.isNotEmpty)
+                  row.errorMessage!,
+              ].join(' · '),
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.error,

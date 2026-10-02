@@ -98,6 +98,22 @@ class ShopProductItem {
   /// would render a discontinued listing as "In stock".
   bool get isDiscontinued => status == 'DISCONTINUED';
 
+  /// True when the listing is out of play: either explicitly discontinued or
+  /// switched off via the `is_active` flag.
+  ///
+  /// This is the guard for every destructive write — a withdrawn listing must
+  /// not offer "Reactivate" twice, and must not be counted as sellable.
+  bool get isWithdrawn => isDiscontinued || !isActive;
+
+  /// The ONE listing-lifecycle state every screen renders (spec §74/§75).
+  ///
+  /// A discontinued status outranks the `is_active` boolean, because that is
+  /// exactly the combination the server produces after a deactivate PATCH —
+  /// see [ListingStateView] for why the two fields must be reconciled together.
+  ListingStateView get listingState => isDiscontinued
+      ? ListingStateView.discontinued
+      : (isActive ? ListingStateView.active : ListingStateView.inactive);
+
   /// The ONE stock state every screen renders.
   ///
   /// A discontinued listing deliberately outranks its remaining stock count:
@@ -155,10 +171,13 @@ class ShopProductItem {
       );
 
   ShopProductItem copyWith({
+    bool? isActive,
     bool? isAvailable,
     int? quantity,
     String? stockStatus,
+    String? status,
     double? price,
+    double? mrp,
     String? freshnessStatus,
     DateTime? lastUpdated,
     String? source,
@@ -172,10 +191,14 @@ class ShopProductItem {
         brand: brand,
         category: category,
         imageUrl: imageUrl,
-        status: status,
+        // Listing lifecycle is a WRITABLE facet: deactivating a listing changes
+        // `status`, and `is_active` moves with it. Before this both fields were
+        // hard-copied, so a copyWith could silently resurrect a discontinued
+        // listing as an active one.
+        status: status ?? this.status,
         price: price ?? this.price,
-        mrp: mrp,
-        isActive: isActive,
+        mrp: mrp ?? this.mrp,
+        isActive: isActive ?? this.isActive,
         isAvailable: isAvailable ?? this.isAvailable,
         quantity: quantity ?? this.quantity,
         stockStatus: stockStatus ?? this.stockStatus,
@@ -325,6 +348,72 @@ class StockStateView {
   bool get isDiscontinued => value == 'DISCONTINUED';
   bool get isUnknown => value == 'UNKNOWN';
 }
+
+/// The ONE listing-lifecycle state every screen renders (spec §74 / §75).
+///
+/// `ShopProduct.status` (ACTIVE / INACTIVE / DISCONTINUED / …) and the
+/// `is_active` boolean are **two server fields describing one thing**, and a
+/// deactivated listing can leave them disagreeing: the approved write is
+/// `PATCH /shops/{id}/products/{pid}` with `{"status": "DISCONTINUED"}`, and
+/// the backend sets the status while `is_active` keeps its previous value.
+/// Reading either field on its own therefore lets a withdrawn listing still
+/// render as "Active".
+///
+/// [ShopProductItem.listingState] is the single place that reconciles them —
+/// the same shape as [ShopProductItem.stockState], which already merges
+/// `stock_status` and `status` — so the details sheet, the list row and the
+/// Discontinued slice can never contradict each other.
+///
+/// A future server status degrades to a humanised label instead of throwing
+/// (§126), and the client never re-declares its own enum duplicate (§126).
+class ListingStateView {
+  const ListingStateView._(this.value, this.label);
+
+  /// Canonical server `ShopProduct.status` this view maps onto.
+  final String value;
+
+  /// Shopkeeper-facing label.
+  final String label;
+
+  static const active = ListingStateView._('ACTIVE', 'Active');
+  static const inactive = ListingStateView._('INACTIVE', 'Inactive');
+  static const discontinued =
+      ListingStateView._('DISCONTINUED', 'Discontinued');
+
+  /// Values the server is known to emit → canonical view.
+  static const _known = <String, ListingStateView>{
+    'ACTIVE': active,
+    'APPROVED': active,
+    'INACTIVE': inactive,
+    'REJECTED': inactive,
+    'PENDING_REVIEW': inactive,
+    'DRAFT': inactive,
+    'DISCONTINUED': discontinued,
+    // Legacy misspelling kept as an alias so an older payload still renders.
+    'DISCONTINUOUS': discontinued,
+  };
+
+  /// Resolves any server status (never throws).
+  factory ListingStateView.of(String? serverStatus) {
+    final key = (serverStatus ?? '').trim().toUpperCase();
+    if (key.isEmpty) return inactive;
+    return _known[key] ?? ListingStateView._(key, _humanize(key));
+  }
+
+  static String _humanize(String raw) {
+    final words = raw
+        .split('_')
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0] + part.substring(1).toLowerCase());
+    final joined = words.join(' ').trim();
+    return joined.isEmpty ? 'Unknown' : joined;
+  }
+
+  bool get isActive => value == 'ACTIVE';
+  bool get isInactive => value == 'INACTIVE';
+  bool get isDiscontinued => value == 'DISCONTINUED';
+}
+
 /// Result of `POST …/products/{id}/stock-adjustments` — the server-computed
 /// truth after a delta update (never a client-side guess).
 class StockAdjustmentResult {

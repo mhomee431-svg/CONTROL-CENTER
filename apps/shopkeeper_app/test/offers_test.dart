@@ -467,11 +467,58 @@ void main() {
       await tester.tap(find.text('Disable offer'));
       await tester.pumpAndSettle();
 
+      // §74: disabling asks first, and asking alone writes nothing.
+      expect(find.text('Disable this offer?'), findsOneWidget);
+      expect(repo.requestedTransitions, isEmpty);
+
+      await tester.tap(find.byKey(const Key('confirm_disable_offer')));
+      await tester.pumpAndSettle();
+
       expect(repo.requestedTransitions, ['DISABLED']);
       // Sheet closes and the list is refreshed so the tab is up to date.
       expect(find.text('Disable offer'), findsNothing);
       expect(repo.fetchCalls, greaterThan(0));
       expect(find.text('Offer disabled'), findsOneWidget);
+    });
+
+    testWidgets('cancelling the disable confirmation writes nothing',
+        (tester) async {
+      final repo = FakeOffersRepo(
+        page: OfferListPage(
+            items: [offerSummary(id: 7, status: 'ACTIVE')], count: 1),
+      );
+      final container = makeContainer(repo);
+      await openSheet(tester, container, offerSummary(id: 7, status: 'ACTIVE'));
+
+      await tester.tap(find.text('Disable offer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // The live discount was never pulled — and the sheet is still there.
+      expect(repo.requestedTransitions, isEmpty);
+      expect(find.text('Disable this offer?'), findsNothing);
+      expect(find.text('Disable offer'), findsOneWidget);
+    });
+
+    testWidgets('the confirmation names the offer and explains the impact',
+        (tester) async {
+      final repo = FakeOffersRepo(
+        page: OfferListPage(
+            items: [offerSummary(id: 7, status: 'ACTIVE')], count: 1),
+      );
+      final container = makeContainer(repo);
+      await openSheet(tester, container, offerSummary(id: 7, status: 'ACTIVE'));
+
+      await tester.tap(find.text('Disable offer'));
+      await tester.pumpAndSettle();
+
+      // §74 "explain impact clearly": which offer, and what survives. The
+      // title appears twice — on the sheet behind and in the dialog's own
+      // sentence, which is the point.
+      expect(find.textContaining('will stop being shown to customers'),
+          findsOneWidget);
+      expect(find.textContaining('not deleted'), findsOneWidget);
     });
 
     testWidgets('a disabled offer can be re-activated', (tester) async {
@@ -520,6 +567,8 @@ void main() {
       await openSheet(tester, container, offerSummary(id: 7, status: 'ACTIVE'));
 
       await tester.tap(find.text('Disable offer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm_disable_offer')));
       await tester.pumpAndSettle();
 
       expect(repo.requestedTransitions, ['DISABLED']);

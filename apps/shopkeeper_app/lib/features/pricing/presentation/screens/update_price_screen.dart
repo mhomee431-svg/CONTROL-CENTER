@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/numeric_input.dart';
+import '../../../products/domain/product_form_rules.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
+import '../../../products/presentation/widgets/product_form_messages.dart';
 import '../widgets/pricing_shared.dart';
 import '../../../inventory/presentation/widgets/inventory_shared.dart'
     show moneyLabel, trimNumber, InfoChip;
@@ -79,21 +81,32 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
 
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
-    final price = double.tryParse(_priceController.text.trim());
-    if (price == null || price <= 0) {
-      setState(() => _error = 'Enter a valid selling price greater than 0.');
+    // Validated through the SAME rules the create sheet uses, rather than a
+    // private copy. They used to disagree: this screen rejected a price of 0
+    // (`price <= 0`) while `ProductFormRules.price` — and the backend's `ge=0`
+    // — allow it, so a product that could be CREATED at zero could never be
+    // edited back to zero. Spec §36 says "Selling Price >= 0 / MRP >= 0" and
+    // §132 lists "zero" as a case, so zero is legal here.
+    final priceFailure = ProductFormRules.price(_priceController.text);
+    if (priceFailure != null) {
+      setState(() => _error = productFormErrorText(context, priceFailure));
       return;
     }
+    final price = double.parse(_priceController.text.trim());
+
     final mrpRaw = _mrpController.text.trim();
-    final mrp = mrpRaw.isEmpty ? null : double.tryParse(mrpRaw);
-    if (mrpRaw.isNotEmpty && (mrp == null || mrp <= 0)) {
-      setState(() => _error = 'MRP must be a positive amount.');
+    // MRP stays optional, and the cross-field rule ("MRP cannot undercut the
+    // selling price") comes from the shared rule too, so both screens enforce
+    // one definition of an invalid relationship (§36).
+    final mrpFailure = ProductFormRules.mrp(
+      mrpRaw,
+      priceText: _priceController.text,
+    );
+    if (mrpFailure != null) {
+      setState(() => _error = productFormErrorText(context, mrpFailure));
       return;
     }
-    if (mrp != null && mrp < price) {
-      setState(() => _error = 'MRP cannot be lower than the selling price.');
-      return;
-    }
+    final mrp = mrpRaw.isEmpty ? null : double.parse(mrpRaw);
 
     setState(() {
       _saving = true;
@@ -229,7 +242,11 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    inputFormatters: NumericInput.decimal(),
+                    // Signed, matching the create sheet: the field can hold `-50`
+                    // so the shared validator can EXPLAIN why it is rejected.
+                    // Sign-free here silently swallowed the minus and saved +50,
+                    // which is worse than being told the price is invalid.
+                    inputFormatters: NumericInput.decimal(allowSign: true),
                     textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
                       labelText: appText(context).updatePriceScreenSellingPrice,
@@ -242,7 +259,7 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    inputFormatters: NumericInput.decimal(),
+                    inputFormatters: NumericInput.decimal(allowSign: true),
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => FocusScope.of(context).unfocus(),
                     decoration: InputDecoration(

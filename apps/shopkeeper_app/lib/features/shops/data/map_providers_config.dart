@@ -33,15 +33,17 @@ class MapProvidersConfig {
     'MAPPLS_API_KEY',
     defaultValue: '',
   );
-  static const String mapplsClientId = String.fromEnvironment(
-    'MAPPLS_CLIENT_ID',
-    defaultValue: '',
-  );
-  static const String mapplsClientSecret = String.fromEnvironment(
-    'MAPPLS_CLIENT_SECRET',
-    defaultValue: '',
-  );
-
+  // ── NO CLIENT CREDENTIALS ──────────────────────────────────────────────
+  // MapmyIndia also offers an OAuth *client_credentials* flow. Those values are
+  // deliberately ABSENT from this file: a client secret shipped inside an APK or
+  // IPA is not a secret — it is extractable by anyone who unzips the build — and
+  // the Mappls token exchange belongs on the backend, which can hold it in AWS
+  // Secrets Manager. The public `mapplsApiKey` above is safe to ship because
+  // Mappls restricts it by bundle/signing certificate; a client secret is not.
+  //
+  // Do not add MAPPLS_CLIENT_ID / MAPPLS_CLIENT_SECRET back here. `test/
+  // security_testing_test.dart` fails the build if a client-secret-shaped
+  // constant reappears in the frontend.
   static bool get mapplsEnabled => mapplsApiKey.isNotEmpty;
 
   // ── OpenStreetMap (Nominatim) ───────────────────────────────────────

@@ -67,6 +67,8 @@ class ProductDetailsSheet extends ConsumerWidget {
               _DetailsHeader(item: current),
               const SizedBox(height: 16),
               _AvailabilityRow(item: current),
+              const SizedBox(height: 12),
+              _ListingLifecycleRow(item: current),
               _DetailSection(
                 title: appText(context).commonPricing,
                 rows: [
@@ -94,7 +96,11 @@ class ProductDetailsSheet extends ConsumerWidget {
               _DetailSection(
                 title: appText(context).commonCatalogReference,
                 rows: [
-                  ('Listing status', current.isActive ? 'Active' : 'Inactive'),
+                  // Reads the reconciled listing state, not `is_active` alone:
+                  // after a deactivate the server leaves `is_active` true, so
+                  // this used to print "Active" for a listing the Discontinued
+                  // slice was simultaneously calling discontinued.
+                  ('Listing status', current.listingState.label),
                   ('SKU', current.sku ?? 'Not set'),
                   ('Brand', current.brand ?? 'Not set'),
                   ('Category', current.category ?? 'Not set'),
@@ -233,9 +239,13 @@ class _DetailsHeader extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   _StatusChip(
-                    label: item.isActive ? 'Active' : 'Inactive',
-                    color:
-                        item.isActive ? AppTheme.verifiedGreen : scheme.outline,
+                    // Same reconciled view as the "Listing status" row, so
+                    // the chip can never claim "Active" for a listing the
+                    // body below calls discontinued.
+                    label: item.listingState.label,
+                    color: item.listingState.isActive
+                        ? AppTheme.verifiedGreen
+                        : AppTheme.suspendedGrey,
                   ),
                   _StatusChip(
                     label: item.isAvailable ? 'Available' : 'Hidden',
@@ -329,6 +339,160 @@ class _AvailabilityRow extends ConsumerWidget {
               ? 'Customers can see and buy this listing.'
               : 'Hidden from customers until you switch it back on.',
           style: TextStyle(fontSize: 12, color: scheme.outline),
+        ),
+      ),
+    );
+  }
+}
+
+/// Deactivate / re-activate a listing (spec §74 destructive actions, §75
+/// delete-vs-deactivate).
+///
+/// This is the only destructive write the products module offers, and it is
+/// deliberately NOT a delete: `ShopProduct` carries a `SoftDeleteMixin`, so
+/// deactivating withdraws the listing from customers while its price and
+/// inventory history stay intact for reports — exactly the "prefer
+/// Deactivate/Archive when historical data must remain" rule.
+///
+/// [_busy] lives here rather than in the controller because it is per-open-sheet
+/// UI state (a spinner on the button, §76), while the resulting status is a
+/// catalog fact that lands in `ProductsState` through `setListingStatus`.
+class _ListingLifecycleRow extends ConsumerStatefulWidget {
+  const _ListingLifecycleRow({required this.item});
+
+  final ShopProductItem item;
+
+  @override
+  ConsumerState<_ListingLifecycleRow> createState() =>
+      _ListingLifecycleRowState();
+}
+
+class _ListingLifecycleRowState extends ConsumerState<_ListingLifecycleRow> {
+  bool _busy = false;
+
+  /// One sentence explaining what the CURRENT state means, so the shopkeeper
+  /// never has to guess whether their history survives.
+  String _description(ListingStateView state) => switch (state.value) {
+        'DISCONTINUED' =>
+          'Discontinued - hidden from customers. History is kept, so your '
+              'reports stay accurate.',
+        'INACTIVE' => 'Inactive - not published to customers yet.',
+        _ => 'Published - customers can find this listing in your shop.',
+      };
+
+  Future<void> _confirmDeactivate() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Deactivate this product?'),
+        // §74: a destructive action must "explain impact clearly". The name is
+        // in the sentence on purpose — the sheet behind it scrolls, and the
+        // dialog is the only thing guaranteed to be read.
+        content: Text(
+          '"${widget.item.name}" will stop appearing in search and customer '
+          'results. Its price history and stock records are kept, so your '
+          'reports stay intact. Nothing is deleted - you can reactivate it at '
+          'any time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('confirm_deactivate_product'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _apply(ListingStateView.discontinued, 'Product deactivated');
+  }
+
+/// Runs the write and reports the outcome. Never closes the sheet: a refused
+  /// write must leave the shopkeeper looking at the listing they were working
+  /// on, and must never be announced as a success.
+  Future<void> _apply(ListingStateView next, String successMessage) async {
+    setState(() => _busy = true);
+    final ok = await ref
+        .read(productsControllerProvider.notifier)
+        .setListingStatus(widget.item.id, next);
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    // The backend's own wording whenever there is one — an offline write must
+    // not be laundered into a generic "Update failed. Please retry."
+    final failure = ref.read(productsControllerProvider).message;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(failure ??
+              (ok ? successMessage : 'Update failed. Please retry.')),
+          backgroundColor: ok ? null : Theme.of(context).colorScheme.error,
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final state = widget.item.listingState;
+    final withdrawn = !state.isActive;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Listing status',
+                    style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (_busy)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _description(state),
+              style: TextStyle(fontSize: 12, color: scheme.outline),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: withdrawn
+                  ? TextButton.icon(
+                      key: const Key('product-reactivate'),
+                      onPressed: _busy
+                          ? null
+                          : () => _apply(
+                              ListingStateView.active, 'Product reactivated'),
+                      icon: const Icon(Icons.restore, size: 18),
+                      label: const Text('Reactivate product'),
+                    )
+                  : TextButton.icon(
+                      key: const Key('product-deactivate'),
+                      onPressed: _busy ? null : _confirmDeactivate,
+                      icon: const Icon(Icons.archive_outlined, size: 18),
+                      label: const Text('Deactivate product'),
+                      style:
+                          TextButton.styleFrom(foregroundColor: scheme.error),
+                    ),
+            ),
+          ],
         ),
       ),
     );

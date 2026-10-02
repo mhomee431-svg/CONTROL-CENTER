@@ -2,6 +2,388 @@
 
 ## [Unreleased]
 
+### Added
+- **§118 PHASE 19 PERFORMANCE — two real image-path defects fixed.**
+  - **CORRECTION to the previous audit.** It reported that the two
+    `Image.network` sites were "not in a list row", so the missing disk cache was
+    low impact. That was **wrong**: `ProductImageView` is rendered as the `leading`
+    of every product tile (`products_screen.dart`, 48×48) and in the low-stock
+    list, so network thumbnails *are* on the app's main scrolling screen. The
+    consequence is that the decode fix below matters far more than first stated.
+  - **BUGFIX — network images decoded at FULL source resolution.**
+    The local-file branch already fell back to
+    `cacheWidth ?? _decodeWidthFor(context)`, but the **network** branch passed a
+    bare `cacheWidth` through. Callers that omit it (3 of 6 — including the
+    product list and the details sheet) therefore decoded a server photo — up to
+    2000px wide — at source resolution for a 48dp thumbnail, and that bitmap then
+    occupied the image cache for the life of the screen. Both branches now share
+    one rule.
+  - **BUGFIX — thumbnails blanked out on every refresh (`gaplessPlayback`).**
+    Used **0 times** in the codebase. Because the backend serves **presigned
+    URLs**, the URL string rotates on each response even though the picture is
+    unchanged; Flutter treats a changed provider as a brand-new image, so every
+    pull-to-refresh dropped the decoded frame and flashed the loading placeholder
+    across the whole product list. `gaplessPlayback: true` now keeps the last
+    frame on both the network and file branches.
+  - Deliberately **not** applied to `barcode_sheets.dart`: there each scan is a
+    *different* product, so holding the previous frame would show product A's
+    photo while product B loads — worse than a momentary blank.
+  - **On adding `cached_network_image`: rejected, with reason.** A URL-keyed disk
+    cache cannot help here — presigned URLs change per response, so every lookup
+    would miss while cached entries accumulated under ever-changing keys. Disk
+    caching would need a stable object-key as the cache key, which is a backend
+    contract question, not a client dependency to bolt on.
+  - Both fixes are pinned by tests that were verified to **fail before** the
+    change (`Actual: NetworkImage`; `Actual: <false>`) and pass after. The decode
+    assertion derives its expected width from the binding's device pixel ratio
+    rather than hardcoding it, so it does not encode the test environment's DPR.
+- **§138 NO BROKEN FLOW RULE — one undefined flow found, resolved architecturally,
+  then pinned by tests.** `test/flow_contract_test.dart` (12).
+  - **THE FINDING — back press had NO defined answer anywhere in the codebase.**
+    A precise search for back-navigation tests returned nothing: every earlier
+    match for "back" was the word "falls back", a different thing. The shell used
+    `StatefulShellRoute` with **no `PopScope`**, so pressing back on the Products,
+    Alerts or Account tab popped the whole shell and **exited the app** — the
+    shopkeeper lost their place, silently, mid-task.
+  - Per the rule, the architecture was resolved *before* any test was written:
+    `ShopkeeperShell._withBackContract` now wraps the shell in a `PopScope` with
+    `canPop: currentIndex == 0`, giving three defined answers — a pushed route
+    pops normally, a **non-first tab returns to the first tab**, and the first
+    tab exits. It sits on the *shell*, so a future tab inherits the behaviour
+    instead of re-deciding it. Verified against a real `GoRouter`, not a double.
+  - The write contract is pinned end-to-end on "adjust stock", the app's most
+    frequent write: the API receives the real shop id and token (**Q2**); success
+    shows the **server's** post-update quantity, not the client's arithmetic —
+    12, not the locally computed 15 (**Q4**); a failure keeps the backend's
+    wording so a 422 still names the field (**Q5**); a network failure cannot
+    leave a lying row, because the row is only ever swapped on success (**Q7**);
+    a 403 becomes its own `accessDenied` state rather than a retry loop (**Q8**);
+    a repeat cannot duplicate the write (**Q9**); and **after a restart** the
+    failed write does not survive as "saved" — the quantity is the server's
+    (**Q10**). **Q1** is enforced structurally: no screen may navigate with a
+    hard-coded path literal, which is a route that rots silently.
+- **§137 SECURITY TESTING — one real credential leak removed, and six
+  prohibitions turned into build-failing guards.**
+  `test/security_testing_test.dart` (21). Five of the six rules are assertions
+  about an **absence**, and an absence is not something a behavioural test can
+  prove — a fake repository returns whatever it likes. So the suite is built on
+  a **comment-stripped scan of `lib/`** plus behavioural tests for the two
+  "trusts" items. Comment stripping is what makes it trustworthy: the codebase
+  *documents* where to obtain a Google key and the backend is full of AWS code,
+  so raw-text matching would drown in false positives.
+  - **BUGFIX (security) — `mapplsClientSecret` was compiled into the app.** A
+    Mappls OAuth *client secret* was declared in `map_providers_config.dart` as a
+    `--dart-define` constant and then read **nowhere** in `lib/` or `test/`. A
+    secret shipped inside an APK/IPA is not a secret — it is extracted by anyone
+    who unzips the build. Removed, together with its unused `client_id` half,
+    and replaced with a comment explaining why the token exchange belongs on the
+    backend. No build script passed either define, so nothing broke.
+  - Guards added for: no AWS credential/SDK symbol and no client-side request
+    signing; no Firebase **Admin** SDK or service-account credential (the *client*
+    SDK is allowed and is what the app uses); no database driver, DSN, wire
+    protocol or raw socket; and an **outbound-host allowlist** so an exfiltration
+    endpoint cannot be added by accident.
+  - **The scans were deliberately narrowed after they proved too blunt.** A
+    first pass flagged three things that are all correct, and a rule that cries
+    wolf gets ignored: the POS connector's `apiSecret` is a *transit* field
+    forwarded to the backend, never persisted (now pinned as such); the
+    `AIzaSyD-REPLACE_WITH_YOUR_KEY` sentinel is a placeholder that *disables* the
+    Maps provider (now asserted to); and `user?.role != null` decides whether to
+    **draw** a role badge, which grants nothing. The rule now forbids only a role
+    compared against a *privilege* string, and only `isOwner`/`isManager` used as
+    a capability gate — `permissions.contains(...)` stays the single sanctioned
+    gate, and an empty permission list fails closed even for an `owner`.
+- **§136 NETWORK TESTING — the eleven conditions, at the behaviour layer.**
+  `test/network_testing_test.dart` (13). `SystemStateSpec.classify` already maps
+  every status correctly, and `system_state_test` pins that mapping — so this file
+  deliberately does NOT re-assert it in isolation. What was genuinely untested is
+  what a real screen-level read *does* with each answer, and what latency does:
+  - **Fast** — a prompt response lands as data with no error and no spinner.
+  - **Slow** — *a slow-but-successful response stays `loading` and is never
+    mistaken for a failure.* This is the whole point of the case: showing an
+    error (or, worse, an empty list) while the request is still in flight tells
+    the shopkeeper their inventory is gone. A silent pull-to-refresh likewise
+    keeps the existing rows on screen instead of blanking them.
+  - **Offline / reconnect** — the app's own copy, never Dio-speak, and never a
+    fabricated empty catalog; a failure is transient state, so the same read
+    succeeding again clears it along with the stale message.
+  - **500 / 401 / 403 / 404 / 409 / 422** — each reaches its own state with its
+    own fix. Server-explained failures keep the backend's wording (a 422 that
+    names `price` is useless if the field is stripped); **403 is the one status
+    that changes the state enum** rather than only the message, because "you may
+    not see this shop" is not retryable.
+  - **Timeout** — classified as a timeout and explicitly *not* as offline: "turn
+    on Wi-Fi" and "the server is slow, retry" are different instructions.
+  - A closing invariant across all eleven: **no failure may ever present as a
+    successful empty catalog.**
+  - The 401 and timeout cases build their exceptions through
+    `ApiException.fromDioError` — the path production actually takes — since a
+    hand-built `ApiException` keeps whatever message it was given and would make
+    the sanitisation assertions pass for the wrong reason.
+- `FakeProductRepo.overviewError` — thrown verbatim by `fetchInventoryOverview`,
+  following the same convention as `uploadError` / `confirmError` / `listError`.
+- **§135 UI TESTING — two real overflow bugs found, and one architectural finding.**
+  `test/ui_testing_test.dart` (13) verifies the checks that were genuinely
+  uncovered. Overflow, clipping and small-device compatibility are the cheapest
+  things to leave untested, because nothing fails until a phone is narrower than
+  the test viewport — and every existing suite pins 1080×2400 or 1200×2400. These
+  pin **320×568** (iPhone SE) and let Flutter's own overflow check do the
+  asserting: a RenderFlex that does not fit THROWS, so a regression fails the
+  test rather than shipping yellow-and-black stripes.
+  - **BUGFIX — the product row overflowed a 320dp phone by 13px.** The stock
+    line's `Text`s (the stock word plus the stale/fresh badge) had no
+    `overflow: TextOverflow.ellipsis` and no `Flexible`, so the `Row` claimed
+    their full intrinsic width. Every neighbouring text in the same tile —
+    name, brand, variant — already had `maxLines: 1` + ellipsis; this row was the
+    one that did not. Both labels are now flexible and ellipsise.
+  - **BUGFIX — the quick-actions row overflowed by a further 9px.** "Stock",
+    "History" and a "by \<user\>" attribution were laid out in a `Row` with a
+    `Spacer`. A `Row` cannot give ground, so the attribution had nowhere to go on
+    a narrow phone. It is now a `Wrap`, which flows onto the next line instead —
+    and it also ellipsises a long user name.
+  - Dark mode is wired (`theme`/`darkTheme`/`themeMode` plus a settings picker),
+    so §135's "dark/light behavior only if implemented" is IN scope: the products
+    list is rendered in both, and `AppTheme.dark()` is asserted to be a genuinely
+    different theme rather than `light()` renamed.
+  - **FINDING (reported, not changed): the app's typography has a RUNTIME NETWORK
+    DEPENDENCY.** `AppTypography.base = GoogleFonts.interTextTheme()` and Inter
+    is NOT declared under `fonts:` in `pubspec.yaml`, so google_fonts downloads
+    it from Google's CDN on first use. Consequences: (a) no widget test can
+    render the app's real theme — the failure is fatal, which is why every other
+    suite pumps a bare `MaterialApp`; (b) on a first launch with no connectivity,
+    or wherever `fonts.gstatic.com` is unreachable, the app falls back to the
+    platform font. Bundling the TTFs is a product decision (size/licensing), not
+    a test change, so the layout tests here render with the platform theme and
+    carry that caveat explicitly.
+  - Also covered: the software keyboard (a `viewInsets` the test raises over the
+    bottom half — a keyboard layout nobody has ever rendered otherwise), loaders
+    that always resolve (a `pumpAndSettle` that returns is itself the assertion,
+    plus bounded Dio timeouts), and an impatient double-tap on Save producing
+    exactly ONE adjustment.
+
+### Added
+- **§134 PERMISSION TESTS — the cross-cutting invariant, which had no coverage.**
+  `test/permission_test_cases_test.dart` (12) walks the five named cases — camera
+  denied, camera permanently denied, location denied, location unavailable,
+  notification denied — and, more usefully, asserts the section's actual rule on
+  each one: *"Every permission denial must have a usable alternative where
+  possible."*
+  Each named case was already covered by its own module's suite
+  (`permission_flows_test`, `location_permission_flow_test`,
+  `notification_permission_test`). What was NOT covered is the invariant across
+  gates, and that is the part that rots: a screen can quietly drop its
+  manual-entry button and every existing test still passes, because each one
+  only ever inspected its own screen. These assert the same contract on a
+  different gate each time — manual barcode entry (denied AND permanently
+  denied), map-pin + manual address (denied, permanently denied, and GPS radio
+  off), and the always-on in-app Alerts tab (notifications denied and blocked).
+  Beyond presence, the alternatives are asserted to WORK: tapping "Choose
+  Location on Map" reaches a confirmable, GPS-free pin that claims no invented
+  accuracy, and "Check Again" picks up a grant made in the system settings.
+  Also pinned while auditing: a permanent denial never re-asks the OS (it can
+  only ever be refused again), a policy `restricted` state is handled as a
+  permanent denial and never prompts at all, and an unreadable platform status
+  is reported as "Unknown" rather than "Not allowed" — otherwise a desktop/web
+  build would nag for a grant it can never obtain.
+  **No production change was needed:** all five cases were already correct.
+
+### Added
+- **§133 IMPORT TEST CASES — dedicated suite, and three real bugs it found.**
+  `test/import_test_cases_test.dart` (24) covers every case the spec names:
+  valid file, invalid file, cancelled picker, empty file, large file, duplicate
+  barcode, invalid category, invalid price, partial success, server failure,
+  retry. Three of them were broken, and the first is the worst bug this audit
+  has found:
+  - **BUGFIX — the import preview showed NO ROWS at all in production.** The
+    row array arrives under a different key per endpoint:
+    `create_import` (POST) returns it as `"preview"`, `get_import_preview` (GET)
+    returns it as `"rows"`. Only the GET shape was parsed. Since the shopkeeper
+    lands on the preview via the POST, `preview.rows` was always empty, the
+    screen fell back to the job counters and rendered **"No rows found in this
+    file"** while the counters beside it said otherwise. That silently erased
+    the entire per-row surface spec §41/§42 require. Both shapes are now read.
+  - **BUGFIX — re-uploading the same file imported the PREVIOUS job's rows.**
+    The backend deduplicates on file content and returns the earlier job with
+    `idempotent_replay: true` (`excel_import_service.create_import`). The app
+    ignored the flag completely, so a shopkeeper who corrected a workbook and
+    re-uploaded it was shown the old job's rows as though they were the file just
+    picked — and "Apply valid rows" applied the old staged rows. The preview now
+    parses the flag and says plainly that these are the earlier import's rows.
+  - **BUGFIX — `error_field` was dropped, so no error named a cell.** The
+    backend sends which column was rejected (`barcode`, `price`, `mrp`, `row`),
+    and spec §42 requires "Row number / Field / Error". The field was parsed
+    nowhere, so a shopkeeper saw a bare code (`NEGATIVE_PRICE`) with nothing
+    pointing at the cell to fix. It now leads the row's error text.
+  - **§41's "Duplicate Rows" count was missing.** The backend already tags
+    repeated lines `DUPLICATE_ROW`, which makes the fourth number computable; it
+    is now shown as its own chip. It is a *breakdown* of the error count, not an
+    extra bucket, and it is omitted entirely when the payload carries no row
+    detail — a summarised large import must not display a "0 duplicates" the app
+    cannot vouch for.
+  - The remaining cases were already correct and are now pinned: the file-level
+    rejections (wrong extension, non-`.xlsx` magic header, `EMPTY_FILE`, the
+    10 MB cap) are enforced by the backend and their reasons reach the shopkeeper
+    verbatim instead of a flattened "Upload failed"; cancelling the picker is
+    silent and idle, and never disturbs a preview already on screen; an upload
+    never applies rows on its own (§40); a partial result keeps its failed count
+    (§43); and a failed confirm keeps the staged job so Retry re-applies without
+    re-picking the file. `fakes.dart` gained mutable `uploadError` / `confirmError`
+    so a test can fail one call and let the other succeed — the retry shape.
+  - **Reported, not faked:** "invalid category" cannot be implemented on this
+    side. The backend's import pipeline has no category column at all — no
+    column mapping, no validation, no category in `_preview_row` — so a category
+    can never be invalid and §41's Category column has nothing to read. Adding
+    it is a backend change (column mapping, row validation, sample workbook).
+    Rather than invent a client-side category check the server cannot honour,
+    this is flagged rather than faked.
+
+### Added
+- **§132 PRICE TEST CASES — dedicated suite, and three real bugs it found.**
+  `test/price_test_cases_test.dart` (22) covers every case the spec names, one
+  group each: valid price, zero, invalid negative price, decimal handling,
+  price conflict, offer validation. Two rules the tests exposed:
+  - **BUGFIX — Update Price rejected a price of zero.** The screen kept a
+    private copy of the validation and used `price <= 0` / `mrp <= 0`, while
+    §36 says "Selling Price >= 0 / MRP >= 0", the backend schema says `ge=0`,
+    and the app's own shared `ProductFormRules.price` allows zero. So a product
+    that could be CREATED at ₹0 could never be edited back to ₹0 — the two
+    screens disagreed about the same product. The screen now delegates to the
+    shared rules + `productFormErrorText`, which also deleted the duplicated
+    copy and routed three hardcoded English error strings through the catalog.
+  - **BUGFIX — a typed negative price was silently saved as positive.** The
+    price/MRP fields here used the sign-free `NumericInput.decimal()`, while the
+    create sheet deliberately uses `decimal(allowSign: true)` with a comment
+    explaining that the field must be able to *hold* `-5` so the validator can
+    explain the rejection. On Update Price the minus was swallowed instead:
+    typing `-50` showed `50` and saved **+50**. Both fields now match the
+    create sheet, and the shared rule reports "Price cannot be negative".
+  - **Dead branch — `OfferValidators.discount` never reported a negative flat
+    discount.** `value <= 0` returned "is required" first, so the following
+    `value < 0` check was unreachable and a shopkeeper who typed `-50` was told
+    they had simply not filled the field in. The two are different mistakes, so
+    they now say different things (a ₹0 discount is still treated as "not
+    filled in", since it saves the customer nothing).
+  - The remaining cases were already correct and are now pinned rather than
+    assumed: a fractional price round-trips intact, money is capped at two
+    decimals at the keystroke, `trimNumber`/`moneyLabel` render without
+    float noise (29.90 reads as "29.9"), the implied discount is rounded rather
+    than repeating, an MRP *equal* to the selling price is not a conflict (only
+    undercutting is), a server-side conflict reaches the shopkeeper verbatim, and
+    offer validation (percentage ≤ 100, positive flat/promo values, both dates
+    present with the end after the start) is wired into both entry points.
+
+### Added
+- **§131 INVENTORY TEST CASES — dedicated suite, and two real bugs it found.**
+  `test/inventory_test_cases_test.dart` (17) covers every case the spec names,
+  one group each: stock increase, stock decrease, zero, negative, large number,
+  **concurrent update response**, stale inventory, network failure. Two of them
+  were broken:
+  - **BUGFIX — a stock write could race itself and roll the row backwards.**
+    The read paths were carefully generation-guarded (`_generation`, plus
+    `if (shopId != _shopId) return;` on refresh), but `adjustStock` guarded
+    nothing. Two saves in flight — the shopkeeper taps Save on +5, then on +3 —
+    and if the second response landed first, the superseded first one then
+    repainted the row with its own older arithmetic, silently undoing the
+    second edit. A per-product write sequence (`_writeSeq` / `_latestWrite`,
+    mirroring the existing read guard) now means a superseded response is
+    dropped. The same guard covers the shop-switch case, and `reset()` clears
+    the slots so a pre-logout write cannot patch the next account's catalog. A
+    superseded response still reports `ok: true` — the write *did* succeed, it
+    is only stale, and calling it a failure would be a lie. A superseded
+    *failure* is equally prevented from painting its error over a newer success.
+  - **BUGFIX — a manual stock update left the row flagged STALE.** The
+    `copyWith` after a successful adjustment never touched `freshnessStatus`,
+    so a listing the server had marked stale kept reading "Stale - needs a
+    refresh" immediately after the shopkeeper fixed it by hand. The server
+    reaches the right tier (`compute_freshness(now, MANUAL)` →
+    `RECENTLY_UPDATED`) but does not send `freshness_status` on that response,
+    and the client is not guessing: it just performed the write itself, which is
+    the freshest data the platform holds.
+  - The remaining cases were already correct and are now pinned rather than
+    assumed: the server's post-update quantity/status is adopted verbatim and
+    never recomputed client-side (§31 "backend remains authoritative"); a zero
+    delta never reaches the network; a negative *delta* is a legal decrease
+    while the *result* floor is the server's; the 999,999 cap matches the
+    backend's `le=999_999` and an oversized write is refused with the server's
+    message without corrupting the row; and every failure keeps the row and the
+    shopkeeper's numbers intact.
+  - `fakes.dart` gained `adjustStockGates`, a per-CALL gate indexed by call
+    order. The existing single `overviewGate` could only stall every call at
+    once, which cannot express one response overtaking another — the exact
+    shape the concurrency case needs.
+
+### Added
+- **Deactivate / reactivate a product — the spec's one destructive write that
+  did not exist.** §74 lists "deactivate product" among the actions that must
+  confirm and explain their impact, and §75 requires Deactivate/Archive
+  (never a hard delete) when history must survive — but nothing in the app could
+  write it. The read side was already complete (`isDiscontinued`,
+  `StockStateView.discontinued`, `ProductQuery.stockDiscontinued` and the
+  Discontinued inventory slice) and so was the backend
+  (`PATCH /shops/{id}/products/{pid}` with `{"status": ...}`, against a
+  `ShopProduct` that carries a `SoftDeleteMixin`), so the gap was a missing
+  client write, not a missing capability.
+  - `ProductsController.setListingStatus` performs the write through the
+    existing `_patch` path, so the server's own row is swapped into the catalog
+    in place (one source of truth — never appended beside the old row) and a
+    refusal leaves the catalog untouched with the backend's wording in
+    `ProductsState.message`. It deliberately does **not** bundle
+    `is_available`: availability is a free visibility switch, while this is the
+    lifecycle decision the confirmation is asking about.
+  - The action lives on the Product Details sheet behind an `AlertDialog` that
+    names the product and states that price/stock history is kept and nothing is
+    deleted. Cancel writes nothing at all. Reactivate asks nothing — it is not
+    destructive, and re-prompting would only train tap-through on the
+    confirmation that matters. A refused write shows the backend's own sentence
+    and is never announced as a success (§74 + the never-lose-an-update rule).
+- **§74 applied to the two destructive actions that skipped it.** The spec
+  lists "remove offer" alongside "deactivate product", and requires every
+  destructive action to "show confirmation. Explain impact clearly" — but only
+  logout (a dedicated screen) and disconnect POS (an `AlertDialog`) actually
+  did. The other two acted on a single tap:
+  - **Disabling an offer** fired `PATCH .../offers/{id}/status` immediately,
+    pulling a live discount out from under a customer with no undo. It now
+    confirms first, naming the offer and stating that the linked products stay
+    and the offer is not deleted. Re-activation still asks nothing — it is not
+    destructive, and re-prompting would only train tap-through on the
+    confirmation that matters.
+  - **Removing a holiday** issued a real `DELETE` on the first tap, from a
+    dense list where a stray finger lands easily, and it changes what CUSTOMERS
+    see (the date stops counting as a closure day and the shop is advertised as
+    open instead). The confirmation says exactly that, and names the date,
+    because two holidays can share a label like "Every year".
+  Tests: `offers_test.dart` (+2, and the two existing disable tests updated to
+  confirm), `holidays_test.dart` (+3) — each pins that asking writes nothing
+  and cancelling leaves the row in place.
+- **BUGFIX — a deactivated listing rendered as "Active".** `ShopProduct.status`
+  and the `is_active` boolean are two server fields describing one thing, and a
+  deactivate PATCH leaves them disagreeing: the backend sets `status` and never
+  touches `is_active`. Both the details-sheet chip and its "Listing status" row
+  read `is_active` alone, so a listing the Discontinued slice was calling
+  discontinued simultaneously claimed to be Active. New `ListingStateView` +
+  `ShopProductItem.listingState` reconcile them in ONE place — the same shape
+  as the existing `stockState`, which already merges `stock_status` and
+  `status` — and an unknown future status humanises instead of throwing (§126).
+- **BUGFIX — `ShopProductItem.copyWith` hard-copied the listing lifecycle.**
+  `status` and `isActive` were passed straight through while every other field
+  used `?? this.x`, so the stock path's `copyWith` could silently resurrect a
+  discontinued listing as an active one. Both are now nullable parameters
+  (alongside `mrp`, which had the same bug and ignored any override).
+  Tests: new `test/product_deactivate_test.dart` (12) — field reconciliation,
+  forward-compatible unknown statuses, the copy guard, the controller write
+  (payload, no availability bundling, refusal handling), and the full
+  confirm / cancel / refuse / reactivate sheet contract.
+
+### Performance
+- Insights drill-down no longer scans the daily series once **per rendered row**.
+  The chart maximum was folded inside every row's arguments, so a 90-day window
+  visited the list ~8,100 times per build instead of 90, and the peak-hours card
+  re-sorted the whole hourly spread once per row — all re-run on every rebuild.
+  Both derivations now live on `DrillDownState` (`peakSeriesValue`,
+  `busiestHours()`, alongside the existing `peakHour`/`total`) and are read once
+  in `build()`. A regression guard counts element accesses and fails if the
+  series is scanned quadratically again (~16.8k accesses vs ~550 at 90 days).
+
 ### CI/CD & branching
 - Added the `develop` (integration) branch model: `feature/*` → PR → `develop` →
   staging → E2E → PR → `main` → approval → production

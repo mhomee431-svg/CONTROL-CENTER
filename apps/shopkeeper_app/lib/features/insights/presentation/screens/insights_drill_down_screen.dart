@@ -80,6 +80,13 @@ class _ReadyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Derived ONCE per build, never inside the row loops below. `seriesMax`
+    // used to be re-folded in every row's arguments, and the peak-hours list
+    // used to re-sort the whole hourly spread once per row — quadratic in the
+    // window size, and re-run on every rebuild.
+    final seriesMax = state.peakSeriesValue;
+    final topHours = state.busiestHours();
+    final peakViews = topHours.isEmpty ? 0 : topHours.first.views;
     // Always scrollable: pull-to-refresh must fire even when the report fits
     // on one screen.
     return ListView(
@@ -111,21 +118,19 @@ class _ReadyView extends StatelessWidget {
                   _SeriesRow(
                     label: _dayLabel(point.date),
                     value: point.value,
-                    max: state.series
-                        .fold(0, (m, p) => p.value > m ? p.value : m),
+                    max: seriesMax,
                     unit: state.metric.unitLabel,
                   ),
               ],
             ),
           ),
-        if (state.metric == DrillDownMetric.views &&
-            state.hourly.any((p) => p.views > 0)) ...[
+        if (state.metric == DrillDownMetric.views && topHours.isNotEmpty) ...[
           const SizedBox(height: 16),
           _SectionCard(
             title: 'Peak hours',
             child: Column(
               children: [
-                for (final point in _topHours(state))
+                for (final point in topHours)
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -134,8 +139,7 @@ class _ReadyView extends StatelessWidget {
                     title: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: _fraction(
-                            point.views, _topHours(state).first.views),
+                        value: _fraction(point.views, peakViews),
                         minHeight: 6,
                         backgroundColor: scheme.surfaceContainerHighest,
                       ),
@@ -182,12 +186,6 @@ class _ReadyView extends StatelessWidget {
     container
         .read(insightsDrillDownsProvider.notifier)
         .setRange(metric, days);
-  }
-
-  /// Top-3 busiest hours, descending.
-  List<HourlyPoint> _topHours(DrillDownState state) {
-    final sorted = [...state.hourly]..sort((a, b) => b.views - a.views);
-    return sorted.take(3).where((p) => p.views > 0).toList(growable: false);
   }
 
   static double _fraction(int value, int max) =>

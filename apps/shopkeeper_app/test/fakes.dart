@@ -893,6 +893,12 @@ class FakeImportRepo implements InventoryImportRepository {
   int? lastSampleShopId;
   PickedWorkbook? lastWorkbook;
 
+  /// Mutable on purpose: a RETRY test clears it to model the backend recovering
+  /// on the second attempt (same convention as `FakeProductRepo.failOverview`
+  /// and `FakeHolidayRepository.listError`). Takes precedence over [error] so a
+  /// permanently-broken [error] can still be set for the other calls.
+  Object? uploadError;
+
   @override
   Future<ImportPreview> upload(
     int shopId,
@@ -902,6 +908,7 @@ class FakeImportRepo implements InventoryImportRepository {
     uploadCalls++;
     lastShopId = shopId;
     lastWorkbook = workbook;
+    if (uploadError != null) throw uploadError!;
     if (error != null) throw error!;
     return onUpload ??
         ImportPreview(
@@ -932,6 +939,11 @@ class FakeImportRepo implements InventoryImportRepository {
         );
   }
 
+  /// Mutable, like [uploadError]: lets a test fail the CONFIRM while the upload
+  /// still succeeds, which is the retry case — the rows are already staged, so
+  /// the shopkeeper retries the apply without re-picking the file.
+  Object? confirmError;
+
   @override
   Future<ImportConfirmResult> confirm(
     int shopId,
@@ -940,6 +952,7 @@ class FakeImportRepo implements InventoryImportRepository {
   ) async {
     confirmCalls++;
     lastShopId = shopId;
+    if (confirmError != null) throw confirmError!;
     if (error != null) throw error!;
     return onConfirm ?? const ImportConfirmResult(processed: 8, failed: 2);
   }
@@ -1041,6 +1054,11 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   /// When true, [fetchInventoryOverview] throws — the failed-refresh fixture.
   bool failOverview = false;
 
+  /// Thrown by [fetchInventoryOverview] verbatim, so a test can script an exact
+  /// `ApiException` (a 409, a timeout…) rather than the generic [failOverview]
+  /// Exception. Same convention as `uploadError` / `confirmError` / `listError`.
+  Object? overviewError;
+
   int? lastShopId;
   Map<String, dynamic>? lastCreatePayload;
   int? lastUpdatedId;
@@ -1083,6 +1101,7 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     overviewCalls++;
     lastShopId = shopId;
     await overviewGate?.future;
+    if (overviewError != null) throw overviewError!;
     if (failOverview) throw Exception('offline');
     return InventoryOverview(items: items, summary: _derivedSummary);
   }
@@ -1177,6 +1196,15 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   /// The `offset` of every history request, in order.
   final List<int> requestedHistoryOffsets = [];
 
+  /// Per-CALL gates for [adjustStock], indexed by call order (0-based). The
+  /// Nth adjustment awaits `adjustStockGates[N]` when that slot exists.
+  ///
+  /// This is what lets a test model an OUT-OF-ORDER pair of stock writes: hold
+  /// the first call's response, let the second answer, then release the first.
+  /// A single shared gate (like [overviewGate]) could only stall every call at
+  /// once, which cannot express one response overtaking another.
+  final List<Completer<void>?> adjustStockGates = [];
+
   @override
   Future<StockAdjustmentResult> adjustStock(
     int shopId,
@@ -1188,6 +1216,10 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     lastShopId = shopId;
     lastAdjustedId = productId;
     lastAdjustPayload = payload;
+    final callIndex = adjustStockCalls - 1;
+    if (callIndex < adjustStockGates.length) {
+      await adjustStockGates[callIndex]?.future;
+    }
     final overridden = onAdjustStock?.call(shopId, productId, payload, token);
     if (overridden != null) return overridden;
     final delta = (payload['quantity_adjustment'] as num?)?.toInt() ?? 0;

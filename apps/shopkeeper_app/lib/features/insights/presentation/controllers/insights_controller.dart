@@ -168,6 +168,36 @@ class DrillDownState {
     return peak;
   }
 
+  /// Largest value in the daily series — the scale every daily row shares.
+  ///
+  /// Derived once here rather than inside the row loop: the daily card needs
+  /// the same maximum for all of its rows, so folding the series per row made
+  /// the screen quadratic in the window size (a 90-day window visited the list
+  /// 8,100 times instead of 90) and re-ran on every rebuild.
+  int get peakSeriesValue {
+    var max = 0;
+    for (final point in series) {
+      if (point.value > max) max = point.value;
+    }
+    return max;
+  }
+
+  /// Busiest [limit] hours that recorded real traffic, descending — the
+  /// peak-hours card.
+  ///
+  /// Sorted once, so the card can read both the ranking and its scale (the
+  /// top entry is the maximum) without re-sorting per rendered row. Hours with
+  /// zero traffic are dropped, so an all-quiet day reads as "nothing yet"
+  /// rather than a list of zeroes.
+  List<HourlyPoint> busiestHours({int limit = 3}) {
+    final ranked = [
+      for (final point in hourly)
+        if (point.views > 0) point,
+    ]..sort((a, b) => b.views - a.views);
+    if (limit >= ranked.length) return ranked;
+    return ranked.sublist(0, limit);
+  }
+
   /// Total across the daily series (drives the headline number).
   int get total =>
       series.fold(0, (sum, point) => sum + point.value);
