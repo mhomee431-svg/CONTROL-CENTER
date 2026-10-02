@@ -43,6 +43,15 @@ class ShopCard extends StatelessWidget {
     final distance = shop.distance;
     return Semantics(
       button: true,
+      container: true,
+      // "View Shop" is the CTA, so it is announced as one, on a node of its own.
+      //
+      // No MergeSemantics, and deliberately no `excludeSemantics: true`: the
+      // children's text stays in the tree, so a screen-reader user still hears the
+      // rating, distance and open/closed state — the facts the card exists to
+      // communicate. Wrapping this in MergeSemantics was tried and removed: it
+      // pushed the label up to an ancestor node, leaving the card's own semantics
+      // empty, which is worse than the duplicate announcement it was meant to fix.
       label: 'View shop ${shop.name}',
       child: GestureDetector(
         onTap: onTap,
@@ -100,6 +109,29 @@ class ShopCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  // The visible half of the "View Shop" CTA.
+                  //
+                  // Deliberately a chevron on the image and NOT a second button:
+                  // the whole card is the tap target, and a competing control is
+                  // the "overloading" failure the spec warns about. This only makes
+                  // the existing affordance legible — no extra layout height, no
+                  // extra words on a card that is already carrying six facts.
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               Padding(

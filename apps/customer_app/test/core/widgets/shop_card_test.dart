@@ -151,37 +151,79 @@ void main() {
     });
   });
 
-  testWidgets('the whole card is the View Shop CTA', (tester) async {
-    // Disposed in a finally rather than via addTearDown: flutter_test checks
-    // that no handle is still active before it runs teardown callbacks.
-    final semantics = tester.ensureSemantics();
-    try {
-      var taps = 0;
+  group('the View Shop CTA', () {
+    // Counts taps on the card. Returns the live counter, NOT a snapshot: an int
+    // returned by value here would be captured before the tap and always read 0.
+    Future<List<int>> pumpCounting(WidgetTester tester) async {
+      final taps = <int>[0];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Center(
               child: SizedBox(
                 height: 220,
-                child: ShopCard(shop: shop(), onTap: () => taps++),
+                child: ShopCard(shop: shop(), onTap: () => taps[0]++),
               ),
             ),
           ),
         ),
       );
+      return taps;
+    }
 
+    // Disposed in a finally rather than via addTearDown: flutter_test checks
+    // that no handle is still active before it runs teardown callbacks.
+    testWidgets('the whole card is the CTA', (tester) async {
+      final taps = await pumpCounting(tester);
       await tester.tap(find.text('Sharma Kirana'));
       await tester.pump();
-      expect(taps, 1);
+      expect(taps[0], 1);
+    });
 
-      // One tap target, announced as a button — not a card plus a second
-      // button competing for the same tap.
-      expect(
-        tester.getSemantics(find.byType(ShopCard)).label,
-        contains('View shop'),
-      );
-    } finally {
-      semantics.dispose();
-    }
+    testWidgets('it is announced as a button', (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await pumpCounting(tester);
+        expect(
+          tester.getSemantics(find.byType(ShopCard)).label,
+          contains('View shop'),
+        );
+      } finally {
+        semantics.dispose();
+      }
+    });
+
+    testWidgets('it is VISIBLE, not only announced', (tester) async {
+      // A card with no visible affordance reads as static content. The chevron is
+      // the cue — chosen over a second button so the card is not overloaded.
+      await pumpCard(tester, shop: shop());
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    });
+
+    testWidgets('the chevron is the SAME action, not a second one', (
+      tester,
+    ) async {
+      final taps = await pumpCounting(tester);
+      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tester.pump();
+      // Part of the card, so it fires the same navigation rather than a second,
+      // different action.
+      expect(taps[0], 1);
+    });
+
+    testWidgets('a screen reader still hears the card facts', (tester) async {
+      // Regression guard: merging the CTA's semantics must not EXCLUDE the
+      // children's text, or the name / rating / distance / open state — the
+      // reason the card exists — would be silent for a screen-reader user.
+      final semantics = tester.ensureSemantics();
+      try {
+        await pumpCard(tester, shop: shop(isOpenNow: true, distance: 1.4));
+        final label = tester.getSemantics(find.byType(ShopCard)).label;
+        expect(label, contains('View shop'));
+        expect(label, contains('Sharma Kirana'));
+      } finally {
+        semantics.dispose();
+      }
+    });
   });
 }
