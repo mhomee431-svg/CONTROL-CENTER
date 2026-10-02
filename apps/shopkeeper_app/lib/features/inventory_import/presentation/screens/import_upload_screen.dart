@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/ui/capability_gate.dart';
 import '../../../shell/capabilities_controller.dart';
@@ -65,13 +66,12 @@ class _ImportUploadScreenState extends ConsumerState<ImportUploadScreen> {
     final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Upload inventory file')),
+      appBar: AppBar(title: Text(appText(context).commonUploadInventoryFile)),
       body: CapabilityGate(
         allowed: caps.canUploadExcel,
-        title: 'Excel import not available on your plan',
+        title: appText(context).importUploadScreenExcelImportNotAvailableOn,
         message:
-            'Upgrade your plan to bulk-upload a workbook. Your current plan '
-            'does not include bulk import.',
+            appText(context).importUploadScreenUpgradeYourPlanToBulk,
         child: SafeArea(
           child: Center(
             child: Padding(
@@ -127,13 +127,12 @@ class _PickView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        Text('Choose Excel file',
+        Text(appText(context).commonChooseExcelFile,
             key: const Key('import-choose-file'),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
-          'Only .xlsx workbooks are accepted. Download the sample from the '
-          'Import Center to see the exact columns.',
+          appText(context).importUploadScreenOnlyXlsxWorkbooksAreAccepted,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: outline),
         ),
@@ -142,7 +141,7 @@ class _PickView extends StatelessWidget {
           key: const Key('import-pick-button'),
           onPressed: onPick,
           icon: const Icon(Icons.folder_open_outlined),
-          label: const Text('Select .xlsx file'),
+          label: Text(appText(context).commonSelectXlsxFile),
         ),
         if (error != null) ...[
           const SizedBox(height: 16),
@@ -173,7 +172,7 @@ class _UploadingView extends StatelessWidget {
       children: [
         const CircularProgressIndicator(),
         const SizedBox(height: 20),
-        Text('Uploading…', key: const Key('import-uploading'),
+        Text(appText(context).importUploadScreenUploading, key: const Key('import-uploading'),
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
@@ -187,7 +186,7 @@ class _UploadingView extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Your file is being checked row by row. Nothing is applied yet.',
+          appText(context).importUploadScreenYourFileIsBeingChecked,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,

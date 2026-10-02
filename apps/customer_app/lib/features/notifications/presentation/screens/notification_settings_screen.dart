@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../settings/presentation/controllers/settings_controller.dart';
 import '../controllers/notification_preferences_controller.dart';
@@ -68,7 +69,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
           : ListView(
               children: [
                 // ── Delivery on this device ────────────────────────────
-                const _SectionLabel('On this device'),
+                const SectionLabel('On this device'),
                 SwitchListTile(
                   key: const Key('notifMasterSwitch'),
                   secondary: Icon(
@@ -85,7 +86,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   onChanged: deviceController.toggleNotifications,
                 ),
                 const Divider(indent: AppSpacing.md),
-                const _SectionLabel('What you get alerted about'),
+                const SectionLabel('What you get alerted about'),
                 const _PrefSwitch(
                   key: Key('notifPriceUpdates'),
                   field: _PrefField.price,
@@ -108,7 +109,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                   subtitle: 'Promotions and personalised discounts',
                 ),
                 const Divider(indent: AppSpacing.md),
-                const _SectionLabel('Other delivery channels'),
+                const SectionLabel('Other delivery channels'),
                 const _PrefSwitch(
                   key: Key('notifEmailChannel'),
                   field: _PrefField.email,
@@ -209,33 +210,6 @@ class _PrefSwitch extends ConsumerWidget {
       subtitle: Text(subtitle),
       value: value,
       onChanged: onChanged,
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.xs,
-      ),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
-          color: AppColors.textMuted,
-        ),
-      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../account/presentation/widgets/settings_widgets.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -116,17 +117,17 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
     final filed = support.lastFiled;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Contact support')),
+      appBar: AppBar(title: Text(appText(context).commonContactSupport3)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             SettingsSection(
-              title: 'Reach us',
+              title: appText(context).commonReachUs,
               children: [
                 ListTile(
                   leading: const Icon(Icons.mail_outline),
-                  title: const Text('E-mail', style: TextStyle(fontSize: 14)),
+                  title: Text(appText(context).commonEMail2, style: TextStyle(fontSize: 14)),
                   subtitle: const Text(
                     SupportContact.email,
                     style: TextStyle(fontSize: 12),
@@ -134,7 +135,7 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
                   trailing: IconButton(
                     key: const Key('contact_copy_email'),
                     icon: const Icon(Icons.copy, size: 18),
-                    tooltip: 'Copy e-mail address',
+                    tooltip: appText(context).commonCopyEMailAddress,
                     onPressed: () => _copyToClipboard(
                       SupportContact.email,
                       'E-mail address copied',
@@ -143,7 +144,7 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.phone_outlined),
-                  title: const Text('Phone', style: TextStyle(fontSize: 14)),
+                  title: Text(appText(context).commonPhone2, style: TextStyle(fontSize: 14)),
                   subtitle: const Text(
                     SupportContact.phone,
                     style: TextStyle(fontSize: 12),
@@ -151,7 +152,7 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
                   trailing: IconButton(
                     key: const Key('contact_copy_phone'),
                     icon: const Icon(Icons.copy, size: 18),
-                    tooltip: 'Copy phone number',
+                    tooltip: appText(context).commonCopyPhoneNumber,
                     onPressed: () => _copyToClipboard(
                       SupportContact.phone,
                       'Phone number copied',
@@ -161,7 +162,7 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
                 ListTile(
                   leading: const Icon(Icons.schedule_outlined),
                   title:
-                      const Text('Support hours', style: TextStyle(fontSize: 14)),
+                      Text(appText(context).commonSupportHours, style: TextStyle(fontSize: 14)),
                   subtitle: const Text(
                     SupportContact.hours,
                     style: TextStyle(fontSize: 12),
@@ -215,14 +216,10 @@ class _ContactSupportScreenState extends ConsumerState<ContactSupportScreen> {
                 ),
               ],
               const SizedBox(height: 16),
-              const SettingsNotice(
+              SettingsNotice(
                 icon: Icons.info_outline,
-                title: 'Your message becomes a tracked ticket',
-                message: 'Sending files a support ticket with your topic, '
-                    'account and shop attached - the same details support '
-                    'needs to answer quickly. Its status stays visible under '
-                    'My support tickets, and the text can still be copied to '
-                    'send it by e-mail.',
+                title: appText(context).contactSupportScreenYourMessageBecomesATracked,
+                message: appText(context).contactSupportScreenSendingFilesASupportTicket,
               ),
             ],
           ],
@@ -261,7 +258,7 @@ class _TicketConfirmation extends StatelessWidget {
         const SizedBox(height: 12),
         Center(
           child: Text(
-            'Message sent',
+            appText(context).commonMessageSent,
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -270,7 +267,7 @@ class _TicketConfirmation extends StatelessWidget {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'Your message is in the support queue.',
+            appText(context).contactSupportScreenYourMessageIsInThe,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -295,7 +292,7 @@ class _TicketConfirmation extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('Status: $statusLabel', style: const TextStyle(fontSize: 13)),
+                Text(appText(context).contactSupportScreenStatusStatusLabel(statusLabel), style: const TextStyle(fontSize: 13)),
               ],
             ),
           ),
@@ -305,14 +302,14 @@ class _TicketConfirmation extends StatelessWidget {
           key: const Key('contact_filed_view_tickets'),
           onPressed: () => context.push(Routes.myTickets),
           icon: const Icon(Icons.confirmation_number_outlined),
-          label: const Text('View my support tickets'),
+          label: Text(appText(context).commonViewMySupportTickets),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           key: const Key('contact_filed_another'),
           onPressed: onWriteAnother,
           icon: const Icon(Icons.add),
-          label: const Text('Write another message'),
+          label: Text(appText(context).commonWriteAnotherMessage),
         ),
       ],
     );
@@ -352,8 +349,8 @@ class _ComposeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Write to us',
+            Text(
+              appText(context).commonWriteToUs,
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
@@ -361,8 +358,8 @@ class _ComposeCard extends StatelessWidget {
               key: const Key('contact_topic'),
               initialValue: topic,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'What is this about?',
+              decoration: InputDecoration(
+                labelText: appText(context).commonWhatIsThisAbout,
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -387,8 +384,8 @@ class _ComposeCard extends StatelessWidget {
               maxLines: 8,
               textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
-                labelText: 'How can we help?',
-                hintText: 'Describe the problem in your own words',
+                labelText: appText(context).commonHowCanWeHelp,
+                hintText: appText(context).contactSupportScreenDescribeTheProblemInYour,
                 alignLabelWithHint: true,
                 border: const OutlineInputBorder(),
                 errorText: error,
@@ -399,12 +396,12 @@ class _ComposeCard extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               value: includeDetails,
               onChanged: onIncludeDetailsChanged,
-              title: const Text(
-                'Include my account and shop',
+              title: Text(
+                appText(context).contactSupportScreenIncludeMyAccountAndShop,
                 style: TextStyle(fontSize: 14),
               ),
-              subtitle: const Text(
-                'Saves a round-trip - support can look up the right shop',
+              subtitle: Text(
+                appText(context).contactSupportScreenSavesARoundTripSupport,
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -415,12 +412,12 @@ class _ComposeCard extends StatelessWidget {
                 key: const Key('contact_copy_request'),
                 onPressed: () => onCopyRequest(),
                 icon: const Icon(Icons.copy),
-                label: const Text('Copy request'),
+                label: Text(appText(context).commonCopyRequest),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Paste the copied text into an e-mail to ${SupportContact.email}.',
+              appText(context).contactSupportScreenPasteTheCopiedTextInto(SupportContact.email),
               style: TextStyle(fontSize: 11, color: scheme.outline),
             ),
           ],

@@ -19,7 +19,7 @@
 ///
 /// Lower camel case because this is a FUNCTION, not a type — it returns a value
 /// rather than constructing an object, and Dart's convention reserves PascalCase
-/// for types.
+/// for types. Every call site uses this spelling.
 T enumCodec<T extends Enum>(
   String? raw,
   List<T> values,

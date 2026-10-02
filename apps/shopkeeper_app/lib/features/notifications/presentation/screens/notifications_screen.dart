@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
@@ -48,7 +49,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(appText(context).commonNotifications2),
         actions: [
           if (state.status == NotificationsStatus.ready &&
               state.unreadCount > 0)
@@ -56,7 +57,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               onPressed: () => ref
                   .read(notificationsControllerProvider.notifier)
                   .markAllAsRead(),
-              child: const Text('Mark all read'),
+              child: Text(appText(context).commonMarkAllRead),
             ),
         ],
       ),
@@ -68,10 +69,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               // The screen owns the retry; the copy, icon and way out come from
               // the shared state vocabulary so this failure reads exactly like
               // every other failure in the app.
-              spec: SystemStateSpec.resolve(
+              spec: SystemStateSpec.resolve(
+                text: appText(context),
                 state: SystemState.genericRetry,
                 title: state.message ?? 'Could not load notifications.',
-                message: 'Check your connection and try again.',
+                message: appText(context).notificationsScreenCheckYourConnectionAndTry,
               ),
               onRetry: () =>
                   ref.read(notificationsControllerProvider.notifier).load(),
@@ -212,6 +214,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       context.push(target, extra: notification);
       return;
     }
+    if (target == Routes.importResult) {
+      // The id was already validated by `payloadInt` on the way to the target
+      // decision; pass the SAME validated value so the screen and the route
+      // agree, and a payload that changed shape between the two reads cannot
+      // send them to different jobs.
+      final jobId = notification.payloadInt('job_id');
+      if (jobId == null) {
+        // Unreachable via notificationRouteTarget, but a screen that can no
+        // longer be opened must not crash the tap.
+        context.go(Routes.importHistory);
+        return;
+      }
+      context.push(target, extra: jobId);
+      return;
+    }
     if (kNotificationTabTargets.contains(target)) {
       context.go(target);
     } else {
@@ -302,7 +319,7 @@ class _CategoryFilterBar extends StatelessWidget {
         children: [
           _CategoryChip(
             key: const Key('notification-filter-all'),
-            label: 'All',
+            label: appText(context).commonAll2,
             icon: Icons.all_inbox_outlined,
             selected: selected == null,
             onTap: () => onSelect(null),

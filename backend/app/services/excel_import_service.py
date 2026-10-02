@@ -423,7 +423,7 @@ def _serialize_job(job: InventoryImportJob) -> dict[str, Any]:
 
 
 def create_import(
-    access, db: Session, user, filename: str, content: bytes
+    access: Any, db: Session, user: Any, filename: str, content: bytes
 ) -> dict[str, Any]:
     """Upload + validate an Excel inventory file.
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../data/location_accuracy_config.dart';
 import '../../domain/location_capture_state.dart';
 import '../controllers/location_capture_controller.dart';
@@ -55,20 +56,17 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm shop location'),
+        title: Text(appText(context).commonConfirmShopLocation),
         content: Text(
-          '${widget.shopName == null ? '' : 'Shop: ${widget.shopName}\n\n'}'
-          'Accuracy: ${LocationAccuracyConfig.accuracyLabel(state.accuracyMeters)}\n\n'
-          '$addressSummary\n\n'
-          'Save this as your shop entrance location?',
+          appText(context).locationCaptureScreenValueAccuracyValue2AddressSummarySave(widget.shopName == null ? '' : 'Shop: ${widget.shopName}\n\n', LocationAccuracyConfig.accuracyLabel(state.accuracyMeters), addressSummary),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel')),
+              child: Text(appText(context).commonCancel)),
           FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Confirm')),
+              child: Text(appText(context).commonConfirm)),
         ],
       ),
     );
@@ -145,8 +143,8 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
     ref.read(locationCaptureControllerProvider.notifier).startMapOnlyCapture();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Tap the map to place your shop pin.'),
+      ..showSnackBar(SnackBar(
+        content: Text(appText(context).locationCaptureScreenTapTheMapToPlace),
       ));
   }
 
@@ -157,8 +155,8 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
     Navigator.of(context).pop();
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Enter your shop address in the form.'),
+      ..showSnackBar(SnackBar(
+        content: Text(appText(context).locationCaptureScreenEnterYourShopAddressIn),
       ));
   }
 
@@ -170,8 +168,8 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
         ? await controller.openDeviceLocationSettings()
         : await controller.openSystemSettings();
     if (!mounted || opened) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Could not open your phone settings from here.'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(appText(context).locationCaptureScreenCouldNotOpenYourPhone),
     ));
   }
 
@@ -253,16 +251,14 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Different location detected'),
+        title: Text(appText(context).locationCaptureScreenDifferentLocationDetected),
         content: Text(
-          'Your selected shop location is ${(drift / 1000).toStringAsFixed(1)} km '
-          'away from your current GPS location.\n\n'
-          'Are you sure this is your shop?',
+          appText(context).locationCaptureScreenYourSelectedShopLocationIs((drift / 1000).toStringAsFixed(1)),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel')),
+              child: Text(appText(context).commonCancel)),
           FilledButton(
               onPressed: () {
                 ref
@@ -270,7 +266,7 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
                     .confirmPinDrift();
                 Navigator.of(ctx).pop(true);
               },
-              child: const Text('Confirm')),
+              child: Text(appText(context).commonConfirm)),
         ],
       ),
     );
@@ -292,7 +288,7 @@ class _LocationCaptureScreenState extends ConsumerState<LocationCaptureScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(locationCaptureControllerProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Your Shop')),
+      appBar: AppBar(title: Text(appText(context).commonAddYourShop)),
       body: switch (state.status) {
         LocationCaptureStatus.initial ||
         LocationCaptureStatus.requestingPermission ||
@@ -375,7 +371,7 @@ class _AcquiringView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'GPS accuracy is an estimate, not a guarantee.',
+                appText(context).locationCaptureScreenGPSAccuracyIsAnEstimate,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),
@@ -385,7 +381,7 @@ class _AcquiringView extends StatelessWidget {
               const SizedBox(height: 32),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('For best accuracy:',
+                child: Text(appText(context).locationCaptureScreenForBestAccuracy,
                     style: theme.textTheme.titleSmall),
               ),
               const SizedBox(height: 8),
@@ -408,13 +404,13 @@ class _AcquiringView extends StatelessWidget {
                 key: const Key('location_choose_on_map_acquiring'),
                 onPressed: onChooseOnMap,
                 icon: const Icon(Icons.map_outlined),
-                label: const Text('Choose Location on Map'),
+                label: Text(appText(context).commonChooseLocationOnMap),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: onManual,
                 icon: const Icon(Icons.edit_location_alt_outlined),
-                label: const Text('Enter Location Manually'),
+                label: Text(appText(context).commonEnterLocationManually),
               ),
             ],
           ),
@@ -650,7 +646,7 @@ class _MapConfirmView extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(10),
                         child: Text(
-                          'Tap the map to place the pin at your shop ENTRANCE.',
+                          appText(context).locationCaptureScreenTapTheMapToPlace2,
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
@@ -712,8 +708,7 @@ class _BottomPanel extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
-                    'Your location is not accurate enough. '
-                    'Move closer to your shop for better accuracy.',
+                    appText(context).locationCaptureScreenYourLocationIsNotAccurate,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: AppColors.error),
                   ),
@@ -726,7 +721,7 @@ class _BottomPanel extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: onRetry,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Try Again'),
+                      label: Text(appText(context).commonTryAgain2),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -734,7 +729,7 @@ class _BottomPanel extends ConsumerWidget {
                     child: OutlinedButton.icon(
                       onPressed: onToggleAdjust,
                       icon: const Icon(Icons.edit_location_alt_outlined),
-                      label: const Text('Adjust Pin'),
+                      label: Text(appText(context).commonAdjustPin),
                     ),
                   ),
                 ],
@@ -763,16 +758,16 @@ class _BottomPanel extends ConsumerWidget {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
-            Text('Detected Address',
+            Text(appText(context).commonDetectedAddress,
                 style: theme.textTheme.labelMedium
                     ?.copyWith(color: theme.colorScheme.outline)),
             const SizedBox(height: 4),
             TextFormField(
               initialValue: state.effectiveAddressText,
               maxLines: 3,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: 'Detected address — you may correct the text',
+                hintText: appText(context).locationCaptureScreenDetectedAddressYouMayCorrect,
               ),
               onChanged: (value) => ref
                   .read(locationCaptureControllerProvider.notifier)
@@ -785,7 +780,7 @@ class _BottomPanel extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: state.canConfirm ? onConfirm : null,
                 icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Confirm Shop Location'),
+                label: Text(appText(context).commonConfirmShopLocation2),
               ),
               if (state.mapOnly) ...[
                 const SizedBox(height: 8),
@@ -793,20 +788,19 @@ class _BottomPanel extends ConsumerWidget {
                   key: const Key('location_try_gps_again'),
                   onPressed: onRetry,
                   icon: const Icon(Icons.my_location),
-                  label: const Text('Use my current location instead'),
+                  label: Text(appText(context).locationCaptureScreenUseMyCurrentLocationInstead),
                 ),
               ],
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: onToggleAdjust,
                 icon: const Icon(Icons.edit_location_alt_outlined),
-                label: const Text('Adjust Pin'),
+                label: Text(appText(context).commonAdjustPin),
               ),
             ],
             const SizedBox(height: 8),
             Text(
-              'GPS coordinates remain the primary location; '
-              'the address is supporting information.',
+              appText(context).locationCaptureScreenGPSCoordinatesRemainThePrimary,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.outline),
               textAlign: TextAlign.center,

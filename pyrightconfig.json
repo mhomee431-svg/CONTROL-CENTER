@@ -1,0 +1,12 @@
+{
+  "include": [
+    "backend/app/api/routes/pos_integration.py",
+    "backend/app/services/pos_sync_service.py",
+    "backend/app/services/shopkeeper_service.py",
+    "backend/tests/test_production_hardening_phase30.py"
+  ],
+  "extraPaths": ["backend"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "strict",
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.venv"]
+}

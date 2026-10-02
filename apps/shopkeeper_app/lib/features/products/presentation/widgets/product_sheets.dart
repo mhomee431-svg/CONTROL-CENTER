@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
@@ -15,6 +16,7 @@ import '../../domain/product_image_picker_service.dart';
 import '../../domain/product_models.dart';
 import '../controllers/category_controller.dart';
 import '../controllers/products_controller.dart';
+import 'product_form_messages.dart';
 import 'product_image_view.dart';
 
 /// Shared product-image picker + uploader (used by the create and edit
@@ -173,7 +175,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
     setState(() => _saving = false);
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Product updated')),
+      SnackBar(content: Text(appText(context).commonProductUpdated)),
     );
   }
 
@@ -195,12 +197,12 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
           children: [
             Row(children: [
               Expanded(
-                child: Text('Edit ${widget.item.name}',
+                child: Text(appText(context).productSheetsEditName(widget.item.name),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium),
               ),
               IconButton(
-                  tooltip: 'Close',
+                  tooltip: appText(context).commonClose4,
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close)),
             ]),
@@ -211,7 +213,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: NumericInput.decimal(),
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'Selling price'),
+              decoration: InputDecoration(labelText: appText(context).commonSellingPrice),
               validator: (v) =>
                   double.tryParse((v ?? '').trim()) == null ? 'Required' : null,
             ),
@@ -223,7 +225,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
               inputFormatters: NumericInput.decimal(),
               textInputAction: TextInputAction.next,
               decoration:
-                  const InputDecoration(labelText: 'MRP (optional)'),
+                  InputDecoration(labelText: appText(context).commonMRPOptional2),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -233,7 +235,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
               decoration:
-                  const InputDecoration(labelText: 'Stock quantity'),
+                  InputDecoration(labelText: appText(context).commonStockQuantity),
               validator: (v) =>
                   int.tryParse((v ?? '').trim()) == null ? 'Required' : null,
             ),
@@ -273,7 +275,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                   widget.item.imageUrl != null &&
                   widget.item.imageUrl!.isNotEmpty)
                 IconButton(
-                  tooltip: 'Remove photo',
+                  tooltip: appText(context).commonRemovePhoto,
                   onPressed: _uploadingImage ? null : _clearImage,
                   icon: const Icon(Icons.delete_outline),
                 ),
@@ -295,7 +297,7 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.save_outlined),
-              label: const Text('Save changes'),
+              label: Text(appText(context).commonSaveChanges),
             ),
           ],
         ),
@@ -428,7 +430,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
             key: const Key('create-category-retry'),
             onPressed: () =>
                 ref.read(categoryControllerProvider.notifier).ensureLoaded(),
-            child: const Text('Retry'),
+            child: Text(appText(context).commonRetry6),
           ),
         ],
       );
@@ -450,7 +452,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
         DropdownButtonFormField<int>(
           key: const Key('create-category'),
           initialValue: _categoryId,
-          decoration: const InputDecoration(labelText: 'Category (optional)'),
+          decoration: InputDecoration(labelText: appText(context).commonCategoryOptional),
           items: [
             for (final category in taxonomy.topLevel)
               DropdownMenuItem<int>(
@@ -471,7 +473,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
             key: const Key('create-subcategory'),
             initialValue: _subcategoryId,
             decoration:
-                const InputDecoration(labelText: 'Subcategory (optional)'),
+                InputDecoration(labelText: appText(context).commonSubcategoryOptional),
             items: [
               for (final child in children)
                 DropdownMenuItem<int>(
@@ -525,7 +527,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
     Navigator.pop(context);
     widget.onCreated?.call();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Product created')),
+      SnackBar(content: Text(appText(context).commonProductCreated)),
     );
   }
 
@@ -552,11 +554,11 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
               children: [
                 Row(children: [
                   Expanded(
-                    child: Text('New product',
+                    child: Text(appText(context).commonNewProduct,
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
                   IconButton(
-                      tooltip: 'Close',
+                      tooltip: appText(context).commonClose4,
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close)),
                 ]),
@@ -565,11 +567,12 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                   controller: _name,
                   textCapitalization: TextCapitalization.words,
                   maxLength: ProductFormRules.nameMaxLength,
-                  decoration: const InputDecoration(
-                    labelText: 'Product name *',
+                  decoration: InputDecoration(
+                    labelText: appText(context).productSheetsProductName,
                     counterText: '',
                   ),
-                  validator: ProductFormRules.name,
+                  validator: (v) =>
+                      productFormErrorText(context, ProductFormRules.name(v)),
                 ),
                 const SizedBox(height: 12),
                 Row(children: [
@@ -583,8 +586,9 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       inputFormatters: NumericInput.decimal(allowSign: true),
                       textInputAction: TextInputAction.next,
                       decoration:
-                          const InputDecoration(labelText: 'Selling price *'),
-                      validator: ProductFormRules.price,
+                          InputDecoration(labelText: appText(context).productSheetsSellingPrice),
+                      validator: (v) => productFormErrorText(
+                          context, ProductFormRules.price(v)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -595,11 +599,11 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                           const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: NumericInput.decimal(allowSign: true),
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'MRP'),
+                      decoration: InputDecoration(labelText: appText(context).commonMRP),
                       // Optional, but must not undercut the price: the backend
                       // rejects that combination.
-                      validator: (v) =>
-                          ProductFormRules.mrp(v, priceText: _price.text),
+                      validator: (v) => productFormErrorText(context,
+                          ProductFormRules.mrp(v, priceText: _price.text)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -611,9 +615,10 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) =>
                           FocusScope.of(context).unfocus(),
-                      decoration: const InputDecoration(
-                          labelText: 'Quantity (initial stock)'),
-                      validator: ProductFormRules.quantity,
+                      decoration: InputDecoration(
+                          labelText: appText(context).commonQuantityInitialStock),
+                      validator: (v) => productFormErrorText(
+                          context, ProductFormRules.quantity(v)),
                     ),
                   ),
                 ]),
@@ -626,12 +631,14 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       controller: _brand,
                       textCapitalization: TextCapitalization.words,
                       maxLength: ProductFormRules.brandMaxLength,
-                      decoration: const InputDecoration(
-                        labelText: 'Brand (optional)',
+                      decoration: InputDecoration(
+                        labelText: appText(context).commonBrandOptional,
                         counterText: '',
                       ),
-                      validator: (v) => ProductFormRules.optionalMax(
-                          v, ProductFormRules.brandMaxLength),
+                      validator: (v) => productFormErrorText(
+                          context,
+                          ProductFormRules.optionalMax(
+                              v, ProductFormRules.brandMaxLength)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -639,12 +646,14 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                     child: TextFormField(
                       controller: _unit,
                       maxLength: ProductFormRules.unitMaxLength,
-                      decoration: const InputDecoration(
-                        labelText: 'Unit / size (e.g. 1 kg)',
+                      decoration: InputDecoration(
+                        labelText: appText(context).commonUnitSizeEG1,
                         counterText: '',
                       ),
-                      validator: (v) => ProductFormRules.optionalMax(
-                          v, ProductFormRules.unitMaxLength),
+                      validator: (v) => productFormErrorText(
+                          context,
+                          ProductFormRules.optionalMax(
+                              v, ProductFormRules.unitMaxLength)),
                     ),
                   ),
                 ]),
@@ -656,17 +665,19 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                   child: ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     childrenPadding: const EdgeInsets.only(bottom: 8),
-                    title: const Text('More details (optional)'),
+                    title: Text(appText(context).commonMoreDetailsOptional),
                     children: [
                       TextFormField(
                         controller: _sku,
                         maxLength: ProductFormRules.skuMaxLength,
-                        decoration: const InputDecoration(
-                          labelText: 'SKU (optional)',
+                        decoration: InputDecoration(
+                          labelText: appText(context).commonSKUOptional,
                           counterText: '',
                         ),
-                        validator: (v) => ProductFormRules.optionalMax(
-                            v, ProductFormRules.skuMaxLength),
+                        validator: (v) => productFormErrorText(
+                            context,
+                            ProductFormRules.optionalMax(
+                                v, ProductFormRules.skuMaxLength)),
                       ),
                       const SizedBox(height: 12),
                       // The manual identifier becomes the product's primary
@@ -675,11 +686,12 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                       TextFormField(
                         controller: _barcode,
                         textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Barcode (optional)',
-                          hintText: 'Type or paste the code on the pack',
+                        decoration: InputDecoration(
+                          labelText: appText(context).commonBarcodeOptional,
+                          hintText: appText(context).productSheetsTypeOrPasteTheCode,
                         ),
-                        validator: ProductFormRules.barcode,
+                        validator: (v) => productFormErrorText(
+                            context, ProductFormRules.barcode(v)),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -687,15 +699,15 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                         minLines: 2,
                         maxLines: 4,
                         textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
-                            labelText: 'Description (optional)'),
+                        decoration: InputDecoration(
+                            labelText: appText(context).commonDescriptionOptional),
                       ),
                       const SizedBox(height: 8),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Available for sale'),
-                        subtitle: const Text(
-                            'Unavailable products are hidden from customers'),
+                        title: Text(appText(context).commonAvailableForSale),
+                        subtitle: Text(
+                            appText(context).productSheetsUnavailableProductsAreHiddenFrom),
                         value: _isAvailable,
                         onChanged: (v) => setState(() => _isAvailable = v),
                       ),
@@ -735,15 +747,14 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                         ),
                         if (_image != null)
                           IconButton(
-                            tooltip: 'Remove photo',
+                            tooltip: appText(context).commonRemovePhoto,
                             onPressed: _removeImage,
                             icon: const Icon(Icons.delete_outline),
                           ),
                       ]),
                       const SizedBox(height: 4),
                       Text(
-                        'JPG / PNG / WebP up to 5 MB, stored securely — '
-                        'the shop listing shows a link to it.',
+                        appText(context).productSheetsJPGPNGWebPUpTo,
                         style: TextStyle(fontSize: 11, color: scheme.outline),
                       ),
                     ],
@@ -751,8 +762,8 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Publish immediately'),
-                  subtitle: const Text('Unpublished products stay as drafts'),
+                  title: Text(appText(context).commonPublishImmediately2),
+                  subtitle: Text(appText(context).productSheetsUnpublishedProductsStayAsDrafts),
                   value: _publish,
                   onChanged: (v) => setState(() => _publish = v),
                 ),
@@ -772,7 +783,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.add),
-                  label: const Text('Create product'),
+                  label: Text(appText(context).commonCreateProduct),
                 ),
               ],
             ),
@@ -825,20 +836,20 @@ class _ProductAddMethodSheetState extends ConsumerState<ProductAddMethodSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text('Add product', style: theme.textTheme.titleMedium),
+              child: Text(appText(context).commonAddProduct2, style: theme.textTheme.titleMedium),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Choose how you want to add products:',
+                appText(context).productSheetsChooseHowYouWantTo,
                 style: TextStyle(fontSize: 13, color: theme.colorScheme.outline),
               ),
             ),
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.edit_note_outlined),
-              title: const Text('Enter manually'),
-              subtitle: const Text('Full details: price, stock, brand, photo…'),
+              title: Text(appText(context).commonEnterManually2),
+              subtitle: Text(appText(context).productSheetsFullDetailsPriceStockBrand),
               onTap: () {
                 Navigator.pop(context);
                 showModalBottomSheet<void>(
@@ -850,8 +861,8 @@ class _ProductAddMethodSheetState extends ConsumerState<ProductAddMethodSheet> {
             ),
             ListTile(
               leading: const Icon(Icons.qr_code_scanner_outlined),
-              title: const Text('Scan barcode'),
-              subtitle: const Text('Match against the shared catalog'),
+              title: Text(appText(context).commonScanBarcode3),
+              subtitle: Text(appText(context).productSheetsMatchAgainstTheSharedCatalog),
               onTap: () {
                 Navigator.pop(context);
                 context.push(Routes.scanBarcode);
@@ -859,8 +870,8 @@ class _ProductAddMethodSheetState extends ConsumerState<ProductAddMethodSheet> {
             ),
             ListTile(
               leading: const Icon(Icons.table_view_outlined),
-              title: const Text('Bulk Excel import'),
-              subtitle: const Text('Upload a spreadsheet of products'),
+              title: Text(appText(context).commonBulkExcelImport),
+              subtitle: Text(appText(context).productSheetsUploadASpreadsheetOfProducts),
               onTap: () {
                 Navigator.pop(context);
                 context.push(Routes.inventoryImport);
@@ -870,7 +881,7 @@ class _ProductAddMethodSheetState extends ConsumerState<ProductAddMethodSheet> {
               key: const Key('add-product-pos'),
               enabled: posReady,
               leading: const Icon(Icons.point_of_sale_outlined),
-              title: const Text('POS sync'),
+              title: Text(appText(context).commonPOSSync5),
               subtitle: Text(
                 posReady
                     ? 'Import products from your connected POS'

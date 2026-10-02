@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../domain/auth_methods.dart';
@@ -138,7 +139,7 @@ class AuthMethodDivider extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'or',
+            appText(context).commonOr2,
             style: TextStyle(color: scheme.outline, fontSize: 12),
           ),
         ),

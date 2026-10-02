@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../account/presentation/widgets/settings_widgets.dart';
 import '../../domain/notification_models.dart';
@@ -58,7 +59,7 @@ class _NotificationPreferencesScreenState
 
     if (state.status == NotificationPreferencesStatus.loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Notification preferences')),
+        appBar: AppBar(title: Text(appText(context).commonNotificationPreferences)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -67,7 +68,7 @@ class _NotificationPreferencesScreenState
         ref.read(notificationPreferencesProvider.notifier).update(next);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification preferences')),
+      appBar: AppBar(title: Text(appText(context).commonNotificationPreferences)),
       body: SafeArea(
         child: Column(
           children: [
@@ -75,13 +76,13 @@ class _NotificationPreferencesScreenState
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
-                  const SettingsIntro(
+                  SettingsIntro(
                     icon: Icons.notifications_active_outlined,
-                    title: 'Notification preferences',
-                    subtitle: 'Saved for your account on this device',
+                    title: appText(context).commonNotificationPreferences,
+                    subtitle: appText(context).notificationPreferencesScreenSavedForYourAccountOn,
                   ),
                   SettingsSection(
-                    title: 'Channels',
+                    title: appText(context).commonChannels2,
                     footnote: 'A channel that is off receives nothing, no '
                         'matter which alerts are selected below.',
                     children: [
@@ -114,7 +115,7 @@ class _NotificationPreferencesScreenState
                     ],
                   ),
                   SettingsSection(
-                    title: 'Shop alerts',
+                    title: appText(context).commonShopAlerts,
                     children: [
                       SettingsSwitchTile(
                         key: const Key('pref_inventory_alerts'),
@@ -155,7 +156,7 @@ class _NotificationPreferencesScreenState
                     ],
                   ),
                   SettingsSection(
-                    title: 'Other',
+                    title: appText(context).commonOther,
                     children: [
                       SettingsSwitchTile(
                         key: const Key('pref_promotional'),
@@ -178,18 +179,16 @@ class _NotificationPreferencesScreenState
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const SettingsNotice(
+                  SettingsNotice(
                     icon: Icons.inbox_outlined,
-                    title: 'The Alerts tab always works',
-                    message: 'In-app alerts are part of the app and are never '
-                        'switched off. The channels above only control how you '
-                        'are reached OUTSIDE the app.',
+                    title: appText(context).notificationPreferencesScreenTheAlertsTabAlwaysWorks,
+                    message: appText(context).notificationPreferencesScreenInAppAlertsArePart,
                   ),
                   const SizedBox(height: 8),
                   SettingsTile(
                     icon: Icons.phonelink_lock_outlined,
-                    title: 'Device notification permission',
-                    subtitle: 'Banners and sounds are controlled by your phone',
+                    title: appText(context).notificationPreferencesScreenDeviceNotificationPermission,
+                    subtitle: appText(context).notificationPreferencesScreenBannersAndSoundsAreControlled,
                     onTap: () => context.push(Routes.notificationSettings),
                   ),
                 ],
@@ -234,14 +233,14 @@ class _UnsavedChangesBar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'You have unsaved changes',
+                appText(context).commonYouHaveUnsavedChanges,
                 style: TextStyle(fontSize: 12, color: scheme.outline),
               ),
             ),
             TextButton(
               key: const Key('pref_discard_button'),
               onPressed: saving ? null : onDiscard,
-              child: const Text('Discard'),
+              child: Text(appText(context).commonDiscard2),
             ),
             const SizedBox(width: 8),
             FilledButton(
@@ -253,7 +252,7 @@ class _UnsavedChangesBar extends StatelessWidget {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(appText(context).commonSave),
             ),
           ],
         ),

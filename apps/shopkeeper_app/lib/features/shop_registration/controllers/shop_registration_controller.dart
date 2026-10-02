@@ -1,3 +1,4 @@
+import '../../../../core/errors/app_message_code.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -50,7 +51,7 @@ class ShopRegistrationController
     try {
       final token = await _token();
       if (token == null) {
-        throw const ApiException(message: 'Not signed in');
+        throw ApiException.localized(AppMessageCode.notSignedIn);
       }
       final categories = await _repo.listMerchantCategories(token);
       state = state.copyWith(
@@ -84,7 +85,7 @@ class ShopRegistrationController
     try {
       final token = await _token();
       if (token == null) {
-        throw const ApiException(message: 'Not signed in');
+        throw ApiException.localized(AppMessageCode.notSignedIn);
       }
       final requirements = await _repo.getCategoryRequirements(
           token, option.code);
@@ -476,7 +477,7 @@ class ShopRegistrationController
     final token = await _token();
     if (token == null) {
       state = state.copyWith(
-        submitError: 'Your session has expired. Please sign in again.',
+        submitError: appMessageEnglish(AppMessageCode.sessionExpired),
         submitErrorCode: 'SESSION_EXPIRED',
       );
       return null;
@@ -642,7 +643,7 @@ class ShopRegistrationController
   /// Technical exceptions → shopkeeper-friendly copy.
   String _friendly(ApiException e, {required String fallback}) {
     if (e.isUnauthorized || e.statusCode == 401) {
-      return 'Your session has expired. Please sign in again.';
+      return appMessageEnglish(AppMessageCode.sessionExpired);
     }
     if (e.statusCode == 403) {
       return 'You do not have permission to register a shop.';
@@ -652,10 +653,10 @@ class ShopRegistrationController
     }
     final code = e.errorCode ?? '';
     if (code == 'SESSION_EXPIRED') {
-      return 'Your session has expired. Please sign in again.';
+      return appMessageEnglish(AppMessageCode.sessionExpired);
     }
     if (e.statusCode == null) {
-      return 'No internet connection. Check your network and retry.';
+      return appMessageEnglish(AppMessageCode.noInternet);
     }
     final message = e.message;
     if (message.isNotEmpty && message != 'Network error' && message.length < 160) {

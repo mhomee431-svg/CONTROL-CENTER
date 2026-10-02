@@ -22,9 +22,14 @@ import 'fakes.dart';
 void main() {
   group('ProductFormRules.name (required)', () {
     test('rejects empty and whitespace-only', () {
-      expect(ProductFormRules.name(null), 'Product name is required');
-      expect(ProductFormRules.name(''), 'Product name is required');
-      expect(ProductFormRules.name('   '), 'Product name is required');
+      expect(ProductFormRules.name(null),
+          const ProductFormFieldFailure(ProductFormFieldError.nameRequired));
+      expect(ProductFormRules.name(''),
+          const ProductFormFieldFailure(ProductFormFieldError.nameRequired));
+      expect(
+        ProductFormRules.name('   '),
+        const ProductFormFieldFailure(ProductFormFieldError.nameRequired),
+      );
     });
 
     test('accepts a normal name', () {
@@ -33,23 +38,32 @@ void main() {
 
     test('caps at the backend max of 255 characters', () {
       expect(ProductFormRules.name('a' * 255), isNull);
-      expect(ProductFormRules.name('a' * 256), 'Use at most 255 characters');
+      expect(
+        ProductFormRules.name('a' * 256),
+        const ProductFormFieldFailure(
+            ProductFormFieldError.tooManyCharacters, count: 255),
+      );
     });
   });
 
   group('ProductFormRules.price (required, >= 0)', () {
     test('is required', () {
-      expect(ProductFormRules.price(''), 'Selling price is required');
-      expect(ProductFormRules.price(null), 'Selling price is required');
+      expect(ProductFormRules.price(''),
+          const ProductFormFieldFailure(ProductFormFieldError.priceRequired));
+      expect(ProductFormRules.price(null),
+          const ProductFormFieldFailure(ProductFormFieldError.priceRequired));
     });
 
     test('rejects non-numeric input', () {
-      expect(ProductFormRules.price('abc'), 'Enter a valid amount');
+      expect(ProductFormRules.price('abc'),
+          const ProductFormFieldFailure(ProductFormFieldError.invalidAmount));
     });
 
     test('rejects negatives — the backend bounds this at ge=0', () {
-      expect(ProductFormRules.price('-1'), 'Price cannot be negative');
-      expect(ProductFormRules.price('-0.01'), 'Price cannot be negative');
+      expect(ProductFormRules.price('-1'),
+          const ProductFormFieldFailure(ProductFormFieldError.priceNegative));
+      expect(ProductFormRules.price('-0.01'),
+          const ProductFormFieldFailure(ProductFormFieldError.priceNegative));
     });
 
     test('zero and decimals are valid', () {
@@ -66,15 +80,20 @@ void main() {
     });
 
     test('rejects non-numeric and negative values', () {
-      expect(ProductFormRules.mrp('abc', priceText: '100'), 'Enter a valid amount');
       expect(
-          ProductFormRules.mrp('-5', priceText: '100'), 'MRP cannot be negative');
+        ProductFormRules.mrp('abc', priceText: '100'),
+        const ProductFormFieldFailure(ProductFormFieldError.invalidAmount),
+      );
+      expect(
+        ProductFormRules.mrp('-5', priceText: '100'),
+        const ProductFormFieldFailure(ProductFormFieldError.mrpNegative),
+      );
     });
 
     test('mirrors the backend rule: MRP may not undercut the price', () {
       expect(
         ProductFormRules.mrp('90', priceText: '100'),
-        'MRP cannot be lower than the selling price',
+        const ProductFormFieldFailure(ProductFormFieldError.mrpBelowPrice),
       );
       // Equal is allowed (the backend only rejects strictly lower).
       expect(ProductFormRules.mrp('100', priceText: '100'), isNull);
@@ -94,8 +113,12 @@ void main() {
     });
 
     test('rejects fractions and negatives', () {
-      expect(ProductFormRules.quantity('2.5'), 'Enter a whole number');
-      expect(ProductFormRules.quantity('-3'), 'Quantity cannot be negative');
+      expect(ProductFormRules.quantity('2.5'),
+          const ProductFormFieldFailure(
+              ProductFormFieldError.wholeNumberRequired));
+      expect(ProductFormRules.quantity('-3'),
+          const ProductFormFieldFailure(
+              ProductFormFieldError.quantityNegative));
     });
 
     test('zero and whole numbers are valid', () {
@@ -114,7 +137,8 @@ void main() {
       expect(ProductFormRules.optionalMax('a' * 120, 120), isNull);
       expect(
         ProductFormRules.optionalMax('a' * 121, 120),
-        'Use at most 120 characters',
+        const ProductFormFieldFailure(
+            ProductFormFieldError.tooManyCharacters, count: 120),
       );
     });
 

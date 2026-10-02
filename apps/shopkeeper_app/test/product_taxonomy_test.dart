@@ -119,7 +119,8 @@ void main() {
     test('rejects a barcode shorter than the backend minimum of 4', () {
       expect(
         ProductFormRules.barcode('123'),
-        'Barcode must be at least 4 characters',
+        const ProductFormFieldFailure(ProductFormFieldError.barcodeTooShort,
+            count: 4),
       );
     });
 

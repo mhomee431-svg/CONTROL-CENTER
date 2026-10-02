@@ -194,3 +194,9 @@ from app.models.verification_attempt import (
 
 # Orders / Cart / Checkout / Payment (Master Spec SS 30-32)
 from app.models.order import Order, OrderItem, OrderStatus, OrderItemStatus
+
+# Media pipeline (Phase 7/24 — S3 upload lifecycle: PENDING -> READY). Without
+# this import ``Base.metadata`` is missing ``media`` even though the table is
+# part of the approved schema (migration 0024) and every model has one.
+from app.models.media import Media, MediaState  # noqa: F401
+

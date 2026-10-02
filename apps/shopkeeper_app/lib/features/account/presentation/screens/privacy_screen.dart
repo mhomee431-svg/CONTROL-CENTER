@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../support/domain/support_models.dart';
 import '../widgets/settings_widgets.dart';
 
@@ -16,74 +17,49 @@ class PrivacyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy policy')),
+      appBar: AppBar(title: Text(appText(context).commonPrivacyPolicy3)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: const [
+          children: [
             SettingsIntro(
               icon: Icons.privacy_tip_outlined,
-              title: 'Your data in Passly Business',
+              title: appText(context).privacyScreenYourDataInPasslyBusiness,
               subtitle: _updated,
             ),
             SizedBox(height: 24),
             LegalSection(
               heading: 'What we collect',
-              body: 'Your account identity (name, phone number and e-mail from '
-                  'your Google sign-in), your business details (shop name, '
-                  'category, address, operating hours and licence documents), '
-                  'your catalogue (products, stock levels and prices) and the '
-                  'notifications you receive. Shop location is captured only '
-                  'when you place or update your shop on the map.',
+              body: appText(context).privacyScreenYourAccountIdentityNamePhone,
             ),
             LegalSection(
               heading: 'How we use it',
-              body: 'To show your shop, products and prices to nearby '
-                  'customers, to sync your stock and prices, to send you '
-                  'operational alerts (low stock, POS sync results, '
-                  'verification), and to keep your account secure. Analytics '
-                  'are aggregated — we never sell your data.',
+              body: appText(context).privacyScreenToShowYourShopProducts,
             ),
             LegalSection(
               heading: 'What customers can see',
-              body: 'Only your public business information: shop name, '
-                  'category, address, hours, contact details and the products '
-                  'you publish. Stock quantities, costs, documents and your '
-                  'personal contact details stay private.',
+              body: appText(context).privacyScreenOnlyYourPublicBusinessInformation,
             ),
             LegalSection(
               heading: 'Who we share it with',
-              body: 'Payment and billing providers when you subscribe to a '
-                  'paid plan, providers you connect yourself (for example your '
-                  'POS vendor), and authorities when legally required. Nothing '
-                  'else is shared.',
+              body: appText(context).privacyScreenPaymentAndBillingProvidersWhen,
             ),
             LegalSection(
               heading: 'Security',
-              body: 'Sessions use short-lived access tokens that are revocable '
-                  'from the server, and tokens are stored in the device keychain '
-                  'or keystore. Logging out revokes the session and erases the '
-                  'stored tokens from this device.',
+              body: appText(context).privacyScreenSessionsUseShortLivedAccess,
             ),
             LegalSection(
               heading: 'Your choices',
-              body: 'Decide which alerts you receive in Notification '
-                  'preferences, keep your catalogue accurate from the Products '
-                  'and Inventory screens, and contact support to correct your '
-                  'account details or ask for your data to be deleted.',
+              body: appText(context).privacyScreenDecideWhichAlertsYouReceive,
             ),
             LegalSection(
               heading: 'Retention',
-              body: 'Business data is kept while your shop is active. When an '
-                  'account is closed, operational data is removed or anonymised '
-                  'except where a record must be kept for accounting or legal '
-                  'reasons.',
+              body: appText(context).privacyScreenBusinessDataIsKeptWhile,
             ),
             SettingsNotice(
               icon: Icons.mail_outline,
-              title: 'Questions about your data?',
-              message: 'Write to ${SupportContact.email} and the team will '
-                  'respond during ${SupportContact.hours}.',
+              title: appText(context).privacyScreenQuestionsAboutYourData,
+              message: appText(context).privacyScreenWriteToEmailAndThe(SupportContact.email, SupportContact.hours),
             ),
           ],
         ),

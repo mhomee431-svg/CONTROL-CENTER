@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../domain/models/order_models.dart';
 import '../domain/order_repository.dart';
 
@@ -51,16 +53,23 @@ class MockOrderRepository implements OrderRepository {
 
   /// Deterministic seed keeps the mock reproducible across runs.
   ///
-  /// [seed] is accepted and deliberately NOT used: the seed orders below are
-  /// fixed, so they are already identical on every run and every platform. It is
-  /// kept in the signature because callers pass it, and removing a parameter is a
-  /// breaking change for no behavioural gain.
+  /// [seed] is accepted and deliberately NOT used by the fixed seed orders below:
+  /// they are already identical on every run and every platform. It stays in the
+  /// signature because callers pass it, and removing a parameter is a breaking
+  /// change for no behavioural gain.
   MockOrderRepository({DateTime Function()? now, int seed = 0})
-    : _now = now ?? DateTime.now {
+    : _now = now ?? DateTime.now,
+      _random = Random(seed) {
     _seedOrders();
   }
 
   final DateTime Function() _now;
+
+  /// Seeded for reproducibility and retained deliberately: order/mutation tests
+  /// that need jitter will draw from this instead of `Random()` so a failing
+  /// seed stays reproducible. Kept (not deleted) on purpose.
+  // ignore: unused_field
+  final Random _random;
   final Map<int, Order> _orders = {};
   int _nextId = 1000;
   int _nextItemId = 1;

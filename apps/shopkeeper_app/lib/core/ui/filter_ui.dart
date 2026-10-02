@@ -16,6 +16,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../l10n/app_text.dart';
 
 /// One selectable value in a [FilterChipBar].
 class FilterChoice<T> {
@@ -242,9 +243,9 @@ class FilterSheet extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton(onPressed: onReset, child: const Text('Reset')),
+              TextButton(onPressed: onReset, child: Text(appText(context).commonReset)),
               const SizedBox(width: 8),
-              FilledButton(onPressed: onApply, child: const Text('Apply')),
+              FilledButton(onPressed: onApply, child: Text(appText(context).commonApply)),
             ],
           ),
         ],

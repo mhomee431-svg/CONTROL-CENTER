@@ -13,6 +13,9 @@ import com.google.firebase.auth.GoogleAuthProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Native Google Sign-In bridge for the Flutter auth layer.
@@ -63,11 +66,26 @@ class MainActivity : FlutterActivity() {
             .addCredentialOption(googleIdOption)
             .build()
 
-        credentialManager.getCredential(this, request)
-            .addOnSuccessListener { response -> handleCredential(response, result) }
-            .addOnFailureListener { error ->
+        // CredentialManager.getCredential() is a *suspend* function as of
+        // androidx.credentials 1.3.0 — it returns no Task, so chaining
+        // addOnSuccessListener/addOnFailureListener onto it could never compile
+        // and the APK never built. Run it on a main-dispatcher coroutine and
+        // handle the thrown exceptions, which is exactly how shopkeeper_app's
+        // MainActivity drives the same API. kotlinx-coroutines arrives
+        // transitively from androidx.credentials.
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val response = credentialManager.getCredential(
+                    context = this@MainActivity,
+                    request = request,
+                )
+                handleCredential(response, result)
+            } catch (error: GetCredentialException) {
+                result.error(mapCredentialErrorCode(error), error.message, null)
+            } catch (error: Exception) {
                 result.error(mapCredentialErrorCode(error), error.message, null)
             }
+        }
     }
 
     private fun handleCredential(

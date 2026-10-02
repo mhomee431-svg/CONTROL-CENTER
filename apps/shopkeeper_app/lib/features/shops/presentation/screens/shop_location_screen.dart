@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../domain/shop_models.dart';
 import '../controllers/shop_profile_controller.dart';
 import '../widgets/shop_profile_shared.dart';
@@ -32,8 +33,8 @@ class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
         ? await service.openLocationSettings()
         : await service.openAppSettings();
     if (!mounted || opened) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Could not open your phone settings from here.'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(appText(context).shopLocationScreenCouldNotOpenYourPhone),
     ));
   }
 
@@ -59,7 +60,7 @@ class _ShopLocationScreenState extends ConsumerState<ShopLocationScreen> {
     final detail = state.detail;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop location')),
+      appBar: AppBar(title: Text(appText(context).commonShopLocation2)),
       body: SafeArea(
         child: switch (state.status) {
           ShopLocationStatus.loading => const Center(
@@ -107,7 +108,7 @@ class _LocationErrorView extends StatelessWidget {
             key: const Key('shop-location-retry'),
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(appText(context).commonRetry11),
           ),
         ],
       ),
@@ -163,8 +164,8 @@ class _LocationBody extends ConsumerWidget {
                             color: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(width: 10),
-                          const Text(
-                            'Stored shop pin',
+                          Text(
+                            appText(context).commonStoredShopPin,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -175,23 +176,22 @@ class _LocationBody extends ConsumerWidget {
                       const SizedBox(height: 12),
                       ShopInfoRow(
                         icon: Icons.explore_outlined,
-                        label: 'Coordinates',
+                        label: appText(context).commonCoordinates,
                         value: detail?.coordinatesLabel ?? '',
                       ),
                       ShopInfoRow(
                         icon: Icons.map_outlined,
-                        label: 'Latitude',
+                        label: appText(context).commonLatitude2,
                         value: detail?.latitude?.toStringAsFixed(6) ?? '',
                       ),
                       ShopInfoRow(
                         icon: Icons.map_outlined,
-                        label: 'Longitude',
+                        label: appText(context).commonLongitude2,
                         value: detail?.longitude?.toStringAsFixed(6) ?? '',
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Customers see your shop on the map at this pin. Keep '
-                        'it on your shop entrance, not the street corner.',
+                        appText(context).shopLocationScreenCustomersSeeYourShopOn,
                         style: TextStyle(fontSize: 12, color: scheme.outline),
                       ),
                     ],
@@ -207,8 +207,8 @@ class _LocationBody extends ConsumerWidget {
                             color: scheme.outline,
                           ),
                           const SizedBox(width: 10),
-                          const Text(
-                            'No pin stored yet',
+                          Text(
+                            appText(context).commonNoPinStoredYet,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -218,9 +218,7 @@ class _LocationBody extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Without a pin customers cannot find your shop on the '
-                        'map. Stand at or near the shop and save your current '
-                        'location.',
+                        appText(context).shopLocationScreenWithoutAPinCustomersCannot,
                         style: TextStyle(fontSize: 12, color: scheme.outline),
                       ),
                     ],
@@ -284,14 +282,12 @@ class _LocationBody extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Update the pin',
+                  appText(context).commonUpdateThePin,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'The app reads your device GPS a few times, keeps the most '
-                  'accurate fix and asks the server to replace the stored '
-                  'pin. Every change is audited.',
+                  appText(context).shopLocationScreenTheAppReadsYourDevice,
                   style: TextStyle(fontSize: 12, color: scheme.outline),
                 ),
                 const SizedBox(height: 12),

@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/permissions/data/permission_service.dart';
+import '../../core/l10n/app_text.dart';
 import '../products/presentation/controllers/products_controller.dart';
 import '../products/presentation/widgets/product_sheets.dart';
 import 'domain/barcode_models.dart';
@@ -207,8 +208,8 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
       builder: (_) => ProductCreateSheet(
         onCreated: () {
           Navigator.of(context).pop(); // close the scanner screen
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Product added to inventory'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(appText(context).barcodeScannerScreenProductAddedToInventory),
           ));
           ref.read(productsControllerProvider.notifier).load();
         },
@@ -236,13 +237,13 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text('Multiple products share this barcode',
+              child: Text(appText(context).barcodeScannerScreenMultipleProductsShareThisBarcode,
                   style: Theme.of(sheetContext).textTheme.titleMedium),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Please select the product you scanned:',
+                appText(context).barcodeScannerScreenPleaseSelectTheProductYou,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(sheetContext).colorScheme.outline,
@@ -305,8 +306,8 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
           Navigator.of(context)
             ..pop() // close sheet
             ..pop(); // close scanner screen
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Product added to inventory'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(appText(context).barcodeScannerScreenProductAddedToInventory),
           ));
           // Refresh inventory so the new product is visible.
           ref.read(productsControllerProvider.notifier).load();
@@ -351,7 +352,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan barcode'),
+        title: Text(appText(context).commonScanBarcode),
         actions: [
           if (showProgress)
             const Padding(
@@ -366,7 +367,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
           else
             IconButton(
               icon: const Icon(Icons.keyboard_alt_outlined),
-              tooltip: 'Enter barcode manually',
+              tooltip: appText(context).commonEnterBarcodeManually,
               onPressed: _showManualEntrySheet,
             ),
         ],
@@ -432,8 +433,7 @@ class _BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Text(
-                        'Position a product barcode inside the frame — '
-                        'it is detected automatically.',
+                        appText(context).barcodeScannerScreenPositionAProductBarcodeInside,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
@@ -528,7 +528,7 @@ class _ScannerErrorView extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry camera'),
+              label: Text(appText(context).commonRetryCamera),
             ),
           const SizedBox(height: 12),
           // A runtime permission loss can only be fixed in the system
@@ -538,14 +538,14 @@ class _ScannerErrorView extends StatelessWidget {
               key: const Key('scanner_open_settings'),
               onPressed: onOpenSettings,
               icon: const Icon(Icons.settings_outlined),
-              label: const Text('Open System Settings'),
+              label: Text(appText(context).commonOpenSystemSettings2),
             ),
             const SizedBox(height: 12),
           ],
           OutlinedButton.icon(
             onPressed: onManualEntry,
             icon: const Icon(Icons.keyboard_alt_outlined),
-            label: const Text('Enter barcode manually'),
+            label: Text(appText(context).commonEnterBarcodeManually),
           ),
         ],
       ),

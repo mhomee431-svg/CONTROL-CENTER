@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/app_text.dart';
 import '../state/connectivity_controller.dart';
 import '../theme/app_colors.dart';
 
@@ -28,13 +29,12 @@ class ConnectivityBanner extends ConsumerWidget {
           bannerKey: const Key('connectivity-banner-offline'),
           icon: Icons.cloud_off_outlined,
           color: AppColors.warning,
-          message: "You're offline — changes can't be saved until you're back "
-              'online.',
+          message: appText(context).connectivityBannerYouReOfflineChangesCan,
           action: TextButton(
             key: const Key('connectivity-banner-retry'),
             onPressed: () =>
                 ref.read(connectivityControllerProvider.notifier).retryNow(),
-            child: const Text('Retry'),
+            child: Text(appText(context).connectivityBannerRetry),
           ),
         ),
       ConnectivityStatus.reconnecting => _bar(
@@ -42,7 +42,7 @@ class ConnectivityBanner extends ConsumerWidget {
           bannerKey: const Key('connectivity-banner-reconnecting'),
           icon: Icons.sync_outlined,
           color: AppColors.info,
-          message: 'Reconnecting…',
+          message: appText(context).connectivityBannerReconnecting,
           action: const SizedBox(
             key: Key('connectivity-banner-probing'),
             width: 16,

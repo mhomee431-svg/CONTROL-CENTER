@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -105,9 +106,12 @@ class WelcomeScreen extends ConsumerWidget {
                           ?.copyWith(color: theme.colorScheme.outline)),
                   const SizedBox(height: 24),
                   if (sessionExpired) ...[
-                    _SessionExpiredNotice(spec: SystemStateSpec.of(
-                      SystemState.sessionExpired,
-                    )),
+                    _SessionExpiredNotice(
+                      spec: SystemStateSpec.of(
+                        SystemState.sessionExpired,
+                        appText(context),
+                      ),
+                    ),
                     const SizedBox(height: 20),
                   ],
                   _StorefrontIllustration(height: h * 0.26),

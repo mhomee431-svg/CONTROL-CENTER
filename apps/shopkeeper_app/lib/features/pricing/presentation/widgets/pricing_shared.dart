@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 
@@ -79,7 +80,7 @@ class PricingAsyncBody extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
-                    onPressed: onRetry, child: const Text('Retry')),
+                    onPressed: onRetry, child: Text(appText(context).commonRetry5)),
               ],
             ),
           ),
@@ -115,10 +116,10 @@ class PricingProductPicker extends StatelessWidget {
               Icon(Icons.inventory_2_outlined,
                   size: 40, color: Theme.of(context).colorScheme.outline),
               const SizedBox(height: 12),
-              const Text('No products yet'),
+              Text(appText(context).commonNoProductsYet2),
               const SizedBox(height: 4),
               Text(
-                'Add products or import them from Excel first.',
+                appText(context).pricingSharedAddProductsOrImportThem,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.outline,
@@ -137,8 +138,7 @@ class PricingProductPicker extends StatelessWidget {
         return ListTile(
           title: Text(item.name),
           subtitle: Text(
-            'Current price ₹${_trim(item.price)}'
-            '${item.mrp == null ? '' : ' · MRP ₹${_trim(item.mrp!)}'}',
+            appText(context).pricingSharedCurrentPriceValueValue2(_trim(item.price), item.mrp == null ? '' : ' · MRP ₹${_trim(item.mrp!)}'),
             style: const TextStyle(fontSize: 12),
           ),
           trailing: const Icon(Icons.chevron_right),

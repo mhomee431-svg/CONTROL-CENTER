@@ -195,7 +195,7 @@ def entitlement_value(entitlements: dict, key: str) -> Any:
     return entitlements.get(key)
 
 
-def has_feature(entitlements: dict, key: str) -> bool:
+def has_feature(entitlements: dict[str, Any], key: str) -> bool:
     """Boolean-feature check (analytics, pos_support, ...)."""
     return bool(entitlements.get(key))
 
@@ -242,7 +242,7 @@ def effective_status(subscription: Subscription | None, now=None) -> str:
     return status.value
 
 
-def resolve_shop_entitlements(db: Session, shop) -> dict:
+def resolve_shop_entitlements(db: Session, shop: Any) -> dict[str, Any]:
     """Resolve the governing subscription + entitlements for a shop.
 
     Resolution ladder:
@@ -315,7 +315,46 @@ class EntitlementDenied(AppError):
         super().__init__(message, error_code=error_code, status_code=403, data=data)
 
 
-def enforce_feature(resolved: dict, key: str) -> None:
+def derive_shop_capabilities(resolved: dict[str, Any]) -> dict[str, bool]:
+    """Centralized backend-driven feature flags for the shopkeeper frontend.
+
+    Single source of truth mapping subscription entitlements → the four
+    ``canX`` flags the Flutter app consumes to conditionally show
+    functionality (spec §103)::
+
+        canUsePos       ← ``pos_support`` boolean entitlement
+        canUploadExcel  ← ``BULK_IMPORT`` in ``listing_features``
+        canCreateOffers ← ``offers`` boolean entitlement
+        canViewReports  ← ``analytics`` boolean entitlement
+
+    Rules:
+      * Grandfathered shops (never entered the subscription system) get all
+        ``True`` — legacy behaviour, matching :func:`enforce_feature`.
+      * Every other shop is derived purely from its *resolved* entitlements
+        dict (free-tier fallback already applied by
+        :func:`resolve_shop_entitlements`), so trial/grace/expired/canceled
+        states flow through automatically without duplicating logic.
+      * This function never raises and never queries the DB — enforcement
+        stays in :func:`enforce_feature`/:func:`enforce_limit`; the flags are
+        display hints only. Backend remains authoritative (403 on violation).
+    """
+    if resolved.get("grandfathered"):
+        return {
+            "canUsePos": True,
+            "canUploadExcel": True,
+            "canCreateOffers": True,
+            "canViewReports": True,
+        }
+    feats: dict[str, Any] = resolved.get("entitlements") or {}
+    return {
+        "canUsePos": has_feature(feats, "pos_support"),
+        "canUploadExcel": has_listing_feature(feats, "BULK_IMPORT"),
+        "canCreateOffers": has_feature(feats, "offers"),
+        "canViewReports": has_feature(feats, "analytics"),
+    }
+
+
+def enforce_feature(resolved: dict[str, Any], key: str) -> None:
     """Boolean-gate a shopkeeper capability on the resolved entitlements."""
     if resolved.get("grandfathered"):
         return  # shop never entered the subscription system — legacy behaviour
@@ -330,7 +369,7 @@ def enforce_feature(resolved: dict, key: str) -> None:
         )
 
 
-def enforce_limit(resolved: dict, key: str, current_count: int) -> None:
+def enforce_limit(resolved: dict[str, Any], key: str, current_count: int) -> None:
     """Limit-gate a shopkeeper capability on the resolved entitlements."""
     if resolved.get("grandfathered"):
         return  # shop never entered the subscription system — legacy behaviour

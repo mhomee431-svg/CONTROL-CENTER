@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_shopkeeper_app/core/network/api_client.dart';
 import 'package:hyperlocal_shopkeeper_app/core/state/system_state.dart';
+import 'package:hyperlocal_shopkeeper_app/core/l10n/app_text.dart';
 import 'package:hyperlocal_shopkeeper_app/core/state/system_state_view.dart';
 
 /// The system states: classification rules and the ONE shared renderer.
@@ -131,7 +132,7 @@ void main() {
       expect(offline.kind, ApiFailureKind.offline);
       expect(offline.systemState, SystemState.offline);
       // Dio's raw text ("The connection errored: …") never reaches the UI.
-      expect(offline.message, SystemStateSpec.of(SystemState.offline).message);
+      expect(offline.message, SystemStateSpec.of(SystemState.offline, appTextStatic()).message);
 
       final timeout = ApiException.fromDioError(
         DioException(
@@ -141,7 +142,7 @@ void main() {
       );
       expect(timeout.systemState, SystemState.timeout);
       // The timeout copy is app-owned, never Dio's raw text.
-      expect(timeout.message, SystemStateSpec.of(SystemState.timeout).message);
+      expect(timeout.message, SystemStateSpec.of(SystemState.timeout, appTextStatic()).message);
 
       // A 503 envelope's technical wording becomes the maintenance copy.
       final maintenance = ApiException.fromDioError(
@@ -162,7 +163,7 @@ void main() {
       expect(maintenance.systemState, SystemState.maintenance);
       expect(
         maintenance.message,
-        SystemStateSpec.of(SystemState.maintenance).message,
+        SystemStateSpec.of(SystemState.maintenance, appTextStatic()).message,
       );
     });
   });
@@ -226,7 +227,7 @@ void main() {
   group('SystemStateSpec — the expanded vocabulary', () {
     test('every state has copy, an icon and an action', () {
       for (final state in SystemState.values) {
-        final spec = SystemStateSpec.of(state);
+        final spec = SystemStateSpec.of(state, appTextStatic());
         expect(spec.state, state, reason: '$state spec state mismatch');
         expect(spec.title.trim(), isNotEmpty, reason: '$state has no title');
         expect(spec.message.trim(), isNotEmpty, reason: '$state has no copy');
@@ -243,7 +244,7 @@ void main() {
         SystemState.unauthorized,
         SystemState.maintenance,
       }) {
-        expect(SystemStateSpec.of(state).ownsCopy, isTrue,
+        expect(SystemStateSpec.of(state, appTextStatic()).ownsCopy, isTrue,
             reason: '$state is infrastructure — its copy must be app-owned');
       }
       for (final state in {
@@ -253,40 +254,45 @@ void main() {
         SystemState.serverError,
         SystemState.permissionDenied,
       }) {
-        expect(SystemStateSpec.of(state).ownsCopy, isFalse,
+        expect(SystemStateSpec.of(state, appTextStatic()).ownsCopy, isFalse,
             reason: '$state usually carries a server explanation worth keeping');
       }
     });
 
     test('the action matches what actually fixes the failure', () {
       // Retrying helps a timeout and a stale-conflict (after a refresh).
-      expect(SystemStateSpec.of(SystemState.timeout).action, SystemAction.retry);
-      expect(SystemStateSpec.of(SystemState.conflict).action, SystemAction.retry);
+      expect(SystemStateSpec.of(SystemState.timeout, appTextStatic()).action, SystemAction.retry);
+      expect(SystemStateSpec.of(SystemState.conflict, appTextStatic()).action, SystemAction.retry);
       // Re-sending identical input can never fix these.
       expect(
-          SystemStateSpec.of(SystemState.validation).action, SystemAction.none);
+          SystemStateSpec.of(SystemState.validation, appTextStatic()).action, SystemAction.none);
       expect(
-          SystemStateSpec.of(SystemState.notFound).action, SystemAction.none);
+          SystemStateSpec.of(SystemState.notFound, appTextStatic()).action, SystemAction.none);
     });
 
     test('a server-explained conflict/validation keeps the server wording',
         () {
       final conflict = SystemStateSpec.resolve(
+        text: appTextStatic(),
         statusCode: 409,
         message: 'Phone number already registered. Please login.',
       );
       expect(conflict.state, SystemState.conflict);
       expect(conflict.message, 'Phone number already registered. Please login.');
 
-      final unexplained = SystemStateSpec.resolve(statusCode: 422);
+      final unexplained = SystemStateSpec.resolve(
+        text: appTextStatic(),
+        statusCode: 422,
+      );
       expect(unexplained.state, SystemState.validation);
-      expect(unexplained.message, SystemStateSpec.of(SystemState.validation).message);
+      expect(unexplained.message, SystemStateSpec.of(SystemState.validation, appTextStatic()).message);
     });
   });
 
   group('SystemStateSpec.resolve — feature copy is never rewritten', () {
     test('a feature-owned title/message comes through verbatim', () {
       final spec = SystemStateSpec.resolve(
+        text: appTextStatic(),
         title: 'Could not load reports',
         message: 'Server down',
         fallbackMessage: 'Something went wrong.',
@@ -299,14 +305,16 @@ void main() {
 
     test('an infrastructure state owns its copy (never Dio-speak)', () {
       final spec = SystemStateSpec.resolve(
+        text: appTextStatic(),
         state: SystemState.offline,
         message: 'Some raw Dio text',
       );
-      expect(spec.message, SystemStateSpec.of(SystemState.offline).message);
+      expect(spec.message, SystemStateSpec.of(SystemState.offline, appTextStatic()).message);
     });
 
     test('blank copy falls back to the state default', () {
       final spec = SystemStateSpec.resolve(
+        text: appTextStatic(),
         message: '   ',
         fallbackMessage: 'Could not load inventory.',
       );
@@ -323,7 +331,7 @@ void main() {
       await tester.pumpWidget(
         host(
           SystemStateView(
-            spec: SystemStateSpec.of(SystemState.offline),
+            spec: SystemStateSpec.of(SystemState.offline, appTextStatic()),
             onRetry: () {},
           ),
         ),
@@ -341,6 +349,7 @@ void main() {
         host(
           SystemStateView(
             spec: SystemStateSpec.resolve(
+              text: appTextStatic(),
               state: SystemState.permissionDenied,
               title: 'No access to this shop',
               message: 'Access denied',
@@ -385,7 +394,7 @@ void main() {
       await tester.pumpWidget(
         host(
           SystemStateView(
-            spec: SystemStateSpec.of(SystemState.sessionExpired),
+            spec: SystemStateSpec.of(SystemState.sessionExpired, appTextStatic()),
             onSignIn: () {},
           ),
         ),
@@ -457,7 +466,10 @@ void main() {
       await tester.pumpWidget(
         build(
           isLoading: false,
-          failure: SystemStateSpec.resolve(message: 'Server exploded'),
+          failure: SystemStateSpec.resolve(
+            text: appTextStatic(),
+            message: 'Server exploded',
+          ),
           builder: (_) => const Text('content'),
         ),
       );

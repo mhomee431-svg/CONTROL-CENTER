@@ -1,3 +1,4 @@
+import '../../../../../core/errors/app_message_code.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,7 +118,7 @@ class ShopsController extends Notifier<ShopsState> {
     state = ShopsState.loading(shops: state.shops);
     try {
       final token = await _token();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final detail = await _repo.registerShop(payload, token);
       await load(); // refresh the authorized list from source of truth
       final created = state.shops.where((s) => s.id == detail.summary.id);

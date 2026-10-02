@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/shop_repository.dart';
@@ -70,7 +71,7 @@ class _OperatingHoursScreenState extends ConsumerState<OperatingHoursScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Update failed. Please retry.')),
+        SnackBar(content: Text(appText(context).operatingHoursScreenUpdateFailedPleaseRetry)),
       );
     }
     await ref.read(shopProfileDetailProvider.notifier).load();
@@ -97,7 +98,7 @@ class _OperatingHoursScreenState extends ConsumerState<OperatingHoursScreen> {
     final detail = detailState.detail;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Operating hours')),
+      appBar: AppBar(title: Text(appText(context).commonOperatingHours)),
       body: SafeArea(
         child: switch (hoursState.status) {
           ShopHoursStatus.loading ||
@@ -114,7 +115,7 @@ class _OperatingHoursScreenState extends ConsumerState<OperatingHoursScreen> {
                   key: const Key('shop-hours-retry'),
                   onPressed: () => ref.read(shopHoursProvider.notifier).load(),
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
+                  label: Text(appText(context).commonRetry10),
                 ),
               ],
             ),
@@ -162,9 +163,9 @@ class _HoursBody extends ConsumerWidget {
             key: const Key('shop-hours-24x7'),
             margin: EdgeInsets.zero,
             child: SwitchListTile(
-              title: const Text('Open 24×7'),
-              subtitle: const Text(
-                'Ignore the weekly schedule below entirely.',
+              title: Text(appText(context).operatingHoursScreenOpen247),
+              subtitle: Text(
+                appText(context).operatingHoursScreenIgnoreTheWeeklyScheduleBelow,
                 style: TextStyle(fontSize: 12),
               ),
               value: detail!.isOpen24x7,
@@ -173,7 +174,7 @@ class _HoursBody extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ],
-        Text('Weekly schedule', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonWeeklySchedule, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           key: const Key('shop-hours-list'),
@@ -214,13 +215,12 @@ class _HoursBody extends ConsumerWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.save_outlined),
-          label: const Text('Save operating hours'),
+          label: Text(appText(context).commonSaveOperatingHours),
         ),
         const SizedBox(height: 8),
         Center(
           child: Text(
-            'The whole week is saved in one request. Holiday closures '
-            'override these times.',
+            appText(context).operatingHoursScreenTheWholeWeekIsSaved,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: scheme.outline),
           ),
@@ -264,7 +264,7 @@ class _DayRow extends StatelessWidget {
           Expanded(
             child: entry.isClosed
                 ? Text(
-                    'Closed',
+                    appText(context).commonClosed,
                     style: TextStyle(fontSize: 13, color: scheme.outline),
                   )
                 : Row(
@@ -275,8 +275,8 @@ class _DayRow extends StatelessWidget {
                           onTap: enabled ? () => onPickTime(true) : null,
                           borderRadius: BorderRadius.circular(8),
                           child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Opens',
+                            decoration: InputDecoration(
+                              labelText: appText(context).commonOpens,
                               isDense: true,
                             ),
                             child: Text(
@@ -293,8 +293,8 @@ class _DayRow extends StatelessWidget {
                           onTap: enabled ? () => onPickTime(false) : null,
                           borderRadius: BorderRadius.circular(8),
                           child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Closes',
+                            decoration: InputDecoration(
+                              labelText: appText(context).commonCloses,
                               isDense: true,
                             ),
                             child: Text(

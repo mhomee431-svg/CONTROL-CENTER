@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../inventory/presentation/widgets/inventory_shared.dart';
@@ -155,7 +156,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Update stock', style: theme.textTheme.titleLarge),
+          Text(appText(context).commonUpdateStock4, style: theme.textTheme.titleLarge),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -168,7 +169,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text('Current stock: $_current',
+                    Text(appText(context).stockSheetsCurrentStockCurrent(_current),
                         style: TextStyle(fontSize: 13, color: scheme.outline)),
                   ],
                 ),
@@ -197,9 +198,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Last updated ${_relativeTime(widget.item.lastUpdated)}'
-            '${widget.item.updatedBy != null ? ' · by ${widget.item.updatedBy}' : ''}'
-            ' · ${sourceLabel(widget.item.source)}',
+            appText(context).stockSheetsLastUpdatedValueValue2Value3(_relativeTime(widget.item.lastUpdated), widget.item.updatedBy != null ? ' · by ${widget.item.updatedBy}' : '', sourceLabel(widget.item.source)),
             style: TextStyle(fontSize: 12, color: scheme.outline),
           ),
           const SizedBox(height: 16),
@@ -209,7 +208,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
               IconButton.outlined(
                 onPressed: _saving ? null : () => _bump(-1),
                 icon: const Icon(Icons.remove),
-                tooltip: 'Decrease',
+                tooltip: appText(context).commonDecrease,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -223,7 +222,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => FocusScope.of(context).unfocus(),
                   decoration: InputDecoration(
-                    labelText: 'New quantity',
+                    labelText: appText(context).commonNewQuantity,
                     isDense: true,
                     errorText: error,
                   ),
@@ -236,7 +235,7 @@ class _StockUpdateSheetState extends ConsumerState<StockUpdateSheet> {
               IconButton.outlined(
                 onPressed: _saving ? null : () => _bump(1),
                 icon: const Icon(Icons.add),
-                tooltip: 'Increase',
+                tooltip: appText(context).commonIncrease,
               ),
             ],
           ),
@@ -317,13 +316,13 @@ class _ProductHistorySheetState extends ConsumerState<ProductHistorySheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('History — ${widget.item.name}',
+            Text(appText(context).stockSheetsHistoryName(widget.item.name),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Stock movements, adjustments and price changes (newest first)',
+              appText(context).stockSheetsStockMovementsAdjustmentsAndPrice,
               style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
             const SizedBox(height: 12),
@@ -347,7 +346,7 @@ class _ProductHistorySheetState extends ConsumerState<ProductHistorySheet> {
                               const SizedBox(height: 12),
                               OutlinedButton(
                                   onPressed: _fetch,
-                                  child: const Text('Retry')),
+                                  child: Text(appText(context).commonRetry7)),
                             ],
                           ),
                         ),
@@ -387,7 +386,7 @@ class _HistoryList extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Center(
-                child: Text('No history recorded yet.',
+                child: Text(appText(context).commonNoHistoryRecordedYet,
                     style: TextStyle(color: theme.colorScheme.outline)),
               ),
             )
@@ -469,7 +468,8 @@ class _HistoryTile extends StatelessWidget {
                       ),
                       if (entry.stockDelta != null)
                         Text(
-                          '${entry.stockDelta! > 0 ? '+' : ''}${entry.stockDelta}',
+                          appText(context).stockSheetsValueStockDelta(
+                    entry.stockDelta! > 0 ? '+' : '', '${entry.stockDelta}'),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
@@ -486,9 +486,7 @@ class _HistoryTile extends StatelessWidget {
                     Text(detail,
                         style: TextStyle(fontSize: 12, color: scheme.outline)),
                   Text(
-                    '${_relativeTime(entry.occurredAt)}'
-                    '${entry.source != null ? ' · ${sourceLabel(entry.source)}' : ''}'
-                    ' · ${entry.actorLabel}',
+                    appText(context).stockSheetsValueValue2ActorLabel(_relativeTime(entry.occurredAt), entry.source != null ? ' · ${sourceLabel(entry.source)}' : '', entry.actorLabel),
                     style: TextStyle(fontSize: 11, color: scheme.outline),
                   ),
                 ],

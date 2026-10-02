@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../data/import_repository.dart';
 import '../../domain/import_models.dart';
 import '../controllers/import_controller.dart';
+import '../widgets/import_status_view.dart';
 import '../widgets/import_report_sheet.dart';
 
 /// Import History — every past import job for the shop with its date, row
@@ -64,10 +65,10 @@ class _ImportHistoryScreenState extends ConsumerState<ImportHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import history'),
+        title: Text(appText(context).commonImportHistory),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: appText(context).commonRefresh5,
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () =>
                 ref.read(importControllerProvider.notifier).loadJobs(),
@@ -137,11 +138,10 @@ class _EmptyHistory extends StatelessWidget {
               color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 12),
-            const Text('No imports yet'),
+            Text(appText(context).commonNoImportsYet),
             const SizedBox(height: 4),
             Text(
-              'Excel files you upload will appear here with their '
-              'row-level outcomes.',
+              appText(context).importHistoryScreenExcelFilesYouUploadWill,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -162,27 +162,20 @@ class _JobTile extends StatelessWidget {
   final ImportJob job;
   final VoidCallback onTap;
 
-  (IconData, Color) get _statusView => switch (job.status) {
-    ImportJobStatusValue.completed || ImportJobStatusValue.validated => (
-      Icons.check_circle,
-      AppTheme.verifiedGreen,
-    ),
-    ImportJobStatusValue.partial => (
-      Icons.warning_amber_outlined,
-      AppTheme.pendingAmber,
-    ),
-    ImportJobStatusValue.failed => (Icons.error_outline, AppTheme.rejectedRed),
-    ImportJobStatusValue.processing || ImportJobStatusValue.queued => (
-      Icons.sync,
-      AppTheme.pendingAmber,
-    ),
-    _ => (Icons.schedule, AppTheme.suspendedGrey),
-  };
+  /// Icon + colour for this job, from the SHARED tone map.
+  ///
+  /// This used to be a second, private status→(icon, colour) switch that had
+  /// already drifted from the result screen's: it drew a GREEN TICK for
+  /// `VALIDATED` while the chip beside it read "Validating" in amber, because
+  /// [ImportJobStatusValue.label] treats that legacy status as still-validating.
+  /// One vocabulary now decides both the icon and the colour, so a row can no
+  /// longer contradict its own label.
+  ImportStatusTone get _tone => importStatusTone(job.status);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (icon, color) = _statusView;
+    final tone = _tone;
     final date = job.importDate;
 
     return InkWell(
@@ -192,7 +185,7 @@ class _JobTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(tone.icon, color: tone.color, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -212,7 +205,7 @@ class _JobTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _StatusChip(label: job.statusLabel, color: color),
+                      _StatusChip(label: job.statusLabel, color: tone.color),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -238,8 +231,7 @@ class _JobTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Rows ${job.totalRows} · Success ${job.successRows} · '
-                    'Failed ${job.failedRowCount}',
+                    appText(context).importHistoryScreenRowsTotalRowsSuccessSuccessRowsFailed(job.totalRows, job.successRows, job.failedRowCount),
                     key: const Key('import-job-metrics'),
                     style: const TextStyle(fontSize: 12),
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/app_message_code.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/media_upload_service.dart';
 import '../../../core/network/token_store.dart';
@@ -68,7 +69,7 @@ class ApiMediaRepository implements MediaRepository {
     int? shopId,
   }) async {
     final token = await _token();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return _service.upload(
       token: token,
       category: category,
@@ -81,21 +82,21 @@ class ApiMediaRepository implements MediaRepository {
   @override
   Future<MediaObject> confirm({required String key}) async {
     final token = await _token();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return _service.confirm(token: token, key: key);
   }
 
   @override
   Future<MediaObject> readUrl({required String key}) async {
     final token = await _token();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return _service.readUrl(token: token, key: key);
   }
 
   @override
   Future<void> delete({required String key}) async {
     final token = await _token();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return _service.delete(token: token, key: key);
   }
 }

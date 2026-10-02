@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
@@ -49,7 +50,7 @@ class AccountScreen extends ConsumerWidget {
           const _AccountSummaryCard(),
           const SizedBox(height: AppSpacing.lg),
 
-          const _SectionLabel('Account'),
+          const SectionLabel('Account', padding: SectionLabel.tight),
           _AccountTile(
             key: const Key('accountProfileTile'),
             icon: Icons.person_outline,
@@ -86,7 +87,7 @@ class AccountScreen extends ConsumerWidget {
             onTap: () => context.push('/profile/addresses'),
           ),
 
-          const _SectionLabel('Preferences'),
+          const SectionLabel('Preferences', padding: SectionLabel.tight),
           _AccountTile(
             key: const Key('accountNotificationsTile'),
             icon: Icons.notifications_outlined,
@@ -105,7 +106,7 @@ class AccountScreen extends ConsumerWidget {
             onTap: () => context.push('/settings'),
           ),
 
-          const _SectionLabel('Support & Legal'),
+          const SectionLabel('Support & Legal', padding: SectionLabel.tight),
           _AccountTile(
             key: const Key('accountHelpTile'),
             icon: Icons.help_outline,
@@ -314,27 +315,5 @@ class _LogoutTile extends ConsumerWidget {
       // every auth-aware provider react.
       await ref.read(authControllerProvider.notifier).logout();
     }
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
-          color: AppColors.textMuted,
-        ),
-      ),
-    );
   }
 }

@@ -33,7 +33,129 @@
 - terraform staging preset domains aligned with the apps' staging default
   (`staging-api.hyperlocal.in`)
 
+### Build & release (repo could not produce a binary at all)
+- AUDIT found the repository shipping **literal merge-conflict markers in six
+  tracked files**. Analyzer and unit tests were green throughout, so nothing in
+  CI caught this — the breakage was only visible by actually building.
+  - `shopkeeper_app/android/app/build.gradle.kts` — markers made the Gradle
+    script unparseable; the app **could not produce an APK at all**.
+  - `backend/tests/test_customer_support.py` — began with a stray `a` before
+    its module docstring, so the whole module failed to import (SyntaxError).
+  - `backend/tests/{test_orders_api,test_phase4_rds,test_phase26_migration_automation}.py`
+    and `backend/scripts/verify_rds.py` — markers, plus revision ids hardcoded
+    to `"0026"`/`"0027"`. The derived-head assertions replace the hardcoding,
+    so a new migration no longer breaks them.
+  - `docs/architecture/CLOUD_OWNERSHIP.md` — an *entire-file* conflict. Both
+    audits are preserved rather than one being dropped: the narrative document
+    stays, the capability-matrix view is kept alongside as
+    `CLOUD_OWNERSHIP_MATRIX.md`, and the two cross-link.
+  - `backend/tests/test_orders_api.py` also carried a **duplicate** autouse
+    fixture: the newer `_pin_orders_overrides` supersedes the older
+    `_install_orders_overrides`, so only the newer one is kept.
+- `customer_app` could not build for three independent reasons, fixed in
+  order: `compileSdk` was on `flutter.compileSdkVersion` (36) while
+  `permission_handler_android` 14.x requires 37; AGP 9.1.0 caps at 36, so AGP
+  moved to 9.2.1; and AGP 9.2.1 then required Gradle ≥ 9.4.1 while the wrapper
+  still pinned 9.3.1. All three now match the working `shopkeeper_app`
+  configuration.
+- `customer_app/MainActivity.kt` called `CredentialManager.getCredential()` as
+  if it returned a `Task` and chained `addOnSuccessListener` onto it. Since
+  `androidx.credentials` 1.3.0 that method is **suspend**, so
+  `:app:compileDebugKotlin` failed with five errors. It now runs on a
+  main-dispatcher coroutine, mirroring `shopkeeper_app`'s MainActivity.
+- Verified end to end: `flutter analyze` clean on all three apps, **748 + 929 +
+  1 tests pass**, `python -m compileall app tests scripts` exits 0, and real
+  builds succeed — `customer_app/app-debug.apk`, `shopkeeper_app/app-debug.apk`
+  and the `admin_panel` web bundle.
+
+### Customer app
+- AUDIT SWEEP (line-by-line, whole `lib/` + `test/`): 47 analyzer issues → 0
+  and **one hard compile error fixed**. Verified: `flutter analyze` reports
+  "No issues found" and **748 tests pass**.
+  - **Fixed — the app did not compile.** `login_screen.dart` and
+    `register_screen.dart` imported `../../data/phone_utils.dart`, but the file
+    actually lives in `domain/` (`data/phone_utils.dart` does not exist), so
+    both auth screens had an unresolvable import.
+  - **Fixed — a test that failed at the end of every month.**
+    `inventory_pricing_import_screens_test.dart` ("create offer validates, then
+    assigns with selected products") set the start date to today and the end
+    date to day **28 of the current month**. `OfferValidators.period` requires
+    `end.isAfter(start)` *strictly*, so from the 28th onwards the offer failed
+    its own validation and the test saw 0 assign calls. It now steps to the next
+    month and picks the 1st, which is after "today" on every day of the year.
+  - **Cleaned — the remaining analyzer issues**: dead imports, `const` hoists,
+    and documented `// ignore:` directives where the code is deliberate.
+  - **Preserved, not deleted (reserved for future work):** the `EnumCodec`
+    decoder, the seeded `Random` in `MockOrderRepository`, the
+    `_asNullableInt`/`_asDouble`/`_asDateTime` JSON-coercion helpers, and the
+    `/coming-soon` route + `ComingSoonScreen` (Home's "no nearby shops" state).
+    Each is either already linked or intentionally reserved, and now carries a
+    comment saying so.
+
 ### Shopkeeper app
+- AUDIT SWEEP (line-by-line, whole `lib/`): verified and fixed the real
+  defects, preserved every unlinked seam. Findings:
+  - **Fixed — error classification (`shop_settings_screen.dart`).** The
+    "Not signed in" guard threw a raw `Exception`, the only one of 36 such
+    sites not using `ApiException`. A raw throw carries no `statusCode` /
+    `errorCode` / `kind`, so `ApiException.systemState` could not classify it
+    and the screen collapsed a recoverable session problem into the generic
+    "Could not load settings." Now the app-wide `const ApiException` idiom.
+  - **Fixed — indentation (`api_endpoints.dart`).** `mediaDirectUpload` was
+    indented 4 spaces out of alignment with every other member.
+  - **Verified clean, no change needed:** zero orphaned files in `lib/` (the
+    audit's "orphan" list is test entry points, which is correct); zero
+    duplicate provider names across the whole tree (single source of truth
+    holds); zero hardcoded `/api/v1` literals outside `env_config`'s
+    base-URL normalizer and doc comments; all 80 route constants registered
+    in `app_router.dart` and all navigation going through `Routes` (no raw
+    route strings); every `TextEditingController` in a `StatefulWidget` with
+    `dispose()`; the POS poll timer, the debounce timer and the connectivity
+    subscription all cancelled/unsubscribed (§111); no `FutureBuilder`; no
+    enum `.firstWhere` without an `orElse` (§126).
+  - **Endpoint contract re-verified against `packages/api_contracts/
+    openapi.json` + the live FastAPI routes.** 10 app paths are absent from
+    the committed `openapi.json` snapshot but ALL exist in the backend:
+    `auth/sessions` (`shopkeeper_auth.py:913`), `auth/profile-create` (`:673`),
+    `auth/google-profile` (`:994`), `shops/{id}/insights`
+    (`shopkeeper_portal.py:238`), `businesses/categories`
+    (`merchant_onboarding.py:47`), `notifications/read-all`
+    (`notifications.py:134`), `shops/{id}/offers` + `.../offers/{id}/status`
+    (`shopkeeper_portal.py:580/607`), `pos/jobs`
+    (`pos_integration.py:368/384`) and `support/tickets`
+    (`shopkeeper_support.py:49/87`). The snapshot is stale, the app is
+    correct — no app change.
+  - **Preserved, not deleted (§115 / this task's rule):** the 7
+    `ApiEndpoints` constants with no call site (`profileCreate`, `pincode`,
+    `analyticsOverview`, `analyticsTopSearches`, `analyticsInteractions`,
+    `analyticsDevices`, `analyticsFreshness`) — documented future seams
+    whose routes all exist server-side; `mock_auth_repository.dart` and its
+    `Future.delayed` calls (the deliberate `kUseMockAuth` seam); and
+    `test/_debug_dio_test.dart`. Nothing unlinked was removed.
+- PERFORMANCE (spec §110) — the Low Stock restock workbench was the last
+  catalog-backed list still doing per-keystroke and per-rebuild work. Three
+  defects, one screen (`features/inventory/.../low_stock_screen.dart`):
+  - **Debounced search.** Its raw `TextField` filtered the restock slice on
+    every glyph, while the products list, inventory scopes and price list all
+    use the shared `DebouncedSearchField` (300ms). It now uses the shared field
+    too, so the workbench is debounced like its three siblings and picks up the
+    shared recent-searches history (submit / focus-loss `record()`, dropdown
+    select + remove) instead of keeping a private one.
+  - **Derivation out of `build()`.** `_restock()` sorted the WHOLE catalog
+    (O(n log n)) on every rebuild — a snackbar, an availability flip, a page
+    turn, or the text field's own rebuilds. It is now memoized on the
+    (catalog, query) pair, the same rule `ProductQueryCache` already applies to
+    the other three lists, so an unrelated rebuild costs nothing.
+  - **Image optimization.** Its thumbnail was the one `Image.network` in the app
+    that bypassed `ProductImageView`: it decoded at the SOURCE resolution into
+    a 48px box, had no loading state (a slow image was an empty grey box,
+    indistinguishable from "no image"), and rendered a raw framework error box
+    when a presigned URL expired. It now goes through the shared widget at
+    `cacheWidth: 96` (~2x) with the same placeholder/error icon as the products
+    list.
+  No behavior the shopkeeper relies on changed. Tests: `low_stock_screen_test.dart`
+  +4 (12 total) pinning the shared field, the typed filter, the memoized
+  slice across an unrelated rebuild, and the optimized thumbnail.
 - Product search (spec §95) gained SERVER search — the missing checklist item.
   The loaded catalog still answers every settled query locally first (300ms
   `DebouncedSearchField` debounce + memoized `ProductQueryCache`, zero API
@@ -96,6 +218,41 @@
   extended for the scheduled/disabled buckets; `product_state_test.dart`
   call sites moved to `withFilters`. Full suite green (818), `flutter analyze`
   clean.
+- REFRESH (spec §97) â€” pull-to-refresh where it is useful, and the two rules
+  that keep it honest:
+  - Pull-to-refresh added to the server-fed surfaces that lacked it: the five
+    inventory scope lists, the inventory dashboard / sync status, the low-stock
+    restock workbench, the price list, the import history (rows AND empty
+    state), the POS sync history, the insights drill-down, the support ticket
+    detail and the offer buckets. All of them are ALWAYS scrollable
+    (`AlwaysScrollableScrollPhysics`), which is what makes the gesture fire on
+    a list shorter than the viewport â€” previously a short or empty list
+    silently swallowed the pull. The pulls that already existed (products,
+    dashboard, insights, notifications, sessions, shops, shop profile,
+    tickets) got the same physics fix.
+  - A pull never blanks what is on screen: new `ProductsController.refresh()`
+    (silent, re-entrancy-guarded, generation-bumping, fail-soft â€” the same
+    contract as `DashboardController.refresh` / `ShopsController.refresh`)
+    serves every catalog pull (products list, inventory scopes / dashboard /
+    sync status, low stock, price list), and the dashboard + shops pulls now
+    use their existing silent `refresh()` instead of the loud `load()`. Retry
+    buttons and the app-bar refresh icons keep the loud path (spinner, error
+    state) â€” the pull indicator is the feedback for a gesture.
+  - "Do not refresh unnecessarily" holds by construction: automatic refreshes
+    stay behind the lifecycle staleness window / reconnect throttle, the
+    lifecycle batch refreshes only the Dashboard + Shops providers, and the
+    single `ref.invalidate` in the app is the access token.
+  - After a mutation the affected rows are patched in place â€” `createProduct`
+    prepends the server's row, `_patch` / `adjustStock` swap the one row for
+    the server's own numbers; the catalog is never reloaded end-to-end.
+    `ProductsAsyncBody` / `PricingAsyncBody` gained an optional `onRefresh`
+    (ready body only, so a spinner or an error view can never be pulled), and
+    the offers list and buckets render rows AND empty state through ONE
+    `LazyListView`. Tests: new `test/refresh_test.dart` (6 â€” the silent
+    in-flight refresh, a failed refresh that keeps the rows, short-list pulls
+    driven through the real Products / Inventory screens, an EMPTY offers
+    bucket that still pulls, and a mutation that leaves the fetch count at
+    one).
 
 ### Security
 - Replaced HMAC-SHA256 password hashing with bcrypt (work factor 12)
@@ -200,3 +357,104 @@
 - Celery task queue for background jobs
 - S3 object storage integration
 - Rate limiting and security headers
+
+### Startup performance, duplication & legacy-code audit
+- **Startup (§113).** Audited the whole startup path for all three apps and the
+  backend lifespan hook. Already correct: neither splash loads data (each fires
+  only an auth-session check), `main()` loads nothing but Firebase + config +
+  bounded image-cache settings, customer home uses `autoDispose` providers, the
+  backend lifespan only runs security checks and `enable_postgis`. The
+  notification controllers are never read at startup.
+  - **Fixed — one real violation.** The shopkeeper dashboard's "needs
+    attention" card wanted ONE number (how many listings are `STALE`) and got
+    it from `fetchInventoryOverview`, which returns **every listing in the
+    shop** — a full-catalogue download on the first screen after login, purely
+    to count rows the server already owns, growing with the catalogue.
+    - Backend: new `view=summary` on `GET /shops/{id}/inventory` returns
+      `{"summary": {...}}` and never builds or serialises an item row, so the
+      body is the same size for a shop with 5 listings and one with 50,000.
+      Inventories are read in ONE batched query (1:1 via
+      `uq_inventory_shop_product`), which also removes the per-listing N+1.
+    - `_product_counts` derives `stale` from `Inventory.freshness_status`, and
+      takes `include_attention=False` for counts-only callers so the summary
+      reports `needs_attention_count` (a size) instead of up to ten rows.
+    - App: `InventorySummary` gains `stale`; `InventoryRepository` gains
+      `fetchInventorySummary`; the dashboard alert uses it. Screens that
+      genuinely render listings keep the full view.
+    - Guarded by tests in both layers: a backend suite pins "no items", the
+      stale tally, empty-shop zero-fill and that every number agrees with the
+      full view; a dashboard test asserts `summaryCalls == 1` and
+      `overviewCalls == 0`, so a regression to the full download fails a test
+      instead of quietly shipping.
+- **Duplication (§114).** No `AuthServiceV2` / `ProductRepositoryNew` /
+  `ApiClientNew` / `ProfileProvider2` style versioning exists, and no two
+  service / client / validator / store / repository classes share a name in
+  either app. The repeated names that do exist (`TokenStore` +
+  `SecureTokenStore` + `InMemoryTokenStore`, and the Permission/Storage
+  equivalents) are the correct interface + production + test-double seam.
+  - **Fixed — five private copies of one widget.** Five customer screens each
+    carried a private `_SectionLabel` whose type styling was byte-identical
+    (12 / w700 / 1.1 tracking / muted, uppercased); only the padding differed.
+    One design change meant five edits and a missed one silently drifted. A
+    single `SectionLabel` now lives beside `SectionHeader` in the existing
+    `core/widgets/section_header.dart` — the file that already owns section
+    typography, so no new file was introduced — with `SectionLabel.tight` /
+    `.dense` preserving each screen's exact spacing. A before/after class
+    diff confirms `_SectionLabel` is the only class removed from those files.
+  - Deliberately NOT merged: the three private `_SummaryChip` copies
+    (`import_preview`, `inventory_import`, `products`) differ in value type,
+    padding, corner radius, border and weight. Merging them would need ~6 knobs
+    and change pixels on shipping screens — duplication of *look*, not of code.
+- **Legacy code (§115).** Nothing deleted. A whole-repo reference sweep found
+  no orphan screens, no unreferenced screen/widget files, and no dead imports
+  (analyzer is clean).
+  - `core/widgets/rebuild_scoping.dart` was the single file nothing referenced
+    — and nothing tested. Kept, and given a real suite: `WatchSelected` must
+    render the selected value, rebuild exactly once when the selection changes,
+    and — the actual contract — NOT rebuild when an unrelated field of the same
+    provider changes; `RepaintIsolated` must render a real `RepaintBoundary`.
+  - **Fixed — the backend suite could not be collected at all.**
+    `tests/test_customer_support.py` raised `NameError` on import: a
+    `@pytest.mark.parametrize` decorator referenced `self.CUSTOMER_CODES`, and
+    `self` is not bound while a class body is evaluated. The codes are now a
+    module-level `frozenset` (the class name is not bound there either).
+### Screen reusability & deep linking
+- **Screen reusability — the import status vocabulary is now ONE component.**
+  Two surfaces each owned a private status→(icon, colour) mapping, and they had
+  already drifted: the history row drew a **green tick** for the legacy
+  `VALIDATED` status while the chip beside it read "Validating" in amber,
+  because `ImportJobStatusValue.label` treats that status as still-validating.
+  `ImportStatusView` + `importStatusTone()` (in the existing import `widgets/`
+  folder) now own the icon and colour for every state, and both
+  `import_processing_screen` and `import_history_screen` read from it — so one
+  component covers Processing / Queued / Success / Partial / Failed and a row
+  can no longer contradict its own label. The COPY stays with each surface (a
+  history row wants the short label, the result screen wants the full
+  sentence); only the visuals are shared.
+  - The confirm result now derives its status **once** and uses it for the
+    headline, the icon AND the report-sheet header, so those three can no
+    longer describe different outcomes. Zero rows applied is treated as a
+    FAILURE even when the payload also reports zero failures — nothing was
+    imported, and "Completed" would be a lie.
+  - An unrecognised future backend status degrades to a neutral icon instead of
+    throwing, matching how the label helper already degrades.
+- **Deep linking — a notification can now open the exact import job.**
+  The backend already sent everything needed: `deep_link:
+  hyperlocal://shopkeeper/imports/{job_id}` plus a `job_id` payload. The app
+  ignored it and sent the shopkeeper to the whole history list — the existing
+  tests even said "Import Failed → Import Result" while asserting
+  `Routes.importHistory`, i.e. the intent was documented and the implementation
+  lagged it.
+  - New `Routes.importResult` + `ImportResultScreen`, which renders the job
+    through the SAME `ImportStatusView` as the post-confirm result, so a job
+    reached from a notification looks exactly like the one watched finishing.
+  - The job is **fetched, never taken from the notification** — a push payload
+    can be stale, forged, or name a job that no longer exists.
+  - `ShopkeeperNotification.payloadInt` (a validated positive-int accessor that
+    existed with **no caller**) is now the gate. A payload that cannot name a
+    real job — missing, zero, negative, a string, a fractional number — falls
+    back to Import history rather than requesting a fabricated id. The router
+    re-validates the `extra` and falls back too, so no path can construct
+    "job 0".
+  - A deleted job / expired session / offline device renders an explained state
+    with a way out, not a blank screen; Retry re-issues the request.

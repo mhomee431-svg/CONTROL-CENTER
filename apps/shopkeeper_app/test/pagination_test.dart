@@ -258,6 +258,13 @@ class PagedProductRepo implements ProductRepository, InventoryRepository {
       throw UnimplementedError();
 
   @override
+  Future<InventorySummary> fetchInventorySummary(
+    int shopId,
+    String token,
+  ) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<ShopProductItem>> searchInventoryList(
           int shopId, String token, String query) =>
       throw UnimplementedError();

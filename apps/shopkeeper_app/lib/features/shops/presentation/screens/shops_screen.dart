@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../auth/domain/auth_models.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -35,7 +36,7 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
     final state = ref.watch(shopsControllerProvider);
     final selected = ref.watch(selectedShopProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('My business')),
+      appBar: AppBar(title: Text(appText(context).commonMyBusiness2)),
       body: SafeArea(
         child: state.status == ShopsStatus.loading && state.shops.isEmpty
             ? const Center(child: CircularProgressIndicator())
@@ -53,7 +54,7 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
                         const SizedBox(height: 12),
                         Center(
                           child: Text(
-                            'No shops yet.\nRegister your first business to get started.',
+                            appText(context).shopsScreenNoShopsYetRegisterYour,
                             textAlign: TextAlign.center,
                             style:
                                 Theme.of(context).textTheme.bodyLarge,

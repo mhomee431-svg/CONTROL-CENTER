@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../products/domain/product_models.dart';
@@ -39,7 +40,7 @@ class _InventorySyncStatusScreenState
     final state = ref.watch(productsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventory sync status')),
+      appBar: AppBar(title: Text(appText(context).commonInventorySyncStatus)),
       body: ProductsAsyncBody(
         status: state.status,
         message: state.message,
@@ -116,7 +117,7 @@ class _SyncStatusBody extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Last inventory update',
+                      Text(appText(context).commonLastInventoryUpdate,
                           style: TextStyle(fontSize: 13)),
                       Text(
                         lastUpdatedLabel(_lastSync),
@@ -141,8 +142,7 @@ class _SyncStatusBody extends StatelessWidget {
         _RelatedLinks(),
         const SizedBox(height: 8),
         Text(
-          'Source labels come from the server — they record how each stock '
-          'figure last changed.',
+          appText(context).inventorySyncStatusScreenSourceLabelsComeFromThe,
           style: TextStyle(fontSize: 11, color: outline),
         ),
       ],
@@ -163,7 +163,7 @@ class _SourceBreakdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('By source', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonBySource, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           margin: EdgeInsets.zero,
@@ -184,7 +184,7 @@ class _SourceBreakdown extends StatelessWidget {
                     style: const TextStyle(fontSize: 12),
                   ),
                   trailing: Text(
-                    '${groups[i].value.length}',
+                    appText(context).inventorySyncStatusScreenLength(groups[i].value.length),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -209,7 +209,7 @@ class _ProductRows extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Products', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonProducts2, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           margin: EdgeInsets.zero,
@@ -259,7 +259,7 @@ class _RelatedLinks extends StatelessWidget {
             key: const Key('sync-open-pos'),
             onPressed: () => context.push(Routes.pos),
             icon: const Icon(Icons.point_of_sale_outlined, size: 18),
-            label: const Text('POS sync'),
+            label: Text(appText(context).commonPOSSync2),
           ),
         ),
         const SizedBox(width: 8),
@@ -268,7 +268,7 @@ class _RelatedLinks extends StatelessWidget {
             key: const Key('sync-open-import-history'),
             onPressed: () => context.push(Routes.importHistory),
             icon: const Icon(Icons.upload_file_outlined, size: 18),
-            label: const Text('Excel imports'),
+            label: Text(appText(context).commonExcelImports2),
           ),
         ),
       ],

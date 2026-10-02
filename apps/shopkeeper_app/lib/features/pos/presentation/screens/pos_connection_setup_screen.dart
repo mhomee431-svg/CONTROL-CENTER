@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/pos_models.dart';
@@ -65,7 +66,7 @@ class _PosConnectionSetupScreenState
     final finished = state.status == PosSetupStatus.done;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('POS connection setup')),
+      appBar: AppBar(title: Text(appText(context).commonPOSConnectionSetup)),
       body: SafeArea(
         child: switch (state.status) {
           PosSetupStatus.loading =>
@@ -73,7 +74,7 @@ class _PosConnectionSetupScreenState
           PosSetupStatus.error when state.providers.isEmpty => PosMessageView(
             icon: Icons.cloud_off_outlined,
             title: state.message ?? 'Could not load the POS providers.',
-            body: 'Check your connection and try again.',
+            body: appText(context).posConnectionSetupScreenCheckYourConnectionAndTry,
             onRetry: () => ref.read(posSetupProvider.notifier).load(),
           ),
           PosSetupStatus.done => _SetupSuccessView(integration: state.integration!),
@@ -155,7 +156,7 @@ class _SetupForm extends ConsumerWidget {
             _ExistingCard(integration: existing)
           else ...[
             Text(
-              'Link your POS to keep products and stock in step automatically.',
+              appText(context).posConnectionSetupScreenLinkYourPOSToKeep,
               style: TextStyle(fontSize: 13, color: scheme.outline),
             ),
             const SizedBox(height: 16),
@@ -164,7 +165,7 @@ class _SetupForm extends ConsumerWidget {
               initialValue: state.effectiveProvider.isEmpty
                   ? null
                   : state.effectiveProvider,
-              decoration: const InputDecoration(labelText: 'POS provider'),
+              decoration: InputDecoration(labelText: appText(context).commonPOSProvider),
               items: [
                 for (final p in state.providers)
                   DropdownMenuItem(value: p.code, child: Text(p.displayName)),
@@ -179,7 +180,7 @@ class _SetupForm extends ConsumerWidget {
             DropdownButtonFormField<String>(
               key: const Key('pos-setup-type'),
               initialValue: state.integrationType,
-              decoration: const InputDecoration(labelText: 'Connection type'),
+              decoration: InputDecoration(labelText: appText(context).commonConnectionType),
               items: [
                 for (final (value, label) in kPosIntegrationTypes)
                   DropdownMenuItem(value: value, child: Text(label)),
@@ -196,7 +197,7 @@ class _SetupForm extends ConsumerWidget {
           if (provider != null && !provider.supportsIncremental) ...[
             const SizedBox(height: 8),
             Text(
-              'This connector supports full syncs only.',
+              appText(context).posConnectionSetupScreenThisConnectorSupportsFullSyncs,
               style: TextStyle(fontSize: 12, color: scheme.outline),
             ),
           ],
@@ -250,9 +251,7 @@ class _ExistingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'This shop already has a connector '
-                    '(${posStatusLabel(status)}). Update its credentials and '
-                    'reconnect — no duplicate is created.',
+                    appText(context).posConnectionSetupScreenThisShopAlreadyHasA(posStatusLabel(status)),
                     style: TextStyle(fontSize: 12, color: scheme.outline),
                   ),
                 ],
@@ -287,11 +286,10 @@ class _CredentialsCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Vendor credentials (optional)'),
+            Text(appText(context).posConnectionSetupScreenVendorCredentialsOptional),
             const SizedBox(height: 4),
             Text(
-              'Only what you type is sent — a rotation never blanks an '
-              'existing secret.',
+              appText(context).posConnectionSetupScreenOnlyWhatYouTypeIs,
               style: TextStyle(
                 fontSize: 11,
                 color: Theme.of(context).colorScheme.outline,
@@ -305,7 +303,7 @@ class _CredentialsCard extends ConsumerWidget {
                   .read(posSetupProvider.notifier)
                   .editCredentials(apiBaseUrl: v),
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: 'API base URL'),
+              decoration: InputDecoration(labelText: appText(context).commonAPIBaseURL),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -313,7 +311,7 @@ class _CredentialsCard extends ConsumerWidget {
               controller: apiKey,
               onChanged: (v) =>
                   ref.read(posSetupProvider.notifier).editCredentials(apiKey: v),
-              decoration: const InputDecoration(labelText: 'API key'),
+              decoration: InputDecoration(labelText: appText(context).commonAPIKey),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -323,7 +321,7 @@ class _CredentialsCard extends ConsumerWidget {
                   .read(posSetupProvider.notifier)
                   .editCredentials(apiSecret: v),
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'API secret'),
+              decoration: InputDecoration(labelText: appText(context).commonAPISecret),
             ),
           ],
         ),
@@ -380,8 +378,7 @@ class _SetupErrorCard extends StatelessWidget {
                   if (state.credentialRefused) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Check the API key / secret above and try again — nothing '
-                      'was synced.',
+                      appText(context).posConnectionSetupScreenCheckTheAPIKeySecret,
                       style: TextStyle(fontSize: 11, color: scheme.outline),
                     ),
                   ],
@@ -436,7 +433,7 @@ class _SetupSuccessView extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'POS connected',
+              appText(context).commonPOSConnected,
               key: const Key('pos-setup-success'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -444,8 +441,7 @@ class _SetupSuccessView extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${integration.providerName} is '
-              '${posStatusLabel(status).toLowerCase()}.',
+              appText(context).posConnectionSetupScreenProviderNameIsValue(integration.providerName, posStatusLabel(status).toLowerCase()),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: scheme.outline),
             ),
@@ -463,7 +459,7 @@ class _SetupSuccessView extends ConsumerWidget {
                 key: const Key('pos-setup-sync-now'),
                 onPressed: () => _syncNow(context, ref),
                 icon: const Icon(Icons.sync_outlined),
-                label: const Text('Sync now'),
+                label: Text(appText(context).commonSyncNow),
               ),
             ),
             const SizedBox(height: 12),
@@ -473,7 +469,7 @@ class _SetupSuccessView extends ConsumerWidget {
                 key: const Key('pos-setup-done'),
                 onPressed: () => GoRouter.maybeOf(context)?.go(Routes.pos),
                 icon: const Icon(Icons.point_of_sale_outlined),
-                label: const Text('Back to integration'),
+                label: Text(appText(context).commonBackToIntegration),
               ),
             ),
           ],

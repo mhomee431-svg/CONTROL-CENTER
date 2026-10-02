@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -71,7 +72,7 @@ class BarcodeController extends Notifier<BarcodeScanState> {
     state = state.resolvingWith(barcode);
     try {
       final token = await _tokens.readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final resolution = await _repo.resolveBarcode(barcode, _shopId, token);
       state = state.resolvedWith(resolution);
     } on ApiException catch (e) {
@@ -92,13 +93,13 @@ class BarcodeController extends Notifier<BarcodeScanState> {
   /// the shop-registration controller).
   String _friendly(ApiException e) {
     if (e.isUnauthorized || e.statusCode == 401) {
-      return 'Your session has expired. Please sign in again.';
+      return appMessageEnglish(AppMessageCode.sessionExpired);
     }
     if (e.statusCode == 403) {
       return 'You do not have permission to scan for this shop.';
     }
     if (e.statusCode == null) {
-      return 'No internet connection. Check your network and retry.';
+      return appMessageEnglish(AppMessageCode.noInternet);
     }
     return e.message;
   }
@@ -110,7 +111,7 @@ class BarcodeController extends Notifier<BarcodeScanState> {
     state = state.saving();
     try {
       final token = await _tokens.readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final created = await _repo.saveFromBarcode(shopId, payload, token);
       // Reset to idle after a successful save so the camera can scan again.
       state = BarcodeScanState.idle();

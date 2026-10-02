@@ -1,5 +1,7 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 
+import '../errors/app_message_code.dart';
+import '../l10n/app_text.dart';
 import '../state/system_state.dart';
 
 /// Normalized API failure carrying HTTP status and backend error code.
@@ -7,6 +9,12 @@ class ApiException implements Exception {
   final int? statusCode;
   final String? errorCode;
   final String message;
+
+  /// Set when the wording for this failure lives in `app_en.arb` instead of at
+  /// the throw site. [message] mirrors the English catalog so callers that
+  /// cannot reach a `BuildContext` keep working; UI with a context should read
+  /// [apiFailureText] to get the active locale.
+  final AppMessageCode? messageCode;
 
   /// Transport classification: WHY the request failed before (or without) an
   /// HTTP answer. Populated by [ApiException.fromDioError]; defaults to
@@ -24,7 +32,23 @@ class ApiException implements Exception {
     required this.message,
     this.data,
     this.kind = ApiFailureKind.unknown,
+    this.messageCode,
   });
+
+  /// A failure the shopkeeper sees in their own language: the copy is looked
+  /// up by [code] in the localization catalog, so the throw site carries a
+  /// meaning and not an English sentence.
+  ///
+  /// Not `const` because the English mirror of [message] is read from the
+  /// generated catalog.
+  ApiException.localized(
+    AppMessageCode code, {
+    this.statusCode,
+    this.errorCode,
+    this.data,
+    this.kind = ApiFailureKind.unknown,
+  }) : messageCode = code,
+       message = appMessageEnglish(code);
 
   /// True when the backend refused shop access (association/permission).
   bool get isForbidden => statusCode == 403;
@@ -92,17 +116,26 @@ class ApiException implements Exception {
     // Both get the app's own state copy instead, so EVERY screen — migrated or
     // not — shows the right thing (see SystemStateSpec.ownsCopy).
     if (statusCode == 503) {
-      message = SystemStateSpec.of(SystemState.maintenance).message;
+      message = SystemStateSpec.of(
+        SystemState.maintenance,
+        appTextStatic(),
+      ).message;
     } else if (!serverExplained) {
       message = switch (kind) {
-        ApiFailureKind.offline =>
-          SystemStateSpec.of(SystemState.offline).message,
+        ApiFailureKind.offline => SystemStateSpec.of(
+          SystemState.offline,
+          appTextStatic(),
+        ).message,
         ApiFailureKind.cancelled => 'Request was cancelled.',
-        ApiFailureKind.timeout =>
-          SystemStateSpec.of(SystemState.timeout).message,
-        ApiFailureKind.badResponse ||
-        ApiFailureKind.unknown =>
-          SystemStateSpec.of(SystemState.networkError).message,
+        ApiFailureKind.timeout => SystemStateSpec.of(
+          SystemState.timeout,
+          appTextStatic(),
+        ).message,
+        ApiFailureKind.badResponse || ApiFailureKind.unknown =>
+          SystemStateSpec.of(
+            SystemState.networkError,
+            appTextStatic(),
+          ).message,
       };
     }
     return ApiException(

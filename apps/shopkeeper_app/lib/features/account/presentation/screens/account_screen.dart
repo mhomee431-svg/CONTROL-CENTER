@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -19,7 +20,7 @@ class AccountScreen extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(title: Text(appText(context).commonAccount)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -37,24 +38,24 @@ class AccountScreen extends ConsumerWidget {
               child: Column(children: [
                 ListTile(
                   leading: const Icon(Icons.store_outlined),
-                  title: const Text('Shop profile'),
+                  title: Text(appText(context).commonShopProfile),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.shopProfile),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.tune),
-                  title: const Text('Shop settings'),
+                  title: Text(appText(context).commonShopSettings),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.shopSettings),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.store_outlined),
-                  title: const Text('My business'),
+                  title: Text(appText(context).commonMyBusiness),
                   subtitle: shop != null
                       ? Text(shop.name, style: const TextStyle(fontSize: 12))
-                      : const Text('Not established yet',
+                      : Text(appText(context).commonNotEstablishedYet,
                           style: TextStyle(fontSize: 12)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.shops),
@@ -62,21 +63,21 @@ class AccountScreen extends ConsumerWidget {
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.insights_outlined),
-                  title: const Text('Reports & insights'),
+                  title: Text(appText(context).commonReportsInsights),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.insights),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.apps),
-                  title: const Text('All features'),
+                  title: Text(appText(context).commonAllFeatures),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.features),
                 ),
                 Divider(height: 1, color: Theme.of(context).dividerColor),
                 ListTile(
                   leading: const Icon(Icons.help_outline),
-                  title: const Text('Help & support'),
+                  title: Text(appText(context).commonHelpSupport),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.support),
                 ),
@@ -84,9 +85,9 @@ class AccountScreen extends ConsumerWidget {
                 ListTile(
                   key: const Key('account_settings_tile'),
                   leading: const Icon(Icons.settings_outlined),
-                  title: const Text('Settings'),
-                  subtitle: const Text(
-                    'Account, security, app, legal and support',
+                  title: Text(appText(context).commonSettings),
+                  subtitle: Text(
+                    appText(context).accountScreenAccountSecurityAppLegalAnd,
                     style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right),
@@ -102,7 +103,7 @@ class AccountScreen extends ConsumerWidget {
                 ListTile(
                   key: const Key('account_notification_settings_tile'),
                   leading: const Icon(Icons.notifications_outlined),
-                  title: const Text('Notification settings'),
+                  title: Text(appText(context).commonNotificationSettings),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(Routes.notificationSettings),
                 ),
@@ -110,7 +111,7 @@ class AccountScreen extends ConsumerWidget {
                 ListTile(
                   leading: Icon(Icons.logout, color: scheme.error),
                   key: const Key('account_logout_tile'),
-                  title: Text('Log out',
+                  title: Text(appText(context).commonLogOut,
                       style: TextStyle(
                           color: scheme.error,
                           fontWeight: FontWeight.w600)),
@@ -120,7 +121,7 @@ class AccountScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             Center(
-              child: Text('Hyperlocal Shopkeeper v1.0.0',
+              child: Text(appText(context).accountScreenHyperlocalShopkeeperV100,
                   style: TextStyle(fontSize: 12, color: scheme.outline)),
             ),
           ],
@@ -213,11 +214,11 @@ class _BusinessCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Current business',
+            Text(appText(context).commonCurrentBusiness,
                 style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             if (shop == null)
-              Text('No shop selected', style: TextStyle(color: scheme.outline))
+              Text(appText(context).commonNoShopSelected, style: TextStyle(color: scheme.outline))
             else ...[
               Row(children: [
                 Expanded(
@@ -229,8 +230,7 @@ class _BusinessCard extends StatelessWidget {
               ]),
               const SizedBox(height: 4),
               Text(
-                '${shop.membership == 'owner' ? 'Owner' : 'Manager'} · ${shop.status}'
-                '${shop.category != null ? ' · ${shop.category}' : ''}',
+                appText(context).accountScreenValueStatusValue2(shop.membership == 'owner' ? 'Owner' : 'Manager', shop.status, shop.category != null ? ' · ${shop.category}' : ''),
                 style: TextStyle(fontSize: 13, color: scheme.outline),
               ),
             ],

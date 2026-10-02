@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
@@ -107,12 +108,14 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           isLoading: state.status == ProductsStatus.loading,
           failure: switch (state.status) {
             ProductsStatus.accessDenied => SystemStateSpec.resolve(
+              text: appText(context),
               state: SystemState.permissionDenied,
               title: 'No access to this shop',
               message: state.message,
               fallbackMessage: 'You do not have access to this shop.',
             ),
             ProductsStatus.error => SystemStateSpec.resolve(
+              text: appText(context),
               title: 'Could not load inventory',
               message: state.message,
               fallbackMessage: 'Please check your connection and retry.',

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -88,7 +89,7 @@ class NotificationsController extends Notifier<NotificationsState> {
     state = NotificationsState.loading();
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final page = await _repo.fetchNotifications(
         shopId,
         token,
@@ -130,7 +131,7 @@ class NotificationsController extends Notifier<NotificationsState> {
     state = state.copyWith(loadingMore: true);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final page = await _repo.fetchNotifications(
         shopId,
         token,

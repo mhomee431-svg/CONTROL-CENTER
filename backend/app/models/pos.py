@@ -1,5 +1,6 @@
 """POS Integration, POS Device, POS Sync Job, POS Sync Log models."""
 from datetime import datetime
+from typing import Any
 from sqlalchemy import String, Integer, DateTime, Boolean, Text, ForeignKey, Enum, UniqueConstraint, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
@@ -40,7 +41,7 @@ class POSIntegration(Base, TimestampMixin, SoftDeleteMixin):
     )
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_sync_status: Mapped[str | None] = mapped_column(String(20))
-    config_json: Mapped[dict | None] = mapped_column(JSON)
+    config_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     # ── Phase 25 — sync configuration / schedule / incremental state ──
     provider_code: Mapped[str | None] = mapped_column(String(50), index=True)
@@ -158,7 +159,7 @@ class POSProductMapping(Base, TimestampMixin):
 
     last_synced_hash: Mapped[str | None] = mapped_column(String(64))
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    last_conflict_json: Mapped[dict | None] = mapped_column(JSON)
+    last_conflict_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     integration = relationship("POSIntegration", back_populates="mappings")

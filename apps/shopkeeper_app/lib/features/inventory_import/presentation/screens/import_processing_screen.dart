@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../controllers/import_controller.dart';
 import '../widgets/import_report_sheet.dart';
+import '../widgets/import_status_view.dart';
 import '../../data/import_repository.dart';
 import '../../domain/import_models.dart';
 
@@ -49,7 +51,7 @@ class _ImportProcessingScreenState
     final state = ref.watch(importControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Applying import')),
+      appBar: AppBar(title: Text(appText(context).commonApplyingImport)),
       body: SafeArea(
         child: switch (state.status) {
           ImportStatus.confirming => const _ProcessingView(),
@@ -80,12 +82,12 @@ class _ProcessingView extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 20),
-          Text('Applying rows to your inventory…',
+          Text(appText(context).importProcessingScreenApplyingRowsToYourInventory,
               key: const Key('import-processing'),
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'This usually takes a few seconds.',
+            appText(context).importProcessingScreenThisUsuallyTakesAFew,
             style: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.outline,
@@ -102,44 +104,46 @@ class _ResultView extends ConsumerWidget {
 
   final ImportConfirmResult result;
 
-  (IconData, Color, String, String, String) get _view {
-    if (result.queued) {
-      return (
-        Icons.schedule_outlined,
-        AppTheme.pendingAmber,
-        'Import queued',
-        '${result.processed} rows queued for background processing. '
-            'Check Import history for the outcome.',
-        'import-result-queued',
-      );
-    }
-    if (result.processed == 0) {
-      return (
-        Icons.error_outline,
-        AppTheme.rejectedRed,
-        'Import failed',
-        'No rows could be applied. Check Import history for details.',
-        'import-result-failed',
-      );
-    }
-    if (result.failed > 0) {
-      return (
-        Icons.warning_amber_outlined,
-        AppTheme.pendingAmber,
-        'Partially imported',
-        '${result.processed + result.failed} rows processed — '
-            '${result.processed} successful, ${result.failed} failed.',
-        'import-result-partial',
-      );
-    }
-    return (
-      Icons.check_circle_outline,
-      AppTheme.verifiedGreen,
-      'Import successful',
-      '${result.processed} rows processed — all successful.',
-      'import-result-success',
-    );
-  }
+  /// The status this confirm result represents, in the SHARED vocabulary.
+  ///
+  /// Derived once and used for both the copy and the visuals, so the headline
+  /// and the icon can never describe different outcomes. Zero rows applied is a
+  /// FAILURE even when the payload also reports zero failures — the rows were
+  /// not imported, and saying "Completed" would be a lie.
+  String get _status => result.queued
+      ? ImportJobStatusValue.queued
+      : result.processed == 0
+          ? ImportJobStatusValue.failed
+          : (result.failed > 0
+              ? ImportJobStatusValue.partial
+              : ImportJobStatusValue.completed);
+
+  /// Headline + one-line detail for [_status]. Copy only — the icon and colour
+  /// come from the shared [importStatusTone].
+  (String, String, String) get _copy => switch (_status) {
+        ImportJobStatusValue.queued => (
+            'Import queued',
+            '${result.processed} rows queued for background processing. '
+                'Check Import history for the outcome.',
+            'import-result-queued',
+          ),
+        ImportJobStatusValue.failed => (
+            'Import failed',
+            'No rows could be applied. Check Import history for details.',
+            'import-result-failed',
+          ),
+        ImportJobStatusValue.partial => (
+            'Partially imported',
+            '${result.processed + result.failed} rows processed — '
+                '${result.processed} successful, ${result.failed} failed.',
+            'import-result-partial',
+          ),
+        _ => (
+            'Import successful',
+            '${result.processed} rows processed — all successful.',
+            'import-result-success',
+          ),
+      };
 
   /// True when rows were applied, so a per-row report exists to open.
   bool get _showResults => !result.queued && result.processed > 0;
@@ -150,15 +154,12 @@ class _ResultView extends ConsumerWidget {
   /// Header stub for the report sheet — the confirm payload carries counts, not
   /// the workbook name, so the sheet is titled by job id instead of guessing.
   ImportJob get _reportJob {
-    final status = result.queued
-        ? ImportJobStatusValue.queued
-        : (result.failed > 0
-              ? ImportJobStatusValue.partial
-              : ImportJobStatusValue.completed);
     return ImportJob(
       id: result.jobId ?? 0,
       filename: 'Import #${result.jobId ?? '—'}',
-      status: status,
+      // The SAME status the headline and icon are drawn from, so the report
+      // sheet can never contradict the result the shopkeeper is looking at.
+      status: _status,
       totalRows: result.processed + result.failed,
       validRows: result.processed,
       errorRows: result.failed,
@@ -196,7 +197,7 @@ class _ResultView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (icon, color, title, detail, keyName) = _view;
+    final (title, detail, keyName) = _copy;
 
     return Center(
       child: Padding(
@@ -204,24 +205,13 @@ class _ResultView extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: color),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              key: Key(keyName),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              detail,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            // The SAME component the deep-linked Import result screen and the
+            // history list use for their status visuals.
+            ImportStatusView(
+              tone: importStatusTone(_status),
+              title: title,
+              message: detail,
+              titleKey: Key(keyName),
             ),
             const SizedBox(height: 24),
             // Partial failures are never hidden — the shopkeeper can open the
@@ -234,7 +224,7 @@ class _ResultView extends ConsumerWidget {
                   onPressed: () =>
                       _openReport(context, ref, filter: ReportFilter.all),
                   icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('View Results'),
+                  label: Text(appText(context).commonViewResults),
                 ),
               ),
               const SizedBox(height: 8),
@@ -247,7 +237,7 @@ class _ResultView extends ConsumerWidget {
                   onPressed: () =>
                       _openReport(context, ref, filter: ReportFilter.errors),
                   icon: const Icon(Icons.error_outline),
-                  label: Text('View Errors (${result.failed})'),
+                  label: Text(appText(context).importProcessingScreenViewErrorsFailed(result.failed)),
                 ),
               ),
               const SizedBox(height: 8),
@@ -261,7 +251,7 @@ class _ResultView extends ConsumerWidget {
                     ref.read(importControllerProvider.notifier).resetFlow();
                     context.go(Routes.importHistory);
                   },
-                  child: const Text('View import history'),
+                  child: Text(appText(context).commonViewImportHistory),
                 ),
               ),
               const SizedBox(height: 8),
@@ -274,7 +264,7 @@ class _ResultView extends ConsumerWidget {
                   ref.read(importControllerProvider.notifier).resetFlow();
                   context.go(Routes.importCenter);
                 },
-                child: const Text('Done'),
+                child: Text(appText(context).commonDone),
               ),
             ),
           ],
@@ -302,7 +292,7 @@ class _FailedRetryView extends ConsumerWidget {
                 size: 48, color: AppTheme.rejectedRed),
             const SizedBox(height: 16),
             Text(
-              'Import failed',
+              appText(context).commonImportFailed,
               key: const Key('import-result-failed'),
               style: Theme.of(context)
                   .textTheme
@@ -328,7 +318,7 @@ class _FailedRetryView extends ConsumerWidget {
                       ref.read(importControllerProvider.notifier).resetFlow();
                       context.go(Routes.importCenter);
                     },
-                    child: const Text('Back'),
+                    child: Text(appText(context).commonBack3),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -336,7 +326,7 @@ class _FailedRetryView extends ConsumerWidget {
                   child: FilledButton(
                     key: const Key('import-failed-retry'),
                     onPressed: onRetry,
-                    child: const Text('Retry'),
+                    child: Text(appText(context).commonRetry2),
                   ),
                 ),
               ],
@@ -360,7 +350,7 @@ class _NothingToApplyView extends ConsumerWidget {
           Icon(Icons.folder_off_outlined,
               size: 40, color: Theme.of(context).colorScheme.outline),
           const SizedBox(height: 12),
-          const Text('Nothing to apply'),
+          Text(appText(context).commonNothingToApply),
           const SizedBox(height: 16),
           FilledButton(
             key: const Key('import-nothing-back'),
@@ -368,7 +358,7 @@ class _NothingToApplyView extends ConsumerWidget {
               ref.read(importControllerProvider.notifier).resetFlow();
               context.go(Routes.importCenter);
             },
-            child: const Text('Back to Import Center'),
+            child: Text(appText(context).commonBackToImportCenter2),
           ),
         ],
       ),

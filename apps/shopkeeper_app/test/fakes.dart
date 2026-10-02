@@ -1028,6 +1028,12 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
 
   int overviewCalls = 0;
 
+  /// How often the COUNTS-ONLY view was asked for. The dashboard uses
+  /// `fetchInventorySummary` precisely so it never has to download the
+  /// catalogue, so a test can assert `summaryCalls == 1 && overviewCalls == 0`
+  /// to prove the home screen took the small payload.
+  int summaryCalls = 0;
+
   /// When set, [fetchInventoryOverview] waits for it before answering — lets a
   /// test observe the IN-FLIGHT window of a (silent) refresh.
   Completer<void>? overviewGate;
@@ -1057,6 +1063,18 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
         stockStatus: 'IN_STOCK',
       );
 
+  /// The counts the backend derives from the same rows — shared by both reads
+  /// so the full-list and the counts-only answers can never disagree.
+  InventorySummary get _derivedSummary => (
+        total: items.length,
+        active: items.where((i) => i.isActive && i.isAvailable).length,
+        inStock: items.where((i) => i.stockStatus == 'IN_STOCK').length,
+        lowStock: items.where((i) => i.isLowStock).length,
+        outOfStock: items.where((i) => i.isOutOfStock).length,
+        totalUnits: items.fold(0, (sum, i) => sum + i.quantity),
+        stale: items.where((i) => i.isStale).length,
+      );
+
   @override
   Future<InventoryOverview> fetchInventoryOverview(
     int shopId,
@@ -1066,15 +1084,18 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     lastShopId = shopId;
     await overviewGate?.future;
     if (failOverview) throw Exception('offline');
-    final summary = (
-      total: items.length,
-      active: items.where((i) => i.isActive && i.isAvailable).length,
-      inStock: items.where((i) => i.stockStatus == 'IN_STOCK').length,
-      lowStock: items.where((i) => i.isLowStock).length,
-      outOfStock: items.where((i) => i.isOutOfStock).length,
-      totalUnits: items.fold(0, (sum, i) => sum + i.quantity),
-    );
-    return InventoryOverview(items: items, summary: summary);
+    return InventoryOverview(items: items, summary: _derivedSummary);
+  }
+
+  @override
+  Future<InventorySummary> fetchInventorySummary(
+    int shopId,
+    String token,
+  ) async {
+    summaryCalls++;
+    lastShopId = shopId;
+    if (failOverview) throw Exception('offline');
+    return _derivedSummary;
   }
 
   @override

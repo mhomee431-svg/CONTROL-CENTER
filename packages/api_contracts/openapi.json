@@ -7498,6 +7498,52 @@
         }
       }
     },
+    "/api/v1/shopkeeper/shops/{shop_id}/capabilities": {
+      "get": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Get Shop Capabilities",
+        "description": "Backend-driven feature flags for one shop (spec section 103).\n\nSingle source of truth for ``canUsePos / canUploadExcel /\ncanCreateOffers / canViewReports``. Derived only from the resolved\nsubscription entitlements - the frontend never duplicates plan rules.\nDisplay hints only; enforcement stays server-side (403 on violation).",
+        "operationId": "get_shop_capabilities_api_v1_shopkeeper_shops__shop_id__capabilities_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/shops/{shop_id}/dashboard": {
       "get": {
         "tags": [
@@ -7596,7 +7642,7 @@
           "shopkeeper"
         ],
         "summary": "Get Inventory",
-        "description": "Inventory overview (default) or a filterable/sortable/searchable list\n(``view=list``) \u2014 items include last-updated time and inventory source.\n\n``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns\nonly listings whose **current stock is at or below their own per-listing\nlow-stock threshold** (``quantity <= low_stock_threshold``). This is\nstricter than ``stock_status=LOW_STOCK`` \u2014 that filter reports the server's\nderived state, while this one answers the operational question \"what must\nbe restocked now\" directly from the two numbers that decide it.",
+        "description": "Inventory overview (default), counts only (``view=summary``) or a\nfilterable/sortable/searchable list (``view=list``) \u2014 items include\nlast-updated time and inventory source.\n\n``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns\nonly listings whose **current stock is at or below their own per-listing\nlow-stock threshold** (``quantity <= low_stock_threshold``). This is\nstricter than ``stock_status=LOW_STOCK`` \u2014 that filter reports the server's\nderived state, while this one answers the operational question \"what must\nbe restocked now\" directly from the two numbers that decide it.\n\n``view=summary`` returns the counts and NO items. It is the counts-only\nview a home screen should use: the body is the same size for a shop with\n5 listings and one with 50,000, so nothing has to download the catalogue\nto render a badge.",
         "operationId": "get_inventory_api_v1_shopkeeper_shops__shop_id__inventory_get",
         "security": [
           {
@@ -26784,6 +26830,11 @@
               }
             ],
             "title": "Image Key"
+          },
+          "remove_image": {
+            "type": "boolean",
+            "title": "Remove Image",
+            "default": false
           }
         },
         "type": "object",

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
+import '../l10n/app_text.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// SYSTEM STATES — the nine conditions any async surface in the app can be in.
@@ -158,112 +160,108 @@ class SystemStateSpec {
   };
 
   /// Default copy for [state] — the ONE place these strings exist.
-  static SystemStateSpec of(SystemState state) => switch (state) {
-    SystemState.offline => const SystemStateSpec(
+  static SystemStateSpec of(SystemState state, AppLocalizations text) => switch (state) {
+    SystemState.offline => SystemStateSpec(
       state: SystemState.offline,
-      title: 'No internet connection',
+      title: text.commonNoInternetConnection,
       message:
-          'Check your mobile data or Wi-Fi, then try again. Nothing you did '
-          'was lost.',
+          text.systemStateCheckYourMobileDataOr,
       icon: Icons.wifi_off_rounded,
       action: SystemAction.retry,
     ),
-    SystemState.networkError => const SystemStateSpec(
+    SystemState.networkError => SystemStateSpec(
       state: SystemState.networkError,
-      title: 'Network problem',
+      title: text.commonNetworkProblem,
       message:
-          'We could not reach the server. Check your connection and try again.',
+          text.systemStateWeCouldNotReachThe,
       icon: Icons.cloud_off_outlined,
       action: SystemAction.retry,
     ),
-    SystemState.timeout => const SystemStateSpec(
+    SystemState.timeout => SystemStateSpec(
       state: SystemState.timeout,
-      title: 'The server took too long',
+      title: text.commonTheServerTookTooLong,
       message:
-          'The request timed out before the server answered. Please try again.',
+          text.systemStateTheRequestTimedOutBefore,
       icon: Icons.hourglass_top_rounded,
       action: SystemAction.retry,
     ),
-    SystemState.serverError => const SystemStateSpec(
+    SystemState.serverError => SystemStateSpec(
       state: SystemState.serverError,
-      title: 'Server error',
-      message: 'Something went wrong on our side. Please try again shortly.',
+      title: text.commonServerError,
+      message: text.systemStateSomethingWentWrongOnOur,
       icon: Icons.dns_outlined,
       action: SystemAction.retry,
     ),
-    SystemState.permissionDenied => const SystemStateSpec(
+    SystemState.permissionDenied => SystemStateSpec(
       state: SystemState.permissionDenied,
-      title: 'No access to this shop',
+      title: text.commonNoAccessToThisShop,
       message:
-          'Your account is not allowed to do this here. Ask the shop owner, or '
-          'switch to a shop you manage.',
+          text.systemStateYourAccountIsNotAllowed,
       icon: Icons.lock_outline,
       action: SystemAction.switchShop,
     ),
-    SystemState.sessionExpired => const SystemStateSpec(
+    SystemState.sessionExpired => SystemStateSpec(
       state: SystemState.sessionExpired,
-      title: 'Session expired',
+      title: text.commonSessionExpired,
       message:
-          'For your security you were signed out. Please sign in again to '
-          'continue where you left off.',
+          text.systemStateForYourSecurityYouWere,
       icon: Icons.lock_clock_outlined,
       action: SystemAction.signIn,
     ),
-    SystemState.unauthorized => const SystemStateSpec(
+    SystemState.unauthorized => SystemStateSpec(
       state: SystemState.unauthorized,
-      title: 'Sign-in required',
-      message: 'You are not signed in for this action. Please sign in again.',
+      title: text.commonSignInRequired,
+      message: text.systemStateYouAreNotSignedIn,
       icon: Icons.no_accounts_outlined,
       action: SystemAction.signIn,
     ),
-    SystemState.maintenance => const SystemStateSpec(
+    SystemState.maintenance => SystemStateSpec(
       state: SystemState.maintenance,
-      title: 'Under maintenance',
+      title: text.commonUnderMaintenance,
       message:
-          'We are doing a short maintenance. Your data is safe — please try '
-          'again in a few minutes.',
+          text.systemStateWeAreDoingAShort,
       icon: Icons.engineering_outlined,
       action: SystemAction.retry,
     ),
-    SystemState.notFound => const SystemStateSpec(
+    SystemState.notFound => SystemStateSpec(
       state: SystemState.notFound,
-      title: 'Not found',
-      message: 'We could not find that. It may have been removed.',
+      title: text.commonNotFound,
+      message: text.systemStateWeCouldNotFindThat,
       icon: Icons.search_off_rounded,
       // Retrying an identical 404 cannot succeed — the caller decides whether
       // its own context makes a Retry meaningful (the view still renders a
       // caller-supplied onRetry as a fallback).
       action: SystemAction.none,
     ),
-    SystemState.conflict => const SystemStateSpec(
+    SystemState.conflict => SystemStateSpec(
       state: SystemState.conflict,
-      title: 'That change conflicts',
+      title: text.commonThatChangeConflicts,
       message:
-          'Something was already updated. Refresh the list and try again.',
+          text.systemStateSomethingWasAlreadyUpdatedRefresh,
       icon: Icons.rule_rounded,
       action: SystemAction.retry,
     ),
-    SystemState.validation => const SystemStateSpec(
+    SystemState.validation => SystemStateSpec(
       state: SystemState.validation,
-      title: 'Check the details',
+      title: text.commonCheckTheDetails,
       message:
-          'Some of the information is not valid. Please review it and try again.',
+          text.systemStateSomeOfTheInformationIs,
       icon: Icons.fact_check_outlined,
       // Resending identical input can never pass validation — the shopkeeper
       // has to change something first.
       action: SystemAction.none,
     ),
-    SystemState.genericRetry => const SystemStateSpec(
+    SystemState.genericRetry => SystemStateSpec(
       state: SystemState.genericRetry,
-      title: 'Something went wrong',
-      message: 'The action could not be completed. Please try again.',
+      title: text.commonSomethingWentWrong3,
+      message: text.systemStateTheActionCouldNotBe,
       icon: Icons.error_outline,
       action: SystemAction.retry,
     ),
-    SystemState.empty => const SystemStateSpec(
+    SystemState.empty => SystemStateSpec(
       state: SystemState.empty,
-      title: 'Nothing here yet',
-      message: 'There is nothing to show right now.',
+      title: text.commonNothingHereYet,
+      message: text.systemStateThereIsNothingToShow,
       icon: Icons.inbox_outlined,
       action: SystemAction.none,
     ),
@@ -364,7 +362,7 @@ class SystemStateSpec {
     final text = (message ?? '').trim();
     if (text.isEmpty) return null;
     for (final state in SystemState.values) {
-      if (of(state).message == text) return state;
+      if (of(state, appTextStatic()).message == text) return state;
     }
     return null;
   }
@@ -387,6 +385,7 @@ class SystemStateSpec {
     String? title,
     String? message,
     String? fallbackMessage,
+    required AppLocalizations text,
   }) {
     final evidence = (message ?? '').trim().isNotEmpty
         ? message!.trim()
@@ -404,7 +403,7 @@ class SystemStateSpec {
                 message: evidence,
               )
             : fromMessage(evidence) ?? SystemState.genericRetry);
-    final base = of(resolved);
+    final base = of(resolved, text);
     return SystemStateSpec(
       state: base.state,
       title: (title ?? '').trim().isEmpty ? base.title : title!.trim(),

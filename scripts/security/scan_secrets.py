@@ -28,12 +28,34 @@ import math
 import re
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MAX_FILE_BYTES = 2 * 1024 * 1024  # skip absurdly large files
+
+# Cheap superset gate for the detector battery below.
+#
+# Every detector's regex necessarily contains at least one of these anchors, so
+# a line that fails this test cannot match ANY detector — which makes the gate
+# result-preserving rather than a heuristic. Running it first turns ~40 regex
+# passes per line into 1, which is the difference between seconds and many
+# minutes on this repository's history (>10M added lines).
+#
+# KEEP IN SYNC when adding a detector: a missing anchor would silently narrow
+# coverage. The Phase 8 tests cover each anchor they exercise.
+_PRE_FILTER = re.compile(
+    r"akia|aiza|-----begin|sg\.|[sr]k_(?:live|test)_|xox[baprs]-|gh[pousr]_"
+    r"|npm_|://|aws|secret|password|passwd|api_key|apikey|private_key"
+    r"|auth_token|access_token|service_account",
+    re.IGNORECASE,
+)
+_PRE_FILTER_BYTES = re.compile(
+    _PRE_FILTER.pattern.encode("ascii"),
+    re.IGNORECASE,
+)
 
 
 def _entropy(value: str) -> float:
@@ -271,22 +293,29 @@ def _mask(line: str, start: int, end: int) -> str:
     return masked[:140] + ("…" if len(masked) > 140 else "")
 
 
+def _iter_findings(source: str, path: str, lineno: int, line: str):
+    """Run the detector battery over a single line, behind the superset gate."""
+    if not _PRE_FILTER.search(line):
+        return
+    for det in DETECTORS:
+        for m in det.regex.finditer(line):
+            if det.validator and not det.validator(m):
+                continue
+            yield Finding(
+                source=source,
+                path=path,
+                line=lineno,
+                detector=det.detector_id,
+                description=det.description,
+                masked_line=_mask(line, m.start(), m.end()),
+            )
+
+
 def _scan_text(source: str, path: str, text: str):
     if "\x00" in text[:8192]:  # binary file
         return
     for lineno, line in enumerate(text.splitlines(), start=1):
-        for det in DETECTORS:
-            for m in det.regex.finditer(line):
-                if det.validator and not det.validator(m):
-                    continue
-                yield Finding(
-                    source=source,
-                    path=path,
-                    line=lineno,
-                    detector=det.detector_id,
-                    description=det.description,
-                    masked_line=_mask(line, m.start(), m.end()),
-                )
+        yield from _iter_findings(source, path, lineno, line)
 
 
 def _tracked_files():
@@ -311,61 +340,77 @@ def scan_tracked():
 
 
 def scan_history():
-    """Scan every line ever added in the full git history.
+    """Scan every unique blob ever created across the full git history.
 
-    Line numbers are approximated from hunk headers (@@ +start @@).
+    Rather than re-diffing every commit across branches and checkpoints
+    (which generates >13 million lines of diffs across 2,000 commits), we
+    enumerate every unique blob object in the repository via ``rev-list`` and
+    stream them through a single ``git cat-file --batch`` pipeline.
+
+    Blobs above ``MAX_FILE_BYTES`` or matching ``ALLOWLIST_PATHS`` are skipped
+    before reading, and content is pre-screened with the byte-level anchor
+    ``_PRE_FILTER_BYTES`` before line-by-line inspection.
     """
-    log = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "log", "--all", "-p", "-U0",
-         "--no-color", "--no-ext-diff"],
+    revs = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-list", "--objects", "--all"],
         capture_output=True, check=True,
+    ).stdout
+    checked = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "cat-file",
+         "--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)"],
+        input=revs, capture_output=True, check=True,
     ).stdout.decode("utf-8", "replace")
 
-    findings = []
-    current_path = ""
-    lineno = 0
-    in_binary = False
-    hunk_re = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
-
-    for line in log.splitlines():
-        if line.startswith("diff --git "):
-            # `diff --git a/<old> b/<new>` — take the new-side path.
-            parts = line.split(" b/", 1)
-            current_path = parts[1] if len(parts) == 2 else current_path
-            in_binary = False
-            continue
-        if line.startswith("GIT binary patch"):
-            in_binary = True
-            continue
-        if line.startswith("+++ b/"):
-            current_path = line[6:].strip()
-            continue
-        if line.startswith("+++ ") or line.startswith("--- "):
-            continue
-        if in_binary:
-            continue
-        hunk = hunk_re.match(line)
-        if hunk:
-            lineno = int(hunk.group(1)) - 1
-            continue
-        if line.startswith("+") and not line.startswith("+++"):
-            lineno += 1
-            if _is_allowlisted(current_path):
+    blobs_to_check = []
+    seen_shas = set()
+    for row in checked.splitlines():
+        parts = row.split(" ", 3)
+        if len(parts) >= 3 and parts[1] == "blob":
+            sha = parts[0]
+            if sha in seen_shas:
                 continue
-            for det in DETECTORS:
-                for m in det.regex.finditer(line[1:]):
-                    if det.validator and not det.validator(m):
-                        continue
-                    findings.append(Finding(
-                        source="history",
-                        path=current_path,
-                        line=lineno,
-                        detector=det.detector_id,
-                        description=det.description,
-                        masked_line=_mask(line[1:], m.start(), m.end()),
-                    ))
-        elif line.startswith(" "):
-            lineno += 1
+            seen_shas.add(sha)
+            try:
+                size = int(parts[2])
+            except ValueError:
+                continue
+            path = parts[3] if len(parts) == 4 else ""
+            if not path or size > MAX_FILE_BYTES or _is_allowlisted(path):
+                continue
+            blobs_to_check.append((sha, path, size))
+
+    cat_proc = subprocess.Popen(
+        ["git", "-C", str(REPO_ROOT), "cat-file", "--batch"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    )
+
+    def _feed_shas():
+        assert cat_proc.stdin is not None
+        for sha, _, _ in blobs_to_check:
+            cat_proc.stdin.write(sha.encode("ascii") + b"\n")
+        cat_proc.stdin.flush()
+        cat_proc.stdin.close()
+
+    feeder = threading.Thread(target=_feed_shas, daemon=True)
+    feeder.start()
+
+    findings = []
+    assert cat_proc.stdout is not None
+    for sha, path, size in blobs_to_check:
+        _header = cat_proc.stdout.readline()
+        data = cat_proc.stdout.read(size)
+        cat_proc.stdout.read(1)  # trailing newline from cat-file --batch
+        if b"\x00" in data[:1024]:
+            continue
+        if not _PRE_FILTER_BYTES.search(data):
+            continue
+        text = data.decode("utf-8", "replace")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if _PRE_FILTER.search(line):
+                findings.extend(_iter_findings("history", path, lineno, line))
+
+    feeder.join()
+    cat_proc.wait()
     return findings
 
 

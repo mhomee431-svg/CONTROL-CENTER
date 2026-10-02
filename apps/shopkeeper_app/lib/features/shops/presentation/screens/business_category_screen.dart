@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
 import '../../data/shop_repository.dart';
 import '../../domain/shop_models.dart';
@@ -87,7 +88,7 @@ class _BusinessCategoryScreenState
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Business category')),
+      appBar: AppBar(title: Text(appText(context).commonBusinessCategory2)),
       body: SafeArea(
         child: ShopModuleBody(
           state: state,
@@ -106,7 +107,7 @@ class _BusinessCategoryScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Registered as',
+                          appText(context).commonRegisteredAs,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         const SizedBox(height: 8),
@@ -130,9 +131,7 @@ class _BusinessCategoryScreenState
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'The category is set at registration and verified by '
-                          'the platform — changing it starts a new '
-                          'verification, so contact support.',
+                          appText(context).businessCategoryScreenTheCategoryIsSetAt,
                           style: TextStyle(fontSize: 12, color: scheme.outline),
                         ),
                       ],
@@ -141,7 +140,7 @@ class _BusinessCategoryScreenState
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Approved business categories',
+                  appText(context).businessCategoryScreenApprovedBusinessCategories,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -167,7 +166,7 @@ class _BusinessCategoryScreenState
                           ),
                           TextButton(
                             onPressed: _loadCategories,
-                            child: const Text('Retry'),
+                            child: Text(appText(context).commonRetry9),
                           ),
                         ],
                       ),
@@ -251,7 +250,7 @@ class _BusinessCategoryScreenState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
-            'Could not load the requirements for this category.',
+            appText(context).businessCategoryScreenCouldNotLoadTheRequirements,
             style: TextStyle(fontSize: 12, color: scheme.outline),
           ),
         ),
@@ -272,7 +271,7 @@ class _BusinessCategoryScreenState
             const SizedBox(height: 8),
             if (requirements.documents.isEmpty)
               Text(
-                'No category-specific documents are required.',
+                appText(context).businessCategoryScreenNoCategorySpecificDocumentsAre,
                 style: TextStyle(fontSize: 12, color: scheme.outline),
               )
             else

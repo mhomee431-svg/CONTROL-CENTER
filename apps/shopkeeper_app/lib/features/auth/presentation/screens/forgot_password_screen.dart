@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controllers/auth_controller.dart';
 
@@ -53,18 +54,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Forgot password')),
+      appBar: AppBar(title: Text(appText(context).commonForgotPassword)),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Text('Reset your password',
+              Text(appText(context).commonResetYourPassword,
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
-              const Text(
-                'Enter your email or phone number and we\'ll send you a link to reset your password.',
+              Text(
+                appText(context).forgotPasswordScreenEnterYourEmailOrPhone,
               ),
               const SizedBox(height: 24),
               if (_emailSent) ...[
@@ -74,13 +75,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.check_circle, color: AppColors.success),
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'If an account exists with this email/phone, you\'ll receive a reset link shortly.',
+                          appText(context).forgotPasswordScreenIfAnAccountExistsWith,
                         ),
                       ),
                     ],
@@ -89,15 +90,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () => context.pop(),
-                  child: const Text('Back to sign in'),
+                  child: Text(appText(context).commonBackToSignIn),
                 ),
               ] else ...[
                 TextFormField(
                   controller: _identifierController,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(
-                    labelText: 'Email or phone number',
+                  decoration: InputDecoration(
+                    labelText: appText(context).commonEmailOrPhoneNumber,
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
@@ -116,12 +117,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Send reset link'),
+                      : Text(appText(context).commonSendResetLink),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => context.pop(),
-                  child: const Text('Back to sign in'),
+                  child: Text(appText(context).commonBackToSignIn),
                 ),
               ],
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_shadows.dart';
@@ -247,7 +248,7 @@ class _StepDot extends StatelessWidget {
                       color: AppColors.white,
                     )
                   : Text(
-                      '${index + 1}',
+                      appText(context).registrationWidgetsValue(index + 1),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -323,7 +324,7 @@ class RegisterStepHeader extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: IconButton(
               onPressed: onBack,
-              tooltip: 'Back',
+              tooltip: appText(context).commonBack6,
               icon: const Icon(Icons.arrow_back),
               style: IconButton.styleFrom(
                 backgroundColor: RegistrationColors.surface,
@@ -672,7 +673,7 @@ class _TitleBlock extends StatelessWidget {
             if (requirement.required) ...[
               const SizedBox(width: 4),
               Text(
-                '*',
+                appText(context).registrationWidgetsText,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -682,7 +683,7 @@ class _TitleBlock extends StatelessWidget {
             ] else ...[
               const SizedBox(width: 6),
               Text(
-                'Optional',
+                appText(context).commonOptional,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -761,14 +762,14 @@ class _DocumentUploadCardState extends ConsumerState<DocumentUploadCard> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_camera),
-                title: const Text('Camera'),
-                subtitle: const Text('Take a photo with your camera'),
+                title: Text(appText(context).commonCamera),
+                subtitle: Text(appText(context).registrationWidgetsTakeAPhotoWithYour),
                 onTap: () => Navigator.of(context).pop(PickSource.camera),
               ),
               ListTile(
                 leading: const Icon(Icons.image_outlined),
-                title: const Text('Gallery'),
-                subtitle: const Text('Choose an existing photo'),
+                title: Text(appText(context).commonGallery),
+                subtitle: Text(appText(context).commonChooseAnExistingPhoto),
                 onTap: () => Navigator.of(context).pop(PickSource.gallery),
               ),
               const SizedBox(height: 8),
@@ -866,7 +867,7 @@ class _SlotBody extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Uploading ${slot.pickedName ?? ''}…',
+              appText(context).registrationWidgetsUploadingValue(slot.pickedName ?? ''),
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 13,
@@ -886,7 +887,7 @@ class _SlotBody extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${slot.pickedName ?? 'Uploaded'} · ${isImage ? 'Photo' : 'PDF'}',
+              appText(context).registrationWidgetsValueValue2(slot.pickedName ?? 'Uploaded', isImage ? 'Photo' : 'PDF'),
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 13,
@@ -898,10 +899,10 @@ class _SlotBody extends StatelessWidget {
           TextButton(
             onPressed: onPick,
             style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-            child: const Text('Replace'),
+            child: Text(appText(context).commonReplace),
           ),
           IconButton(
-            tooltip: 'Remove',
+            tooltip: appText(context).commonRemove,
             onPressed: onRemove,
             icon: const Icon(Icons.delete_outline, size: 19),
             color: RegistrationColors.textSecondary,
@@ -919,7 +920,7 @@ class _SlotBody extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onPick,
             icon: const Icon(Icons.refresh, size: 17),
-            label: const Text('Choose another file'),
+            label: Text(appText(context).commonChooseAnotherFile),
           ),
         ],
       ),
@@ -935,7 +936,7 @@ class _SlotBody extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${slot.pickedName ?? ''} · ready to upload',
+                      appText(context).registrationWidgetsValueReadyToUpload(slot.pickedName ?? ''),
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
@@ -949,10 +950,10 @@ class _SlotBody extends StatelessWidget {
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                     ),
-                    child: const Text('Replace'),
+                    child: Text(appText(context).commonReplace),
                   ),
                   IconButton(
-                    tooltip: 'Remove',
+                    tooltip: appText(context).commonRemove,
                     onPressed: onRemove,
                     icon: const Icon(Icons.delete_outline, size: 19),
                     color: RegistrationColors.textSecondary,

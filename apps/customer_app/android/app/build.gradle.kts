@@ -47,7 +47,13 @@ val releaseStoreFile: String =
 
 android {
     namespace = "com.hyperlocal.app"
-    compileSdk = flutter.compileSdkVersion
+    // 37 is required by permission_handler_android 14.x, which declares
+    // `compileSdk = 37`. Leaving this on `flutter.compileSdkVersion` (36)
+    // fails the build outright with "Dependency ':permission_handler_android'
+    // requires ... version 37 or later" — the app could not produce an APK at
+    // all. AGP is raised to 9.2.1 in android/settings.gradle.kts because
+    // 9.1.0 caps at compileSdk 36 (same fix as shopkeeper_app).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

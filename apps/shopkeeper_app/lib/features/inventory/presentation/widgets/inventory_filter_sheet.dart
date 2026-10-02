@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/ui/filter_ui.dart';
 import '../../../products/domain/product_query.dart';
 
@@ -79,7 +80,7 @@ class _InventoryFilterSheetState extends State<InventoryFilterSheet> {
       children: [
         if (widget.categories.isNotEmpty)
           FilterSection(
-            label: 'Category',
+            label: appText(context).commonCategory,
             child: FilterDropdown(
               options: widget.categories,
               value: _category,
@@ -87,20 +88,20 @@ class _InventoryFilterSheetState extends State<InventoryFilterSheet> {
             ),
           ),
         FilterSection(
-          label: 'Freshness',
+          label: appText(context).commonFreshness,
           // Empty selection = Any — the facet is opt-in, exactly like the
           // products sheet's Availability segment.
           child: SegmentedButton<String>(
             emptySelectionAllowed: true,
             showSelectedIcon: false,
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: ProductQuery.freshnessFresh,
-                label: Text('Fresh'),
+                label: Text(appText(context).commonFresh),
               ),
               ButtonSegment(
                 value: ProductQuery.freshnessStale,
-                label: Text('Needs update'),
+                label: Text(appText(context).commonNeedsUpdate),
               ),
             ],
             selected: _freshness == null

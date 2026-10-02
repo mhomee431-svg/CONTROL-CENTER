@@ -17,7 +17,20 @@ import '../../products/domain/product_models.dart';
 abstract class InventoryRepository {
   /// The full shop inventory with the server's OWN summary counts
   /// (`view=list` also carries freshness + source per row).
+  ///
+  /// Costs a full-catalogue payload: use it on the screens that actually RENDER
+  /// listings. A screen that only needs a number must call
+  /// [fetchInventorySummary] instead.
   Future<InventoryOverview> fetchInventoryOverview(int shopId, String token);
+
+  /// The server's summary counts and NO listings
+  /// (`GET /shops/{shopId}/inventory?view=summary`).
+  ///
+  /// The counts-only view, and the one a home/dashboard screen should use. The
+  /// response is the same size for a shop with 5 listings and one with 50,000,
+  /// so rendering a badge never costs a catalogue download. [InventorySummary.stale]
+  /// is the STALE tally the dashboard needs.
+  Future<InventorySummary> fetchInventorySummary(int shopId, String token);
 
   /// SERVER search over the shop's inventory list
   /// (`GET /shops/{shopId}/inventory?view=list&search=<query>`).
@@ -120,6 +133,30 @@ class ApiInventoryRepository implements InventoryRepository {
   }
 
   @override
+  Future<InventorySummary> fetchInventorySummary(
+      int shopId, String token) async {
+    // `view=summary` returns the counts and no items, so this is a
+    // fixed-size body no matter how large the catalogue is. Deliberately NOT
+    // served from the offline snapshot: that snapshot holds the full list, so
+    // reading it to answer a counts question would reintroduce the very
+    // download this method exists to avoid. Offline, the caller keeps whatever
+    // it last showed (see the dashboard's fail-soft alert guard).
+    final data = await _api.get(
+      ApiEndpoints.inventory('$shopId'),
+      query: const {'view': 'summary'},
+      token: token,
+    ) as Map<String, dynamic>;
+    final raw = Map<String, dynamic>.from(
+      data['summary'] as Map? ?? const <String, dynamic>{},
+    );
+    // Keep the shape tolerant: `inactive` is not a field of the record, it is
+    // read from this map by callers that need it, and a missing key must not
+    // break the whole read.
+    raw.putIfAbsent('inactive', () => 0);
+    return inventorySummaryFromJson(raw);
+  }
+
+  @override
   Future<List<ShopProductItem>> searchInventoryList(
       int shopId, String token, String query) async {
     // Same `view=list` payload shape as the overview read, narrowed by the
@@ -218,6 +255,10 @@ InventoryOverview _inventoryOverviewFromData(Map<String, dynamic> json) {
     lowStock: lowStock,
     outOfStock: outOfStock,
     totalUnits: totalUnits,
+    // This path already holds every item (it is the "no server summary"
+    // fallback), so the stale tally is free here — exactly the counting the
+    // server now does for `view=summary`.
+    stale: items.where((i) => i.isStale).length,
   );
   return InventoryOverview(items: items, summary: summary);
 }

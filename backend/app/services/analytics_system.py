@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from datetime import date as date_cls
 from datetime import datetime, time, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
@@ -232,7 +233,7 @@ def _day_bounds(day):
     return start, start + timedelta(days=1)
 
 
-def aggregate_daily(db: Session, day=None) -> dict:
+def aggregate_daily(db: Session, day: Any = None) -> dict[str, Any]:
     """(Re)build daily rollups for one UTC day. Idempotent per day.
 
     Groups raw events by (event_name, actor_type, shop, product, category)
@@ -304,7 +305,7 @@ def aggregate_range(db: Session, days: int = 30, end_day=None) -> dict:
 
 def read_aggregates(
     db: Session, *, event_name: str | None = None, limit: int = 200
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     query = (
         db.query(AnalyticsDailyAggregate)
         .order_by(
@@ -336,7 +337,7 @@ def _window_start(days: int) -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=max(int(days), 1))
 
 
-def search_trends(db: Session, days: int = 30) -> dict:
+def search_trends(db: Session, days: int = 30) -> dict[str, Any]:
     since = _window_start(days)
 
     def _count(name):
@@ -388,7 +389,7 @@ def search_trends(db: Session, days: int = 30) -> dict:
     }
 
 
-def popular_products(db: Session, days: int = 30, limit: int = 10) -> list[dict]:
+def popular_products(db: Session, days: int = 30, limit: int = 10) -> list[dict[str, Any]]:
     since = _window_start(days)
     rows = (
         db.query(
@@ -416,7 +417,7 @@ def popular_products(db: Session, days: int = 30, limit: int = 10) -> list[dict]
     ]
 
 
-def popular_categories(db: Session, days: int = 30, limit: int = 10) -> list[dict]:
+def popular_categories(db: Session, days: int = 30, limit: int = 10) -> list[dict[str, Any]]:
     since = _window_start(days)
     rows = (
         db.query(

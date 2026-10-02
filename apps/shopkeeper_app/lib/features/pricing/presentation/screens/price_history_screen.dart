@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../products/domain/product_models.dart';
@@ -89,7 +90,7 @@ class _PriceHistoryScreenState extends ConsumerState<PriceHistoryScreen> {
 
     if (_pickerMode) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Price history')),
+        appBar: AppBar(title: Text(appText(context).commonPriceHistory)),
         body: PricingAsyncBody(
           status: products.status,
           message: products.message,
@@ -115,7 +116,7 @@ class _PriceHistoryScreenState extends ConsumerState<PriceHistoryScreen> {
         actions: [
           if (widget.product == null)
             IconButton(
-              tooltip: 'Choose another product',
+              tooltip: appText(context).commonChooseAnotherProduct3,
               icon: const Icon(Icons.swap_horiz_outlined),
               onPressed: () => setState(() {
                 _selected = null;
@@ -123,7 +124,7 @@ class _PriceHistoryScreenState extends ConsumerState<PriceHistoryScreen> {
               }),
             ),
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: appText(context).commonRefresh7,
             icon: const Icon(Icons.refresh_outlined),
             onPressed: _loading ? null : _loadHistory,
           ),
@@ -190,7 +191,7 @@ class _PriceChangeList extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(appText(context).commonRetry4),
               ),
             ],
           ),
@@ -205,10 +206,10 @@ class _PriceChangeList extends StatelessWidget {
           children: [
             Icon(Icons.currency_rupee_outlined, size: 40, color: outline),
             const SizedBox(height: 12),
-            const Text('No price changes yet'),
+            Text(appText(context).commonNoPriceChangesYet),
             const SizedBox(height: 4),
             Text(
-              'Every price update for this product will be recorded here.',
+              appText(context).priceHistoryScreenEveryPriceUpdateForThis,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: outline),
             ),

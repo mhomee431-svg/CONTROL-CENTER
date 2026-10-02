@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/auth_methods.dart';
 import '../../domain/auth_models.dart';
@@ -95,11 +96,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign in'),
+        title: Text(appText(context).commonSignIn3),
         leading: IconButton(
           // Icon-only buttons carry no text, so `tooltip` supplies the
           // accessible name a screen reader announces.
-          tooltip: 'Back',
+          tooltip: appText(context).commonBack,
           icon: const Icon(Icons.arrow_back),
           onPressed: () =>
               context.canPop() ? context.pop() : context.go(Routes.welcome),
@@ -113,11 +114,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Welcome back',
+                Text(appText(context).commonWelcomeBack,
                     style: theme.textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                Text('Sign in with the phone number or email you registered.',
+                Text(appText(context).loginScreenSignInWithThePhone,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.outline)),
                 const SizedBox(height: 24),
@@ -128,8 +129,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.username],
-                  decoration: const InputDecoration(
-                    labelText: 'Phone number or email',
+                  decoration: InputDecoration(
+                    labelText: appText(context).commonPhoneNumberOrEmail,
                   ),
                   validator: _validateIdentifier,
                 ),
@@ -141,7 +142,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   obscureText: _obscure,
                   autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: appText(context).commonPassword,
                     suffixIcon: IconButton(
                       // Accessible name for the visibility toggle; it also
                       // states what the tap will do.
@@ -171,7 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           height: 18,
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Sign in'),
+                      : Text(appText(context).commonSignIn3),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
@@ -180,7 +181,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: isLoading
                         ? null
                         : () => context.push(Routes.forgotPassword),
-                    child: const Text('Forgot password?'),
+                    child: Text(appText(context).commonForgotPassword2),
                   ),
                 ),
                 if (googleEnabled || phoneEnabled) ...[
@@ -206,7 +207,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextButton(
                   onPressed:
                       isLoading ? null : () => context.push(Routes.register),
-                  child: const Text('New here? Create an account'),
+                  child: Text(appText(context).loginScreenNewHereCreateAnAccount),
                 ),
               ],
             ),

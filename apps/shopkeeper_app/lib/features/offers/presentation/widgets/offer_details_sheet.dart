@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/offer_models.dart';
 import '../controllers/offers_controller.dart';
@@ -94,7 +95,7 @@ class _OfferDetailsSheetState extends ConsumerState<OfferDetailsSheet> {
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
-                  tooltip: 'Close',
+                  tooltip: appText(context).commonClose3,
                 ),
               ],
             ),
@@ -126,32 +127,32 @@ class _OfferDetailsSheetState extends ConsumerState<OfferDetailsSheet> {
             ),
             const SizedBox(height: 16),
             _DetailRow(
-              label: 'Type',
+              label: appText(context).commonType2,
               value: offer.offerTypeLabel,
             ),
             if (window.isNotEmpty)
-              _DetailRow(label: 'Validity', value: window),
+              _DetailRow(label: appText(context).commonValidity, value: window),
             _DetailRow(
-              label: 'Linked products',
+              label: appText(context).commonLinkedProducts,
               value: offer.productCount == 1
                   ? '1 product'
                   : '${offer.productCount} products',
             ),
             _DetailRow(
-              label: 'Visibility',
+              label: appText(context).commonVisibility,
               value: offer.isVisible
                   ? 'Visible to customers'
                   : 'Hidden from customers',
             ),
             if (description.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text('Description', style: theme.textTheme.labelLarge),
+              Text(appText(context).commonDescription, style: theme.textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(description, style: theme.textTheme.bodyMedium),
             ],
             if (terms.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text('Terms & conditions', style: theme.textTheme.labelLarge),
+              Text(appText(context).commonTermsConditions2, style: theme.textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(terms, style: theme.textTheme.bodyMedium),
             ],
@@ -222,7 +223,7 @@ class _StatusActions extends StatelessWidget {
               icon: working
                   ? _spinner()
                   : const Icon(Icons.visibility_off_outlined),
-              label: const Text('Disable offer'),
+              label: Text(appText(context).commonDisableOffer),
             ),
           ),
         if (canDisable && canActivate) const SizedBox(width: 12),
@@ -233,7 +234,7 @@ class _StatusActions extends StatelessWidget {
               icon: working
                   ? _spinner()
                   : const Icon(Icons.play_circle_outline),
-              label: const Text('Activate offer'),
+              label: Text(appText(context).commonActivateOffer),
             ),
           ),
       ],

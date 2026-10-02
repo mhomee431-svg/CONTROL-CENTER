@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../profile/presentation/controllers/addresses_controller.dart';
 import '../../domain/models/location_permission_status.dart';
 import '../../domain/models/saved_address.dart';
@@ -67,7 +68,7 @@ class _LocationSettingsScreenState
       body: ListView(
         children: [
           // -- Current location --
-          const _SectionLabel('Current location'),
+          const SectionLabel('Current location'),
           _CurrentLocationCard(location: location, state: locationState),
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -110,7 +111,7 @@ class _LocationSettingsScreenState
           ),
 
           // -- Default address --
-          const _SectionLabel('Default address'),
+          const SectionLabel('Default address'),
           ListTile(
             key: const Key('locationDefaultAddressTile'),
             leading: const Icon(Icons.home_outlined),
@@ -141,7 +142,7 @@ class _LocationSettingsScreenState
           const Divider(indent: AppSpacing.md),
 
           // -- Permission status --
-          const _SectionLabel('Location permission'),
+          const SectionLabel('Location permission'),
           _PermissionTile(
             status: locationState.permissionStatus,
             onAllow: () => _requestPermission(context),
@@ -440,33 +441,6 @@ class _StatusChip extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.xs,
-      ),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
-          color: AppColors.textMuted,
         ),
       ),
     );

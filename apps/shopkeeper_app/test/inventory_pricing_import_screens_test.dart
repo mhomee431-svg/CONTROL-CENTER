@@ -628,10 +628,31 @@ void main() {
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
 
-      // End date = day 28 of the visible month (strictly after start).
+      // End date = the 1st of NEXT month, which is strictly after "today"
+      // no matter which day of the month today is.
+      //
+      // This previously tapped '28' in the CURRENT month. That only held while
+      // today was the 1st–27th: OfferValidators.period requires
+      // `end.isAfter(start)` strictly, so on the 28th (or any later day) the
+      // picked end equalled or preceded the start, validation rejected the
+      // form, and submit never fired — a test that silently failed for the
+      // last few days of every month. Scoping both taps to the calendar keeps
+      // the picker unambiguous if a screen widget ever gains a matching icon.
       await tester.tap(find.byKey(const Key('offer-end-date')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('28'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(CalendarDatePicker),
+          matching: find.byIcon(Icons.chevron_right),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(CalendarDatePicker),
+          matching: find.text('1'),
+        ),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();

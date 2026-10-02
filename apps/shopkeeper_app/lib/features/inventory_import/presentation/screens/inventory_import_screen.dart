@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -468,7 +469,7 @@ class _ErrorView extends StatelessWidget {
     final carried = SystemStateSpec.fromMessage(message);
     return SystemStateView(
       spec: carried != null
-          ? SystemStateSpec.of(carried)
+          ? SystemStateSpec.of(carried, appText(context))
           : SystemStateSpec(
               state: SystemState.genericRetry,
               title: 'Import failed',

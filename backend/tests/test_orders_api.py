@@ -75,8 +75,6 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-
 CUSTOMER = SimpleNamespace(id=1, role=SimpleNamespace(name="customer"))
 ADMIN = SimpleNamespace(id=1, role=SimpleNamespace(name="admin"))
 

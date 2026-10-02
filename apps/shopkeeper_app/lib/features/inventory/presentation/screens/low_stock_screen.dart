@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/debounced_search_field.dart';
@@ -93,14 +94,14 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
     final recents = ref.watch(recentSearchesControllerProvider).terms;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Low stock')),
+      appBar: AppBar(title: Text(appText(context).commonLowStock3)),
       floatingActionButton: state.status == ProductsStatus.ready
           ? FloatingActionButton.extended(
               heroTag: 'low-stock-refresh',
               onPressed: () =>
                   ref.read(productsControllerProvider.notifier).load(),
               icon: const Icon(Icons.refresh_outlined),
-              label: const Text('Refresh'),
+              label: Text(appText(context).commonRefresh3),
             )
           : null,
       body: ProductsAsyncBody(
@@ -128,7 +129,7 @@ class _LowStockScreenState extends ConsumerState<LowStockScreen> {
               // setState rebuilds below.
               child: DebouncedSearchField(
                 key: const Key('low-stock-search-field'),
-                hintText: 'Search name or SKU',
+                hintText: appText(context).commonSearchNameOrSKU,
                 initialValue: _query,
                 onChanged: (value) => setState(() => _query = value),
                 // A submitted term is history (shared across the catalog lists).
@@ -215,8 +216,7 @@ class _RestockBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$count item${count == 1 ? ' requires' : 's require'} '
-              'immediate restocking',
+              appText(context).lowStockScreenCountItemValueImmediateRestocking(count, count == 1 ? ' requires' : 's require'),
               style: theme.textTheme.titleSmall
                   ?.copyWith(color: AppTheme.pendingAmber),
             ),
@@ -240,15 +240,15 @@ class _WellStockedView extends StatelessWidget {
     // A search that matched nothing is different from a genuinely full shelf.
     if (query.trim().isNotEmpty) {
       return SystemStateView.empty(
-        title: 'No restock needs match your search',
+        title: appText(context).lowStockScreenNoRestockNeedsMatchYour,
         icon: Icons.search_off_outlined,
         iconColor: outline,
       );
     }
     return SystemStateView.empty(
       key: const Key('low-stock-empty'),
-      title: 'All items well stocked',
-      message: 'Nothing is at or below its low-stock threshold right now.',
+      title: appText(context).commonAllItemsWellStocked,
+      message: appText(context).lowStockScreenNothingIsAtOrBelow,
       icon: Icons.check_circle_outline,
     );
   }
@@ -318,7 +318,7 @@ class _RestockCard extends StatelessWidget {
                       Text(item.name,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       if (item.sku != null && item.sku!.isNotEmpty)
-                        Text('SKU: ${item.sku}',
+                        Text(appText(context).lowStockScreenSKUSku('${item.sku}'),
                             style: TextStyle(fontSize: 12, color: outline)),
                     ],
                   ),
@@ -329,7 +329,7 @@ class _RestockCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '${item.quantity} units left',
+                  appText(context).lowStockScreenQuantityUnitsLeft(item.quantity),
                   key: Key('low-stock-qty-${item.id}'),
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
@@ -339,7 +339,7 @@ class _RestockCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('Threshold: ${item.lowStockThreshold ?? 5} units',
+                Text(appText(context).lowStockScreenThresholdValueUnits(item.lowStockThreshold ?? 5),
                     style: TextStyle(fontSize: 12, color: outline)),
                 const Spacer(),
                 InfoChip(label: state.label, color: stockStateColor(state)),
@@ -354,7 +354,7 @@ class _RestockCard extends StatelessWidget {
                     onPressed: onUpdateStock,
                     icon:
                         const Icon(Icons.add_shopping_cart_outlined, size: 18),
-                    label: const Text('Update Stock'),
+                    label: Text(appText(context).commonUpdateStock),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -363,7 +363,7 @@ class _RestockCard extends StatelessWidget {
                     key: Key('low-stock-open-${item.id}'),
                     onPressed: onOpenProduct,
                     icon: const Icon(Icons.visibility_outlined, size: 18),
-                    label: const Text('Open Product'),
+                    label: Text(appText(context).commonOpenProduct),
                   ),
                 ),
               ],

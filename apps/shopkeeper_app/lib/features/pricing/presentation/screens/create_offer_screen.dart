@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/ui/capability_gate.dart';
 import '../../../../core/ui/numeric_input.dart';
@@ -123,9 +124,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
     if (ok) {
       ref.read(offersControllerProvider.notifier).reset();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           key: Key('create-offer-success'),
-          content: Text('Offer created and linked to your products'),
+          content: Text(appText(context).createOfferScreenOfferCreatedAndLinkedTo),
         ),
       );
       // Best-effort hand-off to the offers list. The screen must also render
@@ -147,17 +148,16 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
     final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create offer')),
+      appBar: AppBar(title: Text(appText(context).commonCreateOffer3)),
       // Capability-gated (spec 103): the backend `canCreateOffers` flag decides
       // whether the builder renders at all. Read from the ONE centralized
       // layer — no plan logic here. The backend stays authoritative
       // (`assign_offer` still enforces the `offers` entitlement server-side).
       body: CapabilityGate(
         allowed: caps.canCreateOffers,
-        title: 'Offers not available on your plan',
+        title: appText(context).createOfferScreenOffersNotAvailableOnYour,
         message:
-            'Upgrade your plan to create discount offers. Your current plan '
-            'does not include offers.',
+            appText(context).createOfferScreenUpgradeYourPlanToCreate,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -168,16 +168,16 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                 TextFormField(
                   key: const Key('offer-title-field'),
                   controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Offer title',
-                    hintText: 'e.g. Monsoon Sale',
+                  decoration: InputDecoration(
+                    labelText: appText(context).commonOfferTitle,
+                    hintText: appText(context).commonEGMonsoonSale,
                   ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<ShopkeeperOfferType>(
                   key: const Key('offer-type-dropdown'),
                   initialValue: _type,
-                  decoration: const InputDecoration(labelText: 'Offer type'),
+                  decoration: InputDecoration(labelText: appText(context).commonOfferType),
                   items: [
                     for (final t in ShopkeeperOfferType.values)
                       DropdownMenuItem(value: t, child: Text(t.label)),
@@ -210,7 +210,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                     Expanded(
                       child: _DateField(
                         key: const Key('offer-start-date'),
-                        label: 'Start date',
+                        label: appText(context).commonStartDate,
                         value: _start,
                         onTap: () => _pickDate(isStart: true),
                       ),
@@ -219,7 +219,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                     Expanded(
                       child: _DateField(
                         key: const Key('offer-end-date'),
-                        label: 'End date',
+                        label: appText(context).commonEndDate,
                         value: _end,
                         onTap: () => _pickDate(isStart: false),
                       ),
@@ -231,13 +231,13 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   key: const Key('offer-terms-field'),
                   controller: _termsController,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Terms & conditions (optional)',
+                  decoration: InputDecoration(
+                    labelText: appText(context).createOfferScreenTermsConditionsOptional,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Apply to products',
+                  appText(context).commonApplyToProducts,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 4),
@@ -314,7 +314,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Create offer'),
+                        : Text(appText(context).commonCreateOffer3),
                   ),
                 ),
               ),
@@ -401,7 +401,7 @@ class _ProductChecklist extends StatelessWidget {
                 value: selectedIds.contains(item.id),
                 title: Text(item.name, style: const TextStyle(fontSize: 14)),
                 subtitle: Text(
-                  '₹${item.price}',
+                  appText(context).createOfferScreenPrice(item.price),
                   style: const TextStyle(fontSize: 12),
                 ),
                 onChanged: (_) => onToggle(item.id),

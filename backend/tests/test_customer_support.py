@@ -77,8 +77,12 @@ class TestCustomerTaxonomy:
     CUSTOMER_CODES = CUSTOMER_CODES
 
     def test_customer_codes_match_the_client_contract(self):
-        assert set(support_service.CUSTOMER_CATEGORIES) == self.CUSTOMER_CODES
+        assert set(support_service.CUSTOMER_CATEGORIES) == set(CUSTOMER_CODES)
 
+    # `self` does not exist while the class BODY is being evaluated — it is
+    # only bound inside methods — so the decorator below must name the module
+    # global. Using `self.CUSTOMER_CODES` there raised NameError at import time
+    # and broke collection for the whole backend suite.
     @pytest.mark.parametrize("code", sorted(CUSTOMER_CODES))
     def test_every_customer_code_is_accepted(self, code):
         assert (

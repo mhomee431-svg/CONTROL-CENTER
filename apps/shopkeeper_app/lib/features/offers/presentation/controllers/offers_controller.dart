@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -49,7 +50,7 @@ class OffersController extends Notifier<OfferAssignState> {
     state = const OfferAssignState(status: OfferAssignStatus.saving);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final result = await _repo.assignOffer(shopId, request, token);
       state = OfferAssignState(status: OfferAssignStatus.done, result: result);
       return true;
@@ -81,7 +82,7 @@ class OffersController extends Notifier<OfferAssignState> {
 /// (creating an offer vs. listing them).
 String _friendlyOfferError(ApiException e, {String? forbidden}) {
   if (e.isUnauthorized || e.statusCode == 401) {
-    return 'Your session has expired. Please sign in again.';
+    return appMessageEnglish(AppMessageCode.sessionExpired);
   }
   if (e.isForbidden || e.statusCode == 403) {
     return forbidden ?? 'You do not have permission for this action.';
@@ -92,7 +93,7 @@ String _friendlyOfferError(ApiException e, {String? forbidden}) {
         : 'Your plan does not allow more active offers.';
   }
   if (e.statusCode == null) {
-    return 'No internet connection. Check your network and retry.';
+    return appMessageEnglish(AppMessageCode.noInternet);
   }
   return e.message;
 }
@@ -204,7 +205,7 @@ class OffersListController extends Notifier<OffersListState> {
     state = OffersListState.loading(filter: state.filter);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final page = await _repo.fetchOffers(shopId, token);
       state = OffersListState(
         status: OffersListStatus.ready,
@@ -254,7 +255,7 @@ class OffersListController extends Notifier<OffersListState> {
     if (shopId == null) return false;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       await _repo.updateOfferStatus(shopId, offerId, status, token);
       await load();
       return true;

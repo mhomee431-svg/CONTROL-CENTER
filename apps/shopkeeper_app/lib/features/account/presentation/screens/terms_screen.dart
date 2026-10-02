@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../support/domain/support_models.dart';
 import '../widgets/settings_widgets.dart';
 
@@ -12,76 +13,53 @@ class TermsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Terms of service')),
+      appBar: AppBar(title: Text(appText(context).commonTermsOfService2)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: const [
+          children: [
             SettingsIntro(
               icon: Icons.description_outlined,
-              title: 'Terms of use',
+              title: appText(context).commonTermsOfUse,
               subtitle: _updated,
             ),
             SizedBox(height: 24),
             LegalSection(
               heading: 'Using Passly Business',
-              body: 'The app is for owners and managers of registered shops. '
-                  'You may use it only for the shop you are authorised to '
-                  'manage, and you are responsible for keeping your sign-in '
-                  'device secure.',
+              body: appText(context).termsScreenTheAppIsForOwners,
             ),
             LegalSection(
               heading: 'Your content is your responsibility',
-              body: 'You own the products, prices, stock figures and images you '
-                  'publish. Customers rely on them, so keep them accurate and '
-                  'up to date, and make sure you have the right to sell the '
-                  'products you list.',
+              body: appText(context).termsScreenYouOwnTheProductsPrices,
             ),
             LegalSection(
               heading: 'Accurate business details',
-              body: 'Shop name, address, category, hours and verification '
-                  'documents must be truthful. Shops with misleading details, '
-                  'or documents that do not belong to the business, can be '
-                  'suspended.',
+              body: appText(context).termsScreenShopNameAddressCategoryHours,
             ),
             LegalSection(
               heading: 'Acceptable use',
-              body: 'Do not upload unlawful products, attempt to access another '
-                  'shop\'s data, scrape the platform, or use the app to send '
-                  'spam. Barcode, import and POS tools are provided so you can '
-                  'manage your own catalogue.',
+              body: appText(context).termsScreenDoNotUploadUnlawfulProducts,
             ),
             LegalSection(
               heading: 'Availability',
-              body: 'We work to keep the app and the sync services available, '
-                  'but there will be maintenance windows and outages. Offline '
-                  'work is not lost — changes are sent when the connection '
-                  'returns.',
+              body: appText(context).termsScreenWeWorkToKeepThe,
             ),
             LegalSection(
               heading: 'Subscriptions and payments',
-              body: 'Paid plans are billed through the provider shown at '
-                  'checkout, renew until cancelled, and are refundable only '
-                  'where the law or the plan terms allow. Cancelling stops '
-                  'future renewals.',
+              body: appText(context).termsScreenPaidPlansAreBilledThrough,
             ),
             LegalSection(
               heading: 'Suspension',
-              body: 'An account that breaks these terms, or that is involved in '
-                  'fraud, can be suspended or closed. If that happens you will '
-                  'see the reason the next time you open the app.',
+              body: appText(context).termsScreenAnAccountThatBreaksThese,
             ),
             LegalSection(
               heading: 'Changes to these terms',
-              body: 'These terms may be updated as the app gains features. '
-                  'Continuing to use the app after an update means you accept '
-                  'the current version.',
+              body: appText(context).termsScreenTheseTermsMayBeUpdated,
             ),
             SettingsNotice(
               icon: Icons.mail_outline,
-              title: 'Need clarification?',
-              message: 'Contact ${SupportContact.email} for any question about '
-                  'these terms.',
+              title: appText(context).commonNeedClarification,
+              message: appText(context).termsScreenContactEmailForAnyQuestion(SupportContact.email),
             ),
           ],
         ),

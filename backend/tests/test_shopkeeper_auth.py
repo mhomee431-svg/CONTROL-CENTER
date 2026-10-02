@@ -68,7 +68,26 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture(autouse=True)
+def _install_auth_db_override():
+    """Install this module's SQLite ``get_db`` override for its own tests only.
+
+    Installing it at import time leaked it into every other module: pytest
+    imports all test files during collection, so the override was already
+    active before the first test of the run executed, and modules expecting the
+    real wiring ran against this module's session factory instead. The
+    ``client`` fixture below still installs it per test — this fixture only
+    bounds its lifetime to this module.
+
+    Snapshot/restore mirrors the pattern in ``test_shopkeeper_support.py``.
+    """
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
 
 
 def create_test_tables():

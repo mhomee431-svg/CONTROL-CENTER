@@ -1,3 +1,4 @@
+import '../../../../../core/errors/app_message_code.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,7 +136,7 @@ class ProductsController extends Notifier<ProductsState> {
     state = ProductsState.loading(from: state);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final overview = await _inventoryRepo.fetchInventoryOverview(shopId, token);
       state = ProductsState(
         status: ProductsStatus.ready,
@@ -304,7 +305,7 @@ class ProductsController extends Notifier<ProductsState> {
     }
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final result = await _inventoryRepo.adjustStock(shopId, productId, {
         'adjustment_type': adjustmentType,
         'quantity_adjustment': delta,
@@ -381,7 +382,7 @@ class ProductsController extends Notifier<ProductsState> {
     }
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final history = await _inventoryRepo.fetchProductHistory(
         shopId,
         productId,
@@ -462,7 +463,7 @@ class ProductsController extends Notifier<ProductsState> {
     if (shopId == null) return null;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final updated =
           await _repo.updateProduct(shopId, productId, fields, token);
       state = ProductsState(
@@ -516,7 +517,7 @@ class ProductsController extends Notifier<ProductsState> {
     if (shopId == null) return false;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       // Payload mirrors the backend ShopkeeperProductCreate schema exactly.
       // The MANUAL barcode here becomes the master's primary identifier; the
       // scanner flow (POST /scan-barcode) stays the resolution path at scan

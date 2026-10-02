@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../controllers/holiday_controller.dart';
 import '../../domain/holiday_models.dart';
 
@@ -41,13 +42,13 @@ class _HolidaysSectionState extends ConsumerState<HolidaysSection> {
         Row(
           children: [
             Expanded(
-              child: Text('Holidays',
+              child: Text(appText(context).commonHolidays,
                   style: Theme.of(context).textTheme.titleMedium),
             ),
             if (canEdit)
               IconButton(
                 key: const Key('holidays-add'),
-                tooltip: 'Add a holiday',
+                tooltip: appText(context).commonAddAHoliday,
                 icon: const Icon(Icons.event_available_outlined),
                 onPressed: () => _pickDate(context, ref),
               ),
@@ -55,7 +56,7 @@ class _HolidaysSectionState extends ConsumerState<HolidaysSection> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Days the shop stays closed — customers are told in advance.',
+          appText(context).holidaysSectionDaysTheShopStaysClosed,
           style: TextStyle(fontSize: 12, color: scheme.outline),
         ),
         const SizedBox(height: 12),
@@ -73,7 +74,7 @@ class _HolidaysSectionState extends ConsumerState<HolidaysSection> {
                   onPressed: () =>
                       ref.read(holidaysControllerProvider.notifier).load(),
                   icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Retry'),
+                  label: Text(appText(context).commonRetry12),
                 ),
               ],
             ),
@@ -81,7 +82,7 @@ class _HolidaysSectionState extends ConsumerState<HolidaysSection> {
           HolidaysStatus.ready when state.items.isEmpty => Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'No holidays scheduled.',
+                appText(context).commonNoHolidaysScheduled,
                 style: TextStyle(fontSize: 13, color: scheme.outline),
               ),
             ),
@@ -110,7 +111,7 @@ class _HolidaysSectionState extends ConsumerState<HolidaysSection> {
           ),
         if (past.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text('Past', style: TextStyle(fontSize: 12, color: scheme.outline)),
+          Text(appText(context).commonPast, style: TextStyle(fontSize: 12, color: scheme.outline)),
           for (final holiday in past)
             _HolidayTile(
               holiday: holiday,
@@ -174,12 +175,12 @@ class _HolidayTile extends ConsumerWidget {
           ? null
           : Text(holiday.reason!, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: holiday.isRecurringYearly
-          ? Text('Every year',
+          ? Text(appText(context).commonEveryYear,
               style: TextStyle(fontSize: 11, color: scheme.outline))
           : (canEdit
               ? IconButton(
                   key: Key('holiday-delete-${holiday.id}'),
-                  tooltip: 'Remove holiday',
+                  tooltip: appText(context).commonRemoveHoliday,
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed: () => ref
                       .read(holidaysControllerProvider.notifier)
@@ -243,22 +244,22 @@ class _AddHolidaySheetState extends ConsumerState<_AddHolidaySheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Add holiday — $label',
+            Text(appText(context).holidaysSectionAddHolidayLabel(label),
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             TextField(
               key: const Key('holiday-reason-field'),
               controller: _reason,
               maxLength: 255,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
-                hintText: 'Diwali, Staff training…',
+              decoration: InputDecoration(
+                labelText: appText(context).commonReasonOptional,
+                hintText: appText(context).holidaysSectionDiwaliStaffTraining,
               ),
             ),
             SwitchListTile(
               key: const Key('holiday-recurring-switch'),
               contentPadding: EdgeInsets.zero,
-              title: const Text('Repeats every year'),
+              title: Text(appText(context).commonRepeatsEveryYear),
               value: _recurring,
               onChanged: (v) => setState(() => _recurring = v),
             ),
@@ -281,7 +282,7 @@ class _AddHolidaySheetState extends ConsumerState<_AddHolidaySheet> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.event_available),
-                label: const Text('Add holiday'),
+                label: Text(appText(context).commonAddHoliday),
               ),
             ),
           ],

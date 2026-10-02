@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, NotFoundError
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.user import User
@@ -41,8 +41,31 @@ def _resolve(shop_id: int, current_user: User, db: Session):
 
 def _owned_integration(integration_id: int, current_user: User, db: Session):
     """Load an integration and prove the caller belongs to its shop."""
-    integration = pos_sync_service._require_integration(db, integration_id)
+    integration = pos_sync_service._require_integration(db, integration_id)  # pyright: ignore[reportPrivateUsage]
     _resolve(integration.shop_id, current_user, db)
+    return integration
+
+
+def _resolve_with_plan(shop_id: int, current_user: User, db: Session):
+    """Association check PLUS the POS plan entitlement (``pos_support``).
+
+    Grandfathered shops (never subscribed) keep legacy behaviour; a Basic /
+    canceled / expired plan gets 403 ENTITLEMENT_DENIED whose server message
+    tells the shopkeeper to upgrade. Read-only routes keep [_resolve] so a
+    lapsed shop can still inspect — and, via ``disconnect``, always stop — a
+    connector it already has.
+    """
+    access = _resolve(shop_id, current_user, db)
+    shopkeeper_service.enforce_pos_support(db, access.shop.id)
+    return access
+
+
+def _owned_integration_with_plan(
+    integration_id: int, current_user: User, db: Session
+):
+    """[_owned_integration] + the POS plan gate, for state-changing routes."""
+    integration = pos_sync_service._require_integration(db, integration_id)  # pyright: ignore[reportPrivateUsage]
+    _resolve_with_plan(integration.shop_id, current_user, db)
     return integration
 
 
@@ -60,7 +83,8 @@ async def register_pos_integration(
     db: Session = Depends(get_db),
 ):
     try:
-        _resolve(payload.shop_id, current_user, db)
+        # Registering the connector IS the paid capability — gate it.
+        _resolve_with_plan(payload.shop_id, current_user, db)
         integration = pos_sync_service.register_integration(
             db,
             shop_id=payload.shop_id,
@@ -121,7 +145,7 @@ async def update_pos_credentials(
     db: Session = Depends(get_db),
 ):
     try:
-        _owned_integration(integration_id, current_user, db)
+        _owned_integration_with_plan(integration_id, current_user, db)
         integration = pos_sync_service.update_credentials(
             db, integration_id,
             api_key=payload.api_key, api_secret=payload.api_secret, api_base_url=payload.api_base_url,
@@ -142,7 +166,7 @@ async def update_pos_config(
     db: Session = Depends(get_db),
 ):
     try:
-        _owned_integration(integration_id, current_user, db)
+        _owned_integration_with_plan(integration_id, current_user, db)
         integration = pos_sync_service.update_sync_config(db, integration_id, payload.config)
         result = pos_sync_service.integration_payload(db, integration)
         db.commit()
@@ -160,7 +184,7 @@ async def update_pos_schedule(
     db: Session = Depends(get_db),
 ):
     try:
-        _owned_integration(integration_id, current_user, db)
+        _owned_integration_with_plan(integration_id, current_user, db)
         integration = pos_sync_service.update_schedule(
             db, integration_id,
             sync_interval_minutes=payload.sync_interval_minutes, sync_enabled=payload.sync_enabled,
@@ -181,7 +205,7 @@ async def connect_pos(
     db: Session = Depends(get_db),
 ):
     try:
-        _owned_integration(integration_id, current_user, db)
+        _owned_integration_with_plan(integration_id, current_user, db)
         result = pos_sync_service.connect_integration(db, integration_id)
         db.commit()
     except AppError as exc:
@@ -197,6 +221,9 @@ async def disconnect_pos(
     db: Session = Depends(get_db),
 ):
     try:
+        # Deliberately NOT plan-gated: a shop whose plan lapsed must always be
+        # able to stop its connector (otherwise a downgrade would leave an
+        # integration the merchant cannot switch off).
         _owned_integration(integration_id, current_user, db)
         integration = pos_sync_service.disconnect_integration(db, integration_id)
         result = pos_sync_service.integration_payload(db, integration)
@@ -214,7 +241,7 @@ async def reconnect_pos(
     db: Session = Depends(get_db),
 ):
     try:
-        _owned_integration(integration_id, current_user, db)
+        _owned_integration_with_plan(integration_id, current_user, db)
         result = pos_sync_service.reconnect_integration(db, integration_id)
         db.commit()
     except AppError as exc:
@@ -232,7 +259,7 @@ async def register_pos_device(
     db: Session = Depends(get_db),
 ):
     try:
-        integration = _owned_integration(integration_id, current_user, db)
+        integration = _owned_integration_with_plan(integration_id, current_user, db)
         device = pos_sync_service.register_device(
             db,
             shop_id=integration.shop_id,
@@ -289,7 +316,7 @@ async def trigger_pos_sync(
     db: Session = Depends(get_db),
 ):
     try:
-        integration = _owned_integration(integration_id, current_user, db)
+        integration = _owned_integration_with_plan(integration_id, current_user, db)
         job, created = pos_sync_service.trigger_manual_sync(
             db,
             integration.id,
@@ -345,7 +372,9 @@ async def get_pos_job(
     db: Session = Depends(get_db),
 ):
     try:
-        job = pos_sync_service._require_job(db, job_id)
+        job = pos_sync_service._require_job(db, job_id)  # pyright: ignore[reportPrivateUsage]
+        if job.integration_id is None:
+            raise NotFoundError("POS sync job is not linked to a POS integration")
         _owned_integration(job.integration_id, current_user, db)
     except AppError as exc:
         return _app_error(exc)
@@ -359,8 +388,10 @@ async def retry_pos_job(
     db: Session = Depends(get_db),
 ):
     try:
-        job = pos_sync_service._require_job(db, job_id)
-        _owned_integration(job.integration_id, current_user, db)
+        job = pos_sync_service._require_job(db, job_id)  # pyright: ignore[reportPrivateUsage]
+        if job.integration_id is None:
+            raise NotFoundError("POS sync job is not linked to a POS integration")
+        _owned_integration_with_plan(job.integration_id, current_user, db)
         result = pos_sync_service.retry_failed_job(db, job_id, user_id=current_user.id)
         db.commit()
     except AppError as exc:

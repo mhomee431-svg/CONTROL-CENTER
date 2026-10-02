@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/ui/app_section_header.dart';
 import '../../../../core/ui/numeric_input.dart';
@@ -164,14 +165,14 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Your Shopkeeper Profile'),
+        title: Text(appText(context).createProfileScreenCreateYourShopkeeperProfile),
         automaticallyImplyLeading: false,
         actions: [
           TextButton(
             onPressed: _submitting
                 ? null
                 : () => ref.read(authControllerProvider.notifier).logout(),
-            child: const Text('Sign out'),
+            child: Text(appText(context).commonSignOut3),
           ),
         ],
       ),
@@ -189,12 +190,12 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         horizontal: isWide ? 32 : 20,                        vertical: 20,
                       ),
                       children: [
-                        Text('Welcome to HyperLocal!',
+                        Text(appText(context).commonWelcomeToHyperLocal,
                             style: theme.textTheme.headlineSmall
                                 ?.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 6),
                         Text(
-                            'Set up your shop to start managing products and inventory.',
+                            appText(context).createProfileScreenSetUpYourShopTo,
                             style: theme.textTheme.bodyMedium
                                 ?.copyWith(color: theme.colorScheme.outline)),
                         const SizedBox(height: 28),
@@ -204,8 +205,8 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         TextFormField(
                           controller: _fullName,
                           textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(
-                            labelText: 'Full Name',
+                          decoration: InputDecoration(
+                            labelText: appText(context).commonFullName,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.person_outline),
                           ),
@@ -217,9 +218,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         TextFormField(
                           controller: _email,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            hintText: 'you@example.com',
+                          decoration: InputDecoration(
+                            labelText: appText(context).commonEmail,
+                            hintText: appText(context).createProfileScreenYouExampleCom,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
@@ -236,9 +237,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           keyboardType: TextInputType.phone,
                           inputFormatters: NumericInput.phone(),
                           textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Contact Number (optional)',
-                            hintText: '99999 99999',
+                          decoration: InputDecoration(
+                            labelText: appText(context).createProfileScreenContactNumberOptional,
+                            hintText: appText(context).common9999999999,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.phone_outlined),
                           ),
@@ -250,9 +251,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         TextFormField(
                           controller: _shopName,
                           textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(
-                            labelText: 'Shop / Business Name',
-                            hintText: 'e.g. Kirana Corner',
+                          decoration: InputDecoration(
+                            labelText: appText(context).commonShopBusinessName,
+                            hintText: appText(context).commonEGKiranaCorner,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.storefront_outlined),
                           ),
@@ -267,12 +268,12 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           // "Personal Transport / Personal Travel") from
                           // overflowing the field's right edge.
                           isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Business Category',
+                          decoration: InputDecoration(
+                            labelText: appText(context).commonBusinessCategory,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.category_outlined),
                           ),
-                          hint: const Text('Select a category'),
+                          hint: Text(appText(context).commonSelectACategory),
                           items: [
                             for (final (code, label) in _categories)
                               DropdownMenuItem(value: code, child: Text(label)),
@@ -285,12 +286,12 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         DropdownButtonFormField<String>(
                           initialValue: _businessType,
                           isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Business Type',
+                          decoration: InputDecoration(
+                            labelText: appText(context).commonBusinessType,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.business_outlined),
                           ),
-                          hint: const Text('Select a type'),
+                          hint: Text(appText(context).commonSelectAType),
                           items: [
                             for (final t in _businessTypes)
                               DropdownMenuItem(value: t, child: Text(t)),
@@ -304,9 +305,9 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           controller: _tagline,
                           textCapitalization: TextCapitalization.sentences,
                           maxLength: 120,
-                          decoration: const InputDecoration(
-                            labelText: 'Tagline (optional)',
-                            hintText: 'A short description of your shop',
+                          decoration: InputDecoration(
+                            labelText: appText(context).commonTaglineOptional,
+                            hintText: appText(context).createProfileScreenAShortDescriptionOfYour,
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.tag_outlined),
                           ),
@@ -344,7 +345,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                     minimumSize: const Size.fromHeight(50),
                   ),
                   child: _submitting
-                      ? const Row(
+                      ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -355,11 +356,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                                   CircularProgressIndicator(strokeWidth: 2),
                             ),
                             SizedBox(width: 12),
-                            Text('Creating Profile...',
+                            Text(appText(context).commonCreatingProfile,
                                 style: TextStyle(fontSize: 16)),
                           ],
                         )
-                      : const Text('Create Profile',
+                      : Text(appText(context).commonCreateProfile,
                           style: TextStyle(fontSize: 16)),
                 ),
               ),

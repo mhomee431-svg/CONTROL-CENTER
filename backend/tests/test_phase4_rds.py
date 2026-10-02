@@ -38,7 +38,7 @@ def _migration_tables():
 def _verifier_tables():
     src = _source(VERIFIER)
     # Extract the string literals inside EXPECTED_TABLES = { ... } block.
-    block = re.search(r"EXPECTED_TABLES.*?=\s*\{(.*?)\n\}", src, re.S)
+    block = re.search(r"EXPECTED_TABLES.*?=\s*\{(.*?)\n\}", src, re.DOTALL)
     assert block, "EXPECTED_TABLES set not found in verify_rds.py"
     return set(re.findall(r'"([\w_]+)"', block.group(1)))
 
@@ -47,8 +47,8 @@ def test_migration_chain_is_linear_with_single_head():
     revisions = {}
     for f in _migration_files():
         src = _source(f)
-        m = re.search(r"^revision:.*?= [\"']([^\"']+)[\"']", src, re.M)
-        d = re.search(r"^down_revision:.*?=\s*([\"']([^\"']+)[\"']|None)", src, re.M)
+        m = re.search(r"^revision:.*?= [\"']([^\"']+)[\"']", src, re.MULTILINE)
+        d = re.search(r"^down_revision:.*?=\s*([\"']([^\"']+)[\"']|None)", src, re.MULTILINE)
         assert m, f"No revision id in {f.name}"
         rev = m.group(1)
         down = None if d is None or d.group(1) == "None" else d.group(2)

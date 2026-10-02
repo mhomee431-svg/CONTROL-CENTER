@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_info.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../support/domain/support_models.dart';
 import '../widgets/settings_widgets.dart';
@@ -14,7 +15,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('About')),
+      appBar: AppBar(title: Text(appText(context).commonAbout)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -50,73 +51,73 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
             SettingsSection(
-              title: 'Version',
+              title: appText(context).commonVersion,
               footnote: 'Update the app from the store to get the latest fixes.',
               children: [
                 SettingsTile(
                   icon: Icons.numbers_outlined,
-                  title: 'App version',
+                  title: appText(context).commonAppVersion,
                   subtitle: AppInfo.versionLabel,
                 ),
-                const SettingsTile(
+                SettingsTile(
                   icon: Icons.storefront_outlined,
-                  title: 'Product',
-                  subtitle: 'Passly Business, for shopkeepers',
+                  title: appText(context).commonProduct,
+                  subtitle: appText(context).aboutScreenPasslyBusinessForShopkeepers,
                 ),
               ],
             ),
             SettingsSection(
-              title: 'What you can do here',
-              children: const [
+              title: appText(context).commonWhatYouCanDoHere,
+              children: [
                 SettingsTile(
                   icon: Icons.inventory_2_outlined,
-                  title: 'Catalogue and inventory',
-                  subtitle: 'Products, barcode scanning, stock and freshness',
+                  title: appText(context).commonCatalogueAndInventory,
+                  subtitle: appText(context).aboutScreenProductsBarcodeScanningStockAnd,
                 ),
                 SettingsTile(
                   icon: Icons.local_offer_outlined,
-                  title: 'Offers and pricing',
-                  subtitle: 'Price lists, discounts and price history',
+                  title: appText(context).commonOffersAndPricing,
+                  subtitle: appText(context).aboutScreenPriceListsDiscountsAndPrice,
                 ),
                 SettingsTile(
                   icon: Icons.upload_file_outlined,
-                  title: 'Excel imports',
-                  subtitle: 'Import a whole catalogue with a preview first',
+                  title: appText(context).commonExcelImports,
+                  subtitle: appText(context).aboutScreenImportAWholeCatalogueWith,
                 ),
                 SettingsTile(
                   icon: Icons.point_of_sale_outlined,
-                  title: 'POS sync',
-                  subtitle: 'Connect your billing software and pull bill items',
+                  title: appText(context).commonPOSSync,
+                  subtitle: appText(context).aboutScreenConnectYourBillingSoftwareAnd,
                 ),
                 SettingsTile(
                   icon: Icons.insights_outlined,
-                  title: 'Reports and insights',
-                  subtitle: 'Views, clicks and what customers searched for',
+                  title: appText(context).commonReportsAndInsights,
+                  subtitle: appText(context).aboutScreenViewsClicksAndWhatCustomers,
                 ),
               ],
             ),
             SettingsSection(
-              title: 'More',
+              title: appText(context).commonMore,
               children: [
                 SettingsTile(
                   icon: Icons.help_outline,
-                  title: 'Help centre',
+                  title: appText(context).commonHelpCentre,
                   onTap: () => context.push(Routes.faq),
                 ),
                 SettingsTile(
                   icon: Icons.chat_outlined,
-                  title: 'Contact support',
+                  title: appText(context).commonContactSupport,
                   subtitle: SupportContact.email,
                   onTap: () => context.push(Routes.contactSupport),
                 ),
                 SettingsTile(
                   icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy policy',
+                  title: appText(context).commonPrivacyPolicy,
                   onTap: () => context.push(Routes.privacy),
                 ),
                 SettingsTile(
                   icon: Icons.description_outlined,
-                  title: 'Terms of service',
+                  title: appText(context).commonTermsOfService,
                   onTap: () => context.push(Routes.terms),
                 ),
               ],
@@ -124,7 +125,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                '${AppInfo.versionLabel} - Passly',
+                appText(context).aboutScreenVersionLabelPassly(AppInfo.versionLabel),
                 style: TextStyle(fontSize: 12, color: scheme.outline),
               ),
             ),

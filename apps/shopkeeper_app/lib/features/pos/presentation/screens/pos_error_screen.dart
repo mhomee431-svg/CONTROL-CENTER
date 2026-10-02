@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/pos_models.dart';
@@ -45,7 +46,7 @@ class _PosErrorScreenState extends ConsumerState<PosErrorScreen> {
             : 'Something went wrong with the POS integration');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('POS problem')),
+      appBar: AppBar(title: Text(appText(context).commonPOSProblem)),
       body: SafeArea(
         child: hub.status == PosStatus.loading
             ? const Center(child: CircularProgressIndicator())
@@ -134,7 +135,7 @@ class _ErrorBody extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           if (connector != null && status != null) ...[
-            Text('Connector', style: Theme.of(context).textTheme.titleSmall),
+            Text(appText(context).commonConnector, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Card(
               margin: EdgeInsets.zero,
@@ -164,7 +165,7 @@ class _ErrorBody extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
           ],
-          Text('What you can do', style: Theme.of(context).textTheme.titleSmall),
+          Text(appText(context).commonWhatYouCanDo, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Card(
             margin: EdgeInsets.zero,
@@ -174,9 +175,9 @@ class _ErrorBody extends ConsumerWidget {
                 ListTile(
                   key: const Key('pos-error-retry'),
                   leading: const Icon(Icons.refresh_outlined),
-                  title: const Text('Check the connection again'),
-                  subtitle: const Text(
-                    'Re-read the connector and its sync jobs from the server.',
+                  title: Text(appText(context).posErrorScreenCheckTheConnectionAgain),
+                  subtitle: Text(
+                    appText(context).posErrorScreenReReadTheConnectorAnd,
                     style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right),
@@ -204,9 +205,9 @@ class _ErrorBody extends ConsumerWidget {
                 ListTile(
                   key: const Key('pos-error-history'),
                   leading: const Icon(Icons.history_outlined),
-                  title: const Text('Check the sync history'),
-                  subtitle: const Text(
-                    'See whether an earlier job succeeded and what failed.',
+                  title: Text(appText(context).commonCheckTheSyncHistory),
+                  subtitle: Text(
+                    appText(context).posErrorScreenSeeWhetherAnEarlierJob,
                     style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right),
@@ -216,9 +217,9 @@ class _ErrorBody extends ConsumerWidget {
                 ListTile(
                   key: const Key('pos-error-back'),
                   leading: const Icon(Icons.point_of_sale_outlined),
-                  title: const Text('Back to the integration'),
-                  subtitle: const Text(
-                    'Leave this screen and return to the POS hub.',
+                  title: Text(appText(context).commonBackToTheIntegration),
+                  subtitle: Text(
+                    appText(context).posErrorScreenLeaveThisScreenAndReturn,
                     style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right),

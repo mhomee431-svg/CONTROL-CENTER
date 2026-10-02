@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -70,8 +71,8 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select at least one product for the offer'),
+        SnackBar(
+          content: Text(appText(context).offerCreateSheetSelectAtLeastOneProduct),
         ),
       );
       return;
@@ -112,7 +113,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Offer created for ${result?.productCount ?? _selectedIds.length} product(s)',
+            appText(context).offerCreateSheetOfferCreatedForLengthProduct(result?.productCount ?? _selectedIds.length),
           ),
         ),
       );
@@ -152,13 +153,13 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    'Create offer',
+                    appText(context).commonCreateOffer2,
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
                 IconButton(
                   // Accessible name for the icon-only dismiss control.
-                  tooltip: 'Close',
+                  tooltip: appText(context).commonClose2,
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -169,9 +170,9 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
               controller: _title,
               textCapitalization: TextCapitalization.sentences,
               maxLength: 255,
-              decoration: const InputDecoration(
-                labelText: 'Offer title *',
-                hintText: 'e.g. Diwali 10% off',
+              decoration: InputDecoration(
+                labelText: appText(context).offerCreateSheetOfferTitle,
+                hintText: appText(context).offerCreateSheetEGDiwali10Off,
                 counterText: '',
               ),
               validator: OfferValidators.title,
@@ -179,7 +180,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<ShopkeeperOfferType>(
               initialValue: _type,
-              decoration: const InputDecoration(labelText: 'Offer type *'),
+              decoration: InputDecoration(labelText: appText(context).offerCreateSheetOfferType),
               items: [
                 for (final t in ShopkeeperOfferType.values)
                   DropdownMenuItem(value: t, child: Text(t.label)),
@@ -195,8 +196,8 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 ),
                 inputFormatters: NumericInput.decimal(),
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Discount % *',
+                decoration: InputDecoration(
+                  labelText: appText(context).offerCreateSheetDiscount,
                   suffixText: '%',
                 ),
                 validator: (v) =>
@@ -210,8 +211,8 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 ),
                 inputFormatters: NumericInput.decimal(),
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Discount ₹ *',
+                decoration: InputDecoration(
+                  labelText: appText(context).offerCreateSheetDiscount2,
                   prefixText: '₹ ',
                 ),
                 validator: (v) =>
@@ -225,10 +226,10 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 ),
                 inputFormatters: NumericInput.decimal(),
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Promotional price *',
+                decoration: InputDecoration(
+                  labelText: appText(context).offerCreateSheetPromotionalPrice,
                   prefixText: '₹ ',
-                  helperText: 'Fixed sale price customers pay',
+                  helperText: appText(context).offerCreateSheetFixedSalePriceCustomersPay,
                 ),
                 validator: (v) => OfferValidators.discount(
                     _type, _percentage.text, _flatValue.text, v),
@@ -238,7 +239,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
               children: [
                 Expanded(
                   child: _DateField(
-                    label: 'Start date *',
+                    label: appText(context).offerCreateSheetStartDate,
                     value: _start,
                     onTap: () => _pickDate(isStart: true),
                   ),
@@ -246,7 +247,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _DateField(
-                    label: 'End date *',
+                    label: appText(context).offerCreateSheetEndDate,
                     value: _end,
                     onTap: () => _pickDate(isStart: false),
                   ),
@@ -260,9 +261,9 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
               dense: true,
               value: _saveAsDraft,
               onChanged: (v) => setState(() => _saveAsDraft = v),
-              title: const Text('Save as draft'),
-              subtitle: const Text(
-                  'Kept off customer listings until you activate it'),
+              title: Text(appText(context).commonSaveAsDraft),
+              subtitle: Text(
+                  appText(context).offerCreateSheetKeptOffCustomerListingsUntil),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -271,15 +272,15 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
               maxLength: 300,
               minLines: 1,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Terms & conditions (optional)',
-                hintText: 'e.g. Valid on in-store purchases only',
+              decoration: InputDecoration(
+                labelText: appText(context).offerCreateSheetTermsConditionsOptional,
+                hintText: appText(context).offerCreateSheetEGValidOnIn,
                 counterText: '',
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Applies to (${_selectedIds.length} selected)',
+              appText(context).offerCreateSheetAppliesToLengthSelected(_selectedIds.length),
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
@@ -287,7 +288,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'No products in inventory yet — add products first.',
+                  appText(context).offerCreateSheetNoProductsInInventoryYet,
                   style: TextStyle(color: theme.colorScheme.outline),
                 ),
               )
@@ -318,7 +319,7 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.local_offer_outlined),
-              label: const Text('Create offer'),
+              label: Text(appText(context).commonCreateOffer2),
             ),
           ],
         ),
@@ -384,7 +385,7 @@ class _ProductCheckTile extends StatelessWidget {
       controlAffinity: ListTileControlAffinity.leading,
       title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '₹${item.price.toStringAsFixed(0)} · qty ${item.quantity}',
+        appText(context).offerCreateSheetValueQtyQuantity(item.price.toStringAsFixed(0), item.quantity),
         style: const TextStyle(fontSize: 12),
       ),
       onChanged: (_) => onToggle(item.id),

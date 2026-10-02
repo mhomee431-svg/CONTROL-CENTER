@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../controllers/auth_controller.dart';
 
 /// Account-status gate (Phase 23) — shown when the backend reports the
@@ -64,8 +65,7 @@ class AccountStatusScreen extends ConsumerWidget {
                           color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 8),
                   Text(
-                    'If you believe this is a mistake, reach out to the '
-                    'Hyperlocal support team to reactivate your account.',
+                    appText(context).accountStatusScreenIfYouBelieveThisIs,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12, color: theme.colorScheme.outline),
@@ -75,7 +75,7 @@ class AccountStatusScreen extends ConsumerWidget {
                     onPressed: () =>
                         ref.read(authControllerProvider.notifier).logout(),
                     icon: const Icon(Icons.logout),
-                    label: const Text('Sign out'),
+                    label: Text(appText(context).commonSignOut2),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       backgroundColor: scheme.error,

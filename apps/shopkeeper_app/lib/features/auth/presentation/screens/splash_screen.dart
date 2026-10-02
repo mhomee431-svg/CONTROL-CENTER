@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -65,7 +66,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                           color: AppColors.white, size: 36),
                     ),
                     const SizedBox(height: 16),
-                    Text('Hyperlocal Shopkeeper',
+                    Text(appText(context).commonHyperlocalShopkeeper,
                         style: theme.textTheme.titleLarge),
                   ],
                 ),
@@ -77,15 +78,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 // startup check; "Sign in instead" abandons it WITHOUT wiping
                 // the stored session.
                 SystemStateView(
-                  spec: SystemStateSpec.resolve(
+                  spec: SystemStateSpec.resolve(
+                    text: appText(context),
                     state: auth.systemState,
-                    title: 'Could not complete startup',
+                    title: appText(context).splashScreenCouldNotCompleteStartup,
                     message: (auth.errorMessage?.isNotEmpty ?? false)
                         ? auth.errorMessage
                         : null,
                     fallbackMessage:
-                        'Could not complete startup. Check your connection '
-                        'and retry.',
+                        appText(context).splashScreenCouldNotCompleteStartupCheck,
                   ),
                   onRetry: () => ref
                       .read(authControllerProvider.notifier)
@@ -94,7 +95,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     onPressed: () => ref
                         .read(authControllerProvider.notifier)
                         .skipStartupRetry(),
-                    child: const Text('Sign in instead'),
+                    child: Text(appText(context).commonSignInInstead),
                   ),
                 )
               else

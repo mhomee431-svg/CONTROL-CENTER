@@ -1392,3 +1392,114 @@ class TestStockAdjustmentHistory:
         db = InventoryMockDB()
         with pytest.raises(NotFoundError):
             svc.list_stock_adjustments(owner_access(), db, 162)
+
+
+# ── Counts-only summary view (view=summary) ──────────────────────────────
+#
+# The shopkeeper HOME screen needs a single number — how many listings are
+# STALE — and used to get it from inventory_overview, which ships EVERY
+# listing in the shop. `view=summary` answers it with a body whose size does
+# not depend on the catalogue, so these tests pin BOTH halves of that promise:
+# no rows, and counts identical to the full view.
+
+
+def _summary_catalog():
+    """Two listings for one shop: one STALE, one with no freshness tier.
+
+    Returns ``(db, shop_products, inventories)``. Both shop_products and
+    inventories are registered with the mock, because the summary view reads
+    them through two separate `query(...).all()` calls.
+    """
+    from app.models.product import FreshnessStatus, Inventory, ShopProduct
+
+    fresh = make_shop_product(sp_id=101, quantity=0, price=30.0)
+    stale = make_shop_product(sp_id=102, quantity=0, price=40.0)
+    for sp, tier in ((fresh, None), (stale, FreshnessStatus.STALE)):
+        sp.inventory.shop_product_id = sp.id
+        sp.inventory.freshness_status = tier
+
+    db = InventoryMockDB()
+    db.set_all(ShopProduct, [fresh, stale])
+    db.set_all(Inventory, [fresh.inventory, stale.inventory])
+    return db, [fresh, stale], [fresh.inventory, stale.inventory]
+
+
+class TestInventorySummaryView:
+    """`inventory_summary` — the counts-only view behind `view=summary`."""
+
+    def test_returns_counts_and_never_any_items(self):
+        from app.services import shopkeeper_service as svc
+
+        db, _, _ = _summary_catalog()
+        result = svc.inventory_summary(owner_access(), db)
+
+        # The whole point of the view: a home screen renders its badges
+        # without the catalogue travelling to the device.
+        assert "items" not in result
+        assert isinstance(result["summary"], dict)
+
+    def test_counts_the_stale_tier(self):
+        from app.services import shopkeeper_service as svc
+
+        db, _, _ = _summary_catalog()
+        summary = svc.inventory_summary(owner_access(), db)["summary"]
+
+        assert summary["total"] == 2
+        assert summary["stale"] == 1
+        assert summary["out_of_stock"] == 2
+
+    def test_counts_match_the_full_overview_view(self):
+        """Two views of one catalogue must never disagree.
+
+        The dashboard reads `stale` from the summary and the rest of the
+        numbers from the overview, so a divergence would put a badge next to a
+        number that contradicts it.
+        """
+        from app.models.product import Inventory, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        db, products, inventories = _summary_catalog()
+        # The overview path resolves one Inventory PER LISTING via `.first()`;
+        # the summary path resolves them in a single batched query. Both are
+        # fed the same rows so the comparison is about the two code paths, not
+        # about the fixtures.
+        db.queue_first(Inventory, list(inventories))
+
+        summary = svc.inventory_summary(owner_access(), db)["summary"]
+        overview = svc.inventory_overview(owner_access(), db)["summary"]
+
+        # Every NUMBER must agree. The two views deliberately differ in ONE
+        # place: the summary reports the restock queue as a size
+        # (`needs_attention_count`) where the overview ships up to ten rows
+        # (`needs_attention`), because a badge never renders them.
+        attention_keys = {"needs_attention", "needs_attention_count"}
+        assert {k: v for k, v in summary.items() if k not in attention_keys} == {
+            k: v for k, v in overview.items() if k not in attention_keys
+        }
+        assert summary["needs_attention_count"] == len(overview["needs_attention"])
+        assert summary["stale"] == 1
+
+    def test_needs_attention_is_a_count_not_a_row_list(self):
+        """Counts-only ships the SIZE of the restock queue, never the rows."""
+        from app.services import shopkeeper_service as svc
+
+        db, _, _ = _summary_catalog()
+        summary = svc.inventory_summary(owner_access(), db)["summary"]
+
+        assert "needs_attention" not in summary
+        assert summary["needs_attention_count"] == 2
+
+    def test_empty_shop_is_all_zeroes(self):
+        """A brand-new shop still gets a complete, renderable payload."""
+        from app.models.product import Inventory, ShopProduct
+        from app.services import shopkeeper_service as svc
+
+        db = InventoryMockDB()
+        db.set_all(ShopProduct, [])
+        db.set_all(Inventory, [])
+
+        summary = svc.inventory_summary(owner_access(), db)["summary"]
+
+        assert summary["total"] == 0
+        assert summary["stale"] == 0
+        assert summary["inactive"] == 0

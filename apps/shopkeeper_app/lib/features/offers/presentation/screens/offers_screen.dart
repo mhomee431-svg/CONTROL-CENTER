@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -88,11 +89,11 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Offers & pricing'),
+        title: Text(appText(context).commonOffersPricing),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Create offer',
+            tooltip: appText(context).commonCreateOffer,
             onPressed: _openCreateSheet,
           ),
         ],
@@ -107,14 +108,14 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: FilterChipBar<OfferFilter>(
-                options: const [
-                  FilterChoice(value: OfferFilter.active, label: 'Active'),
+                options: [
+                  FilterChoice(value: OfferFilter.active, label: appText(context).commonActive),
                   FilterChoice(
                     value: OfferFilter.scheduled,
-                    label: 'Scheduled',
+                    label: appText(context).commonScheduled,
                   ),
-                  FilterChoice(value: OfferFilter.expired, label: 'Expired'),
-                  FilterChoice(value: OfferFilter.disabled, label: 'Disabled'),
+                  FilterChoice(value: OfferFilter.expired, label: appText(context).commonExpired),
+                  FilterChoice(value: OfferFilter.disabled, label: appText(context).commonDisabled),
                 ],
                 selected: state.filter,
                 onSelected: (value) => ref
@@ -174,15 +175,16 @@ class _OffersTab extends ConsumerWidget {
       // No shop / empty list are EMPTY states: the feature owns the wording and
       // the call to action, the shared view owns the layout.
       OffersListStatus.noShop => SystemStateView.empty(
-          title: 'No shop selected',
-          message: 'Choose a shop to see its offers.',
+          title: appText(context).commonNoShopSelected3,
+          message: appText(context).offersScreenChooseAShopToSee,
           icon: Icons.storefront_outlined,
         ),
       OffersListStatus.error => SystemStateView(
-          spec: SystemStateSpec.resolve(
+          spec: SystemStateSpec.resolve(
+            text: appText(context),
             state: SystemState.genericRetry,
             title: state.message ?? 'Could not load offers.',
-            message: 'Check your connection and try again.',
+            message: appText(context).offersScreenCheckYourConnectionAndTry,
           ),
           onRetry: () => ref.read(offersListControllerProvider.notifier).load(),
         ),
@@ -210,7 +212,7 @@ class _OffersTab extends ConsumerWidget {
                   ? FilledButton.icon(
                       onPressed: onCreate,
                       icon: const Icon(Icons.add),
-                      label: const Text('Create offer'),
+                      label: Text(appText(context).commonCreateOffer),
                     )
                   : null,
             ),

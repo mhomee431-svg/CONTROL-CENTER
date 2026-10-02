@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -56,7 +57,7 @@ class DashboardController extends Notifier<DashboardState> {
     state = DashboardState.loading();
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final data = await _repo.fetchDashboard(shop.id, token);
       final alerts = await _loadAlerts(shop.id, token, data);
       // Publish the backend-driven flags to the ONE centralized layer so
@@ -113,12 +114,15 @@ class DashboardController extends Notifier<DashboardState> {
       return ref.read(notificationsControllerProvider).unreadCount;
     });
     final stale = await _guard(() async {
-      final overview =
-          await ref.read(inventoryRepositoryProvider).fetchInventoryOverview(
-                shopId,
-                token,
-              );
-      return overview.items.where((item) => item.isStale).length;
+      // COUNTS ONLY (`view=summary`). This used to call
+      // fetchInventoryOverview, which returns EVERY listing in the shop —
+      // a full-catalogue download on the first screen after login, purely to
+      // count how many rows are stale. The server already owns that count, so
+      // the home screen now asks for the number and nothing else.
+      final summary = await ref
+          .read(inventoryRepositoryProvider)
+          .fetchInventorySummary(shopId, token);
+      return summary.stale;
     });
 
     final job = failedImport;

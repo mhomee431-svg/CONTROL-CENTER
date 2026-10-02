@@ -342,6 +342,11 @@ class ShopkeeperProductUpdate(BaseModel):
     status: str | None = Field(None, max_length=30)
     # Phase 7 — replace the product image with a confirmed PRODUCT_IMAGE key.
     image_key: str | None = Field(None, max_length=512)
+    # Detach the product image. A nullable `image_key` cannot express this:
+    # the route dumps with `exclude_none=True`, so "no key" is indistinguishable
+    # from "leave the photo alone". An explicit boolean keeps those two intents
+    # separate. Supplying both is a client bug and is rejected in the route.
+    remove_image: bool = False
 
 
 class ShopkeeperLowStockThresholdUpdate(BaseModel):

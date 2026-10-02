@@ -385,3 +385,21 @@ class OrderNotFoundException implements Exception {
   @override
   String toString() => 'No order with id $orderId';
 }
+
+int _asInt(Object? value) => value is num ? value.toInt() : 0;
+
+// The three coercions below are the shared JSON-tolerance helpers for this
+// file's models. They are intentionally KEPT even while unreferenced: every
+// optional numeric/temporal field added to an order payload will need them,
+// and re-deriving them per model is how the null-vs-zero bug class returns.
+// They are silenced rather than deleted so the guidance survives an analyzer
+// run that would otherwise flag them on every save.
+// ignore: unused_element
+int? _asNullableInt(Object? value) => value == null ? null : _asInt(value);
+
+// ignore: unused_element
+double _asDouble(Object? value) => value is num ? value.toDouble() : 0;
+
+// ignore: unused_element
+DateTime? _asDateTime(Object? value) =>
+    value is String ? DateTime.tryParse(value) : null;

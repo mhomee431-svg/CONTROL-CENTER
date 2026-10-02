@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../controllers/shop_profile_controller.dart';
 import '../../domain/shop_models.dart';
 import '../widgets/shop_profile_shared.dart';
@@ -33,7 +34,7 @@ class _BusinessInfoScreenState extends ConsumerState<BusinessInfoScreen> {
     final state = ref.watch(shopProfileDetailProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Business information')),
+      appBar: AppBar(title: Text(appText(context).commonBusinessInformation2)),
       body: SafeArea(
         child: ShopModuleBody(
           state: state,
@@ -46,7 +47,7 @@ class _BusinessInfoScreenState extends ConsumerState<BusinessInfoScreen> {
               children: [
                 _FactsCard(
                   key: const Key('shop-info-identity'),
-                  title: 'Identity',
+                  title: appText(context).commonIdentity,
                   rows: [
                     (
                       Icons.storefront_outlined,
@@ -72,7 +73,7 @@ class _BusinessInfoScreenState extends ConsumerState<BusinessInfoScreen> {
                 const SizedBox(height: 16),
                 _FactsCard(
                   key: const Key('shop-info-address'),
-                  title: 'Registered address',
+                  title: appText(context).commonRegisteredAddress,
                   rows: [
                     if (address == null || !address.hasContent)
                       (
@@ -99,7 +100,7 @@ class _BusinessInfoScreenState extends ConsumerState<BusinessInfoScreen> {
                 const SizedBox(height: 16),
                 _FactsCard(
                   key: const Key('shop-info-compliance'),
-                  title: 'Compliance',
+                  title: appText(context).commonCompliance,
                   rows: [
                     (
                       Icons.receipt_long_outlined,
@@ -118,7 +119,7 @@ class _BusinessInfoScreenState extends ConsumerState<BusinessInfoScreen> {
                 const SizedBox(height: 16),
                 _FactsCard(
                   key: const Key('shop-info-rating'),
-                  title: 'Customer rating',
+                  title: appText(context).commonCustomerRating,
                   rows: [
                     (
                       rating >= 4
@@ -135,8 +136,7 @@ class _BusinessInfoScreenState extends ConsumerState<BusinessInfoScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    'These details come from your shop record. Use Edit shop '
-                    'to change the contact fields.',
+                    appText(context).businessInfoScreenTheseDetailsComeFromYour,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,

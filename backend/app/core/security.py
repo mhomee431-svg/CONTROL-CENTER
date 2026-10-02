@@ -25,7 +25,7 @@ def _create_token(
     subject: str,
     purpose: TokenPurpose,
     expires_delta: timedelta,
-    extra_claims: Optional[dict] = None,
+    extra_claims: Optional[dict[str, Any]] = None,
 ) -> tuple[str, str]:
     """Create a JWT with the given purpose and return (token, jti)."""
     jti = str(uuid.uuid4())
@@ -51,7 +51,7 @@ def _create_token(
 def create_access_token(
     subject: str,
     expires_minutes: Optional[int] = None,
-    extra_claims: Optional[dict] = None,
+    extra_claims: Optional[dict[str, Any]] = None,
 ) -> tuple[str, str]:
     """Create a JWT access token. Returns (token, jti)."""
     delta = timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -61,7 +61,7 @@ def create_access_token(
 def create_refresh_token(
     subject: str,
     expires_days: Optional[int] = None,
-    extra_claims: Optional[dict] = None,
+    extra_claims: Optional[dict[str, Any]] = None,
 ) -> tuple[str, str]:
     """Create a JWT refresh token. Returns (token, jti)."""
     delta = timedelta(days=expires_days or settings.REFRESH_TOKEN_EXPIRE_DAYS)

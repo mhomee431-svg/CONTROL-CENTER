@@ -3,7 +3,7 @@
 import json
 import re
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from geoalchemy2 import WKTElement
 from sqlalchemy import exists as sa_exists, or_, select
@@ -128,7 +128,7 @@ def _get_wkt_point(latitude: float, longitude: float) -> WKTElement:
 
 
 # ── Shop creation / registration ─────────────────────────────────────────
-def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
+def register_shop(db: Session, data: dict[str, Any], owner_user_id: int) -> Shop:
     """Register a new shop and assign the creator as primary owner.
 
     Lifecycle:
@@ -281,7 +281,7 @@ def register_shop(db: Session, data: dict, owner_user_id: int) -> Shop:
     return shop
 
 
-def update_shop(db: Session, shop_id: int, data: dict) -> Optional[Shop]:
+def update_shop(db: Session, shop_id: int, data: dict[str, Any]) -> Optional[Shop]:
     """Update shop profile / operational fields."""
     shop = db.query(Shop).filter(Shop.id == shop_id, Shop.is_deleted == False).first()  # noqa: E712
     if shop is None:
@@ -309,7 +309,7 @@ def update_shop(db: Session, shop_id: int, data: dict) -> Optional[Shop]:
 
 
 def update_shop_location(
-    db: Session, shop_id: int, latitude: float, longitude: float, meta: dict | None = None
+    db: Session, shop_id: int, latitude: float, longitude: float, meta: dict[str, Any] | None = None
 ) -> Optional[Shop]:
     """Controlled, ownership-checked location update (Phase: Shop Location System).
 

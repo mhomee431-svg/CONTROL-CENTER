@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
@@ -44,7 +45,7 @@ class _PosSyncScreenState extends ConsumerState<PosSyncScreen> {
     final integration = hub.integration;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('POS sync')),
+      appBar: AppBar(title: Text(appText(context).commonPOSSync4)),
       body: SafeArea(
         child: PosAsyncBody(
           status: hub.status,
@@ -54,13 +55,13 @@ class _PosSyncScreenState extends ConsumerState<PosSyncScreen> {
             if (integration == null) {
               return PosMessageView(
                 icon: Icons.point_of_sale_outlined,
-                title: 'No connector yet',
-                body: 'Connect a POS first — there is nothing to sync from.',
+                title: appText(context).commonNoConnectorYet3,
+                body: appText(context).posSyncScreenConnectAPOSFirstThere,
                 action: FilledButton.icon(
                   key: const Key('pos-sync-go-setup'),
                   onPressed: () => context.push(Routes.posConnectionSetup),
                   icon: const Icon(Icons.link),
-                  label: const Text('Go to connection setup'),
+                  label: Text(appText(context).commonGoToConnectionSetup2),
                 ),
               );
             }
@@ -83,7 +84,7 @@ class _PosSyncScreenState extends ConsumerState<PosSyncScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.sync),
-            label: const Text('Start sync'),
+            label: Text(appText(context).commonStartSync),
           ),
         ),
       ),
@@ -141,7 +142,7 @@ class _SyncForm extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text('What should be pulled?', style: Theme.of(context)
+          Text(appText(context).commonWhatShouldBePulled, style: Theme.of(context)
               .textTheme
               .titleSmall),
           const SizedBox(height: 4),
@@ -160,9 +161,9 @@ class _SyncForm extends ConsumerWidget {
                   RadioListTile<String>(
                     key: const Key('pos-sync-type-full'),
                     value: 'FULL',
-                    title: const Text('Full sync'),
-                    subtitle: const Text(
-                      'Re-read the whole POS catalog and reconcile every product.',
+                    title: Text(appText(context).commonFullSync),
+                    subtitle: Text(
+                      appText(context).posSyncScreenReReadTheWholePOS,
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -170,10 +171,9 @@ class _SyncForm extends ConsumerWidget {
                   RadioListTile<String>(
                     key: const Key('pos-sync-type-incremental'),
                     value: 'INCREMENTAL',
-                    title: const Text('Incremental'),
-                    subtitle: const Text(
-                      'Only what changed since the last sync — faster, but it can '
-                      'miss manual edits.',
+                    title: Text(appText(context).commonIncremental),
+                    subtitle: Text(
+                      appText(context).posSyncScreenOnlyWhatChangedSinceThe,
                       style: TextStyle(fontSize: 12),
                     ),
                   ),

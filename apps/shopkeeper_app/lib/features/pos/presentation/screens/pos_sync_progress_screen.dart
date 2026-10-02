@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -92,7 +93,7 @@ class _PosSyncProgressScreenState
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync progress')),
+      appBar: AppBar(title: Text(appText(context).commonSyncProgress)),
       body: SafeArea(
         child: switch (flow.phase) {
           PosSyncPhase.idle || PosSyncPhase.starting => const _StartingView(),
@@ -104,8 +105,7 @@ class _PosSyncProgressScreenState
           PosSyncPhase.error => PosMessageView(
             icon: Icons.cloud_off_outlined,
             title: flow.message ?? 'Could not read the sync progress.',
-            body: 'The job is still on the server — check the sync history '
-                'before starting another one.',
+            body: appText(context).posSyncProgressScreenTheJobIsStillOn,
             onRetry: () {
               _restartTimer();
               ref.read(posSyncFlowProvider.notifier).poll();
@@ -114,7 +114,7 @@ class _PosSyncProgressScreenState
             action: TextButton(
               key: const Key('pos-progress-history'),
               onPressed: () => context.push(Routes.posSyncHistory),
-              child: const Text('View sync history'),
+              child: Text(appText(context).commonViewSyncHistory),
             ),
           ),
         },
@@ -136,7 +136,7 @@ class _StartingView extends StatelessWidget {
           const CircularProgressIndicator(),
           const SizedBox(height: 20),
           Text(
-            'Starting sync…',
+            appText(context).posSyncProgressScreenStartingSync,
             key: const Key('pos-sync-starting'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
@@ -188,13 +188,12 @@ class _ProgressView extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Syncing your products…',
+                    appText(context).posSyncProgressScreenSyncingYourProducts,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Nothing is counted here — the numbers below come from the '
-                    'POS connector.',
+                    appText(context).posSyncProgressScreenNothingIsCountedHereThe,
                     style: TextStyle(fontSize: 12, color: scheme.outline),
                   ),
                   const SizedBox(height: 16),
@@ -208,19 +207,19 @@ class _ProgressView extends ConsumerWidget {
                     children: [
                       _Counter(
                         key: const Key('pos-progress-processed'),
-                        label: 'Processed',
+                        label: appText(context).commonProcessed,
                         value: job.itemsProcessed,
                         color: scheme.onSurface,
                       ),
                       _Counter(
                         key: const Key('pos-progress-succeeded'),
-                        label: 'Synced',
+                        label: appText(context).commonSynced,
                         value: job.itemsSucceeded,
                         color: AppTheme.verifiedGreen,
                       ),
                       _Counter(
                         key: const Key('pos-progress-failed'),
-                        label: 'Failed',
+                        label: appText(context).commonFailed2,
                         value: job.itemsFailed,
                         color: scheme.error,
                       ),
@@ -247,7 +246,7 @@ class _ProgressView extends ConsumerWidget {
                   key: const Key('pos-sync-refresh'),
                   onPressed: () =>
                       ref.read(posSyncFlowProvider.notifier).poll(),
-                  child: const Text('Refresh now'),
+                  child: Text(appText(context).commonRefreshNow),
                 ),
               ),
               const SizedBox(width: 8),
@@ -255,7 +254,7 @@ class _ProgressView extends ConsumerWidget {
                 child: OutlinedButton(
                   key: const Key('pos-progress-history'),
                   onPressed: () => context.push(Routes.posSyncHistory),
-                  child: const Text('View history'),
+                  child: Text(appText(context).commonViewHistory),
                 ),
               ),
             ],
@@ -284,7 +283,7 @@ class _Counter extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '$value',
+          appText(context).posSyncProgressScreenValue(value),
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: color,
             fontWeight: FontWeight.w700,

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -66,7 +67,7 @@ class InsightsController extends Notifier<InsightsState> {
     state = InsightsState.loading(rangeDays: rangeDays);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final bundle = await _repo.fetchInsights(shop.id, token, days: rangeDays);
       // The insight cards come from a second, independent call: the analytics
       // report stays truthful (and visible) if that sub-call fails, and the
@@ -212,7 +213,7 @@ class InsightsDrillDownsController
     _replace(metric, DrillDownState.loading(metric, rangeDays: rangeDays));
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       if (metric == DrillDownMetric.views) {
         final series = await _repo.fetchViewsSeries(shop.id, token,
             days: rangeDays);

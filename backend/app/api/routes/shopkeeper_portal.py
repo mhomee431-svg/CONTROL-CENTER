@@ -206,6 +206,23 @@ async def update_shop_location(
     return success_response(data=result, message="Shop location updated")
 
 
+@router.get("/shops/{shop_id}/capabilities")
+async def get_shop_capabilities(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Backend-driven feature flags for one shop (spec section 103).
+
+    Single source of truth for ``canUsePos / canUploadExcel /
+    canCreateOffers / canViewReports``. Derived only from the resolved
+    subscription entitlements - the frontend never duplicates plan rules.
+    Display hints only; enforcement stays server-side (403 on violation).
+    """
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    return success_response(data=shopkeeper_service.capabilities_payload(db, access.shop))
+
+
 @router.get("/shops/{shop_id}/dashboard")
 async def get_dashboard(
     shop_id: int,
@@ -249,8 +266,9 @@ async def get_inventory(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Inventory overview (default) or a filterable/sortable/searchable list
-    (``view=list``) — items include last-updated time and inventory source.
+    """Inventory overview (default), counts only (``view=summary``) or a
+    filterable/sortable/searchable list (``view=list``) — items include
+    last-updated time and inventory source.
 
     ``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns
     only listings whose **current stock is at or below their own per-listing
@@ -258,6 +276,11 @@ async def get_inventory(
     stricter than ``stock_status=LOW_STOCK`` — that filter reports the server's
     derived state, while this one answers the operational question "what must
     be restocked now" directly from the two numbers that decide it.
+
+    ``view=summary`` returns the counts and NO items. It is the counts-only
+    view a home screen should use: the body is the same size for a shop with
+    5 listings and one with 50,000, so nothing has to download the catalogue
+    to render a badge.
     """
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     if str(view).lower() == "list":
@@ -275,6 +298,10 @@ async def get_inventory(
         )
         return success_response(data=listing)
     access.require("inventory", "read")
+    if str(view).lower() == "summary":
+        return success_response(
+            data=shopkeeper_service.inventory_summary(access, db)
+        )
     overview = shopkeeper_service.inventory_overview(access, db)
     return success_response(data=overview)
 
@@ -336,6 +363,12 @@ async def update_product(
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "update")
     data = payload.model_dump(exclude_none=True)
+    if data.get("remove_image") and data.get("image_key"):
+        return error_response(
+            message="Send either image_key or remove_image, not both",
+            error_code="VALIDATION_ERROR",
+            status_code=422,
+        )
     if data.get("image_key"):
         # Phase 7 — replace the product image with a newly confirmed upload.
         data["image_url"] = await _resolve_image_key(

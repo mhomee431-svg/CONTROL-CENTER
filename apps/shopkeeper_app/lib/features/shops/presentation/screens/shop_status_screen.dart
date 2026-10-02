@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../domain/shop_models.dart';
 import '../controllers/shop_profile_controller.dart';
 import '../widgets/shop_profile_shared.dart';
@@ -44,7 +45,7 @@ class _ShopStatusScreenState extends ConsumerState<ShopStatusScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(shopProfileDetailProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop status')),
+      appBar: AppBar(title: Text(appText(context).commonShopStatus)),
       body: SafeArea(
         child: ShopModuleBody(
           state: state,
@@ -61,7 +62,7 @@ class _ShopStatusScreenState extends ConsumerState<ShopStatusScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Verification', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonVerification, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           key: const Key('shop-status-verification'),
@@ -75,9 +76,9 @@ class _ShopStatusScreenState extends ConsumerState<ShopStatusScreen> {
                   children: [
                     shopStatusChip(verification.status),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Shop verification',
+                        appText(context).commonShopVerification,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -94,16 +95,16 @@ class _ShopStatusScreenState extends ConsumerState<ShopStatusScreen> {
                   ),
                 ],
                 const Divider(height: 24),
-                ShopInfoRow(label: 'Submitted', value: _stamp(verification.submittedAt)),
-                ShopInfoRow(label: 'Reviewed', value: _stamp(verification.reviewedAt)),
-                ShopInfoRow(label: 'Verified', value: _stamp(verification.verifiedAt)),
-                ShopInfoRow(label: 'Expires', value: _stamp(verification.expiresAt)),
+                ShopInfoRow(label: appText(context).commonSubmitted, value: _stamp(verification.submittedAt)),
+                ShopInfoRow(label: appText(context).commonReviewed, value: _stamp(verification.reviewedAt)),
+                ShopInfoRow(label: appText(context).commonVerified, value: _stamp(verification.verifiedAt)),
+                ShopInfoRow(label: appText(context).commonExpires, value: _stamp(verification.expiresAt)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
-        Text('Subscription', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonSubscription2, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           key: const Key('shop-status-subscription'),
@@ -134,7 +135,7 @@ class _ShopStatusScreenState extends ConsumerState<ShopStatusScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Text('Orders', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonOrders, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           key: const Key('shop-status-orders'),
@@ -164,8 +165,8 @@ class _ShopStatusScreenState extends ConsumerState<ShopStatusScreen> {
                   ],
                 ),
                 const Divider(height: 24),
-                ShopInfoRow(label: 'Delivery', value: detail.isDeliveryAvailable ? 'Available' : 'Off'),
-                ShopInfoRow(label: 'Pickup', value: detail.isPickupAvailable ? 'Available' : 'Off'),
+                ShopInfoRow(label: appText(context).commonDelivery, value: detail.isDeliveryAvailable ? 'Available' : 'Off'),
+                ShopInfoRow(label: appText(context).commonPickup, value: detail.isPickupAvailable ? 'Available' : 'Off'),
               ],
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../domain/notification_models.dart';
 import '../controllers/notifications_controller.dart';
 
@@ -33,13 +34,13 @@ class _NotificationDetailScreenState
     // rendering an empty card.
     if (notification == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Notification')),
-        body: const SafeArea(
+        appBar: AppBar(title: Text(appText(context).commonNotification)),
+        body: SafeArea(
           child: Center(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                'Open a notification from the Alerts tab to see its details.',
+                appText(context).notificationDetailScreenOpenANotificationFromThe,
                 textAlign: TextAlign.center,
               ),
             ),
@@ -56,7 +57,7 @@ class _NotificationDetailScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification'),
+        title: Text(appText(context).commonNotification),
         actions: [
           if (!notification.isRead)
             TextButton(
@@ -65,7 +66,7 @@ class _NotificationDetailScreenState
                     .read(notificationsControllerProvider.notifier)
                     .markAsRead(notification.id);
               },
-              child: const Text('Mark read'),
+              child: Text(appText(context).commonMarkRead),
             ),
         ],
       ),
@@ -134,7 +135,7 @@ class _NotificationDetailScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Deep link',
+                        appText(context).commonDeepLink,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -158,13 +159,13 @@ class _NotificationDetailScreenState
                           );
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Deep link copied to clipboard'),
+                            SnackBar(
+                              content: Text(appText(context).notificationDetailScreenDeepLinkCopiedToClipboard),
                             ),
                           );
                         },
                         icon: const Icon(Icons.copy, size: 18),
-                        label: const Text('Copy link'),
+                        label: Text(appText(context).commonCopyLink),
                       ),
                     ],
                   ),
@@ -174,7 +175,7 @@ class _NotificationDetailScreenState
             FilledButton.tonalIcon(
               onPressed: () => context.pop(),
               icon: const Icon(Icons.arrow_back),
-              label: const Text('Back'),
+              label: Text(appText(context).commonBack4),
             ),
           ],
         ),

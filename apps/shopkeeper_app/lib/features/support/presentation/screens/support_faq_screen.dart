@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../domain/support_models.dart';
@@ -49,7 +50,7 @@ class _SupportFaqScreenState extends State<SupportFaqScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Help centre')),
+      appBar: AppBar(title: Text(appText(context).commonHelpCentre2)),
       body: SafeArea(
         child: Column(
           children: [
@@ -60,7 +61,7 @@ class _SupportFaqScreenState extends State<SupportFaqScreen> {
                 controller: _search,
                 onChanged: (value) => setState(() => _query = value),
                 decoration: InputDecoration(
-                  hintText: 'Search help',
+                  hintText: appText(context).commonSearchHelp,
                   isDense: true,
                   prefixIcon: const Icon(Icons.search),
                   border: const OutlineInputBorder(),
@@ -68,7 +69,7 @@ class _SupportFaqScreenState extends State<SupportFaqScreen> {
                       ? null
                       : IconButton(
                           icon: const Icon(Icons.clear),
-                          tooltip: 'Clear search',
+                          tooltip: appText(context).commonClearSearch3,
                           onPressed: _clearSearch,
                         ),
                 ),
@@ -114,7 +115,7 @@ class _SupportFaqScreenState extends State<SupportFaqScreen> {
                                 context.push(Routes.contactSupport),
                             icon: const Icon(Icons.chat_outlined),
                             label:
-                                const Text('Still need help? Contact support'),
+                                Text(appText(context).supportFaqScreenStillNeedHelpContactSupport),
                           ),
                         ),
                       ],
@@ -124,7 +125,7 @@ class _SupportFaqScreenState extends State<SupportFaqScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Text(
-                  '${visible.length} of ${supportFaqs.length} articles',
+                  appText(context).supportFaqScreenLengthOfLength2Articles(visible.length, supportFaqs.length),
                   style: TextStyle(fontSize: 11, color: scheme.outline),
                 ),
               ),
@@ -183,12 +184,12 @@ class _NoResults extends StatelessWidget {
       title: query.isEmpty
           ? 'Nothing in this category yet'
           : 'No article matched "$query"',
-      message: 'Try another word, or send your question to support.',
+      message: appText(context).supportFaqScreenTryAnotherWordOrSend,
       icon: Icons.search_off,
       action: FilledButton.tonalIcon(
         onPressed: () => context.push(Routes.contactSupport),
         icon: const Icon(Icons.chat_outlined),
-        label: const Text('Contact support'),
+        label: Text(appText(context).commonContactSupport4),
       ),
     );
   }

@@ -268,6 +268,10 @@ EXPECTED_TABLES: set[str] = {
     "merchant_onboardings", "business_identity_verifications",
     "bank_account_verifications", "category_document_verifications",
     "verification_attempts", "verification_provider_logs",
+    # 0024 media pipeline
+    "media",
+    # 0026 customer orders & order items
+    "orders", "order_items",
 }
 EXPECTED_INDEXES: set[str] = {
     "ix_users_phone_number",                # 0001 unique
