@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -67,8 +68,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
     if (mrp != null && mrp < price) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('MRP cannot be lower than the selling price'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(appText(context).barcodeSheetsMRPCannotBeLowerThan),
       ));
       return;
     }
@@ -95,7 +96,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
       }
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save the product')),
+        SnackBar(content: Text(appText(context).barcodeSheetsCouldNotSaveTheProduct)),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -104,7 +105,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
         // Req 27: the scanned product is already in this shop's inventory.
         // Offer a way out instead of a dead-end error.
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('This product is already in your inventory'),
+          content: Text(appText(context).barcodeSheetsThisProductIsAlreadyIn),
           action: SnackBarAction(
             label: 'View products',
             onPressed: () {
@@ -128,7 +129,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save the product')),
+        SnackBar(content: Text(appText(context).barcodeSheetsCouldNotSaveTheProduct)),
       );
     }
   }
@@ -202,14 +203,13 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
               ),
               IconButton(
                 // Accessible name for the icon-only dismiss control.
-                tooltip: 'Close',
+                tooltip: appText(context).commonClose,
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
               ),
             ]),
             Text(
-              'Barcode ${widget.resolution.barcode}'
-              '${widget.resolution.barcodeType != null ? ' · ${widget.resolution.barcodeType}' : ''}',
+              appText(context).barcodeSheetsBarcodeBarcodeValue(widget.resolution.barcode, widget.resolution.barcodeType != null ? ' · ${widget.resolution.barcodeType}' : ''),
               style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
             const SizedBox(height: 4),
@@ -240,8 +240,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
             if (!isAvailableInCatalog) ...[
               const SizedBox(height: 12),
               Text(
-                'This product is not currently published in the shared catalog. '
-                'You cannot list it right now.',
+                appText(context).barcodeSheetsThisProductIsNotCurrently,
                 style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
               ),
             ],
@@ -250,7 +249,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
               DropdownButtonFormField<ProductVariant>(
                 initialValue: _variant,
                 decoration:
-                    const InputDecoration(labelText: 'Variant (optional)'),
+                    InputDecoration(labelText: appText(context).commonVariantOptional),
                 items: [
                   for (final v in match.variants)
                     DropdownMenuItem(value: v, child: Text(v.name)),
@@ -268,8 +267,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                   // Signed so the validator can explain a negative amount.
                   inputFormatters: NumericInput.decimal(allowSign: true),
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                      labelText: 'Selling price *', prefixText: '₹ '),
+                  decoration: InputDecoration(
+                      labelText: appText(context).barcodeSheetsSellingPrice, prefixText: '₹ '),
                   validator: (v) {
                     final value = double.tryParse((v ?? '').trim());
                     if (value == null) return 'Required';
@@ -286,8 +285,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: NumericInput.decimal(allowSign: true),
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                      labelText: 'MRP (optional)', prefixText: '₹ '),
+                  decoration: InputDecoration(
+                      labelText: appText(context).commonMRPOptional, prefixText: '₹ '),
                   validator: (v) {
                     final value = double.tryParse((v ?? '').trim());
                     if (value != null && value < 0) return 'Cannot be negative';
@@ -304,7 +303,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
                   decoration:
-                      const InputDecoration(labelText: 'Quantity'),
+                      InputDecoration(labelText: appText(context).commonQuantity),
                   validator: (v) {
                     final value = int.tryParse((v ?? '').trim());
                     if (value == null || value < 0) return '≥ 0';
@@ -315,8 +314,8 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
             ]),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Publish immediately'),
-              subtitle: const Text('Unpublished products stay as drafts'),
+              title: Text(appText(context).commonPublishImmediately),
+              subtitle: Text(appText(context).barcodeSheetsUnpublishedProductsStayAsDrafts),
               value: _publish,
               onChanged: (v) => setState(() => _publish = v),
             ),
@@ -329,7 +328,7 @@ class _BarcodeConfirmSheetState extends ConsumerState<BarcodeConfirmSheet> {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.add),
-              label: const Text('Add to inventory'),
+              label: Text(appText(context).commonAddToInventory),
             ),
           ],
         ),
@@ -396,11 +395,11 @@ class _BarcodeManualEntrySheetState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Enter barcode',
+            Text(appText(context).commonEnterBarcode,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'EAN-8, UPC-A, EAN-13 or GTIN-14 — digits only.',
+              appText(context).barcodeSheetsEAN8UPCAEAN,
               style: TextStyle(
                   fontSize: 12, color: Theme.of(context).colorScheme.outline),
             ),
@@ -412,9 +411,9 @@ class _BarcodeManualEntrySheetState
               inputFormatters: NumericInput.barcode(),
               textInputAction: TextInputAction.done,
               maxLength: 20, // 14 digits + the separators the formatter strips
-              decoration: const InputDecoration(
-                labelText: 'Barcode',
-                hintText: 'e.g. 8901234567890',
+              decoration: InputDecoration(
+                labelText: appText(context).commonBarcode,
+                hintText: appText(context).commonEG8901234567890,
                 counterText: '',
               ),
               validator: (v) {
@@ -436,7 +435,7 @@ class _BarcodeManualEntrySheetState
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.search),
-              label: const Text('Look up'),
+              label: Text(appText(context).commonLookUp),
             ),
           ],
         ),
@@ -489,21 +488,19 @@ class BarcodeNotFoundSheet extends StatelessWidget {
                 size: 48, color: theme.colorScheme.outline),
             const SizedBox(height: 12),
             Text(
-              'Product not found',
+              appText(context).commonProductNotFound,
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'No catalog product matches barcode '
-              '$barcode.',
+              appText(context).barcodeSheetsNoCatalogProductMatchesBarcode(barcode),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'Check the barcode digits, or add the item manually — it will '
-              'be created under your shop.',
+              appText(context).barcodeSheetsCheckTheBarcodeDigitsOr,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -514,13 +511,13 @@ class BarcodeNotFoundSheet extends StatelessWidget {
             FilledButton.icon(
               onPressed: onTryAgain,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
+              label: Text(appText(context).commonTryAgain),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: onEnterManually,
               icon: const Icon(Icons.keyboard_alt_outlined),
-              label: const Text('Enter Manually'),
+              label: Text(appText(context).commonEnterManually),
             ),
           ],
         ),

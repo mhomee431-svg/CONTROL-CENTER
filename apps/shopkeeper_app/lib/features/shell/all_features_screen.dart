@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n/app_text.dart';
 import '../../core/router/route_names.dart';
 import '../shops/domain/shop_models.dart';
 import 'capabilities_controller.dart';
@@ -159,19 +160,19 @@ class AllFeaturesScreen extends ConsumerWidget {
         if (_isAllowed(feature.id, effective)) feature,
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('All features')),
+      appBar: AppBar(title: Text(appText(context).commonAllFeatures3)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              'Everything you manage, in one place',
+              appText(context).allFeaturesScreenEverythingYouManageInOne,
               style: Theme.of(context).textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
-              'Each screen shows live data for your selected shop.',
+              appText(context).allFeaturesScreenEachScreenShowsLiveData,
               style: TextStyle(fontSize: 12, color: scheme.outline),
             ),
             const SizedBox(height: 12),
@@ -203,7 +204,7 @@ class AllFeaturesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Business screens open once your shop is set up.',
+              appText(context).allFeaturesScreenBusinessScreensOpenOnceYour,
               style: TextStyle(fontSize: 11, color: scheme.outline),
             ),
           ],

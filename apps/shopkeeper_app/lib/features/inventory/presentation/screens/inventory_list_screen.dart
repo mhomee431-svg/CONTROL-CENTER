@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -103,7 +104,7 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
           if (catalog.status == ProductsStatus.ready)
             IconButton(
               icon: const Icon(Icons.refresh_outlined),
-              tooltip: 'Refresh',
+              tooltip: appText(context).commonRefresh2,
               onPressed: () =>
                   ref.read(productsControllerProvider.notifier).load(),
             ),
@@ -115,7 +116,7 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: DebouncedSearchField(
               key: const Key('inventory-search-field'),
-              hintText: 'Search name, brand or SKU',
+              hintText: appText(context).inventoryListScreenSearchNameBrandOrSKU,
               initialValue: query.search,
               onChanged: _controller.setSearch,
               // A submitted term is history (shared across the catalog lists).
@@ -140,18 +141,18 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
               child: FilterChipBar<String>(
-                options: const [
-                  FilterChoice(label: 'All', value: ProductQuery.stockAll),
+                options: [
+                  FilterChoice(label: appText(context).commonAll, value: ProductQuery.stockAll),
                   FilterChoice(
-                    label: 'In Stock',
+                    label: appText(context).commonInStock,
                     value: ProductQuery.stockInStock,
                   ),
                   FilterChoice(
-                    label: 'Low Stock',
+                    label: appText(context).commonLowStock2,
                     value: ProductQuery.stockLow,
                   ),
                   FilterChoice(
-                    label: 'Out of Stock',
+                    label: appText(context).commonOutOfStock,
                     value: ProductQuery.stockOutOfStock,
                   ),
                 ],
@@ -170,7 +171,7 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${page.matched} of ${page.total} products',
+                      appText(context).inventoryListScreenMatchedOfTotalProducts(page.matched, page.total),
                       key: const Key('inventory-count'),
                       style: TextStyle(
                         fontSize: 12,
@@ -186,11 +187,11 @@ class _InventoryScopeScreenState extends ConsumerState<InventoryScopeScreen> {
                         Icons.filter_alt_off_outlined,
                         size: 18,
                       ),
-                      label: const Text('Clear'),
+                      label: Text(appText(context).commonClear),
                     ),
                   IconButton(
                     key: const Key('inventory-filters-button'),
-                    tooltip: 'Filters',
+                    tooltip: appText(context).commonFilters,
                     onPressed: _openFilters,
                     icon: Icon(
                       Icons.filter_alt_outlined,
@@ -289,23 +290,23 @@ class _EmptyScope extends StatelessWidget {
     if (!catalogIsEmpty) {
       if (query.hasSearch) {
         return SystemStateView.empty(
-          title: 'No products match your search',
+          title: appText(context).inventoryListScreenNoProductsMatchYourSearch,
           icon: Icons.search_off_outlined,
           iconColor: outline,
           action: OutlinedButton(
             onPressed: onClear,
-            child: const Text('Clear search'),
+            child: Text(appText(context).commonClearSearch2),
           ),
         );
       }
       if (query.hasActiveFilters) {
         return SystemStateView.empty(
-          title: 'No products match your filters',
+          title: appText(context).inventoryListScreenNoProductsMatchYourFilters,
           icon: Icons.filter_alt_off_outlined,
           iconColor: outline,
           action: OutlinedButton(
             onPressed: onClear,
-            child: const Text('Clear filters'),
+            child: Text(appText(context).commonClearFilters),
           ),
         );
       }
@@ -340,7 +341,7 @@ class _ProductRow extends StatelessWidget {
         children: [
           const SizedBox(height: 2),
           Text(
-            '${item.quantity} units · ${moneyLabel(item.price)}',
+            appText(context).inventoryListScreenQuantityUnitsValue(item.quantity, moneyLabel(item.price)),
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 4),

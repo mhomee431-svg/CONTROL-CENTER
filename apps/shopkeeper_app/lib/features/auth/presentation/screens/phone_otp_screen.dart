@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../data/phone_utils.dart';
 import '../../domain/phone_otp.dart';
@@ -172,10 +173,10 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign in with phone'),
+        title: Text(appText(context).commonSignInWithPhone),
         leading: IconButton(
           // Accessible name for a text-free control.
-          tooltip: 'Back',
+          tooltip: appText(context).commonBack2,
           icon: const Icon(Icons.arrow_back),
           onPressed: () =>
               context.canPop() ? context.pop() : context.go(Routes.welcome),
@@ -216,7 +217,7 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                             height: 18,
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Send code'),
+                        : Text(appText(context).commonSendCode),
                   ),
                 ] else ...[
                   _codeField(),
@@ -229,7 +230,7 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                             height: 18,
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Verify & continue'),
+                        : Text(appText(context).commonVerifyContinue),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -241,12 +242,12 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
                             ? null
                             : () =>
                                 _sendCode(resendToken: _request?.resendToken),
-                        child: const Text('Resend code'),
+                        child: Text(appText(context).commonResendCode),
                       ),
                       TextButton(
                         key: PhoneOtpScreen.changeNumberKey,
                         onPressed: _busy ? null : _changeNumber,
-                        child: const Text('Change number'),
+                        child: Text(appText(context).commonChangeNumber),
                       ),
                     ],
                   ),
@@ -279,9 +280,9 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
           // also accepts a leading trunk 0 (11 digits).
           LengthLimitingTextInputFormatter(12),
         ],
-        decoration: const InputDecoration(
-          labelText: 'Mobile number',
-          hintText: '9999999999',
+        decoration: InputDecoration(
+          labelText: appText(context).commonMobileNumber,
+          hintText: appText(context).common99999999992,
           prefixText: '+91 ',
         ),
         onSubmitted: (_) => _sendCode(),
@@ -297,9 +298,9 @@ class _PhoneOtpScreenState extends ConsumerState<PhoneOtpScreen> {
           FilteringTextInputFormatter.digitsOnly,
           LengthLimitingTextInputFormatter(6),
         ],
-        decoration: const InputDecoration(
-          labelText: '6-digit code',
-          hintText: '123456',
+        decoration: InputDecoration(
+          labelText: appText(context).common6DigitCode,
+          hintText: appText(context).common123456,
         ),
         onSubmitted: (_) => _verify(),
       );
@@ -330,7 +331,7 @@ class _UnsupportedNotice extends StatelessWidget {
                   color: theme.colorScheme.outline),
               const SizedBox(width: 10),
               Text(
-                'Phone sign-in unavailable',
+                appText(context).phoneOtpScreenPhoneSignInUnavailable,
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
@@ -338,8 +339,7 @@ class _UnsupportedNotice extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'This device cannot receive an SMS code. Use Google to sign in, or '
-            'open the app on an Android or iOS phone.',
+            appText(context).phoneOtpScreenThisDeviceCannotReceiveAn,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
               height: 1.4,

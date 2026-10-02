@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -28,7 +29,7 @@ class _ImportPreviewScreenState extends ConsumerState<ImportPreviewScreen> {
     final preview = state.preview;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Review import')),
+      appBar: AppBar(title: Text(appText(context).commonReviewImport)),
       body: preview == null
           ? _NoPreviewView(
               onBack: () {
@@ -58,11 +59,11 @@ class _NoPreviewView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SystemStateView.empty(
-      title: 'Nothing to preview',
+      title: appText(context).commonNothingToPreview,
       icon: Icons.folder_off_outlined,
       action: FilledButton(
         onPressed: onBack,
-        child: const Text('Back to Import Center'),
+        child: Text(appText(context).commonBackToImportCenter),
       ),
     );
   }
@@ -92,7 +93,7 @@ class _SummaryChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('$value',
+          Text(appText(context).importPreviewScreenValue(value),
               style: TextStyle(fontWeight: FontWeight.w700, color: color)),
           const SizedBox(width: 4),
           Text(
@@ -153,19 +154,19 @@ class _PreviewBody extends StatelessWidget {
                 children: [
                   _SummaryChip(
                     key: const Key('import-chip-total'),
-                    label: 'rows',
+                    label: appText(context).commonRows,
                     value: meta.totalRows,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   _SummaryChip(
                     key: const Key('import-chip-valid'),
-                    label: 'valid',
+                    label: appText(context).commonValid,
                     value: preview.validCount,
                     color: AppTheme.verifiedGreen,
                   ),
                   _SummaryChip(
                     key: const Key('import-chip-errors'),
-                    label: 'errors',
+                    label: appText(context).commonErrors,
                     value: preview.errorCount,
                     color: preview.errorCount > 0
                         ? AppTheme.rejectedRed
@@ -224,20 +225,19 @@ class _RowTile extends StatelessWidget {
         size: 20,
       ),
       title: Text(
-        'Row ${row.rowNumber}'
-        '${row.productName == null ? '' : ' · ${row.productName}'}',
+        appText(context).importPreviewScreenRowRowNumberValue(row.rowNumber, row.productName == null ? '' : ' · ${row.productName}'),
         style: const TextStyle(fontSize: 13),
       ),
       subtitle: row.isError
           ? Text(
-              '${row.errorCode ?? 'ERROR'} — ${row.errorMessage ?? 'Invalid row'}',
+              appText(context).importPreviewScreenValueValue2(row.errorCode ?? 'ERROR', row.errorMessage ?? 'Invalid row'),
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.error,
               ),
             )
-          : const Text(
-              'Valid — will be applied to inventory',
+          : Text(
+              appText(context).importPreviewScreenValidWillBeAppliedTo,
               style: TextStyle(fontSize: 12),
             ),
     );
@@ -272,7 +272,7 @@ class _PreviewActions extends StatelessWidget {
                 key: const Key('import-errors-toggle'),
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Show only validation errors'),
+                title: Text(appText(context).importPreviewScreenShowOnlyValidationErrors),
                 value: errorsOnly,
                 onChanged: onToggleErrorsOnly,
               ),
@@ -282,7 +282,7 @@ class _PreviewActions extends StatelessWidget {
                   child: OutlinedButton(
                     key: const Key('import-discard'),
                     onPressed: onDiscard,
-                    child: const Text('Discard'),
+                    child: Text(appText(context).commonDiscard),
                   ),
                 ),
                 const SizedBox(width: 8),

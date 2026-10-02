@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/import_models.dart';
 
@@ -73,7 +74,7 @@ class _ImportReportSheetState extends State<ImportReportSheet> {
                   children: [
                     header,
                     Text(
-                      'Could not load the report for this import.',
+                      appText(context).importReportSheetCouldNotLoadTheReport,
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(context).colorScheme.error,
@@ -154,8 +155,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${job.statusLabel} · ${job.totalRows} rows · '
-            '${job.successRows} success, ${job.failedRowCount} failed',
+            appText(context).importReportSheetStatusLabelTotalRowsRowsSuccessRowsSuccess(job.statusLabel, job.totalRows, job.successRows, job.failedRowCount),
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.outline,
@@ -189,14 +189,14 @@ class _FilterBar extends StatelessWidget {
         children: [
           ChoiceChip(
             key: const Key('import-report-filter-all'),
-            label: Text('All rows ($total)'),
+            label: Text(appText(context).importReportSheetAllRowsTotal(total)),
             selected: selected == ReportFilter.all,
             onSelected: (_) => onChanged(ReportFilter.all),
           ),
           const SizedBox(width: 8),
           ChoiceChip(
             key: const Key('import-report-filter-errors'),
-            label: Text('Failed ($errors)'),
+            label: Text(appText(context).importReportSheetFailedErrors(errors)),
             selected: selected == ReportFilter.errors,
             onSelected: (_) => onChanged(ReportFilter.errors),
           ),
@@ -224,20 +224,18 @@ class _ReportRowTile extends StatelessWidget {
         size: 18,
       ),
       title: Text(
-        'Row ${row.rowNumber}'
-        '${row.productName == null ? '' : ' · ${row.productName}'}',
+        appText(context).importReportSheetRowRowNumberValue(row.rowNumber, row.productName == null ? '' : ' · ${row.productName}'),
         style: const TextStyle(fontSize: 13),
       ),
       subtitle: row.isError
           ? Text(
-              '${row.errorCode ?? 'ERROR'} — '
-              '${row.errorMessage ?? 'Invalid row'}',
+              appText(context).importReportSheetValueValue2(row.errorCode ?? 'ERROR', row.errorMessage ?? 'Invalid row'),
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.error,
               ),
             )
-          : const Text('Valid', style: TextStyle(fontSize: 12)),
+          : Text(appText(context).commonValid3, style: TextStyle(fontSize: 12)),
     );
   }
 }

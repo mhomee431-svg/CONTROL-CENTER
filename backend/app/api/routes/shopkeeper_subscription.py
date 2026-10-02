@@ -82,6 +82,17 @@ async def subscribe_to_plan(
     db: Session = Depends(get_db),
 ):
     """Create an INCOMPLETE subscription (activation follows verified payment)."""
+    if payload.shop_id is not None:
+        from app.services import shopkeeper_service
+
+        # A forged shop_id must not create billable rows against another
+        # merchant's shop: resolve the caller's DB-backed access first.
+        try:
+            shopkeeper_service.resolve_shop_access(
+                db, current_user, payload.shop_id
+            )
+        except AppError as exc:
+            return error_response(message=exc.message, error_code=exc.error_code, status_code=exc.status_code)
     try:
         subscription = subscription_service.create_subscription(
             db, user=current_user, plan_id=payload.plan_id,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -62,8 +63,8 @@ class _NotificationSettingsScreenState
         .read(notificationPermissionProvider.notifier)
         .openSystemSettings();
     if (!mounted || opened) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Could not open your phone settings from here.'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(appText(context).notificationSettingsScreenCouldNotOpenYourPhone),
     ));
   }
 
@@ -74,15 +75,15 @@ class _NotificationSettingsScreenState
     final permission = ref.watch(notificationPermissionProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification settings')),
+      appBar: AppBar(title: Text(appText(context).commonNotificationSettings2)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            const SettingsIntro(
+            SettingsIntro(
               icon: Icons.notifications_outlined,
-              title: 'Alerts and permissions',
-              subtitle: 'What you are told about, and how',
+              title: appText(context).commonAlertsAndPermissions,
+              subtitle: appText(context).notificationSettingsScreenWhatYouAreToldAbout,
             ),
             _DevicePermissionCard(
               state: permission,
@@ -90,11 +91,11 @@ class _NotificationSettingsScreenState
               onOpenSettings: _openSystemSettings,
             ),
             SettingsSection(
-              title: 'In-app alerts',
+              title: appText(context).commonInAppAlerts,
               children: [
                 SettingsTile(
                   icon: Icons.inbox_outlined,
-                  title: 'Alerts tab',
+                  title: appText(context).commonAlertsTab,
                   subtitle: unread == 0
                       ? 'No unread alerts right now'
                       : '$unread unread alert${unread == 1 ? '' : 's'}',
@@ -103,49 +104,44 @@ class _NotificationSettingsScreenState
                 SettingsTile(
                   key: const Key('notification_settings_edit_preferences'),
                   icon: Icons.tune,
-                  title: 'Choose what you receive',
-                  subtitle: 'Inventory, orders, offers and more',
+                  title: appText(context).commonChooseWhatYouReceive,
+                  subtitle: appText(context).notificationSettingsScreenInventoryOrdersOffersAndMore,
                   onTap: () => context.push(Routes.notificationPreferences),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const SettingsNotice(
+            SettingsNotice(
               icon: Icons.info_outline,
-              title: 'In-app alerts cannot be switched off',
-              message: 'Low stock, POS sync results and account notices are part '
-                  'of the app so a shop is never silently out of date. The '
-                  'channels below decide whether you are ALSO reached outside '
-                  'the app.',
+              title: appText(context).notificationSettingsScreenInAppAlertsCannotBe,
+              message: appText(context).notificationSettingsScreenLowStockPOSSyncResults,
             ),
             SettingsSection(
-              title: 'Channels',
+              title: appText(context).commonChannels,
               footnote: 'Change these in Notification preferences.',
               children: [
                 SettingsTile(
                   icon: Icons.notifications_active_outlined,
-                  title: 'Push notifications',
+                  title: appText(context).commonPushNotifications,
                   trailingLabel: prefs.pushEnabled ? 'On' : 'Off',
                 ),
                 SettingsTile(
                   icon: Icons.mail_outline,
-                  title: 'E-mail',
+                  title: appText(context).commonEMail,
                   trailingLabel: prefs.emailEnabled ? 'On' : 'Off',
                 ),
                 SettingsTile(
                   icon: Icons.sms_outlined,
-                  title: 'SMS',
+                  title: appText(context).commonSMS,
                   trailingLabel: prefs.smsEnabled ? 'On' : 'Off',
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const SettingsNotice(
+            SettingsNotice(
               icon: Icons.info_outline,
-              title: 'Notifications never block the app',
-              message: 'If device notifications are off, every alert still '
-                  'appears in the Alerts tab. The permission only decides '
-                  'whether your phone may also show banners and play sounds.',
+              title: appText(context).notificationSettingsScreenNotificationsNeverBlockTheApp,
+              message: appText(context).notificationSettingsScreenIfDeviceNotificationsAreOff,
             ),
           ],
         ),
@@ -195,7 +191,7 @@ class _DevicePermissionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Notifications on this device',
+                        appText(context).notificationSettingsScreenNotificationsOnThisDevice,
                         style: AppTypography.labelLarge,
                       ),
                       const SizedBox(height: AppSpacing.xs),
@@ -247,12 +243,11 @@ class _DevicePermissionCard extends StatelessWidget {
                   key: const Key('notification_open_settings_button'),
                   onPressed: () => onOpenSettings(),
                   icon: const Icon(Icons.settings_outlined),
-                  label: const Text('Open System Settings'),
+                  label: Text(appText(context).commonOpenSystemSettings),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Your phone will not ask again for this app. Turn banners on '
-                  'in Settings > Apps > Passly Business > Notifications.',
+                  appText(context).notificationSettingsScreenYourPhoneWillNotAsk,
                   style: AppTypography.caption
                       .copyWith(color: scheme.outline, height: 1.35),
                 ),

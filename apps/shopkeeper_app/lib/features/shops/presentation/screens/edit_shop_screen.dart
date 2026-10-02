@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../domain/shop_models.dart';
 import '../controllers/shop_profile_controller.dart';
@@ -79,7 +80,7 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
 
     if (fields.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nothing changed yet.')),
+        SnackBar(content: Text(appText(context).commonNothingChangedYet)),
       );
       return;
     }
@@ -116,7 +117,7 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
     final canEdit = shopCanEdit(ref);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit shop')),
+      appBar: AppBar(title: Text(appText(context).commonEditShop)),
       body: SafeArea(
         child: ShopModuleBody(
           state: state,
@@ -134,8 +135,8 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     enabled: canEdit,
                     validator: _requiredName,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Shop name',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonShopName,
                       prefixIcon: Icon(Icons.storefront_outlined),
                     ),
                   ),
@@ -146,9 +147,9 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     enabled: canEdit,
                     maxLength: 255,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Tagline',
-                      hintText: 'A one-line pitch customers see first',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonTagline,
+                      hintText: appText(context).editShopScreenAOneLinePitchCustomers,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -157,14 +158,14 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     controller: _c[2],
                     enabled: canEdit,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonDescription2,
                       alignLabelWithHint: true,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Contact',
+                    appText(context).commonContact,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 8),
@@ -177,8 +178,8 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     // only letters and over-long input are blocked.
                     inputFormatters: NumericInput.phone(),
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonPhone,
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
                   ),
@@ -190,8 +191,8 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     keyboardType: TextInputType.phone,
                     inputFormatters: NumericInput.phone(),
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Alternate phone',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonAlternatePhone,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -202,8 +203,8 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     keyboardType: TextInputType.phone,
                     inputFormatters: NumericInput.phone(),
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'WhatsApp number',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonWhatsAppNumber,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -213,8 +214,8 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                     enabled: canEdit,
                     keyboardType: TextInputType.emailAddress,
                     validator: _optionalEmail,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonEmail2,
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                   ),
@@ -234,12 +235,12 @@ class _EditShopScreenState extends ConsumerState<EditShopScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save_outlined),
-                    label: const Text('Save changes'),
+                    label: Text(appText(context).commonSaveChanges2),
                   ),
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
-                      'Only the fields you changed are sent to the server.',
+                      appText(context).editShopScreenOnlyTheFieldsYouChanged,
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.outline,

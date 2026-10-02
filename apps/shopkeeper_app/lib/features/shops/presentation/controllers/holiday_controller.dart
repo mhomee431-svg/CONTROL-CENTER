@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -64,7 +65,7 @@ class HolidaysController extends Notifier<HolidaysState> {
     state = HolidaysState.loading();
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final items = await _repo.list(shopId, token);
       state = HolidaysState(status: HolidaysStatus.ready, items: items);
     } on ApiException catch (e) {
@@ -93,7 +94,7 @@ class HolidaysController extends Notifier<HolidaysState> {
     }
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       await _repo.add(shopId, draft, token);
       await load();
       return true;
@@ -118,7 +119,7 @@ class HolidaysController extends Notifier<HolidaysState> {
     if (shopId == null) return false;
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       await _repo.remove(shopId, holidayId, token);
       await load();
       return true;
@@ -137,13 +138,13 @@ class HolidaysController extends Notifier<HolidaysState> {
   /// Technical exceptions → shopkeeper-friendly copy (offers-style).
   String _friendly(ApiException e) {
     if (e.isUnauthorized || e.statusCode == 401) {
-      return 'Your session has expired. Please sign in again.';
+      return appMessageEnglish(AppMessageCode.sessionExpired);
     }
     if (e.isForbidden || e.statusCode == 403) {
       return 'Only shop owners can manage holidays.';
     }
     if (e.statusCode == null) {
-      return 'No internet connection. Check your network and retry.';
+      return appMessageEnglish(AppMessageCode.noInternet);
     }
     return e.message;
   }

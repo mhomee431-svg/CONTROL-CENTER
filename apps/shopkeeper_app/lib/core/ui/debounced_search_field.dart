@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_text.dart';
 
 /// A search text field that filters while typing AND debounces the parent's
 /// filter call.
@@ -231,7 +232,7 @@ class _DebouncedSearchFieldState extends State<DebouncedSearchField> {
             isDense: true,
             suffixIcon: _hasText
                 ? IconButton(
-                    tooltip: 'Clear search',
+                    tooltip: appText(context).commonClearSearch,
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: _clear,
                   )
@@ -291,10 +292,10 @@ class _RecentSearchesDropdown extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Text(
-                'Recent searches',
+                appText(context).commonRecentSearches,
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ),
@@ -322,7 +323,7 @@ class _RecentSearchesDropdown extends StatelessWidget {
                       if (onRemove != null)
                         IconButton(
                           key: Key('remove_recent_$term'),
-                          tooltip: 'Remove "$term"',
+                          tooltip: appText(context).debouncedSearchFieldRemoveTerm(term),
                           icon: const Icon(Icons.close, size: 16),
                           onPressed: () => onRemove!(term),
                         ),

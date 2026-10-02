@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/support_models.dart';
 
@@ -27,7 +28,7 @@ class SupportScreen extends ConsumerWidget {
     final preview = _previewFaqs;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Help & support')),
+      appBar: AppBar(title: Text(appText(context).commonHelpSupport2)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -37,7 +38,7 @@ class SupportScreen extends ConsumerWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: Icons.chat_outlined,
-                    label: 'Contact us',
+                    label: appText(context).commonContactUs,
                     onTap: () => context.push(Routes.contactSupport),
                   ),
                 ),
@@ -45,7 +46,7 @@ class SupportScreen extends ConsumerWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: Icons.bug_report_outlined,
-                    label: 'Report issue',
+                    label: appText(context).commonReportIssue2,
                     onTap: () => context.push(Routes.reportIssue),
                   ),
                 ),
@@ -57,7 +58,7 @@ class SupportScreen extends ConsumerWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: Icons.confirmation_number_outlined,
-                    label: 'My tickets',
+                    label: appText(context).commonMyTickets2,
                     onTap: () => context.push(Routes.myTickets),
                   ),
                 ),
@@ -65,7 +66,7 @@ class SupportScreen extends ConsumerWidget {
                 Expanded(
                   child: _ActionCard(
                     icon: Icons.menu_book_outlined,
-                    label: 'Help centre',
+                    label: appText(context).commonHelpCentre3,
                     onTap: () => context.push(Routes.faq),
                   ),
                 ),
@@ -73,7 +74,7 @@ class SupportScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Frequently asked questions',
+              appText(context).supportScreenFrequentlyAskedQuestions,
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -96,7 +97,7 @@ class SupportScreen extends ConsumerWidget {
               key: const Key('support_view_all_faqs'),
               onPressed: () => context.push(Routes.faq),
               icon: const Icon(Icons.help_outline),
-              label: const Text('View all questions'),
+              label: Text(appText(context).commonViewAllQuestions),
             ),
             const SizedBox(height: 24),
             Card(
@@ -105,8 +106,8 @@ class SupportScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Still stuck?',
+                    Text(
+                      appText(context).commonStillStuck,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -114,9 +115,7 @@ class SupportScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Write to ${SupportContact.email} or call '
-                      '${SupportContact.phone}. Support hours: '
-                      '${SupportContact.hours}.',
+                      appText(context).supportScreenWriteToEmailOrCall(SupportContact.email, SupportContact.phone, SupportContact.hours),
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.4,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../products/domain/product_models.dart';
@@ -112,7 +113,7 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
         _saved = true;
       });
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Price updated')));
+          .showSnackBar(SnackBar(content: Text(appText(context).commonPriceUpdated)));
     } else {
       final message = ref.read(productsControllerProvider).message;
       setState(() {
@@ -128,7 +129,7 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
 
     if (_pickerMode) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Update price')),
+        appBar: AppBar(title: Text(appText(context).commonUpdatePrice)),
         body: PricingAsyncBody(
           status: state.status,
           message: state.message,
@@ -146,11 +147,11 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Update price'),
+        title: Text(appText(context).commonUpdatePrice),
         actions: [
           if (widget.product == null)
             IconButton(
-              tooltip: 'Choose another product',
+              tooltip: appText(context).commonChooseAnotherProduct4,
               icon: const Icon(Icons.swap_horiz_outlined),
               onPressed: () => setState(() => _selected = null),
             ),
@@ -172,8 +173,7 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Current: ${moneyLabel(product.price)}'
-                    '${product.mrp == null ? '' : ' · MRP ${moneyLabel(product.mrp!)}'}',
+                    appText(context).updatePriceScreenCurrentValueValue2(moneyLabel(product.price), product.mrp == null ? '' : ' · MRP ${moneyLabel(product.mrp!)}'),
                     key: const Key('update-price-current'),
                     style: const TextStyle(fontSize: 13),
                   ),
@@ -206,8 +206,7 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Price updated — now ₹${_priceController.text.trim()}'
-                        '${_mrpController.text.trim().isEmpty ? '' : ' · MRP ₹${_mrpController.text.trim()}'}',
+                        appText(context).updatePriceScreenPriceUpdatedNowValueValue2(_priceController.text.trim(), _mrpController.text.trim().isEmpty ? '' : ' · MRP ₹${_mrpController.text.trim()}'),
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
@@ -232,8 +231,8 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     ),
                     inputFormatters: NumericInput.decimal(),
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Selling price (₹)',
+                    decoration: InputDecoration(
+                      labelText: appText(context).updatePriceScreenSellingPrice,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -246,8 +245,8 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                     inputFormatters: NumericInput.decimal(),
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                    decoration: const InputDecoration(
-                      labelText: 'MRP (₹, optional)',
+                    decoration: InputDecoration(
+                      labelText: appText(context).updatePriceScreenMRPOptional,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -274,7 +273,7 @@ class _UpdatePriceScreenState extends ConsumerState<UpdatePriceScreen> {
                               width: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Save price'),
+                          : Text(appText(context).commonSavePrice),
                     ),
                   ),
                 ],

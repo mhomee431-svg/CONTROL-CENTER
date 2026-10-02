@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/ui/numeric_input.dart';
@@ -65,7 +67,7 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
     setState(() => _loading = true);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final detail =
           await ref.read(shopRepositoryProvider).getShopDetail(shop.id, token);
       if (!mounted) return;
@@ -112,11 +114,11 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved')));
+          SnackBar(content: Text(appText(context).commonSettingsSaved)));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not save. Please retry.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(appText(context).shopSettingsScreenCouldNotSavePleaseRetry)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -125,10 +127,10 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop settings'), actions: [
+      appBar: AppBar(title: Text(appText(context).commonShopSettings3), actions: [
         IconButton(
           // Accessible name for the icon-only refresh action.
-          tooltip: 'Refresh',
+          tooltip: appText(context).commonRefresh9,
           onPressed: _load,
           icon: const Icon(Icons.refresh),
         ),
@@ -146,7 +148,7 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                           child: Padding(
                             padding: const EdgeInsets.all(12),
                             child: Text(
-                              'Managers cannot change shop settings.',
+                              appText(context).shopSettingsScreenManagersCannotChangeShopSettings,
                               style: TextStyle(
                                   color:
                                       Theme.of(context).colorScheme.error),
@@ -155,37 +157,37 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                         ),
                       const SizedBox(height: 8),
                       SwitchListTile(
-                        title: const Text('Accepting orders'),
-                        subtitle: const Text(
-                            'Customers can place new orders while on'),
+                        title: Text(appText(context).commonAcceptingOrders),
+                        subtitle: Text(
+                            appText(context).shopSettingsScreenCustomersCanPlaceNewOrders),
                         value: _accepting,
                         onChanged: _canEdit
                             ? (v) => setState(() => _accepting = v)
                             : null,
                       ),
                       SwitchListTile(
-                        title: const Text('Delivery available'),
+                        title: Text(appText(context).commonDeliveryAvailable),
                         value: _delivery,
                         onChanged: _canEdit
                             ? (v) => setState(() => _delivery = v)
                             : null,
                       ),
                       SwitchListTile(
-                        title: const Text('Pickup available'),
+                        title: Text(appText(context).commonPickupAvailable),
                         value: _pickup,
                         onChanged: _canEdit
                             ? (v) => setState(() => _pickup = v)
                             : null,
                       ),
                       SwitchListTile(
-                        title: const Text('Open 24×7'),
+                        title: Text(appText(context).shopSettingsScreenOpen247),
                         value: _open24x7,
                         onChanged: _canEdit
                             ? (v) => setState(() => _open24x7 = v)
                             : null,
                       ),
                       const Divider(height: 32),
-                      Text('Fulfilment',
+                      Text(appText(context).commonFulfilment,
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
                       Row(children: [
@@ -196,8 +198,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                                 decimal: true),
                             inputFormatters: NumericInput.decimal(),
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                                labelText: 'Min order amount'),
+                            decoration: InputDecoration(
+                                labelText: appText(context).commonMinOrderAmount),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -208,8 +210,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                                 decimal: true),
                             inputFormatters: NumericInput.decimal(),
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                                labelText: 'Delivery radius (km)'),
+                            decoration: InputDecoration(
+                                labelText: appText(context).commonDeliveryRadiusKm),
                           ),
                         ),
                       ]),
@@ -222,8 +224,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                                 decimal: true),
                             inputFormatters: NumericInput.decimal(),
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                                labelText: 'Delivery fee'),
+                            decoration: InputDecoration(
+                                labelText: appText(context).commonDeliveryFee),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -236,8 +238,8 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) =>
                                 FocusScope.of(context).unfocus(),
-                            decoration: const InputDecoration(
-                                labelText: 'Free delivery above'),
+                            decoration: InputDecoration(
+                                labelText: appText(context).commonFreeDeliveryAbove),
                           ),
                         ),
                       ]),
@@ -254,7 +256,7 @@ class _ShopSettingsScreenState extends ConsumerState<ShopSettingsScreen> {
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2))
                             : const Icon(Icons.save_outlined),
-                        label: const Text('Save settings'),
+                        label: Text(appText(context).commonSaveSettings2),
                       ),
                     ],
                   ),

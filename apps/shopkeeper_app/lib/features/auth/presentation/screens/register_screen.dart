@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/ui/numeric_input.dart';
@@ -58,9 +59,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         (error.errorMessage ?? '').contains('already registered')) {
       // Phone is taken → guide the user to the Login screen.
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-              'Phone number already registered. Please login instead.'),
+              appText(context).registerScreenPhoneNumberAlreadyRegisteredPlease),
           duration: Duration(seconds: 4),
         ),
       );
@@ -81,8 +82,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   /// the token payload (max 3 minutes). A hint snackbar tells the user to
   /// complete sign-in in the opened Google window.
   Future<void> _signInWithGoogle() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Complete sign-in in the opened Google window…'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(appText(context).registerScreenCompleteSignInInThe),
     ));
     final ok = await ref.read(authControllerProvider.notifier).signInWithGoogle();
     if (!mounted) return;
@@ -98,24 +99,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authControllerProvider.select((s) => s.isLoading));
     return Scaffold(
-      appBar: AppBar(title: const Text('Create business account')),
+      appBar: AppBar(title: Text(appText(context).commonCreateBusinessAccount)),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Text('Tell us about your business',
+              Text(appText(context).registerScreenTellUsAboutYourBusiness,
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
-              const Text(
-                  'Create your account with your phone number and a password.'),
+              Text(
+                  appText(context).registerScreenCreateYourAccountWithYour),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
                 textCapitalization: TextCapitalization.words,
                 decoration:
-                    const InputDecoration(labelText: 'Your name'),
+                    InputDecoration(labelText: appText(context).commonYourName),
                 validator: (v) =>
                     (v ?? '').trim().isEmpty ? 'Name is required' : null,
               ),
@@ -128,9 +129,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // validator below still normalises before the API call.
                 inputFormatters: NumericInput.phone(),
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Business phone number',
-                  hintText: '9999999999',
+                decoration: InputDecoration(
+                  labelText: appText(context).commonBusinessPhoneNumber,
+                  hintText: appText(context).common99999999993,
                   prefixText: '+91 ',
                 ),
                 validator: (v) {
@@ -144,7 +145,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  labelText: appText(context).commonPassword2,
                   suffixIcon: IconButton(
                     // Tooltips are the accessible name for icon-only actions;
                     // they also describe the password field's current state.
@@ -167,7 +168,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirm,
                 decoration: InputDecoration(
-                  labelText: 'Confirm password',
+                  labelText: appText(context).commonConfirmPassword,
                   suffixIcon: IconButton(
                     // Accessible name for the visibility toggle.
                     tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
@@ -194,15 +195,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Create account'),
+                    : Text(appText(context).commonCreateAccount),
               ),
               const SizedBox(height: 16),
               Row(
-                children: const [
+                children: [
                   Expanded(child: Divider()),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or', style: TextStyle(color: AppColors.textMuted)),
+                    child: Text(appText(context).commonOr, style: TextStyle(color: AppColors.textMuted)),
                   ),
                   Expanded(child: Divider()),
                 ],
@@ -211,12 +212,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               OutlinedButton.icon(
                 onPressed: isLoading ? null : _signInWithGoogle,
                 icon: const Icon(Icons.account_circle, size: 20),
-                label: const Text('Continue with Google'),
+                label: Text(appText(context).commonContinueWithGoogle),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => context.go(Routes.login),
-                child: const Text('Already have an account? Sign in'),
+                child: Text(appText(context).registerScreenAlreadyHaveAnAccountSign),
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../domain/shop_registration_state.dart';
 import '../../../shops/data/location_accuracy_config.dart';
@@ -100,14 +101,11 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
           ),
           if (state.pinAdjusted && state.reading != null)
             Text(
-              'Original GPS estimate — '
-              '${LocationAccuracyConfig.accuracyLabel(state.reading!.accuracy)}',
+              appText(context).shopLocationDetailsOriginalGPSEstimateValue(LocationAccuracyConfig.accuracyLabel(state.reading!.accuracy)),
             ),
           const SizedBox(height: 8),
-          const Text(
-            'GPS accuracy is an estimate, not a guarantee. '
-            'Tap the map, drag the pin, or correct coordinates below. '
-            'Check your shop entrance and address before confirming.',
+          Text(
+            appText(context).shopLocationDetailsGPSAccuracyIsAnEstimate,
           ),
           if (state.needsPinDriftConfirmation) ...[
             const SizedBox(height: 12),
@@ -121,9 +119,7 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'This pin is about '
-                    '${(state.pinDriftMeters ?? 0).round()} m away from your '
-                    'GPS location. Are you sure this is your shop entrance?',
+                    appText(context).shopLocationDetailsThisPinIsAboutValue((state.pinDriftMeters ?? 0).round()),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
@@ -132,7 +128,7 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
                   OutlinedButton.icon(
                     onPressed: widget.onConfirmDrift,
                     icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Yes, this is my shop entrance'),
+                    label: Text(appText(context).shopLocationDetailsYesThisIsMyShop),
                   ),
                 ],
               ),
@@ -142,7 +138,7 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
           TextFormField(
             controller: _latitude,
             enabled: !busy,
-            decoration: const InputDecoration(labelText: 'Latitude'),
+            decoration: InputDecoration(labelText: appText(context).commonLatitude),
             keyboardType: const TextInputType.numberWithOptions(
               decimal: true,
               signed: true,
@@ -157,7 +153,7 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
           TextFormField(
             controller: _longitude,
             enabled: !busy,
-            decoration: const InputDecoration(labelText: 'Longitude'),
+            decoration: InputDecoration(labelText: appText(context).commonLongitude),
             keyboardType: const TextInputType.numberWithOptions(
               decimal: true,
               signed: true,
@@ -181,7 +177,7 @@ class _ShopLocationDetailsState extends State<ShopLocationDetails> {
                     FocusScope.of(context).unfocus();
                   },
             icon: const Icon(Icons.edit_location_alt_outlined),
-            label: const Text('Apply manual correction'),
+            label: Text(appText(context).commonApplyManualCorrection),
           ),
         ],
       ),

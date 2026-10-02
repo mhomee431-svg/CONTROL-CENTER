@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/security/safe_logger.dart';
+
 /// Result of a successful Google Sign-In.
 class GoogleAuthResult {
   const GoogleAuthResult({required this.idToken, this.displayName, this.email});
@@ -96,10 +98,13 @@ class FirebaseGoogleAuthService implements GoogleAuthService {
   /// iOS path: Firebase OAuth provider through the system browser.
   Future<GoogleAuthResult> _signInWithOAuthProvider() async {
     // Drop a stale Firebase session first so an invalid cached credential is
-    // never replayed.
+    // never replayed. Best-effort: a sign-out that fails here must not block
+    // the fresh sign-in below.
     try {
       await signOut();
-    } catch (_) {}
+    } catch (e) {
+      SafeLogger.debug('Stale sign-out failed before OAuth sign-in: $e');
+    }
     try {
       final credential = await _auth.signInWithProvider(GoogleAuthProvider());
       return await _fromCredential(credential);

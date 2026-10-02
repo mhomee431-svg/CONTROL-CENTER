@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -50,7 +51,7 @@ class _ImportProcessingScreenState
     final state = ref.watch(importControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Applying import')),
+      appBar: AppBar(title: Text(appText(context).commonApplyingImport)),
       body: SafeArea(
         child: switch (state.status) {
           ImportStatus.confirming => const _ProcessingView(),
@@ -81,12 +82,12 @@ class _ProcessingView extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 20),
-          Text('Applying rows to your inventory…',
+          Text(appText(context).importProcessingScreenApplyingRowsToYourInventory,
               key: const Key('import-processing'),
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'This usually takes a few seconds.',
+            appText(context).importProcessingScreenThisUsuallyTakesAFew,
             style: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.outline,
@@ -223,7 +224,7 @@ class _ResultView extends ConsumerWidget {
                   onPressed: () =>
                       _openReport(context, ref, filter: ReportFilter.all),
                   icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('View Results'),
+                  label: Text(appText(context).commonViewResults),
                 ),
               ),
               const SizedBox(height: 8),
@@ -236,7 +237,7 @@ class _ResultView extends ConsumerWidget {
                   onPressed: () =>
                       _openReport(context, ref, filter: ReportFilter.errors),
                   icon: const Icon(Icons.error_outline),
-                  label: Text('View Errors (${result.failed})'),
+                  label: Text(appText(context).importProcessingScreenViewErrorsFailed(result.failed)),
                 ),
               ),
               const SizedBox(height: 8),
@@ -250,7 +251,7 @@ class _ResultView extends ConsumerWidget {
                     ref.read(importControllerProvider.notifier).resetFlow();
                     context.go(Routes.importHistory);
                   },
-                  child: const Text('View import history'),
+                  child: Text(appText(context).commonViewImportHistory),
                 ),
               ),
               const SizedBox(height: 8),
@@ -263,7 +264,7 @@ class _ResultView extends ConsumerWidget {
                   ref.read(importControllerProvider.notifier).resetFlow();
                   context.go(Routes.importCenter);
                 },
-                child: const Text('Done'),
+                child: Text(appText(context).commonDone),
               ),
             ),
           ],
@@ -291,7 +292,7 @@ class _FailedRetryView extends ConsumerWidget {
                 size: 48, color: AppTheme.rejectedRed),
             const SizedBox(height: 16),
             Text(
-              'Import failed',
+              appText(context).commonImportFailed,
               key: const Key('import-result-failed'),
               style: Theme.of(context)
                   .textTheme
@@ -317,7 +318,7 @@ class _FailedRetryView extends ConsumerWidget {
                       ref.read(importControllerProvider.notifier).resetFlow();
                       context.go(Routes.importCenter);
                     },
-                    child: const Text('Back'),
+                    child: Text(appText(context).commonBack3),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -325,7 +326,7 @@ class _FailedRetryView extends ConsumerWidget {
                   child: FilledButton(
                     key: const Key('import-failed-retry'),
                     onPressed: onRetry,
-                    child: const Text('Retry'),
+                    child: Text(appText(context).commonRetry2),
                   ),
                 ),
               ],
@@ -349,7 +350,7 @@ class _NothingToApplyView extends ConsumerWidget {
           Icon(Icons.folder_off_outlined,
               size: 40, color: Theme.of(context).colorScheme.outline),
           const SizedBox(height: 12),
-          const Text('Nothing to apply'),
+          Text(appText(context).commonNothingToApply),
           const SizedBox(height: 16),
           FilledButton(
             key: const Key('import-nothing-back'),
@@ -357,7 +358,7 @@ class _NothingToApplyView extends ConsumerWidget {
               ref.read(importControllerProvider.notifier).resetFlow();
               context.go(Routes.importCenter);
             },
-            child: const Text('Back to Import Center'),
+            child: Text(appText(context).commonBackToImportCenter2),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../controllers/auth_controller.dart';
 
@@ -42,7 +43,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset successfully!')),
+          SnackBar(content: Text(appText(context).resetPasswordScreenPasswordResetSuccessfully)),
         );
         // Navigate to login
         context.go(Routes.login);
@@ -60,25 +61,25 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reset password')),
+      appBar: AppBar(title: Text(appText(context).commonResetPassword)),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Text('Create new password',
+              Text(appText(context).commonCreateNewPassword,
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 8),
-              const Text(
-                'Your new password must be at least 8 characters and include letters and numbers.',
+              Text(
+                appText(context).resetPasswordScreenYourNewPasswordMustBe,
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  labelText: 'New password',
+                  labelText: appText(context).commonNewPassword,
                   suffixIcon: IconButton(
                     // Accessible name for the visibility toggle.
                     tooltip: _obscurePassword ? 'Show password' : 'Hide password',
@@ -106,7 +107,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirm,
                 decoration: InputDecoration(
-                  labelText: 'Confirm password',
+                  labelText: appText(context).commonConfirmPassword2,
                   suffixIcon: IconButton(
                     // Accessible name for the visibility toggle.
                     tooltip: _obscureConfirm ? 'Show password' : 'Hide password',
@@ -134,12 +135,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Reset password'),
+                    : Text(appText(context).commonResetPassword),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => context.go(Routes.login),
-                child: const Text('Back to sign in'),
+                child: Text(appText(context).commonBackToSignIn2),
               ),
             ],
           ),

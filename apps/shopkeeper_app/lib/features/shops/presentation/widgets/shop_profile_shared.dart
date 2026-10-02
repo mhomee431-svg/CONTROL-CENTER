@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -33,10 +34,11 @@ class ShopModuleBody extends ConsumerWidget {
       // One shared renderer for every failure: the state's icon/action plus the
       // controller's own message when the server explained itself.
       ShopProfileStatus.error => SystemStateView(
-          spec: SystemStateSpec.resolve(
-            title: 'Could not load this shop',
+          spec: SystemStateSpec.resolve(
+            text: appText(context),
+            title: appText(context).commonCouldNotLoadThisShop,
             message: state.message,
-            fallbackMessage: 'Something went wrong.',
+            fallbackMessage: appText(context).commonSomethingWentWrong2,
           ),
           onRetry: onRetry,
           retryKey: const Key('shop-retry'),
@@ -205,8 +207,7 @@ class ShopPermissionNotice extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Managers have read-only access here. Ask the shop owner for '
-              'changes.',
+              appText(context).shopProfileSharedManagersHaveReadOnlyAccess,
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.outline,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/app_info.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../account/presentation/widgets/settings_widgets.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -97,7 +98,7 @@ class _ReportIssueScreenState extends ConsumerState<ReportIssueScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Report copied - paste it into an e-mail to ${SupportContact.email}',
+          appText(context).reportIssueScreenReportCopiedPasteItInto(SupportContact.email),
         ),
       ),
     );
@@ -177,11 +178,11 @@ class _ReportIssueScreenState extends ConsumerState<ReportIssueScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Report an issue'),
+        title: Text(appText(context).commonReportAnIssue2),
         actions: [
           IconButton(
             key: const Key('report_my_tickets'),
-            tooltip: 'My support tickets',
+            tooltip: appText(context).commonMySupportTickets2,
             onPressed: () => context.push(Routes.myTickets),
             icon: const Icon(Icons.confirmation_number_outlined),
           ),
@@ -193,10 +194,10 @@ class _ReportIssueScreenState extends ConsumerState<ReportIssueScreen> {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
-                  const SettingsIntro(
+                  SettingsIntro(
                     icon: Icons.bug_report_outlined,
-                    title: 'Tell us what broke',
-                    subtitle: 'A precise report is usually fixed in one release',
+                    title: appText(context).commonTellUsWhatBroke,
+                    subtitle: appText(context).reportIssueScreenAPreciseReportIsUsually,
                   ),
                   const SizedBox(height: 16),
                   _ReportForm(
@@ -261,16 +262,13 @@ class _ReportIssueScreenState extends ConsumerState<ReportIssueScreen> {
                     key: const Key('report_copy_button'),
                     onPressed: support.submitting ? null : _copyReport,
                     icon: const Icon(Icons.copy),
-                    label: const Text('Copy report instead'),
+                    label: Text(appText(context).commonCopyReportInstead),
                   ),
                   const SizedBox(height: 16),
-                  const SettingsNotice(
+                  SettingsNotice(
                     icon: Icons.info_outline,
-                    title: 'Every report becomes a tracked ticket',
-                    message: 'Sending files a support ticket with the category, '
-                        'severity, your shop and the app version attached. '
-                        'Support works through the same queue, and the status '
-                        'stays visible under My support tickets.',
+                    title: appText(context).reportIssueScreenEveryReportBecomesATracked,
+                    message: appText(context).reportIssueScreenSendingFilesASupportTicket,
                   ),
                 ],
               ),
@@ -305,7 +303,7 @@ class _TicketFiled extends StatelessWidget {
         const SizedBox(height: 12),
         Center(
           child: Text(
-            'Report sent',
+            appText(context).commonReportSent,
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -314,8 +312,7 @@ class _TicketFiled extends StatelessWidget {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'Support has it in the queue. Quote the ticket number below if you '
-            'contact us about it.',
+            appText(context).reportIssueScreenSupportHasItInThe,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -357,14 +354,14 @@ class _TicketFiled extends StatelessWidget {
           key: const Key('report_filed_view_tickets'),
           onPressed: () => context.push(Routes.myTickets),
           icon: const Icon(Icons.confirmation_number_outlined),
-          label: const Text('View my support tickets'),
+          label: Text(appText(context).commonViewMySupportTickets2),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           key: const Key('report_filed_another'),
           onPressed: onFileAnother,
           icon: const Icon(Icons.add),
-          label: const Text('Report something else'),
+          label: Text(appText(context).commonReportSomethingElse),
         ),
       ],
     );
@@ -408,8 +405,8 @@ class _ReportForm extends StatelessWidget {
               key: const Key('report_category'),
               initialValue: category,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'What is affected?',
+              decoration: InputDecoration(
+                labelText: appText(context).commonWhatIsAffected,
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -431,8 +428,8 @@ class _ReportForm extends StatelessWidget {
               key: const Key('report_severity'),
               initialValue: severity,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'How much does it block you?',
+              decoration: InputDecoration(
+                labelText: appText(context).reportIssueScreenHowMuchDoesItBlock,
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -457,8 +454,8 @@ class _ReportForm extends StatelessWidget {
               maxLines: 8,
               textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
-                labelText: 'What happened?',
-                hintText: 'A price saved as the old value after I tapped Save',
+                labelText: appText(context).commonWhatHappened,
+                hintText: appText(context).reportIssueScreenAPriceSavedAsThe,
                 alignLabelWithHint: true,
                 border: const OutlineInputBorder(),
                 errorText: error,
@@ -471,9 +468,9 @@ class _ReportForm extends StatelessWidget {
               minLines: 3,
               maxLines: 6,
               textInputAction: TextInputAction.newline,
-              decoration: const InputDecoration(
-                labelText: 'Steps to reproduce (optional)',
-                hintText: '1. Open Products\n2. Tap a product',
+              decoration: InputDecoration(
+                labelText: appText(context).reportIssueScreenStepsToReproduceOptional,
+                hintText: appText(context).reportIssueScreen1OpenProducts2Tap,
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(),
               ),
@@ -530,14 +527,13 @@ class _AttachmentField extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Screenshot (optional)',
+            Text(
+              appText(context).commonScreenshotOptional,
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             Text(
-              'A picture of the screen helps support reproduce the problem. '
-              'One image, compressed to WebP under 2 MB before it is sent.',
+              appText(context).reportIssueScreenAPictureOfTheScreen,
               style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
             const SizedBox(height: 12),
@@ -552,7 +548,7 @@ class _AttachmentField extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Preparing screenshot...',
+                    appText(context).commonPreparingScreenshot,
                     style: TextStyle(
                       fontSize: 13,
                       color: theme.colorScheme.outline,
@@ -567,7 +563,7 @@ class _AttachmentField extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${picked.filename} - ${_size(picked.sizeBytes)}',
+                      appText(context).reportIssueScreenFilenameValue(picked.filename, _size(picked.sizeBytes)),
                       key: const Key('report_attachment_name'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -576,7 +572,7 @@ class _AttachmentField extends StatelessWidget {
                   ),
                   IconButton(
                     key: const Key('report_attachment_remove'),
-                    tooltip: 'Remove screenshot',
+                    tooltip: appText(context).commonRemoveScreenshot,
                     onPressed: onRemove,
                     icon: const Icon(Icons.close, size: 18),
                   ),
@@ -591,13 +587,13 @@ class _AttachmentField extends StatelessWidget {
                     key: const Key('report_attachment_camera'),
                     onPressed: () => onPick(ScreenshotSource.camera),
                     icon: const Icon(Icons.photo_camera_outlined),
-                    label: const Text('Take photo'),
+                    label: Text(appText(context).commonTakePhoto),
                   ),
                   OutlinedButton.icon(
                     key: const Key('report_attachment_gallery'),
                     onPressed: () => onPick(ScreenshotSource.gallery),
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: const Text('Choose screenshot'),
+                    label: Text(appText(context).commonChooseScreenshot),
                   ),
                 ],
               ),

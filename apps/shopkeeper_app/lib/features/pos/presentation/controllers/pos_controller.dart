@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -58,7 +59,7 @@ class PosController extends Notifier<PosState> {
   /// Reads the access token or throws when the session is gone.
   Future<String> _token() async {
     final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return token;
   }
 
@@ -516,7 +517,7 @@ class PosSetupController extends Notifier<PosSetupState> {
 
   Future<String> _token() async {
     final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return token;
   }
 
@@ -751,7 +752,7 @@ class PosSyncFlowController extends Notifier<PosSyncFlowState> {
 
   Future<String> _token() async {
     final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return token;
   }
 

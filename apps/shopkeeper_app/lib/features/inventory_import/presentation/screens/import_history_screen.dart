@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
@@ -64,10 +65,10 @@ class _ImportHistoryScreenState extends ConsumerState<ImportHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import history'),
+        title: Text(appText(context).commonImportHistory),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: appText(context).commonRefresh5,
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () =>
                 ref.read(importControllerProvider.notifier).loadJobs(),
@@ -137,11 +138,10 @@ class _EmptyHistory extends StatelessWidget {
               color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 12),
-            const Text('No imports yet'),
+            Text(appText(context).commonNoImportsYet),
             const SizedBox(height: 4),
             Text(
-              'Excel files you upload will appear here with their '
-              'row-level outcomes.',
+              appText(context).importHistoryScreenExcelFilesYouUploadWill,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -231,8 +231,7 @@ class _JobTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Rows ${job.totalRows} · Success ${job.successRows} · '
-                    'Failed ${job.failedRowCount}',
+                    appText(context).importHistoryScreenRowsTotalRowsSuccessSuccessRowsFailed(job.totalRows, job.successRows, job.failedRowCount),
                     key: const Key('import-job-metrics'),
                     style: const TextStyle(fontSize: 12),
                   ),

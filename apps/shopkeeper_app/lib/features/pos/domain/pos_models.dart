@@ -1,3 +1,4 @@
+import '../../../../core/errors/app_message_code.dart';
 import '../../../core/network/api_client.dart';
 
 /// One pluggable POS vendor from `GET /shopkeeper/pos/providers`.
@@ -251,7 +252,7 @@ class PosJobLog {
 /// Shared technical-exception → shopkeeper-copy mapper for POS failures.
 String friendlyPosError(ApiException e, {String? forbidden}) {
   if (e.isUnauthorized || e.statusCode == 401) {
-    return 'Your session has expired. Please sign in again.';
+    return appMessageEnglish(AppMessageCode.sessionExpired);
   }
   if (e.isForbidden || e.statusCode == 403) {
     // A PLAN refusal (403 + ENTITLEMENT_DENIED / SUBSCRIPTION_EXPIRED /
@@ -265,7 +266,7 @@ String friendlyPosError(ApiException e, {String? forbidden}) {
     return forbidden ?? 'You do not have permission to manage POS for this shop.';
   }
   if (e.statusCode == null) {
-    return 'No internet connection. Check your network and retry.';
+    return appMessageEnglish(AppMessageCode.noInternet);
   }
   return e.message;
 }

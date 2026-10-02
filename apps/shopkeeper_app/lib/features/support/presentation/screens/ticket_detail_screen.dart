@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../account/presentation/widgets/settings_widgets.dart';
@@ -94,6 +95,7 @@ class _TicketDetailScreenState extends ConsumerState<TicketDetailScreen> {
             : error != null
             ? SystemStateView(
                 spec: SystemStateSpec.resolve(
+                  text: appText(context),
                   state: SystemState.genericRetry,
                   title: error,
                   message:

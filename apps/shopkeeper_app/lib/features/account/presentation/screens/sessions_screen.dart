@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../domain/device_session.dart';
@@ -35,16 +36,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final state = ref.watch(sessionsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sessions & devices')),
+      appBar: AppBar(title: Text(appText(context).commonSessionsDevices2)),
       body: SafeArea(
         child: switch (state.status) {
           SessionsStatus.loading =>
             const Center(child: CircularProgressIndicator()),
           SessionsStatus.error => SystemStateView(
-              spec: SystemStateSpec.resolve(
+              spec: SystemStateSpec.resolve(
+                text: appText(context),
                 state: SystemState.genericRetry,
                 title: state.message ?? 'Could not load your active devices.',
-                message: 'Check your connection and try again.',
+                message: appText(context).sessionsScreenCheckYourConnectionAndTry,
               ),
               onRetry: () =>
                   ref.read(sessionsControllerProvider.notifier).load(),
@@ -62,10 +64,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       // for Passly to store or revoke) — the copy says so instead of implying
       // that the account is broken.
       return SystemStateView.empty(
-        title: 'No device sessions recorded',
-        message: 'This account signs in with Google, so the session is managed '
-            'by Google rather than stored as a Passly device session. Logging '
-            'out from Settings still ends it on this device.',
+        title: appText(context).sessionsScreenNoDeviceSessionsRecorded,
+        message: appText(context).sessionsScreenThisAccountSignsInWith,
         icon: Icons.devices_other_outlined,
       );
     }
@@ -83,27 +83,27 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          const SettingsIntro(
+          SettingsIntro(
             icon: Icons.devices_outlined,
-            title: 'Where you are signed in',
-            subtitle: 'Devices with an active Passly Business session',
+            title: appText(context).commonWhereYouAreSignedIn,
+            subtitle: appText(context).sessionsScreenDevicesWithAnActivePassly,
           ),
           if (current != null)
             SettingsSection(
-              title: 'This device',
+              title: appText(context).commonThisDevice,
               children: [
                 _SessionRow(
                     session: current, isCurrent: true, isRevoking: false),
               ],
             ),
           SettingsSection(
-            title: 'Other devices',
+            title: appText(context).commonOtherDevices,
             children: others.isEmpty
                 ? [
-                    const SettingsTile(
+                    SettingsTile(
                       icon: Icons.verified_user_outlined,
-                      title: 'No other devices',
-                      subtitle: 'Only this device is signed in right now.',
+                      title: appText(context).commonNoOtherDevices,
+                      subtitle: appText(context).sessionsScreenOnlyThisDeviceIsSigned,
                     ),
                   ]
                 : [
@@ -117,12 +117,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                   ],
           ),
           const SizedBox(height: 8),
-          const SettingsNotice(
+          SettingsNotice(
             icon: Icons.info_outline,
-            title: 'Signing a device out takes effect immediately',
-            message: 'The device is returned to the sign-in screen the next '
-                'time it reaches Passly. To end THIS session, use Log out in '
-                'Settings — that also erases the saved tokens on this phone.',
+            title: appText(context).sessionsScreenSigningADeviceOutTakes,
+            message: appText(context).sessionsScreenTheDeviceIsReturnedTo,
           ),
         ],
       ),
@@ -135,20 +133,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out this device?'),
+        title: Text(appText(context).commonSignOutThisDevice),
         content: Text(
-          '${session.label} will need to sign in again. '
-          'This device stays signed in.',
+          appText(context).sessionsScreenLabelWillNeedToSign(session.label),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(appText(context).commonCancel),
           ),
           FilledButton(
             key: const Key('confirm_revoke_session'),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Sign out'),
+            child: Text(appText(context).commonSignOut),
           ),
         ],
       ),
@@ -209,14 +206,14 @@ class _SessionRow extends StatelessWidget {
           ),
           if (ip != null)
             Text(
-              'IP $ip',
+              appText(context).sessionsScreenIPIp(ip),
               style: TextStyle(fontSize: 11, color: scheme.outline),
             ),
         ],
       ),
       trailing: isCurrent
           ? Text(
-              'This device',
+              appText(context).commonThisDevice,
               key: const Key('session_this_device'),
               style: TextStyle(
                 fontSize: 12,
@@ -233,7 +230,7 @@ class _SessionRow extends StatelessWidget {
               : TextButton(
                   key: Key('revoke_session_${session.sessionId}'),
                   onPressed: onRevoke,
-                  child: const Text('Sign out'),
+                  child: Text(appText(context).commonSignOut),
                 ),
     );
   }

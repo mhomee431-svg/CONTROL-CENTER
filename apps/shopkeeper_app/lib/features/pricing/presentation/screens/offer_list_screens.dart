@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -45,7 +46,7 @@ class _OfferBucketScreenState extends ConsumerState<OfferBucketScreen> {
         title: Text(title),
         actions: [
           IconButton(
-            tooltip: 'Create offer',
+            tooltip: appText(context).commonCreateOffer4,
             icon: const Icon(Icons.add_outlined),
             onPressed: () => context.push(Routes.createOffer),
           ),
@@ -122,7 +123,7 @@ class _OfferTile extends StatelessWidget {
         children: [
           const SizedBox(height: 2),
           Text(
-            '${offer.offerTypeLabel} · ${offer.discountLabel} · ${offer.productCount} product(s)',
+            appText(context).offerListScreensOfferTypeLabelDiscountLabelProductCountProductS(offer.offerTypeLabel, offer.discountLabel, offer.productCount),
             style: const TextStyle(fontSize: 12),
           ),
           if (offer.windowLabel.isNotEmpty) ...[
@@ -177,7 +178,7 @@ class _Message extends StatelessWidget {
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               FilledButton.tonal(
-                  onPressed: onRetry, child: const Text('Retry')),
+                  onPressed: onRetry, child: Text(appText(context).commonRetry3)),
             ],
           ],
         ),

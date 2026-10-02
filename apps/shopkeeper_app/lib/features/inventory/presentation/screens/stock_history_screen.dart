@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/load_more.dart';
@@ -88,7 +89,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
 
     if (_pickerMode) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Stock history')),
+        appBar: AppBar(title: Text(appText(context).commonStockHistory)),
         body: ProductsAsyncBody(
           status: products.status,
           message: products.message,
@@ -110,7 +111,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
         actions: [
           if (widget.product == null)
             IconButton(
-              tooltip: 'Choose another product',
+              tooltip: appText(context).commonChooseAnotherProduct,
               icon: const Icon(Icons.swap_horiz_outlined),
               onPressed: () => setState(() {
                 _selected = null;
@@ -118,7 +119,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
               }),
             ),
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: appText(context).commonRefresh4,
             icon: const Icon(Icons.refresh_outlined),
             onPressed: _loading ? null : _loadHistory,
           ),
@@ -186,7 +187,7 @@ class _HistoryList extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: onRefresh,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    label: Text(appText(context).commonRetry),
                   ),
                 ],
               ),
@@ -198,11 +199,10 @@ class _HistoryList extends StatelessWidget {
                 children: [
                   Icon(Icons.history_outlined, size: 40, color: outline),
                   const SizedBox(height: 12),
-                  const Text('No history yet'),
+                  Text(appText(context).commonNoHistoryYet),
                   const SizedBox(height: 4),
                   Text(
-                    'Stock movements, adjustments and price changes will '
-                    'appear here.',
+                    appText(context).stockHistoryScreenStockMovementsAdjustmentsAndPrice,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: outline),
                   ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../products/domain/product_models.dart';
@@ -117,7 +118,7 @@ class _UpdateStockScreenState extends ConsumerState<UpdateStockScreen> {
 
     if (_pickerMode) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Update stock')),
+        appBar: AppBar(title: Text(appText(context).commonUpdateStock2)),
         body: ProductsAsyncBody(
           status: state.status,
           message: state.message,
@@ -135,11 +136,11 @@ class _UpdateStockScreenState extends ConsumerState<UpdateStockScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Update stock'),
+        title: Text(appText(context).commonUpdateStock2),
         actions: [
           if (widget.product == null)
             IconButton(
-              tooltip: 'Choose another product',
+              tooltip: appText(context).commonChooseAnotherProduct2,
               icon: const Icon(Icons.swap_horiz_outlined),
               onPressed: () => setState(() {
                 _selected = null;
@@ -193,7 +194,7 @@ class _ProductHeader extends StatelessWidget {
             Text(product.name, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'Current: ${product.quantity} units',
+              appText(context).updateStockScreenCurrentQuantityUnits(product.quantity),
               key: const Key('update-stock-current'),
               style: const TextStyle(fontSize: 13),
             ),
@@ -229,8 +230,7 @@ class _ResultPanel extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Stock updated: ${result.previousQuantity} → ${result.newQuantity} units '
-                '(${StockStateView.of(result.stockStatus).label})',
+                appText(context).updateStockScreenStockUpdatedPreviousQuantityNewQuantityUnits(result.previousQuantity, result.newQuantity, StockStateView.of(result.stockStatus).label),
                 style: const TextStyle(fontSize: 13),
               ),
             ),
@@ -271,7 +271,7 @@ class _Form extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Quantity change',
+            Text(appText(context).commonQuantityChange,
                 style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             TextField(
@@ -284,8 +284,8 @@ class _Form extends StatelessWidget {
               inputFormatters: NumericInput.signedWhole(),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => FocusScope.of(context).unfocus(),
-              decoration: const InputDecoration(
-                hintText: 'e.g. 24 to add stock, -3 to remove',
+              decoration: InputDecoration(
+                hintText: appText(context).updateStockScreenEG24ToAdd,
               ),
             ),
             const SizedBox(height: 8),
@@ -302,11 +302,11 @@ class _Form extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Reason', style: Theme.of(context).textTheme.titleSmall),
+            Text(appText(context).commonReason, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: adjustmentType,
-              decoration: const InputDecoration(labelText: 'Type'),
+              decoration: InputDecoration(labelText: appText(context).commonType),
               items: [
                 for (final t in kStockAdjustmentTypes)
                   DropdownMenuItem(
@@ -320,9 +320,9 @@ class _Form extends StatelessWidget {
             TextField(
               key: const Key('update-stock-reason'),
               controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-                hintText: 'e.g. supplier delivery #123',
+              decoration: InputDecoration(
+                labelText: appText(context).commonNoteOptional,
+                hintText: appText(context).updateStockScreenEGSupplierDelivery123,
               ),
             ),
             const SizedBox(height: 16),
@@ -349,7 +349,7 @@ class _Form extends StatelessWidget {
                         width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Save stock update'),
+                    : Text(appText(context).commonSaveStockUpdate),
               ),
             ),
           ],

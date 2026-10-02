@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -271,12 +272,14 @@ class ProductsAsyncBody extends StatelessWidget {
       isLoading: status == ProductsStatus.loading,
       failure: switch (status) {
         ProductsStatus.accessDenied => SystemStateSpec.resolve(
+          text: appText(context),
           state: SystemState.permissionDenied,
           title: 'Access denied',
           message: message,
           fallbackMessage: "You do not have access to this shop's inventory.",
         ),
         ProductsStatus.error => SystemStateSpec.resolve(
+          text: appText(context),
           title: 'Could not load inventory',
           message: message,
           fallbackMessage: 'Please check your connection and retry.',

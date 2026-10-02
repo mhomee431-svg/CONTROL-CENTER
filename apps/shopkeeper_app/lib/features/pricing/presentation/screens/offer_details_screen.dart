@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../offers/domain/offer_models.dart';
@@ -86,7 +87,7 @@ class _OfferDetailsScreenState extends ConsumerState<OfferDetailsScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Offer details')),
+      appBar: AppBar(title: Text(appText(context).commonOfferDetails)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -220,7 +221,7 @@ class _StatusActions extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: working ? null : onDisable,
               icon: const Icon(Icons.visibility_off_outlined),
-              label: const Text('Disable offer'),
+              label: Text(appText(context).commonDisableOffer2),
             ),
           ),
         if (canDisable && canActivate) const SizedBox(width: 12),
@@ -229,7 +230,7 @@ class _StatusActions extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: working ? null : onActivate,
               icon: const Icon(Icons.play_circle_outline),
-              label: const Text('Activate offer'),
+              label: Text(appText(context).commonActivateOffer2),
             ),
           ),
       ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../controllers/settings_controller.dart';
 
 /// Confirmation step for signing out of the Shopkeeper app.
@@ -20,7 +21,7 @@ class LogoutConfirmationScreen extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Log out')),
+      appBar: AppBar(title: Text(appText(context).commonLogOut2)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -37,7 +38,7 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Log out of Passly Business?',
+                            appText(context).logoutConfirmationScreenLogOutOfPasslyBusiness,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -47,9 +48,8 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'You will need to sign in with the same Google account '
-                      'before you can manage your shop again.',
+                    Text(
+                      appText(context).logoutConfirmationScreenYouWillNeedToSign,
                       style: TextStyle(fontSize: 13),
                     ),
                   ],
@@ -58,7 +58,7 @@ class LogoutConfirmationScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'What happens next',
+              appText(context).commonWhatHappensNext,
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -96,7 +96,7 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                 foregroundColor: scheme.onError,
               ),
               child: loggingOut
-                  ? const Row(
+                  ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SizedBox(
@@ -105,16 +105,16 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                         SizedBox(width: 12),
-                        Text('Signing out...'),
+                        Text(appText(context).commonSigningOut),
                       ],
                     )
-                  : const Text('Log out'),
+                  : Text(appText(context).commonLogOut2),
             ),
             const SizedBox(height: 8),
             OutlinedButton(
               key: const Key('logout_cancel_button'),
               onPressed: loggingOut ? null : () => context.pop(),
-              child: const Text('Stay signed in'),
+              child: Text(appText(context).commonStaySignedIn),
             ),
           ],
         ),

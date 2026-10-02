@@ -1,3 +1,4 @@
+import '../../../../../core/errors/app_message_code.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -144,7 +145,7 @@ class InventoryImportController extends Notifier<ImportState> {
         (s) => s.flow(status: ImportStatus.uploading, workbook: workbook),
       );
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final preview = await _repo.upload(shopId, workbook, token);
       _patch(
         (s) => s.flow(status: ImportStatus.preview, preview: preview),
@@ -174,7 +175,7 @@ class InventoryImportController extends Notifier<ImportState> {
     _patch((s) => s.flow(status: ImportStatus.confirming));
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final result = await _repo.confirm(shopId, jobId, token);
       _patch(
         (s) => s.flow(status: ImportStatus.done, result: result),
@@ -314,13 +315,13 @@ class InventoryImportController extends Notifier<ImportState> {
   /// Technical exceptions → shopkeeper-friendly copy.
   String _friendly(ApiException e, {required String fallback}) {
     if (e.isUnauthorized || e.statusCode == 401) {
-      return 'Your session has expired. Please sign in again.';
+      return appMessageEnglish(AppMessageCode.sessionExpired);
     }
     if (e.isForbidden || e.statusCode == 403) {
       return 'You do not have permission to import inventory.';
     }
     if (e.statusCode == null) {
-      return 'No internet connection. Check your network and retry.';
+      return appMessageEnglish(AppMessageCode.noInternet);
     }
     final message = e.message;
     if (message.isNotEmpty &&
@@ -395,7 +396,7 @@ class SampleDownloadController extends Notifier<SampleDownloadState> {
     state = const SampleDownloadState(inProgress: true);
     try {
       final token = await ref.read(tokenStoreProvider).readAccessToken();
-      if (token == null) throw const ApiException(message: 'Not signed in');
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
       final bytes = await ref
           .read(inventoryImportRepositoryProvider)
           .downloadSample(shopId, token);
@@ -424,13 +425,13 @@ class SampleDownloadController extends Notifier<SampleDownloadState> {
 
   String _sampleFailure(ApiException e) {
     if (e.isUnauthorized || e.statusCode == 401) {
-      return 'Your session has expired. Please sign in again.';
+      return appMessageEnglish(AppMessageCode.sessionExpired);
     }
     if (e.isForbidden || e.statusCode == 403) {
       return 'You do not have permission to import inventory.';
     }
     if (e.statusCode == null) {
-      return 'No internet connection. Check your network and retry.';
+      return appMessageEnglish(AppMessageCode.noInternet);
     }
     return 'Could not download the sample. Please retry.';
   }

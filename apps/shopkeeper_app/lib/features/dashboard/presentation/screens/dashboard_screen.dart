@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
@@ -86,6 +87,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           DashboardStatus.accessDenied => SystemStateView(
             spec: SystemStateSpec.resolve(
+              text: appText(context),
               state: SystemState.permissionDenied,
               title: 'No access to this shop',
               message: state.message,
@@ -96,6 +98,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           DashboardStatus.noShop => const _NoShopView(),
           DashboardStatus.error => SystemStateView(
             spec: SystemStateSpec.resolve(
+              text: appText(context),
               message: state.message,
               fallbackMessage: 'Something went wrong.',
             ),

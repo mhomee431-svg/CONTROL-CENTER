@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../core/security/safe_logger.dart';
+
 /// Result of a successful Firebase phone-OTP sign-in.
 class PhoneAuthResult {
   const PhoneAuthResult({required this.idToken, required this.phoneNumber});
@@ -214,7 +216,11 @@ class FirebasePhoneAuthService implements PhoneAuthService {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
-    } catch (_) {}
+    } catch (e) {
+      // Best-effort: the local verification state is cleared below regardless,
+      // so a failed provider sign-out can never strand the phone flow.
+      SafeLogger.debug('Firebase sign-out failed: $e');
+    }
     await cancelPendingVerification();
   }
 

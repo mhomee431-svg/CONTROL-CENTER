@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -66,17 +67,17 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Price list'),
+        title: Text(appText(context).commonPriceList),
         actions: [
           IconButton(
             key: const Key('price-list-history'),
-            tooltip: 'Price history',
+            tooltip: appText(context).commonPriceHistory2,
             icon: const Icon(Icons.history_outlined),
             onPressed: () => context.push(Routes.priceHistory),
           ),
           IconButton(
             key: const Key('price-list-create-offer'),
-            tooltip: 'Create offer',
+            tooltip: appText(context).commonCreateOffer5,
             icon: const Icon(Icons.local_offer_outlined),
             onPressed: () => context.push(Routes.createOffer),
           ),
@@ -88,7 +89,7 @@ class _PriceListScreenState extends ConsumerState<PriceListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: DebouncedSearchField(
               key: const Key('price-search-field'),
-              hintText: 'Search name, brand or SKU',
+              hintText: appText(context).priceListScreenSearchNameBrandOrSKU,
               initialValue: ref
                   .read(priceListControllerProvider)
                   .query

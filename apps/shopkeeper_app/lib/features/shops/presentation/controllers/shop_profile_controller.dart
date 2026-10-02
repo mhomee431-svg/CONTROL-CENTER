@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -45,7 +46,7 @@ class ShopProfileDetailController extends Notifier<ShopProfileState> {
 
   Future<String> _token() async {
     final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return token;
   }
 
@@ -139,7 +140,7 @@ class ShopHoursController extends Notifier<ShopHoursState> {
 
   Future<String> _token() async {
     final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return token;
   }
 
@@ -301,7 +302,7 @@ class ShopLocationController extends Notifier<ShopLocationState> {
 
   Future<String> _token() async {
     final token = await ref.read(tokenStoreProvider).readAccessToken();
-    if (token == null) throw const ApiException(message: 'Not signed in');
+    if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
     return token;
   }
 

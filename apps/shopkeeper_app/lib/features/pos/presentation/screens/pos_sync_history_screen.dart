@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/pos_models.dart';
@@ -45,7 +46,7 @@ class _PosSyncHistoryScreenState extends ConsumerState<PosSyncHistoryScreen> {
     final integration = hub.integration;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync history')),
+      appBar: AppBar(title: Text(appText(context).commonSyncHistory2)),
       body: SafeArea(
         child: PosAsyncBody(
           status: hub.status,
@@ -56,13 +57,13 @@ class _PosSyncHistoryScreenState extends ConsumerState<PosSyncHistoryScreen> {
             if (integration == null) {
               return PosMessageView(
                 icon: Icons.point_of_sale_outlined,
-                title: 'No connector yet',
-                body: 'Connect a POS and run a sync to build a history.',
+                title: appText(context).commonNoConnectorYet2,
+                body: appText(context).posSyncHistoryScreenConnectAPOSAndRun,
                 action: FilledButton.icon(
                   key: const Key('pos-history-go-setup'),
                   onPressed: () => context.push(Routes.posConnectionSetup),
                   icon: const Icon(Icons.link),
-                  label: const Text('Go to connection setup'),
+                  label: Text(appText(context).commonGoToConnectionSetup),
                 ),
               );
             }
@@ -149,7 +150,7 @@ class _HistoryList extends ConsumerWidget {
                   ),
                   IconButton(
                     key: const Key('pos-history-refresh'),
-                    tooltip: 'Refresh',
+                    tooltip: appText(context).commonRefresh6,
                     onPressed: onRefresh,
                     icon: const Icon(Icons.refresh, size: 20),
                   ),
@@ -175,25 +176,24 @@ class _HistoryList extends ConsumerWidget {
           if (jobs.isEmpty)
             PosMessageView(
               icon: Icons.history_outlined,
-              title: 'No syncs yet',
-              body: 'Run a sync and every job — queued, done or failed — shows '
-                  'up here.',
+              title: appText(context).commonNoSyncsYet,
+              body: appText(context).posSyncHistoryScreenRunASyncAndEvery,
               action: FilledButton.icon(
                 key: const Key('pos-history-go-sync'),
                 onPressed: () => context.push(Routes.posSync),
                 icon: const Icon(Icons.sync),
-                label: const Text('Start a sync'),
+                label: Text(appText(context).commonStartASync),
               ),
             )
           else if (visible.isEmpty)
             PosMessageView(
               icon: Icons.filter_alt_off_outlined,
-              title: 'Nothing matches this filter',
-              body: 'Try another status, or clear the filter.',
+              title: appText(context).posSyncHistoryScreenNothingMatchesThisFilter,
+              body: appText(context).posSyncHistoryScreenTryAnotherStatusOrClear,
               action: OutlinedButton(
                 key: const Key('pos-history-clear-filter'),
                 onPressed: () => onFilterChanged(PosHistoryFilter.all),
-                child: const Text('Show all jobs'),
+                child: Text(appText(context).commonShowAllJobs),
               ),
             )
           else
@@ -242,8 +242,7 @@ class _JobTile extends ConsumerWidget {
       ),
       title: Text(posJobSummary(job), style: const TextStyle(fontSize: 13)),
       subtitle: Text(
-        '${posSyncTypeLabel(job.syncType)} · ${posJobStatusLabel(job.status)}'
-        '${time.isEmpty ? '' : ' · $time'}',
+        appText(context).posSyncHistoryScreenValueValue2Value3(posSyncTypeLabel(job.syncType), posJobStatusLabel(job.status), time.isEmpty ? '' : ' · $time'),
         style: TextStyle(fontSize: 11, color: scheme.outline),
       ),
       trailing: const Icon(Icons.chevron_right, size: 18),
@@ -348,7 +347,7 @@ class _JobDetailSheet extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Sync job #${job.id}',
+                    appText(context).posSyncHistoryScreenSyncJobId(job.id),
                     key: const Key('pos-history-detail'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -385,7 +384,7 @@ class _JobDetailSheet extends StatelessWidget {
             ],
             if (d != null && d.logs.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text('Log', style: Theme.of(context).textTheme.titleSmall),
+              Text(appText(context).commonLog, style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 6),
               for (final log in d.logs)
                 Padding(
@@ -421,7 +420,7 @@ class _JobDetailSheet extends StatelessWidget {
             ],
             if (d != null && d.conflicts.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Text('Conflicts', style: Theme.of(context).textTheme.titleSmall),
+              Text(appText(context).commonConflicts, style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 6),
               for (final conflict in d.conflicts)
                 Padding(
@@ -443,7 +442,7 @@ class _JobDetailSheet extends StatelessWidget {
                 key: const Key('pos-history-retry'),
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry this sync'),
+                label: Text(appText(context).commonRetryThisSync),
               ),
             ],
           ],

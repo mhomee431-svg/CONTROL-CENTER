@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../controllers/profile_edit_controller.dart';
 
@@ -74,13 +75,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     if (state.status == ProfileEditStatus.loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit profile')),
+        appBar: AppBar(title: Text(appText(context).commonEditProfile)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (state.status == ProfileEditStatus.error) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit profile')),
+        appBar: AppBar(title: Text(appText(context).commonEditProfile)),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -100,7 +101,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ref.read(profileEditControllerProvider.notifier).retry();
                 },
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(appText(context).commonRetry8),
               ),
             ],
           ),
@@ -109,7 +110,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit profile')),
+      appBar: AppBar(title: Text(appText(context).commonEditProfile)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -117,8 +118,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           children: [
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Full name',
+              decoration: InputDecoration(
+                labelText: appText(context).commonFullName2,
                 prefixIcon: Icon(Icons.person_outline),
               ),
               textCapitalization: TextCapitalization.words,
@@ -131,8 +132,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _email,
-              decoration: const InputDecoration(
-                labelText: 'Email (optional)',
+              decoration: InputDecoration(
+                labelText: appText(context).commonEmailOptional,
                 prefixIcon: Icon(Icons.alternate_email),
               ),
               keyboardType: TextInputType.emailAddress,
@@ -150,10 +151,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             const SizedBox(height: 16),
             TextFormField(
               initialValue: state.phoneNumber,
-              decoration: const InputDecoration(
-                labelText: 'Phone number',
+              decoration: InputDecoration(
+                labelText: appText(context).commonPhoneNumber,
                 prefixIcon: Icon(Icons.phone_outlined),
-                helperText: 'Contact support to change your phone number',
+                helperText: appText(context).editProfileScreenContactSupportToChangeYour,
               ),
               enabled: false,
             ),

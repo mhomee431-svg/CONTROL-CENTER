@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
@@ -217,8 +218,8 @@ class _WelcomeStep extends StatelessWidget {
         const SizedBox(height: 12),
         const _HeroIllustration(),
         const SizedBox(height: 28),
-        const Text(
-          'Register Your Shop',
+        Text(
+          appText(context).commonRegisterYourShop,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 26,
@@ -228,8 +229,8 @@ class _WelcomeStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Join our platform and bring your business closer to local customers.',
+        Text(
+          appText(context).shopRegistrationWizardJoinOurPlatformAndBring,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14.5,
@@ -238,26 +239,26 @@ class _WelcomeStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 28),
-        const _BenefitCard(
+        _BenefitCard(
           icon: Icons.visibility_outlined,
-          title: 'More Visibility',
-          body: 'Discoverability by nearby customers',
+          title: appText(context).commonMoreVisibility,
+          body: appText(context).shopRegistrationWizardDiscoverabilityByNearbyCustomers,
         ),
         const SizedBox(height: 12),
-        const _BenefitCard(
+        _BenefitCard(
           icon: Icons.dashboard_outlined,
-          title: 'Easy Management',
-          body: 'Handle products, orders/inventory and business information',
+          title: appText(context).commonEasyManagement,
+          body: appText(context).shopRegistrationWizardHandleProductsOrdersInventoryAnd,
         ),
         const SizedBox(height: 12),
-        const _BenefitCard(
+        _BenefitCard(
           icon: Icons.verified_user_outlined,
-          title: 'Secure & Trusted',
-          body: 'Verified businesses create a safer marketplace',
+          title: appText(context).commonSecureTrusted,
+          body: appText(context).shopRegistrationWizardVerifiedBusinessesCreateASafer,
         ),
         const SizedBox(height: 32),
         PrimaryButton(
-          label: 'Get Started',
+          label: appText(context).commonGetStarted,
           icon: Icons.arrow_forward,
           onPressed: onGetStarted,
         ),
@@ -265,8 +266,8 @@ class _WelcomeStep extends StatelessWidget {
         Center(
           child: TextButton(
             onPressed: () => context.go(Routes.login),
-            child: const Text(
-              'Already have an account? Login',
+            child: Text(
+              appText(context).shopRegistrationWizardAlreadyHaveAnAccountLogin,
               style: TextStyle(fontSize: 14),
             ),
           ),
@@ -421,15 +422,15 @@ class _BusinessInfoStep extends StatelessWidget {
             padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
             children: [
               RegisterStepHeader(
-                title: 'Register Your Shop',
-                subtitle: 'Tell us about your shop or business.',
+                title: appText(context).commonRegisterYourShop,
+                subtitle: appText(context).shopRegistrationWizardTellUsAboutYourShop,
                 onBack: onBack,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               FormFieldCard(
                 controller: name,
-                label: 'Shop / Business Name',
-                placeholder: 'e.g. Sharma Medical Store',
+                label: appText(context).commonShopBusinessName2,
+                placeholder: appText(context).shopRegistrationWizardEGSharmaMedicalStore,
                 icon: Icons.store_outlined,
                 textCapitalization: TextCapitalization.words,
                 validator: ShopRegistrationValidators.shopName,
@@ -441,8 +442,8 @@ class _BusinessInfoStep extends StatelessWidget {
               const SizedBox(height: RegistrationSpacing.fieldGap),
               FormFieldCard(
                 controller: gstin,
-                label: 'GSTIN (optional)',
-                placeholder: 'Enter GSTIN',
+                label: appText(context).commonGSTINOptional,
+                placeholder: appText(context).commonEnterGSTIN,
                 icon: Icons.receipt_long_outlined,
                 textCapitalization: TextCapitalization.characters,
                 validator: ShopRegistrationValidators.gstin,
@@ -450,15 +451,15 @@ class _BusinessInfoStep extends StatelessWidget {
               const SizedBox(height: RegistrationSpacing.fieldGap),
               FormFieldCard(
                 controller: udyam,
-                label: 'Udyam / MSME Number (optional)',
-                placeholder: 'Enter Udyam Number',
+                label: appText(context).shopRegistrationWizardUdyamMSMENumberOptional,
+                placeholder: appText(context).commonEnterUdyamNumber,
                 icon: Icons.badge_outlined,
                 textCapitalization: TextCapitalization.characters,
                 validator: ShopRegistrationValidators.udyam,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               PrimaryButton(
-                label: 'Next',
+                label: appText(context).commonNext,
                 icon: Icons.arrow_forward,
                 onPressed: onNext,
               ),
@@ -495,9 +496,9 @@ class _CategoryField extends StatelessWidget {
         minChildSize: 0.4,
         builder: (ctx, scrollController) => Column(
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
-              child: Text('Select Business Category',
+              child: Text(appText(context).commonSelectBusinessCategory,
                   style: TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w800)),
             ),
@@ -628,7 +629,7 @@ class _BusinessTypeField extends StatelessWidget {
       initialValue: state.businessType,
       isExpanded: true,
       decoration: InputDecoration(
-        labelText: 'Business Type',
+        labelText: appText(context).commonBusinessType2,
         prefixIcon: const Icon(Icons.business_center_outlined, size: 20),
         filled: true,
         fillColor: AppColors.white,
@@ -711,9 +712,9 @@ class _LocationStep extends StatelessWidget {
             padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
             children: [
               RegisterStepHeader(
-                title: 'Shop Location',
+                title: appText(context).commonShopLocation,
                 subtitle:
-                    'Add your shop location for better visibility and verification.',
+                    appText(context).shopRegistrationWizardAddYourShopLocationFor,
                 onBack: onBack,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
@@ -783,9 +784,8 @@ class _LocationStep extends StatelessWidget {
               ),
               if (state.locationManual) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  'No GPS fix — tap the map above to place your shop entrance '
-                  'pin, or type the coordinates below.',
+                Text(
+                  appText(context).shopRegistrationWizardNoGPSFixTapThe,
                   style: TextStyle(
                     fontSize: 12,
                     color: RegistrationColors.textSecondary,
@@ -811,8 +811,8 @@ class _LocationStep extends StatelessWidget {
               const SizedBox(height: RegistrationSpacing.sectionGap),
               FormFieldCard(
                 controller: address,
-                label: 'Address',
-                placeholder: 'Shop no., street, area',
+                label: appText(context).commonAddress,
+                placeholder: appText(context).commonShopNoStreetArea,
                 icon: Icons.home_outlined,
                 validator: ShopRegistrationValidators.address,
               ),
@@ -822,8 +822,8 @@ class _LocationStep extends StatelessWidget {
                   Expanded(
                     child: FormFieldCard(
                       controller: city,
-                      label: 'City',
-                      placeholder: 'City',
+                      label: appText(context).commonCity,
+                      placeholder: appText(context).commonCity,
                       icon: Icons.location_city_outlined,
                       validator: ShopRegistrationValidators.city,
                     ),
@@ -832,8 +832,8 @@ class _LocationStep extends StatelessWidget {
                   Expanded(
                     child: FormFieldCard(
                       controller: stateName,
-                      label: 'State',
-                      placeholder: 'State',
+                      label: appText(context).commonState,
+                      placeholder: appText(context).commonState,
                       icon: Icons.map_outlined,
                       validator: ShopRegistrationValidators.stateName,
                     ),
@@ -846,8 +846,8 @@ class _LocationStep extends StatelessWidget {
                   Expanded(
                     child: FormFieldCard(
                       controller: pincode,
-                      label: 'Pincode',
-                      placeholder: '6-digit pincode',
+                      label: appText(context).commonPincode,
+                      placeholder: appText(context).common6DigitPincode,
                       icon: Icons.pin_drop_outlined,
                       keyboardType: TextInputType.number,
                       // Indian pincodes are exactly six digits — letters and
@@ -861,8 +861,8 @@ class _LocationStep extends StatelessWidget {
                   Expanded(
                     child: FormFieldCard(
                       controller: landmark,
-                      label: 'Landmark (optional)',
-                      placeholder: 'Near…',
+                      label: appText(context).commonLandmarkOptional,
+                      placeholder: appText(context).shopRegistrationWizardNear,
                       icon: Icons.near_me_outlined,
                     ),
                   ),
@@ -870,7 +870,7 @@ class _LocationStep extends StatelessWidget {
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               PrimaryButton(
-                label: 'Next',
+                label: appText(context).commonNext,
                 icon: Icons.arrow_forward,
                 onPressed: onNext,
               ),
@@ -898,7 +898,7 @@ class _LocationActions extends StatelessWidget {
     if (locationStatus == RegistrationLocationStatus.requestingPermission ||
         locationStatus == RegistrationLocationStatus.locating ||
         locationStatus == RegistrationLocationStatus.adjustingAccuracy) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -908,7 +908,7 @@ class _LocationActions extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2)),
             SizedBox(width: 10),
-            Text('Getting location…'),
+            Text(appText(context).shopRegistrationWizardGettingLocation),
           ],
         ),
       );
@@ -937,8 +937,8 @@ class _LocationActions extends StatelessWidget {
             label: 'Choose Location on Map',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Tap the map to place your shop pin.'),
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
               ));
             },
           ),
@@ -947,10 +947,9 @@ class _LocationActions extends StatelessWidget {
             label: 'Enter Address Manually',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(
-                  'Type your address below, then tap the map to place your '
-                  'shop pin.',
+                  appText(context).shopRegistrationWizardTypeYourAddressBelowThen,
                 ),
               ));
             },
@@ -973,8 +972,8 @@ class _LocationActions extends StatelessWidget {
             label: 'Choose Location on Map',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Tap the map to place your shop pin.'),
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
               ));
             },
           ),
@@ -983,10 +982,9 @@ class _LocationActions extends StatelessWidget {
             label: 'Enter Address Manually',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(
-                  'Type your address below, then tap the map to place your '
-                  'shop pin.',
+                  appText(context).shopRegistrationWizardTypeYourAddressBelowThen,
                 ),
               ));
             },
@@ -1006,8 +1004,8 @@ class _LocationActions extends StatelessWidget {
             label: 'Choose Location on Map',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Tap the map to place your shop pin.'),
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
               ));
             },
           ),
@@ -1027,8 +1025,8 @@ class _LocationActions extends StatelessWidget {
           if (controllerState.pin == null) {
             // Manual mode: GPS is unavailable by choice, so never re-run the
             // permission flow behind the shopkeeper's back.
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Tap the map to place your shop pin.'),
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
             ));
             return;
           }
@@ -1098,8 +1096,8 @@ class _DocumentsStepState extends State<_DocumentsStep> {
             padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
             children: [
               RegisterStepHeader(
-                title: 'Documents and Additional Info',
-                subtitle: 'Upload required documents for verification.',
+                title: appText(context).shopRegistrationWizardDocumentsAndAdditionalInfo,
+                subtitle: appText(context).shopRegistrationWizardUploadRequiredDocumentsForVerification,
                 onBack: widget.onBack,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
@@ -1143,8 +1141,8 @@ class _DocumentsStepState extends State<_DocumentsStep> {
               const SizedBox(height: 12),
               FormFieldCard(
                 controller: widget.description,
-                label: 'Business Description',
-                placeholder: 'Tell customers about your shop …',
+                label: appText(context).commonBusinessDescription,
+                placeholder: appText(context).shopRegistrationWizardTellCustomersAboutYourShop,
                 icon: Icons.description_outlined,
                 textCapitalization: TextCapitalization.sentences,
               ),
@@ -1153,7 +1151,7 @@ class _DocumentsStepState extends State<_DocumentsStep> {
                 children: [
                   Expanded(
                     child: _TimeField(
-                        label: 'Opening Time',
+                        label: appText(context).commonOpeningTime,
                         initial: state.openTime,
                         onPicked: (v) => ProviderScope.containerOf(
                                 context, listen: false)
@@ -1163,7 +1161,7 @@ class _DocumentsStepState extends State<_DocumentsStep> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _TimeField(
-                        label: 'Closing Time',
+                        label: appText(context).commonClosingTime,
                         initial: state.closeTime,
                         onPicked: (v) => ProviderScope.containerOf(
                                 context, listen: false)
@@ -1175,20 +1173,20 @@ class _DocumentsStepState extends State<_DocumentsStep> {
               const SizedBox(height: RegistrationSpacing.fieldGap),
               FormFieldCard(
                 controller: widget.website,
-                label: 'Website (optional)',
-                placeholder: 'https://',
+                label: appText(context).commonWebsiteOptional,
+                placeholder: appText(context).shopRegistrationWizardHttps,
                 icon: Icons.public,
               ),
               const SizedBox(height: RegistrationSpacing.fieldGap),
               FormFieldCard(
                 controller: widget.social,
-                label: 'Social Media (optional)',
-                placeholder: 'Instagram / Facebook link',
+                label: appText(context).commonSocialMediaOptional,
+                placeholder: appText(context).shopRegistrationWizardInstagramFacebookLink,
                 icon: Icons.alternate_email,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               PrimaryButton(
-                label: 'Review details',
+                label: appText(context).commonReviewDetails,
                 icon: Icons.visibility_outlined,
                 onPressed: widget.onNext,
               ),
@@ -1326,12 +1324,12 @@ class _ReviewStep extends StatelessWidget {
         Row(children: [
           IconButton(
             // Accessible name for the icon-only back control.
-            tooltip: 'Back',
+            tooltip: appText(context).commonBack5,
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back),
           ),
           Expanded(
-            child: Text('Review your details',
+            child: Text(appText(context).commonReviewYourDetails,
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge
@@ -1340,7 +1338,7 @@ class _ReviewStep extends StatelessWidget {
         ]),
         const SizedBox(height: RegistrationSpacing.sectionGap),
         _ReviewSection(
-          title: 'Business information',
+          title: appText(context).commonBusinessInformation,
           onEdit: onEditBusiness,
           rows: [
             ('Shop name', orDash(state.shopName)),
@@ -1352,7 +1350,7 @@ class _ReviewStep extends StatelessWidget {
         ),
         const SizedBox(height: RegistrationSpacing.sectionGap),
         _ReviewSection(
-          title: 'Location',
+          title: appText(context).commonLocation,
           onEdit: onEditLocation,
           rows: [
             ('Address', orDash(state.addressLine)),
@@ -1371,7 +1369,7 @@ class _ReviewStep extends StatelessWidget {
         ),
         const SizedBox(height: RegistrationSpacing.sectionGap),
         _ReviewSection(
-          title: 'Additional information',
+          title: appText(context).commonAdditionalInformation,
           onEdit: onEditDocuments,
           rows: [
             ('Description', orDash(state.description)),
@@ -1394,7 +1392,7 @@ class _ReviewStep extends StatelessWidget {
                   style: TextStyle(color: scheme.onErrorContainer)),
               trailing: IconButton(
                 // Accessible name for the icon-only dismiss control.
-                tooltip: 'Dismiss',
+                tooltip: appText(context).commonDismiss,
                 icon: const Icon(Icons.close),
                 onPressed: onDismissError,
               ),
@@ -1403,7 +1401,7 @@ class _ReviewStep extends StatelessWidget {
           const SizedBox(height: RegistrationSpacing.fieldGap),
         ],
         PrimaryButton(
-          label: 'Submit Registration',
+          label: appText(context).commonSubmitRegistration,
           icon: Icons.check_circle_outline,
           loading: submitting,
           loadingLabel: switch (state.submitPhase) {
@@ -1456,7 +1454,7 @@ class _ReviewSection extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Edit'),
+                  label: Text(appText(context).commonEdit),
                 ),
               ],
             ),
@@ -1509,7 +1507,7 @@ class _ReviewDocuments extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text('Documents',
+                  child: Text(appText(context).commonDocuments,
                       style: Theme.of(context)
                           .textTheme
                           .titleSmall
@@ -1524,7 +1522,7 @@ class _ReviewDocuments extends StatelessWidget {
                         .editDocuments();
                   },
                   icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Edit'),
+                  label: Text(appText(context).commonEdit),
                 ),
               ],
             ),
@@ -1594,8 +1592,8 @@ class _SuccessStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Registration Submitted!',
+        Text(
+          appText(context).commonRegistrationSubmitted,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 24,
@@ -1604,8 +1602,8 @@ class _SuccessStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Your shop registration has been successfully submitted. Our team will review the details and verify your documents.',
+        Text(
+          appText(context).shopRegistrationWizardYourShopRegistrationHasBeen,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14.5,
@@ -1618,23 +1616,23 @@ class _SuccessStep extends StatelessWidget {
         const SizedBox(height: 12),
         _TimelineItem(
           icon: Icons.phone_android_outlined,
-          title: 'OTP Verification',
+          title: appText(context).commonOTPVerification,
           done: requirements?.phoneOtpRequired ?? true,
         ),
         _TimelineItem(
           icon: Icons.description_outlined,
-          title: 'Document Verification',
+          title: appText(context).commonDocumentVerification,
           done: true,
         ),
         if (requirements?.requiresBankVerification ?? true)
           _TimelineItem(
             icon: Icons.account_balance_outlined,
-            title: 'Bank Verification',
+            title: appText(context).commonBankVerification,
             done: false,
           ),
         _TimelineItem(
           icon: Icons.approval_outlined,
-          title: 'Approval',
+          title: appText(context).commonApproval,
           done: false,
         ),
         const SizedBox(height: 16),
@@ -1646,8 +1644,8 @@ class _SuccessStep extends StatelessWidget {
             borderRadius:
                 BorderRadius.circular(RegistrationSpacing.fieldRadius),
           ),
-          child: const Text(
-            'You will get a notification once your shop is verified.',
+          child: Text(
+            appText(context).shopRegistrationWizardYouWillGetANotification,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13.5,
@@ -1658,7 +1656,7 @@ class _SuccessStep extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         PrimaryButton(
-          label: 'Go to Dashboard',
+          label: appText(context).commonGoToDashboard,
           icon: Icons.dashboard_outlined,
           onPressed: () => context.go(Routes.dashboard),
         ),
@@ -1669,7 +1667,7 @@ class _SuccessStep extends StatelessWidget {
             // root), so this button used to do nothing at all. Send the
             // shopkeeper to the real Home route instead.
             onPressed: () => context.go(Routes.dashboard),
-            child: const Text('Back to Home'),
+            child: Text(appText(context).commonBackToHome),
           ),
         ),
         const SizedBox(height: 16),

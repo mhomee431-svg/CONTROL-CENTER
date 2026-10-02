@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -223,7 +224,7 @@ class PosMessageView extends StatelessWidget {
     final carried = onRetry == null ? null : SystemStateSpec.fromMessage(title);
     if (carried != null) {
       return SystemStateView(
-        spec: SystemStateSpec.of(carried),
+        spec: SystemStateSpec.of(carried, appText(context)),
         onRetry: onRetry,
         retryLabel: retryLabel,
         retryKey: const Key('pos-retry'),

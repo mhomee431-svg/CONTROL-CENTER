@@ -607,6 +607,63 @@ class TestCapabilitiesAuthorization:
         assert _code(response) == "NOT_FOUND"
 
 
+class TestSubscribeAuthorization:
+    """POST /shopkeeper/subscription/subscribe must not accept a forged
+    shop_id: a caller with no DB-backed association to the shop gets 403
+    and no billable row is created."""
+
+    def test_subscribe_with_forged_shop_id_is_403(self, ctx: Ctx):
+        from app.schemas.subscription import SubscribeRequest
+        from app.models.subscription import Subscription
+        from app.api.routes import shopkeeper_subscription
+        import asyncio
+
+        shop = make_shop(ctx.db, owner_id=999)  # owned by somebody else
+        plan = make_plan(ctx.db)
+        ctx.db.commit()
+
+        async def call():
+            return await shopkeeper_subscription.subscribe_to_plan(
+                payload=SubscribeRequest(
+                    plan_id=plan.id,
+                    shop_id=shop.id,
+                    billing_cycle="MONTHLY",
+                ),
+                current_user=OWNER,
+                db=ctx.db,
+            )
+
+        response = asyncio.run(call())
+
+        assert response.status_code == 403, response.body
+        assert ctx.db.query(Subscription).count() == 0
+
+    def test_subscribe_without_shop_id_is_allowed(self, ctx: Ctx):
+        from app.schemas.subscription import SubscribeRequest
+        from app.models.subscription import Subscription
+        from app.api.routes import shopkeeper_subscription
+        import asyncio
+
+        plan = make_plan(ctx.db)
+        ctx.db.commit()
+
+        async def call():
+            return await shopkeeper_subscription.subscribe_to_plan(
+                payload=SubscribeRequest(
+                    plan_id=plan.id,
+                    shop_id=None,
+                    billing_cycle="MONTHLY",
+                ),
+                current_user=OWNER,
+                db=ctx.db,
+            )
+
+        response = asyncio.run(call())
+
+        assert response.status_code == 201, response.body
+        assert ctx.db.query(Subscription).count() == 1
+
+
 # -- 3. Fail-soft helper -----------------------------------------------------
 
 

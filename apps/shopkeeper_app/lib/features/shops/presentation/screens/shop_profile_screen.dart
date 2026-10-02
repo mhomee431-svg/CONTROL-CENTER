@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/shop_models.dart';
@@ -40,11 +41,11 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shop profile'),
+        title: Text(appText(context).commonShopProfile4),
         actions: [
           IconButton(
             key: const Key('shop-profile-refresh'),
-            tooltip: 'Refresh',
+            tooltip: appText(context).commonRefresh8,
             onPressed: () =>
                 ref.read(shopProfileDetailProvider.notifier).load(),
             icon: const Icon(Icons.refresh),
@@ -161,9 +162,7 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${detail.summary.membership == 'owner' ? 'Owner' : 'Manager'}'
-              ' · ${humanizeCode(detail.summary.status)}'
-              ' · ${detail.categoryLabel}',
+              appText(context).shopProfileScreenValueValue2CategoryLabel(detail.summary.membership == 'owner' ? 'Owner' : 'Manager', humanizeCode(detail.summary.status), detail.categoryLabel),
               style: TextStyle(fontSize: 12, color: scheme.outline),
             ),
             if ((detail.tagline ?? '').trim().isNotEmpty) ...[

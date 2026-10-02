@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../pos/presentation/controllers/pos_controller.dart';
@@ -61,13 +62,12 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
         jobs.where((j) => j.status == 'FAILED').length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Import Center')),
+      appBar: AppBar(title: Text(appText(context).commonImportCenter)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Bring products into your shop — manually or in bulk. '
-            'Choose a method below to get started.',
+            appText(context).importCenterScreenBringProductsIntoYourShop,
             style: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.outline,
@@ -77,10 +77,8 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
           _MethodCard(
             key: const Key('method-excel-csv'),
             icon: Icons.upload_file_outlined,
-            title: 'Excel / CSV',
-            subtitle: 'Bulk-upload a workbook to update stock, prices or '
-                'catalog. Download a sample template, fill it in, then '
-                'preview before applying.',
+            title: appText(context).commonExcelCSV,
+            subtitle: appText(context).importCenterScreenBulkUploadAWorkbookTo,
             onTap: () {
               ref.read(importControllerProvider.notifier).resetFlow();
               context.push(Routes.importUpload);
@@ -99,7 +97,7 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
           _MethodCard(
             key: const Key('method-pos-sync'),
             icon: Icons.point_of_sale_outlined,
-            title: 'POS Sync',
+            title: appText(context).commonPOSSync3,
             subtitle: hasPos
                 ? 'Connected to ${_integrationName(posIntegration)}. '
                     'Sync products and sales from your POS.'
@@ -110,7 +108,7 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Activity',
+            appText(context).commonActivity,
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
@@ -125,7 +123,7 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
                     radius: 16,
                     child: Icon(Icons.upload_file_outlined, size: 18),
                   ),
-                  title: const Text('Last import'),
+                  title: Text(appText(context).commonLastImport),
                   subtitle: Text(_lastImportSubtitle(jobs)),
                   onTap: () => context.push(Routes.importHistory),
                 ),
@@ -136,7 +134,7 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
                     radius: 16,
                     child: Icon(Icons.sync_outlined, size: 18),
                   ),
-                  title: const Text('Last POS sync'),
+                  title: Text(appText(context).commonLastPOSSync),
                   subtitle: Text(posSyncStatus),
                   onTap: () => context.push(Routes.posSyncHistory),
                 ),
@@ -147,7 +145,7 @@ class _ImportCenterScreenState extends ConsumerState<ImportCenterScreen> {
                     radius: 16,
                     child: Icon(Icons.error_outline, size: 18),
                   ),
-                  title: const Text('Failed'),
+                  title: Text(appText(context).commonFailed),
                   subtitle: Text(
                     failedImports > 0
                         ? '$failedImports import(s) failed'
@@ -220,13 +218,13 @@ class _DownloadSampleTile extends StatelessWidget {
         key: const Key('import-tile-download-sample'),
         leading: Icon(Icons.download_outlined, color: theme.colorScheme.primary),
         title: Text(
-          'Download sample',
+          appText(context).commonDownloadSample,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
-        subtitle: const Text(
-          'Get the import template workbook',
+        subtitle: Text(
+          appText(context).importCenterScreenGetTheImportTemplateWorkbook,
           style: TextStyle(fontSize: 12),
         ),
         trailing: downloading
@@ -300,7 +298,7 @@ class _RecentImports extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Recent imports', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonRecentImports, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         Card(
           margin: EdgeInsets.zero,
@@ -321,7 +319,7 @@ class _RecentImports extends StatelessWidget {
                     style: const TextStyle(fontSize: 13),
                   ),
                   subtitle: Text(
-                    '${job.validRows} valid, ${job.errorRows} errors',
+                    appText(context).importCenterScreenValidRowsValidErrorRowsErrors(job.validRows, job.errorRows),
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.outline,

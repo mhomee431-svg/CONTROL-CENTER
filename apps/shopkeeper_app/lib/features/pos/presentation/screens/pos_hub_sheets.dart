@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../domain/pos_models.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../controllers/pos_controller.dart';
@@ -69,7 +70,7 @@ class _TerminalsSheetState extends ConsumerState<_TerminalsSheet> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Terminals',
+                    appText(context).commonTerminals,
                     key: const Key('pos-terminals-title'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -78,13 +79,13 @@ class _TerminalsSheetState extends ConsumerState<_TerminalsSheet> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Every till, scanner or tablet mapped to this connector.',
+              appText(context).posHubSheetsEveryTillScannerOrTablet,
               style:
                   TextStyle(fontSize: 12, color: scheme.outline, height: 1.35),
             ),
             const SizedBox(height: 14),
             if (integration == null)
-              Text('No connector yet.',
+              Text(appText(context).commonNoConnectorYet,
                   style: TextStyle(color: scheme.outline))
             else if (pos.devicesLoading)
               const Padding(
@@ -101,7 +102,7 @@ class _TerminalsSheetState extends ConsumerState<_TerminalsSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'No terminals mapped yet. Add the first one below.',
+                  appText(context).posHubSheetsNoTerminalsMappedYetAdd,
                   key: const Key('pos-terminals-empty'),
                   style: TextStyle(color: scheme.outline),
                 ),
@@ -188,16 +189,16 @@ class _AddTerminalFormState extends State<_AddTerminalForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Divider(height: 24),
-        Text('Add a terminal', style: Theme.of(context).textTheme.titleSmall),
+        Text(appText(context).commonAddATerminal, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 10),
         TextField(
           key: const Key('pos-device-identifier'),
           controller: _identifier,
           enabled: !_busy,
           maxLength: 100,
-          decoration: const InputDecoration(
-            labelText: 'Terminal id (from your POS vendor)',
-            hintText: 'TILL-01',
+          decoration: InputDecoration(
+            labelText: appText(context).posHubSheetsTerminalIdFromYourPOS,
+            hintText: appText(context).commonTILL01,
             counterText: '',
           ),
         ),
@@ -207,9 +208,9 @@ class _AddTerminalFormState extends State<_AddTerminalForm> {
           controller: _name,
           enabled: !_busy,
           maxLength: 255,
-          decoration: const InputDecoration(
-            labelText: 'Name (optional)',
-            hintText: 'Counter 1',
+          decoration: InputDecoration(
+            labelText: appText(context).commonNameOptional,
+            hintText: appText(context).commonCounter1,
             counterText: '',
           ),
         ),
@@ -234,7 +235,7 @@ class _AddTerminalFormState extends State<_AddTerminalForm> {
           child: _busy
               ? const SizedBox(height: 18, width: 18,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Add terminal'),
+              : Text(appText(context).commonAddTerminal),
         ),
       ],
     );
@@ -337,19 +338,19 @@ class _SyncSettingsSheetState extends ConsumerState<_SyncSettingsSheet> {
               Icon(Icons.tune_outlined, color: scheme.primary),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('Sync settings',
+                child: Text(appText(context).commonSyncSettings,
                     key: const Key('pos-settings-title'),
                     style: theme.textTheme.titleMedium),
               ),
             ]),
             const SizedBox(height: 12),
             if (integration == null)
-              Text('No connector yet.', style: TextStyle(color: scheme.outline))
+              Text(appText(context).commonNoConnectorYet, style: TextStyle(color: scheme.outline))
             else ...[
               SwitchListTile(
                 key: const Key('pos-settings-sync-enabled'),
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Background sync', style: TextStyle(fontSize: 14)),
+                title: Text(appText(context).commonBackgroundSync, style: TextStyle(fontSize: 14)),
                 subtitle: Text(
                   integration.syncEnabled
                       ? 'Runs automatically on the schedule below'
@@ -365,7 +366,7 @@ class _SyncSettingsSheetState extends ConsumerState<_SyncSettingsSheet> {
                         _intervals.containsKey(integration.syncIntervalMinutes)
                     ? integration.syncIntervalMinutes
                     : 60,
-                decoration: const InputDecoration(labelText: 'Sync every'),
+                decoration: InputDecoration(labelText: appText(context).commonSyncEvery),
                 items: [
                   for (final entry in _intervals.entries)
                     DropdownMenuItem(value: entry.key, child: Text(entry.value)),
@@ -373,25 +374,24 @@ class _SyncSettingsSheetState extends ConsumerState<_SyncSettingsSheet> {
                 onChanged: _changeInterval,
               ),
               const Divider(height: 28),
-              Text('When the same product disagrees',
+              Text(appText(context).posHubSheetsWhenTheSameProductDisagrees,
                   style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Text(
-                'The till is usually the truth for stock levels; the platform '
-                'keeps pricing, offers and MRP.',
+                appText(context).posHubSheetsTheTillIsUsuallyThe,
                 style: TextStyle(fontSize: 12, color: scheme.outline),
               ),
               const SizedBox(height: 12),
               _AuthorityPicker(
                 fieldKey: const Key('pos-settings-inventory-authority'),
-                label: 'Stock levels',
+                label: appText(context).commonStockLevels,
                 value: _inventoryAuthority,
                 onChanged: (v) => setState(() => _inventoryAuthority = v),
               ),
               const SizedBox(height: 12),
               _AuthorityPicker(
                 fieldKey: const Key('pos-settings-price-authority'),
-                label: 'Price and MRP',
+                label: appText(context).commonPriceAndMRP,
                 value: _priceAuthority,
                 onChanged: (v) => setState(() => _priceAuthority = v),
               ),
@@ -403,9 +403,9 @@ class _SyncSettingsSheetState extends ConsumerState<_SyncSettingsSheet> {
                 inputFormatters: NumericInput.whole(maxLength: 5),
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                decoration: const InputDecoration(
-                  labelText: 'Records per batch (optional)',
-                  hintText: '500',
+                decoration: InputDecoration(
+                  labelText: appText(context).posHubSheetsRecordsPerBatchOptional,
+                  hintText: appText(context).common500,
                 ),
               ),
               if (_error != null) ...[
@@ -419,7 +419,7 @@ class _SyncSettingsSheetState extends ConsumerState<_SyncSettingsSheet> {
                 child: _busy
                     ? const SizedBox(height: 18, width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Save settings'),
+                    : Text(appText(context).commonSaveSettings),
               ),
             ],
           ],
@@ -451,9 +451,9 @@ class _AuthorityPicker extends StatelessWidget {
         const SizedBox(height: 6),
         SegmentedButton<String>(
           key: fieldKey,
-          segments: const [
-            ButtonSegment(value: 'PLATFORM', label: Text('Platform')),
-            ButtonSegment(value: 'POS', label: Text('This till')),
+          segments: [
+            ButtonSegment(value: 'PLATFORM', label: Text(appText(context).commonPlatform)),
+            ButtonSegment(value: 'POS', label: Text(appText(context).commonThisTill)),
           ],
           selected: {value},
           onSelectionChanged: (s) => onChanged(s.first),
@@ -490,8 +490,8 @@ class _DeviceTile extends StatelessWidget {
         style: const TextStyle(fontSize: 11),
       ),
       trailing: device.isActive
-          ? Text('Active', style: TextStyle(fontSize: 11, color: scheme.primary))
-          : Text('Inactive', style: TextStyle(fontSize: 11, color: scheme.outline)),
+          ? Text(appText(context).commonActive2, style: TextStyle(fontSize: 11, color: scheme.primary))
+          : Text(appText(context).commonInactive, style: TextStyle(fontSize: 11, color: scheme.outline)),
     );
   }
 }

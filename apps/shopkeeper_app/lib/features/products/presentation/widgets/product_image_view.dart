@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../../../core/l10n/app_text.dart';
 
 /// A resilient, self-contained product image widget supporting:
 /// - Placeholder state (when no image is present)
@@ -72,7 +73,7 @@ class ProductImageView extends StatelessWidget {
           if (height >= 70) ...[
             const SizedBox(height: 2),
             Text(
-              'No image',
+              appText(context).commonNoImage2,
               style: TextStyle(
                 fontSize: 10,
                 color: scheme.outline,
@@ -104,7 +105,7 @@ class ProductImageView extends StatelessWidget {
           if (height >= 70) ...[
             const SizedBox(height: 2),
             Text(
-              'Failed to load',
+              appText(context).commonFailedToLoad,
               style: TextStyle(
                 fontSize: 9,
                 color: scheme.error,

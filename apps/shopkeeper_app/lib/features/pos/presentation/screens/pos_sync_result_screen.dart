@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/pos_models.dart';
@@ -17,7 +18,7 @@ class PosSyncResultScreen extends ConsumerWidget {
     final flow = ref.watch(posSyncFlowProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync result')),
+      appBar: AppBar(title: Text(appText(context).commonSyncResult)),
       body: SafeArea(
         child: PosSyncResultView(
           job: flow.job,
@@ -121,13 +122,13 @@ class PosSyncResultView extends ConsumerWidget {
                 children: [
                   _ResultCounter(
                     key: const Key('pos-result-synced'),
-                    label: 'Synced',
+                    label: appText(context).commonSynced2,
                     value: job!.itemsSucceeded,
                     color: AppTheme.verifiedGreen,
                   ),
                   _ResultCounter(
                     key: const Key('pos-result-failed'),
-                    label: 'Failed',
+                    label: appText(context).commonFailed3,
                     value: job!.itemsFailed,
                     color: scheme.error,
                   ),
@@ -177,7 +178,7 @@ class _ResultActions extends ConsumerWidget {
             key: const Key('pos-result-done'),
             onPressed: () =>
                 resetAndThen(() => GoRouter.maybeOf(context)?.go(Routes.pos)),
-            child: const Text('Done'),
+            child: Text(appText(context).commonDone2),
           ),
         ),
         const SizedBox(height: 8),
@@ -191,7 +192,7 @@ class _ResultActions extends ConsumerWidget {
                         () => GoRouter.maybeOf(context)?.push(Routes.posSync),
                       )
                     : null,
-                child: const Text('Sync again'),
+                child: Text(appText(context).commonSyncAgain),
               ),
             ),
             const SizedBox(width: 8),
@@ -201,7 +202,7 @@ class _ResultActions extends ConsumerWidget {
                 onPressed: () => resetAndThen(
                   () => GoRouter.maybeOf(context)?.push(Routes.posSyncHistory),
                 ),
-                child: const Text('View history'),
+                child: Text(appText(context).commonViewHistory2),
               ),
             ),
           ],
@@ -229,7 +230,7 @@ class _ResultCounter extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '$value',
+          appText(context).posSyncResultScreenValue(value),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             color: color,
             fontWeight: FontWeight.w700,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../core/errors/app_message_code.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_store.dart';
 import '../../../../core/router/route_names.dart';
@@ -51,11 +53,11 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
   Future<ImportJob> _load() async {
     final shopId = ref.read(selectedShopProvider)?.id;
     if (shopId == null) {
-      throw const ApiException(message: 'No shop selected');
+      throw ApiException.localized(AppMessageCode.noShopSelected);
     }
     final token = await ref.read(tokenStoreProvider).readAccessToken();
     if (token == null) {
-      throw const ApiException(message: 'Not signed in');
+      throw ApiException.localized(AppMessageCode.notSignedIn);
     }
     // `preview` is the per-job read: it returns the job (status + counters) and
     // the row-level report, so one call answers both this screen and the report
@@ -88,7 +90,7 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Import result')),
+      appBar: AppBar(title: Text(appText(context).commonImportResult)),
       body: SafeArea(
         child: FutureBuilder<ImportJob>(
           future: _job,
@@ -106,16 +108,17 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
               // happened even when this one job cannot be opened.
               final error = snapshot.error;
               return SystemStateView(
-                spec: SystemStateSpec.resolve(
+                spec: SystemStateSpec.resolve(
+                  text: appText(context),
                   state: error is ApiException ? error.systemState : null,
-                  title: 'Could not open this import',
-                  fallbackMessage: 'This import is no longer available.',
+                  title: appText(context).importResultScreenCouldNotOpenThisImport,
+                  fallbackMessage: appText(context).importResultScreenThisImportIsNoLonger,
                 ),
                 onRetry: () => setState(() => _job = _load()),
                 secondary: TextButton(
                   key: const Key('import-result-error-history'),
                   onPressed: () => context.go(Routes.importHistory),
-                  child: const Text('Open import history'),
+                  child: Text(appText(context).commonOpenImportHistory),
                 ),
               );
             }
@@ -141,7 +144,7 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
                     if (job.hasErrors) ...[
                       const SizedBox(height: 20),
                       Text(
-                        '${job.errorRows} row(s) could not be imported.',
+                        appText(context).importResultScreenErrorRowsRowSCouldNot(job.errorRows),
                         key: const Key('import-result-errors'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -158,7 +161,7 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
                           key: const Key('import-result-view-report'),
                           onPressed: () => _openReport(job),
                           icon: const Icon(Icons.fact_check_outlined),
-                          label: const Text('View row report'),
+                          label: Text(appText(context).commonViewRowReport),
                         ),
                       ),
                     const SizedBox(height: 8),
@@ -167,7 +170,7 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
                       child: OutlinedButton(
                         key: const Key('import-result-history'),
                         onPressed: () => context.go(Routes.importHistory),
-                        child: const Text('View import history'),
+                        child: Text(appText(context).commonViewImportHistory2),
                       ),
                     ),
                   ],

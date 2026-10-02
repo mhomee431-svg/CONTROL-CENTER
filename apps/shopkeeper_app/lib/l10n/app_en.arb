@@ -180,5 +180,1874 @@
     "placeholders": {
       "address": { "type": "String" }
     }
-  }
+  },
+
+  "msgNotSignedIn": "Not signed in",
+  "msgNoShopSelected": "No shop selected",
+  "msgSessionExpired": "Your session has expired. Please sign in again.",
+  "msgNoInternet": "No internet connection. Check your network and retry.",
+
+  "formProductNameRequired": "Product name is required",
+  "formSellingPriceRequired": "Selling price is required",
+  "formEnterValidAmount": "Enter a valid amount",
+  "formPriceCannotBeNegative": "Price cannot be negative",
+  "formMrpCannotBeNegative": "MRP cannot be negative",
+  "formMrpBelowPrice": "MRP cannot be lower than the selling price",
+  "formWholeNumberRequired": "Enter a whole number",
+  "formQuantityCannotBeNegative": "Quantity cannot be negative",
+  "formBarcodeTooShort": "Barcode must be at least {count} characters",
+  "@formBarcodeTooShort": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "formTooManyCharacters": "Use at most {count} characters",
+  "@formTooManyCharacters": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "dashLabel": "—",
+  "notUpdatedYet": "Not updated yet",
+  "timeJustNow": "just now",
+  "timeMinutesAgo": "{count} min ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeHoursAgo": "{count} h ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "timeYesterdayAt": "Yesterday {time}",
+  "@timeYesterdayAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "patternTime": "HH:mm",
+  "patternDateShort": "d MMM yyyy",
+  "patternDateTimeThisYear": "d MMM, HH:mm",
+  "patternDateTimeFull": "d MMM yyyy, HH:mm",
+
+  "freshnessPrefixInventory": "Inventory updated",
+  "freshnessPrefixPrice": "Price updated",
+  "freshnessPrefixPosSync": "Last POS sync",
+  "freshnessJustNow": "{prefix} just now",
+  "@freshnessJustNow": {
+    "placeholders": {
+      "prefix": { "type": "String" }
+    }
+  },
+  "freshnessMinutesAgo": "{prefix} {count} min ago",
+  "@freshnessMinutesAgo": {
+    "placeholders": {
+      "prefix": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "freshnessToday": "{prefix} today",
+  "@freshnessToday": {
+    "placeholders": {
+      "prefix": { "type": "String" }
+    }
+  },
+  "freshnessYesterday": "{prefix} yesterday",
+  "@freshnessYesterday": {
+    "placeholders": {
+      "prefix": { "type": "String" }
+    }
+  },
+  "freshnessOnDate": "{prefix} {date}",
+  "@freshnessOnDate": {
+    "placeholders": {
+      "prefix": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+  "inventoryNotUpdatedYet": "Inventory not updated yet",
+  "priceNotUpdatedYet": "Price not updated yet",
+  "noPosSyncYet": "No POS sync yet"
+,
+  "connectivityBannerReconnecting": "Reconnecting…",
+  "connectivityBannerRetry": "Retry"
+,
+  "aboutScreenConnectYourBillingSoftwareAnd": "Connect your billing software and pull bill items",
+  "aboutScreenImportAWholeCatalogueWith": "Import a whole catalogue with a preview first",
+  "aboutScreenPasslyBusinessForShopkeepers": "Passly Business, for shopkeepers",
+  "aboutScreenPriceListsDiscountsAndPrice": "Price lists, discounts and price history",
+  "aboutScreenProductsBarcodeScanningStockAnd": "Products, barcode scanning, stock and freshness",
+  "aboutScreenVersionLabelPassly": "{versionLabel} - Passly",
+  "@aboutScreenVersionLabelPassly": {
+    "placeholders": {
+      "versionLabel": { "type": "Object" }
+    }
+  },
+  "aboutScreenViewsClicksAndWhatCustomers": "Views, clicks and what customers searched for",
+  "accountScreenAccountSecurityAppLegalAnd": "Account, security, app, legal and support",
+  "accountScreenHyperlocalShopkeeperV100": "Hyperlocal Shopkeeper v1.0.0",
+  "accountScreenValueStatusValue2": "{value} · {status}{value2}",
+  "@accountScreenValueStatusValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "status": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "accountSettingsScreenAnswersToTheMostCommon": "Answers to the most common questions",
+  "accountSettingsScreenAppLanguageForThisDevice": "App language for this device",
+  "accountSettingsScreenDeliveryCategoriesAndPermissions": "Delivery, categories and permissions",
+  "accountSettingsScreenEveryDeviceSignedInTo": "Every device signed in to this account",
+  "accountSettingsScreenGuidesAndWaysToReach": "Guides and ways to reach the team",
+  "accountSettingsScreenLightDarkOrFollowThis": "Light, dark or follow this device",
+  "accountSettingsScreenLookingForYourBusinesses": "Looking for your businesses?",
+  "accountSettingsScreenShopSettingsHolidaysAndSwitching": "Shop settings, holidays and switching between shops belong to the Account tab — they change shop data, not your account or this app.",
+  "accountSettingsScreenSignInMethodAccountStatus": "Sign-in method, account status and safety",
+  "accountSettingsScreenStatusOfTheReportsYou": "Status of the reports you sent",
+  "accountSettingsScreenTheAgreementForUsingPassly": "The agreement for using Passly Business",
+  "accountSettingsScreenVersionLicencesAndCredits": "Version, licences and credits",
+  "accountSettingsScreenWhatIsKeptOnThis": "What is kept on this device",
+  "accountStatusScreenIfYouBelieveThisIs": "If you believe this is a mistake, reach out to the Hyperlocal support team to reactivate your account.",
+  "allFeaturesScreenBusinessScreensOpenOnceYour": "Business screens open once your shop is set up.",
+  "allFeaturesScreenEachScreenShowsLiveData": "Each screen shows live data for your selected shop.",
+  "allFeaturesScreenEverythingYouManageInOne": "Everything you manage, in one place",
+  "barcodeScannerScreenMultipleProductsShareThisBarcode": "Multiple products share this barcode",
+  "barcodeScannerScreenPleaseSelectTheProductYou": "Please select the product you scanned:",
+  "barcodeScannerScreenPositionAProductBarcodeInside": "Position a product barcode inside the frame — it is detected automatically.",
+  "barcodeScannerScreenProductAddedToInventory": "Product added to inventory",
+  "barcodeSheetsBarcodeBarcodeValue": "Barcode {barcode}{value}",
+  "@barcodeSheetsBarcodeBarcodeValue": {
+    "placeholders": {
+      "barcode": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "barcodeSheetsCheckTheBarcodeDigitsOr": "Check the barcode digits, or add the item manually — it will be created under your shop.",
+  "barcodeSheetsCouldNotSaveTheProduct": "Could not save the product",
+  "barcodeSheetsEAN8UPCAEAN": "EAN-8, UPC-A, EAN-13 or GTIN-14 — digits only.",
+  "barcodeSheetsMRPCannotBeLowerThan": "MRP cannot be lower than the selling price",
+  "barcodeSheetsNoCatalogProductMatchesBarcode": "No catalog product matches barcode {barcode}.",
+  "@barcodeSheetsNoCatalogProductMatchesBarcode": {
+    "placeholders": {
+      "barcode": { "type": "Object" }
+    }
+  },
+  "barcodeSheetsSellingPrice": "Selling price *",
+  "barcodeSheetsThisProductIsAlreadyIn": "This product is already in your inventory",
+  "barcodeSheetsThisProductIsNotCurrently": "This product is not currently published in the shared catalog. You cannot list it right now.",
+  "barcodeSheetsUnpublishedProductsStayAsDrafts": "Unpublished products stay as drafts",
+  "businessCategoryScreenApprovedBusinessCategories": "Approved business categories",
+  "businessCategoryScreenCouldNotLoadTheRequirements": "Could not load the requirements for this category.",
+  "businessCategoryScreenNoCategorySpecificDocumentsAre": "No category-specific documents are required.",
+  "businessCategoryScreenTheCategoryIsSetAt": "The category is set at registration and verified by the platform — changing it starts a new verification, so contact support.",
+  "businessInfoScreenTheseDetailsComeFromYour": "These details come from your shop record. Use Edit shop to change the contact fields.",
+  "common123456": "123456",
+  "common500": "500",
+  "common6DigitCode": "6-digit code",
+  "common6DigitPincode": "6-digit pincode",
+  "common9999999999": "99999 99999",
+  "common99999999992": "9999999999",
+  "common99999999993": "9999999999",
+  "commonAPIBaseURL": "API base URL",
+  "commonAPIKey": "API key",
+  "commonAPISecret": "API secret",
+  "commonAbout": "About",
+  "commonAbout2": "About",
+  "commonAcceptingOrders": "Accepting orders",
+  "commonAccessDenied": "Access denied",
+  "commonAccessOnThisAccount": "Access on this account",
+  "commonAccount": "Account",
+  "commonAccount2": "Account",
+  "commonAccountProtection": "Account protection",
+  "commonAccountSafety": "Account safety",
+  "commonAccountStatus": "Account status",
+  "commonActivateOffer": "Activate offer",
+  "commonActivateOffer2": "Activate offer",
+  "commonActive": "Active",
+  "commonActive2": "Active",
+  "commonActiveProducts": "Active products",
+  "commonActiveSession": "Active session",
+  "commonActivity": "Activity",
+  "commonAdd": "Add",
+  "commonAddAHoliday": "Add a holiday",
+  "commonAddATerminal": "Add a terminal",
+  "commonAddHoliday": "Add holiday",
+  "commonAddProduct": "Add Product",
+  "commonAddProduct2": "Add product",
+  "commonAddTerminal": "Add terminal",
+  "commonAddToInventory": "Add to inventory",
+  "commonAddYourShop": "Add Your Shop",
+  "commonAdditionalInformation": "Additional information",
+  "commonAddress": "Address",
+  "commonAdjustPin": "Adjust Pin",
+  "commonAlertsAndPermissions": "Alerts and permissions",
+  "commonAlertsTab": "Alerts tab",
+  "commonAll": "All",
+  "commonAll2": "All",
+  "commonAll3": "All",
+  "commonAllClear": "All clear",
+  "commonAllFeatures": "All features",
+  "commonAllFeatures2": "All Features",
+  "commonAllFeatures3": "All features",
+  "commonAllItemsWellStocked": "All items well stocked",
+  "commonAlternatePhone": "Alternate phone",
+  "commonApp": "App",
+  "commonAppVersion": "App version",
+  "commonApply": "Apply",
+  "commonApplyManualCorrection": "Apply manual correction",
+  "commonApplyToProducts": "Apply to products",
+  "commonApplyingImport": "Applying import",
+  "commonApproval": "Approval",
+  "commonAuthentication": "Authentication",
+  "commonAvailability": "Availability",
+  "commonAvailable": "Available",
+  "commonAvailableForSale": "Available for sale",
+  "commonAvailableToCustomers": "Available to customers",
+  "commonBack": "Back",
+  "commonBack2": "Back",
+  "commonBack3": "Back",
+  "commonBack4": "Back",
+  "commonBack5": "Back",
+  "commonBack6": "Back",
+  "commonBackToHome": "Back to Home",
+  "commonBackToImportCenter": "Back to Import Center",
+  "commonBackToImportCenter2": "Back to Import Center",
+  "commonBackToIntegration": "Back to integration",
+  "commonBackToSignIn": "Back to sign in",
+  "commonBackToSignIn2": "Back to sign in",
+  "commonBackToTheIntegration": "Back to the integration",
+  "commonBackgroundSync": "Background sync",
+  "commonBankVerification": "Bank Verification",
+  "commonBarcode": "Barcode",
+  "commonBarcodeOptional": "Barcode (optional)",
+  "commonBrand": "Brand",
+  "commonBrandOptional": "Brand (optional)",
+  "commonBulkExcelImport": "Bulk Excel import",
+  "commonBusinessCategory": "Business Category",
+  "commonBusinessCategory2": "Business category",
+  "commonBusinessDashboard": "Business dashboard",
+  "commonBusinessDescription": "Business Description",
+  "commonBusinessInformation": "Business information",
+  "commonBusinessInformation2": "Business information",
+  "commonBusinessInsights": "Business insights",
+  "commonBusinessPhoneNumber": "Business phone number",
+  "commonBusinessType": "Business Type",
+  "commonBusinessType2": "Business Type",
+  "commonBySource": "By source",
+  "commonCallViews": "Call views",
+  "commonCamera": "Camera",
+  "commonCatalogReference": "Catalog reference",
+  "commonCatalogueAndInventory": "Catalogue and inventory",
+  "commonCategory": "Category",
+  "commonCategory2": "Category",
+  "commonCategory3": "Category",
+  "commonCategoryOptional": "Category (optional)",
+  "commonChangeNumber": "Change number",
+  "commonChannels": "Channels",
+  "commonChannels2": "Channels",
+  "commonCheckTheSyncHistory": "Check the sync history",
+  "commonChooseAnExistingPhoto": "Choose an existing photo",
+  "commonChooseAnotherFile": "Choose another file",
+  "commonChooseAnotherProduct": "Choose another product",
+  "commonChooseAnotherProduct2": "Choose another product",
+  "commonChooseAnotherProduct3": "Choose another product",
+  "commonChooseAnotherProduct4": "Choose another product",
+  "commonChooseExcelFile": "Choose Excel file",
+  "commonChooseExcelFile2": "Choose Excel file",
+  "commonChooseLocationOnMap": "Choose Location on Map",
+  "commonChooseScreenshot": "Choose screenshot",
+  "commonChooseWhatYouReceive": "Choose what you receive",
+  "commonCity": "City",
+  "commonClear": "Clear",
+  "commonClear2": "Clear",
+  "commonClearFilters": "Clear filters",
+  "commonClearSearch": "Clear search",
+  "commonClearSearch2": "Clear search",
+  "commonClearSearch3": "Clear search",
+  "commonClicksToday": "Clicks today",
+  "commonClose": "Close",
+  "commonClose2": "Close",
+  "commonClose3": "Close",
+  "commonClose4": "Close",
+  "commonClosed": "Closed",
+  "commonCloses": "Closes",
+  "commonClosingTime": "Closing Time",
+  "commonCompleteYourProfile": "Complete your profile",
+  "commonCompliance": "Compliance",
+  "commonConfirm": "Confirm",
+  "commonConfirmPassword": "Confirm password",
+  "commonConfirmPassword2": "Confirm password",
+  "commonConfirmShopLocation": "Confirm shop location",
+  "commonConfirmShopLocation2": "Confirm Shop Location",
+  "commonConflicts": "Conflicts",
+  "commonConnectPOS": "Connect POS",
+  "commonConnectionType": "Connection type",
+  "commonConnector": "Connector",
+  "commonContact": "Contact",
+  "commonContactSupport": "Contact support",
+  "commonContactSupport2": "Contact Support",
+  "commonContactSupport3": "Contact support",
+  "commonContactSupport4": "Contact support",
+  "commonContactUs": "Contact us",
+  "commonContinueWithGoogle": "Continue with Google",
+  "commonCoordinates": "Coordinates",
+  "commonCopyEMailAddress": "Copy e-mail address",
+  "commonCopyLink": "Copy link",
+  "commonCopyPhoneNumber": "Copy phone number",
+  "commonCopyReportInstead": "Copy report instead",
+  "commonCopyRequest": "Copy request",
+  "commonCopyTicketNumber": "Copy ticket number",
+  "commonCouldNotLoadInventory": "Could not load inventory",
+  "commonCouldNotLoadInventory2": "Could not load inventory",
+  "commonCouldNotLoadReports": "Could not load reports",
+  "commonCouldNotLoadThisShop": "Could not load this shop",
+  "commonCounter1": "Counter 1",
+  "commonCreateANewAccount": "Create a new account",
+  "commonCreateAccount": "Create account",
+  "commonCreateBusinessAccount": "Create business account",
+  "commonCreateNewPassword": "Create new password",
+  "commonCreateOffer": "Create offer",
+  "commonCreateOffer2": "Create offer",
+  "commonCreateOffer3": "Create offer",
+  "commonCreateOffer4": "Create offer",
+  "commonCreateOffer5": "Create offer",
+  "commonCreateOffer6": "Create offer",
+  "commonCreateProduct": "Create product",
+  "commonCreateProfile": "Create Profile",
+  "commonCreatingProfile": "Creating Profile...",
+  "commonCurrentBusiness": "Current business",
+  "commonCustomerInteractions": "Customer interactions",
+  "commonCustomerRating": "Customer rating",
+  "commonCustomerSearches": "Customer searches",
+  "commonDataStorage": "Data & storage",
+  "commonDecrease": "Decrease",
+  "commonDeepLink": "Deep link",
+  "commonDelivery": "Delivery",
+  "commonDeliveryAvailable": "Delivery available",
+  "commonDeliveryFee": "Delivery fee",
+  "commonDeliveryRadiusKm": "Delivery radius (km)",
+  "commonDescription": "Description",
+  "commonDescription2": "Description",
+  "commonDescriptionOptional": "Description (optional)",
+  "commonDetectedAddress": "Detected Address",
+  "commonDevices": "Devices",
+  "commonDisableOffer": "Disable offer",
+  "commonDisableOffer2": "Disable offer",
+  "commonDisabled": "Disabled",
+  "commonDiscard": "Discard",
+  "commonDiscard2": "Discard",
+  "commonDisconnect": "Disconnect",
+  "commonDisconnectPOS": "Disconnect POS?",
+  "commonDismiss": "Dismiss",
+  "commonDocumentVerification": "Document Verification",
+  "commonDocuments": "Documents",
+  "commonDone": "Done",
+  "commonDone2": "Done",
+  "commonDownloadSample": "Download sample",
+  "commonEG8901234567890": "e.g. 8901234567890",
+  "commonEGKiranaCorner": "e.g. Kirana Corner",
+  "commonEGMonsoonSale": "e.g. Monsoon Sale",
+  "commonEMail": "E-mail",
+  "commonEMail2": "E-mail",
+  "commonEasyManagement": "Easy Management",
+  "commonEdit": "Edit",
+  "commonEditProduct": "Edit product",
+  "commonEditProfile": "Edit profile",
+  "commonEditShop": "Edit shop",
+  "commonEmail": "Email",
+  "commonEmail2": "Email",
+  "commonEmailOptional": "Email (optional)",
+  "commonEmailOrPhoneNumber": "Email or phone number",
+  "commonEndDate": "End date",
+  "commonEnterBarcode": "Enter barcode",
+  "commonEnterBarcodeManually": "Enter barcode manually",
+  "commonEnterGSTIN": "Enter GSTIN",
+  "commonEnterLocationManually": "Enter Location Manually",
+  "commonEnterManually": "Enter Manually",
+  "commonEnterManually2": "Enter manually",
+  "commonEnterUdyamNumber": "Enter Udyam Number",
+  "commonErrors": "errors",
+  "commonErrors2": "Errors",
+  "commonEveryYear": "Every year",
+  "commonExcelCSV": "Excel / CSV",
+  "commonExcelImports": "Excel imports",
+  "commonExcelImports2": "Excel imports",
+  "commonExpired": "Expired",
+  "commonExpires": "Expires",
+  "commonFAQs": "FAQs",
+  "commonFailed": "Failed",
+  "commonFailed2": "Failed",
+  "commonFailed3": "Failed",
+  "commonFailedImport": "Failed import",
+  "commonFailedToLoad": "Failed to load",
+  "commonFilters": "Filters",
+  "commonFilters2": "Filters",
+  "commonForgotPassword": "Forgot password",
+  "commonForgotPassword2": "Forgot password?",
+  "commonFreeDeliveryAbove": "Free delivery above",
+  "commonFresh": "Fresh",
+  "commonFresh2": "fresh",
+  "commonFreshness": "Freshness",
+  "commonFulfilment": "Fulfilment",
+  "commonFullName": "Full Name",
+  "commonFullName2": "Full name",
+  "commonFullSync": "Full sync",
+  "commonGSTINOptional": "GSTIN (optional)",
+  "commonGallery": "Gallery",
+  "commonGetStarted": "Get Started",
+  "commonGoToConnectionSetup": "Go to connection setup",
+  "commonGoToConnectionSetup2": "Go to connection setup",
+  "commonGoToDashboard": "Go to Dashboard",
+  "commonHelpCenter": "Help Center",
+  "commonHelpCentre": "Help centre",
+  "commonHelpCentre2": "Help centre",
+  "commonHelpCentre3": "Help centre",
+  "commonHelpSupport": "Help & support",
+  "commonHelpSupport2": "Help & support",
+  "commonHistory": "History",
+  "commonHolidays": "Holidays",
+  "commonHowCanWeHelp": "How can we help?",
+  "commonHyperLocal": "HyperLocal",
+  "commonHyperlocalShopkeeper": "Hyperlocal Shopkeeper",
+  "commonIdentity": "Identity",
+  "commonImage": "Image",
+  "commonImportAnotherFile": "Import another file",
+  "commonImportCenter": "Import Center",
+  "commonImportFailed": "Import failed",
+  "commonImportFailed2": "Import failed",
+  "commonImportFromExcel": "Import from Excel",
+  "commonImportFromExcel2": "Import from Excel",
+  "commonImportHistory": "Import history",
+  "commonImportResult": "Import result",
+  "commonImportantNotification": "Important notification",
+  "commonInAppAlerts": "In-app alerts",
+  "commonInStock": "In Stock",
+  "commonInStock2": "In Stock",
+  "commonInStock3": "In stock",
+  "commonInactive": "Inactive",
+  "commonIncrease": "Increase",
+  "commonIncremental": "Incremental",
+  "commonInsightsUnavailable": "Insights unavailable",
+  "commonInteractions": "Interactions",
+  "commonInteractionsToday": "Interactions today",
+  "commonInventory": "Inventory",
+  "commonInventory2": "Inventory",
+  "commonInventory3": "Inventory",
+  "commonInventoryFreshness": "Inventory freshness",
+  "commonInventoryStale": "Inventory stale",
+  "commonInventoryStatus": "Inventory status",
+  "commonInventorySyncStatus": "Inventory sync status",
+  "commonItems": "Items",
+  "commonLandmarkOptional": "Landmark (optional)",
+  "commonLanguage": "Language",
+  "commonLastImport": "Last import",
+  "commonLastInventoryUpdate": "Last inventory update",
+  "commonLastPOSSync": "Last POS sync",
+  "commonLatitude": "Latitude",
+  "commonLatitude2": "Latitude",
+  "commonLegal": "Legal",
+  "commonLinkedProducts": "Linked products",
+  "commonLocation": "Location",
+  "commonLog": "Log",
+  "commonLogOut": "Log out",
+  "commonLogOut2": "Log out",
+  "commonLogout": "Logout",
+  "commonLongitude": "Longitude",
+  "commonLongitude2": "Longitude",
+  "commonLookUp": "Look up",
+  "commonLow": "Low",
+  "commonLowStock": "Low stock",
+  "commonLowStock2": "Low Stock",
+  "commonLowStock3": "Low stock",
+  "commonLowStock4": "Low Stock",
+  "commonLowStock5": "Low stock",
+  "commonMRP": "MRP",
+  "commonMRPOptional": "MRP (optional)",
+  "commonMRPOptional2": "MRP (optional)",
+  "commonMarkAllRead": "Mark all read",
+  "commonMarkRead": "Mark read",
+  "commonMax": "Max",
+  "commonMessageSent": "Message sent",
+  "commonMessageTheSupportTeam": "Message the support team",
+  "commonMessages": "Messages",
+  "commonMin": "Min",
+  "commonMinOrderAmount": "Min order amount",
+  "commonMobileNumber": "Mobile number",
+  "commonMore": "More",
+  "commonMoreDetailsOptional": "More details (optional)",
+  "commonMoreVisibility": "More Visibility",
+  "commonMyBusiness": "My business",
+  "commonMyBusiness2": "My business",
+  "commonMyProfile": "My profile",
+  "commonMySupportTickets": "My support tickets",
+  "commonMySupportTickets2": "My support tickets",
+  "commonMyTickets": "My Tickets",
+  "commonMyTickets2": "My tickets",
+  "commonName": "Name",
+  "commonNameOptional": "Name (optional)",
+  "commonNeedClarification": "Need clarification?",
+  "commonNeedsAttention": "Needs attention",
+  "commonNeedsUpdate": "Needs update",
+  "commonNewPassword": "New password",
+  "commonNewProduct": "New product",
+  "commonNewQuantity": "New quantity",
+  "commonNext": "Next",
+  "commonNoAccessToThisShop": "No access to this shop",
+  "commonNoAccessToThisShop2": "No access to this shop",
+  "commonNoConnectorYet": "No connector yet.",
+  "commonNoConnectorYet2": "No connector yet",
+  "commonNoConnectorYet3": "No connector yet",
+  "commonNoCustomerActivityYet": "No customer activity yet",
+  "commonNoHistoryRecordedYet": "No history recorded yet.",
+  "commonNoHistoryYet": "No history yet",
+  "commonNoHolidaysScheduled": "No holidays scheduled.",
+  "commonNoImage": "No image",
+  "commonNoImage2": "No image",
+  "commonNoImportsYet": "No imports yet",
+  "commonNoOtherDevices": "No other devices",
+  "commonNoPinStoredYet": "No pin stored yet",
+  "commonNoPriceChangesYet": "No price changes yet",
+  "commonNoProductsYet": "No products yet",
+  "commonNoProductsYet2": "No products yet",
+  "commonNoShopSelected": "No shop selected",
+  "commonNoShopSelected2": "No shop selected",
+  "commonNoShopSelected3": "No shop selected",
+  "commonNoShopSelected4": "No shop selected",
+  "commonNoShopSelected5": "No shop selected",
+  "commonNoSyncsYet": "No syncs yet",
+  "commonNoTicketsYet": "No tickets yet",
+  "commonNotEstablishedYet": "Not established yet",
+  "commonNoteOptional": "Note (optional)",
+  "commonNothingChangedYet": "Nothing changed yet.",
+  "commonNothingToApply": "Nothing to apply",
+  "commonNothingToPreview": "Nothing to preview",
+  "commonNotification": "Notification",
+  "commonNotificationPreferences": "Notification preferences",
+  "commonNotificationSettings": "Notification settings",
+  "commonNotificationSettings2": "Notification settings",
+  "commonNotifications": "Notifications",
+  "commonNotifications2": "Notifications",
+  "commonOTPVerification": "OTP Verification",
+  "commonOfferDetails": "Offer details",
+  "commonOfferTitle": "Offer title",
+  "commonOfferType": "Offer type",
+  "commonOffers": "Offers",
+  "commonOffersAndPricing": "Offers and pricing",
+  "commonOffersPricing": "Offers & pricing",
+  "commonOnlyRecentlyUpdated": "Only recently updated",
+  "commonOpenImportHistory": "Open import history",
+  "commonOpenProduct": "Open Product",
+  "commonOpenSystemSettings": "Open System Settings",
+  "commonOpenSystemSettings2": "Open System Settings",
+  "commonOpeningTime": "Opening Time",
+  "commonOpens": "Opens",
+  "commonOperatingHours": "Operating hours",
+  "commonOptional": "Optional",
+  "commonOr": "or",
+  "commonOr2": "or",
+  "commonOrders": "Orders",
+  "commonOther": "Other",
+  "commonOtherDevices": "Other devices",
+  "commonOut": "Out",
+  "commonOutOfStock": "Out of Stock",
+  "commonOutOfStock2": "Out of Stock",
+  "commonOutOfStock3": "Out of stock",
+  "commonOverview": "Overview",
+  "commonPOSConnected": "POS connected",
+  "commonPOSConnectionSetup": "POS connection setup",
+  "commonPOSIntegration": "POS integration",
+  "commonPOSProblem": "POS problem",
+  "commonPOSProvider": "POS provider",
+  "commonPOSProvider2": "POS provider",
+  "commonPOSSync": "POS sync",
+  "commonPOSSync2": "POS sync",
+  "commonPOSSync3": "POS Sync",
+  "commonPOSSync4": "POS sync",
+  "commonPOSSync5": "POS sync",
+  "commonPassword": "Password",
+  "commonPassword2": "Password",
+  "commonPast": "Past",
+  "commonPeakHours": "Peak hours",
+  "commonPeakHours2": "Peak hours",
+  "commonPhone": "Phone",
+  "commonPhone2": "Phone",
+  "commonPhoneNumber": "Phone number",
+  "commonPhoneNumberOrEmail": "Phone number or email",
+  "commonPickup": "Pickup",
+  "commonPickupAvailable": "Pickup available",
+  "commonPincode": "Pincode",
+  "commonPlatform": "Platform",
+  "commonPreparingScreenshot": "Preparing screenshot...",
+  "commonPrice": "Price",
+  "commonPriceAndMRP": "Price and MRP",
+  "commonPriceHistory": "Price history",
+  "commonPriceHistory2": "Price history",
+  "commonPriceList": "Price list",
+  "commonPriceRange": "Price range",
+  "commonPriceUpdated": "Price updated",
+  "commonPricing": "Pricing",
+  "commonPricingOffers": "Pricing & Offers",
+  "commonPriority": "Priority",
+  "commonPrivacyPolicy": "Privacy policy",
+  "commonPrivacyPolicy2": "Privacy Policy",
+  "commonPrivacyPolicy3": "Privacy policy",
+  "commonProcessed": "Processed",
+  "commonProduct": "Product",
+  "commonProductClicks": "Product clicks",
+  "commonProductCreated": "Product created",
+  "commonProductNotFound": "Product not found",
+  "commonProductUpdated": "Product updated",
+  "commonProducts": "Products",
+  "commonProducts2": "Products",
+  "commonProductsInventory": "Products & inventory",
+  "commonProfileSetupIssue": "Profile setup issue",
+  "commonPublishImmediately": "Publish immediately",
+  "commonPublishImmediately2": "Publish immediately",
+  "commonPushNotifications": "Push notifications",
+  "commonQuantity": "Quantity",
+  "commonQuantityChange": "Quantity change",
+  "commonQuantityInitialStock": "Quantity (initial stock)",
+  "commonQuickActions": "Quick Actions",
+  "commonRatings": "Ratings",
+  "commonReachUs": "Reach us",
+  "commonReason": "Reason",
+  "commonReasonOptional": "Reason (optional)",
+  "commonRecentImports": "Recent imports",
+  "commonRecentImports2": "Recent imports",
+  "commonRecentSearches": "Recent searches",
+  "commonRecentUpdates": "Recent updates",
+  "commonRecentUpdates2": "Recent Updates",
+  "commonRecentlyUpdated": "Recently updated",
+  "commonRefresh": "Refresh",
+  "commonRefresh2": "Refresh",
+  "commonRefresh3": "Refresh",
+  "commonRefresh4": "Refresh",
+  "commonRefresh5": "Refresh",
+  "commonRefresh6": "Refresh",
+  "commonRefresh7": "Refresh",
+  "commonRefresh8": "Refresh",
+  "commonRefresh9": "Refresh",
+  "commonRefreshNow": "Refresh now",
+  "commonRefreshRecentImports": "Refresh recent imports",
+  "commonRefreshStatus": "Refresh status",
+  "commonRegisterYourShop": "Register Your Shop",
+  "commonRegisteredAddress": "Registered address",
+  "commonRegisteredAs": "Registered as",
+  "commonRegistrationSubmitted": "Registration Submitted!",
+  "commonRemove": "Remove",
+  "commonRemoveHoliday": "Remove holiday",
+  "commonRemovePhoto": "Remove photo",
+  "commonRemoveScreenshot": "Remove screenshot",
+  "commonRepeatsEveryYear": "Repeats every year",
+  "commonReplace": "Replace",
+  "commonReportAnIssue": "Report an issue",
+  "commonReportAnIssue2": "Report an issue",
+  "commonReportIssue": "Report Issue",
+  "commonReportIssue2": "Report issue",
+  "commonReportSent": "Report sent",
+  "commonReportSomethingElse": "Report something else",
+  "commonReportsAndInsights": "Reports and insights",
+  "commonReportsInsights": "Reports & insights",
+  "commonReportsInsights2": "Reports & Insights",
+  "commonReportsUnavailable": "Reports unavailable",
+  "commonResendCode": "Resend code",
+  "commonReset": "Reset",
+  "commonResetPassword": "Reset password",
+  "commonResetYourPassword": "Reset your password",
+  "commonRetry": "Retry",
+  "commonRetry10": "Retry",
+  "commonRetry11": "Retry",
+  "commonRetry12": "Retry",
+  "commonRetry2": "Retry",
+  "commonRetry3": "Retry",
+  "commonRetry4": "Retry",
+  "commonRetry5": "Retry",
+  "commonRetry6": "Retry",
+  "commonRetry7": "Retry",
+  "commonRetry8": "Retry",
+  "commonRetry9": "Retry",
+  "commonRetryCamera": "Retry camera",
+  "commonRetryThisSync": "Retry this sync",
+  "commonReviewDetails": "Review details",
+  "commonReviewImport": "Review import",
+  "commonReviewYourDetails": "Review your details",
+  "commonReviewed": "Reviewed",
+  "commonRows": "rows",
+  "commonSKUOptional": "SKU (optional)",
+  "commonSMS": "SMS",
+  "commonSave": "Save",
+  "commonSaveAsDraft": "Save as draft",
+  "commonSaveChanges": "Save changes",
+  "commonSaveChanges2": "Save changes",
+  "commonSaveOperatingHours": "Save operating hours",
+  "commonSavePrice": "Save price",
+  "commonSaveSettings": "Save settings",
+  "commonSaveSettings2": "Save settings",
+  "commonSaveStockUpdate": "Save stock update",
+  "commonScanBarcode": "Scan barcode",
+  "commonScanBarcode2": "Scan barcode",
+  "commonScanBarcode3": "Scan barcode",
+  "commonScheduled": "Scheduled",
+  "commonScreenshotOptional": "Screenshot (optional)",
+  "commonSearchHelp": "Search help",
+  "commonSearchNameOrSKU": "Search name or SKU",
+  "commonSecureTrusted": "Secure & Trusted",
+  "commonSecurity": "Security",
+  "commonSecurity2": "Security",
+  "commonSecurityAlerts": "Security alerts",
+  "commonSelectACategory": "Select a category",
+  "commonSelectAType": "Select a type",
+  "commonSelectBusinessCategory": "Select Business Category",
+  "commonSelectXlsxFile": "Select .xlsx file",
+  "commonSellingPrice": "Selling price",
+  "commonSendCode": "Send code",
+  "commonSendResetLink": "Send reset link",
+  "commonSession": "Session",
+  "commonSessionsDevices": "Sessions & devices",
+  "commonSessionsDevices2": "Sessions & devices",
+  "commonSetUpYourFirstShop": "Set up your first shop",
+  "commonSettings": "Settings",
+  "commonSettings2": "Settings",
+  "commonSettingsSaved": "Settings saved",
+  "commonShopAlerts": "Shop alerts",
+  "commonShopBusinessName": "Shop / Business Name",
+  "commonShopBusinessName2": "Shop / Business Name",
+  "commonShopLocation": "Shop Location",
+  "commonShopLocation2": "Shop location",
+  "commonShopName": "Shop name",
+  "commonShopNoStreetArea": "Shop no., street, area",
+  "commonShopProfile": "Shop profile",
+  "commonShopProfile2": "Shop profile",
+  "commonShopProfile3": "Shop Profile",
+  "commonShopProfile4": "Shop profile",
+  "commonShopSettings": "Shop settings",
+  "commonShopSettings2": "Shop settings",
+  "commonShopSettings3": "Shop settings",
+  "commonShopStatus": "Shop status",
+  "commonShopVerification": "Shop verification",
+  "commonShopViews": "Shop views",
+  "commonShopkeeperApp": "Shopkeeper App",
+  "commonShowAllJobs": "Show all jobs",
+  "commonSignIn": "Sign in",
+  "commonSignIn2": "Sign-in",
+  "commonSignIn3": "Sign in",
+  "commonSignInInstead": "Sign in instead",
+  "commonSignInMethod": "Sign-in method",
+  "commonSignInWithPhone": "Sign in with phone",
+  "commonSignOut": "Sign out",
+  "commonSignOut2": "Sign out",
+  "commonSignOut3": "Sign out",
+  "commonSignOutOfThisDevice": "Sign out of this device",
+  "commonSignOutOfThisDevice2": "Sign out of this device",
+  "commonSignOutThisDevice": "Sign out this device?",
+  "commonSignedInAs": "Signed in as",
+  "commonSignedInOnThisDevice": "Signed in on this device",
+  "commonSigningOut": "Signing out...",
+  "commonSocialMediaOptional": "Social Media (optional)",
+  "commonSomethingWentWrong": "Something went wrong.",
+  "commonSomethingWentWrong2": "Something went wrong.",
+  "commonSort": "Sort",
+  "commonStale": "stale",
+  "commonStartASync": "Start a sync",
+  "commonStartDate": "Start date",
+  "commonStartSync": "Start sync",
+  "commonState": "State",
+  "commonStatus": "Status",
+  "commonStaySignedIn": "Stay signed in",
+  "commonStillStuck": "Still stuck?",
+  "commonStock": "Stock",
+  "commonStockHealth": "Stock health",
+  "commonStockHistory": "Stock history",
+  "commonStockLevels": "Stock levels",
+  "commonStockQuantity": "Stock quantity",
+  "commonStoredShopPin": "Stored shop pin",
+  "commonSubcategoryOptional": "Subcategory (optional)",
+  "commonSubmitRegistration": "Submit Registration",
+  "commonSubmitted": "Submitted",
+  "commonSubscription": "Subscription",
+  "commonSubscription2": "Subscription",
+  "commonSupport": "Support",
+  "commonSupportHours": "Support hours",
+  "commonSupportReplied": "Support replied",
+  "commonSwitchShop": "Switch shop",
+  "commonSyncAgain": "Sync again",
+  "commonSyncEvery": "Sync every",
+  "commonSyncHistory": "Sync history",
+  "commonSyncHistory2": "Sync history",
+  "commonSyncNow": "Sync now",
+  "commonSyncNow2": "Sync now",
+  "commonSyncProgress": "Sync progress",
+  "commonSyncResult": "Sync result",
+  "commonSyncSettings": "Sync settings",
+  "commonSynced": "Synced",
+  "commonSynced2": "Synced",
+  "commonTILL01": "TILL-01",
+  "commonTagline": "Tagline",
+  "commonTaglineOptional": "Tagline (optional)",
+  "commonTakePhoto": "Take photo",
+  "commonTellUsWhatBroke": "Tell us what broke",
+  "commonTellUsWhatWentWrong": "Tell us what went wrong",
+  "commonTerminals": "Terminals",
+  "commonTermsConditions": "Terms & Conditions",
+  "commonTermsConditions2": "Terms & conditions",
+  "commonTermsOfService": "Terms of service",
+  "commonTermsOfService2": "Terms of service",
+  "commonTermsOfUse": "Terms of use",
+  "commonText": "-",
+  "commonTheme": "Theme",
+  "commonThisDevice": "This device",
+  "commonThisTill": "This till",
+  "commonThisWeek": "This week",
+  "commonTicketDetails": "Ticket details",
+  "commonTopProducts": "Top products",
+  "commonTotal": "Total",
+  "commonTryAgain": "Try Again",
+  "commonTryAgain2": "Try Again",
+  "commonType": "Type",
+  "commonType2": "Type",
+  "commonUnavailable": "Unavailable",
+  "commonUnitSizeEG1": "Unit / size (e.g. 1 kg)",
+  "commonUpdatePrice": "Update price",
+  "commonUpdateStock": "Update Stock",
+  "commonUpdateStock2": "Update stock",
+  "commonUpdateStock3": "Update stock",
+  "commonUpdateStock4": "Update stock",
+  "commonUpdateThePin": "Update the pin",
+  "commonUpdatedInTheLast24h": "updated in the last 24h",
+  "commonUploadInventoryFile": "Upload inventory file",
+  "commonValid": "valid",
+  "commonValid2": "Valid",
+  "commonValid3": "Valid",
+  "commonValidatingYourFile": "Validating your file...",
+  "commonValidity": "Validity",
+  "commonVariantOptional": "Variant (optional)",
+  "commonVerification": "Verification",
+  "commonVerified": "Verified",
+  "commonVerifyContinue": "Verify & continue",
+  "commonVersion": "Version",
+  "commonViewAll": "View all",
+  "commonViewAllQuestions": "View all questions",
+  "commonViewHistory": "View history",
+  "commonViewHistory2": "View history",
+  "commonViewHistory3": "View history",
+  "commonViewImportHistory": "View import history",
+  "commonViewImportHistory2": "View import history",
+  "commonViewMySupportTickets": "View my support tickets",
+  "commonViewMySupportTickets2": "View my support tickets",
+  "commonViewResults": "View Results",
+  "commonViewRowReport": "View row report",
+  "commonViewSyncHistory": "View sync history",
+  "commonViewsToday": "Views today",
+  "commonVisibility": "Visibility",
+  "commonVsYesterday": "vs yesterday",
+  "commonWebsiteOptional": "Website (optional)",
+  "commonWeeklySchedule": "Weekly schedule",
+  "commonWelcomeBack": "Welcome back",
+  "commonWelcomeBack2": "Welcome Back",
+  "commonWelcomeToHyperLocal": "Welcome to HyperLocal!",
+  "commonWelcomeToPasslyBiz": "Welcome to Passly Biz!",
+  "commonWhatHappened": "What happened?",
+  "commonWhatHappensNext": "What happens next",
+  "commonWhatIsAffected": "What is affected?",
+  "commonWhatIsThisAbout": "What is this about?",
+  "commonWhatShouldBePulled": "What should be pulled?",
+  "commonWhatWeCollectAndWhy": "What we collect and why",
+  "commonWhatYouCanDo": "What you can do",
+  "commonWhatYouCanDoHere": "What you can do here",
+  "commonWhatsAppNumber": "WhatsApp number",
+  "commonWhereYouAreSignedIn": "Where you are signed in",
+  "commonWriteAnotherMessage": "Write another message",
+  "commonWriteToUs": "Write to us",
+  "commonYouHaveUnsavedChanges": "You have unsaved changes",
+  "commonYourName": "Your name",
+  "commonYourReport": "Your report",
+  "connectivityBannerYouReOfflineChangesCan": "You're offline — changes can't be saved until you're back online.",
+  "contactSupportScreenDescribeTheProblemInYour": "Describe the problem in your own words",
+  "contactSupportScreenIncludeMyAccountAndShop": "Include my account and shop",
+  "contactSupportScreenPasteTheCopiedTextInto": "Paste the copied text into an e-mail to {email}.",
+  "@contactSupportScreenPasteTheCopiedTextInto": {
+    "placeholders": {
+      "email": { "type": "Object" }
+    }
+  },
+  "contactSupportScreenSavesARoundTripSupport": "Saves a round-trip - support can look up the right shop",
+  "contactSupportScreenSendingFilesASupportTicket": "Sending files a support ticket with your topic, account and shop attached - the same details support needs to answer quickly. Its status stays visible under My support tickets, and the text can still be copied to send it by e-mail.",
+  "contactSupportScreenStatusStatusLabel": "Status: {statusLabel}",
+  "@contactSupportScreenStatusStatusLabel": {
+    "placeholders": {
+      "statusLabel": { "type": "Object" }
+    }
+  },
+  "contactSupportScreenYourMessageBecomesATracked": "Your message becomes a tracked ticket",
+  "contactSupportScreenYourMessageIsInThe": "Your message is in the support queue.",
+  "createOfferScreenOfferCreatedAndLinkedTo": "Offer created and linked to your products",
+  "createOfferScreenOffersNotAvailableOnYour": "Offers not available on your plan",
+  "createOfferScreenPrice": "₹{price}",
+  "@createOfferScreenPrice": {
+    "placeholders": {
+      "price": { "type": "Object" }
+    }
+  },
+  "createOfferScreenTermsConditionsOptional": "Terms & conditions (optional)",
+  "createOfferScreenUpgradeYourPlanToCreate": "Upgrade your plan to create discount offers. Your current plan does not include offers.",
+  "createProfileScreenAShortDescriptionOfYour": "A short description of your shop",
+  "createProfileScreenContactNumberOptional": "Contact Number (optional)",
+  "createProfileScreenCreateYourShopkeeperProfile": "Create Your Shopkeeper Profile",
+  "createProfileScreenSetUpYourShopTo": "Set up your shop to start managing products and inventory.",
+  "createProfileScreenYouExampleCom": "you@example.com",
+  "dashboardScreenCompleteShopVerificationToPublish": "Complete shop verification to publish to customers",
+  "dashboardScreenCount": "{count}",
+  "@dashboardScreenCount": {
+    "placeholders": {
+      "count": { "type": "Object" }
+    }
+  },
+  "dashboardScreenFailedImportNameFailedImportRowsRowSCould": "{failedImportName} — {failedImportRows} row(s) could not be applied",
+  "@dashboardScreenFailedImportNameFailedImportRowsRowSCould": {
+    "placeholders": {
+      "failedImportName": { "type": "Object" },
+      "failedImportRows": { "type": "Object" }
+    }
+  },
+  "dashboardScreenGreetingFirstName": "{_greeting}, {_firstName}",
+  "@dashboardScreenGreetingFirstName": {
+    "placeholders": {
+      "_greeting": { "type": "Object" },
+      "_firstName": { "type": "Object" }
+    }
+  },
+  "dashboardScreenLabelValue": "{label}: {value}",
+  "@dashboardScreenLabelValue": {
+    "placeholders": {
+      "label": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "dashboardScreenLowStockLowValueFlaggedLabel": "{lowStock} low {value}{flaggedLabel}",
+  "@dashboardScreenLowStockLowValueFlaggedLabel": {
+    "placeholders": {
+      "lowStock": { "type": "Object" },
+      "value": { "type": "Object" },
+      "flaggedLabel": { "type": "Object" }
+    }
+  },
+  "dashboardScreenNothingYetUpdatesWillAppear": "Nothing yet — updates will appear here.",
+  "dashboardScreenQtyQuantity": "qty {quantity}",
+  "@dashboardScreenQtyQuantity": {
+    "placeholders": {
+      "quantity": { "type": "Object" }
+    }
+  },
+  "dashboardScreenStaleCountProductSNotUpdated": "{staleCount} product(s) not updated in a while",
+  "@dashboardScreenStaleCountProductSNotUpdated": {
+    "placeholders": {
+      "staleCount": { "type": "Object" }
+    }
+  },
+  "dashboardScreenUnreadNew": "{unread} new",
+  "@dashboardScreenUnreadNew": {
+    "placeholders": {
+      "unread": { "type": "Object" }
+    }
+  },
+  "dashboardScreenUnreadNotificationsUnreadNotificationS": "{unreadNotifications} unread notification(s)",
+  "@dashboardScreenUnreadNotificationsUnreadNotificationS": {
+    "placeholders": {
+      "unreadNotifications": { "type": "Object" }
+    }
+  },
+  "dashboardScreenWelcomeBackToYourBusiness": "Welcome back to your business dashboard.",
+  "dashboardScreenYouDoNotHaveAccess": "You do not have access to this shop.",
+  "dashboardScreenYourAccountIsReadyAdd": "Your account is ready. Add your first store to start managing products, inventory and offers — or complete your profile details from the Account tab anytime.",
+  "debouncedSearchFieldRemoveTerm": "Remove \"{term}\"",
+  "@debouncedSearchFieldRemoveTerm": {
+    "placeholders": {
+      "term": { "type": "Object" }
+    }
+  },
+  "editProfileScreenContactSupportToChangeYour": "Contact support to change your phone number",
+  "editShopScreenAOneLinePitchCustomers": "A one-line pitch customers see first",
+  "editShopScreenOnlyTheFieldsYouChanged": "Only the fields you changed are sent to the server.",
+  "forgotPasswordScreenEnterYourEmailOrPhone": "Enter your email or phone number and we'll send you a link to reset your password.",
+  "forgotPasswordScreenIfAnAccountExistsWith": "If an account exists with this email/phone, you'll receive a reset link shortly.",
+  "holidaysSectionAddHolidayLabel": "Add holiday — {label}",
+  "@holidaysSectionAddHolidayLabel": {
+    "placeholders": {
+      "label": { "type": "Object" }
+    }
+  },
+  "holidaysSectionDaysTheShopStaysClosed": "Days the shop stays closed — customers are told in advance.",
+  "holidaysSectionDiwaliStaffTraining": "Diwali, Staff training…",
+  "importCenterScreenBringProductsIntoYourShop": "Bring products into your shop — manually or in bulk. Choose a method below to get started.",
+  "importCenterScreenBulkUploadAWorkbookTo": "Bulk-upload a workbook to update stock, prices or catalog. Download a sample template, fill it in, then preview before applying.",
+  "importCenterScreenGetTheImportTemplateWorkbook": "Get the import template workbook",
+  "importCenterScreenValidRowsValidErrorRowsErrors": "{validRows} valid, {errorRows} errors",
+  "@importCenterScreenValidRowsValidErrorRowsErrors": {
+    "placeholders": {
+      "validRows": { "type": "Object" },
+      "errorRows": { "type": "Object" }
+    }
+  },
+  "importHistoryScreenExcelFilesYouUploadWill": "Excel files you upload will appear here with their row-level outcomes.",
+  "importHistoryScreenRowsTotalRowsSuccessSuccessRowsFailed": "Rows {totalRows} · Success {successRows} · Failed {failedRowCount}",
+  "@importHistoryScreenRowsTotalRowsSuccessSuccessRowsFailed": {
+    "placeholders": {
+      "totalRows": { "type": "Object" },
+      "successRows": { "type": "Object" },
+      "failedRowCount": { "type": "Object" }
+    }
+  },
+  "importPreviewScreenRowRowNumberValue": "Row {rowNumber}{value}",
+  "@importPreviewScreenRowRowNumberValue": {
+    "placeholders": {
+      "rowNumber": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "importPreviewScreenShowOnlyValidationErrors": "Show only validation errors",
+  "importPreviewScreenValidWillBeAppliedTo": "Valid — will be applied to inventory",
+  "importPreviewScreenValue": "{value}",
+  "@importPreviewScreenValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "importPreviewScreenValueValue2": "{value} — {value2}",
+  "@importPreviewScreenValueValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "importProcessingScreenApplyingRowsToYourInventory": "Applying rows to your inventory…",
+  "importProcessingScreenThisUsuallyTakesAFew": "This usually takes a few seconds.",
+  "importProcessingScreenViewErrorsFailed": "View Errors ({failed})",
+  "@importProcessingScreenViewErrorsFailed": {
+    "placeholders": {
+      "failed": { "type": "Object" }
+    }
+  },
+  "importReportSheetAllRowsTotal": "All rows ({total})",
+  "@importReportSheetAllRowsTotal": {
+    "placeholders": {
+      "total": { "type": "Object" }
+    }
+  },
+  "importReportSheetCouldNotLoadTheReport": "Could not load the report for this import.",
+  "importReportSheetFailedErrors": "Failed ({errors})",
+  "@importReportSheetFailedErrors": {
+    "placeholders": {
+      "errors": { "type": "Object" }
+    }
+  },
+  "importReportSheetRowRowNumberValue": "Row {rowNumber}{value}",
+  "@importReportSheetRowRowNumberValue": {
+    "placeholders": {
+      "rowNumber": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "importReportSheetStatusLabelTotalRowsRowsSuccessRowsSuccess": "{statusLabel} · {totalRows} rows · {successRows} success, {failedRowCount} failed",
+  "@importReportSheetStatusLabelTotalRowsRowsSuccessRowsSuccess": {
+    "placeholders": {
+      "statusLabel": { "type": "Object" },
+      "totalRows": { "type": "Object" },
+      "successRows": { "type": "Object" },
+      "failedRowCount": { "type": "Object" }
+    }
+  },
+  "importReportSheetValueValue2": "{value} — {value2}",
+  "@importReportSheetValueValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "importResultScreenCouldNotOpenThisImport": "Could not open this import",
+  "importResultScreenErrorRowsRowSCouldNot": "{errorRows} row(s) could not be imported.",
+  "@importResultScreenErrorRowsRowSCouldNot": {
+    "placeholders": {
+      "errorRows": { "type": "Object" }
+    }
+  },
+  "importResultScreenThisImportIsNoLonger": "This import is no longer available.",
+  "importUploadScreenExcelImportNotAvailableOn": "Excel import not available on your plan",
+  "importUploadScreenOnlyXlsxWorkbooksAreAccepted": "Only .xlsx workbooks are accepted. Download the sample from the Import Center to see the exact columns.",
+  "importUploadScreenUpgradeYourPlanToBulk": "Upgrade your plan to bulk-upload a workbook. Your current plan does not include bulk import.",
+  "importUploadScreenUploading": "Uploading…",
+  "importUploadScreenYourFileIsBeingChecked": "Your file is being checked row by row. Nothing is applied yet.",
+  "insightsDrillDownScreenCouldNotLoadThisReport": "Could not load this report",
+  "insightsDrillDownScreenDailyUnitLabel": "Daily {unitLabel}",
+  "@insightsDrillDownScreenDailyUnitLabel": {
+    "placeholders": {
+      "unitLabel": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenDaysDays": "{days} days",
+  "@insightsDrillDownScreenDaysDays": {
+    "placeholders": {
+      "days": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenNoCustomerActivityInThis": "No customer activity in this window yet.",
+  "insightsDrillDownScreenPeakLabel": "Peak {label}",
+  "@insightsDrillDownScreenPeakLabel": {
+    "placeholders": {
+      "label": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenRank": "{rank}",
+  "@insightsDrillDownScreenRank": {
+    "placeholders": {
+      "rank": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenTopProductsUpToKInsightsMaxTopProducts": "Top products (up to {kInsightsMaxTopProducts})",
+  "@insightsDrillDownScreenTopProductsUpToKInsightsMaxTopProducts": {
+    "placeholders": {
+      "kInsightsMaxTopProducts": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenTotalInLastRangeDaysDays": "Total in last {rangeDays} days",
+  "@insightsDrillDownScreenTotalInLastRangeDaysDays": {
+    "placeholders": {
+      "rangeDays": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenTotalUnitLabel": "{total} {unitLabel}",
+  "@insightsDrillDownScreenTotalUnitLabel": {
+    "placeholders": {
+      "total": { "type": "Object" },
+      "unitLabel": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenValue": "{value}",
+  "@insightsDrillDownScreenValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenViews": "{views}",
+  "@insightsDrillDownScreenViews": {
+    "placeholders": {
+      "views": { "type": "Object" }
+    }
+  },
+  "insightsDrillDownScreenViewsUnitLabel": "{views} {unitLabel}",
+  "@insightsDrillDownScreenViewsUnitLabel": {
+    "placeholders": {
+      "views": { "type": "Object" },
+      "unitLabel": { "type": "Object" }
+    }
+  },
+  "insightsScreenAllMetricsAreComputedBy": "All metrics are computed by the backend from live customer activity.",
+  "insightsScreenBusiestHourLabelViewsViews": "Busiest hour: {label} · {views} views",
+  "@insightsScreenBusiestHourLabelViewsViews": {
+    "placeholders": {
+      "label": { "type": "Object" },
+      "views": { "type": "Object" }
+    }
+  },
+  "insightsScreenCountShareLabel": "{count} · {shareLabel}",
+  "@insightsScreenCountShareLabel": {
+    "placeholders": {
+      "count": { "type": "Object" },
+      "shareLabel": { "type": "Object" }
+    }
+  },
+  "insightsScreenCurrentInventorySnapshotFreshnessUses": "Current inventory snapshot; freshness uses the last 24h.",
+  "insightsScreenDaysDays": "{days} days",
+  "@insightsScreenDaysDays": {
+    "placeholders": {
+      "days": { "type": "Object" }
+    }
+  },
+  "insightsScreenFreshFreshStaleStale": "{fresh} fresh · {stale} stale",
+  "@insightsScreenFreshFreshStaleStale": {
+    "placeholders": {
+      "fresh": { "type": "Object" },
+      "stale": { "type": "Object" }
+    }
+  },
+  "insightsScreenLiveShopSnapshotInventoryListings": "Live shop snapshot · inventory, listings, offers and profile, computed from current data.",
+  "insightsScreenNothingHasBeenRecordedIn": "Nothing has been recorded in the last {rangeDays} days. These reports fill in automatically once customers view your shop and products.",
+  "@insightsScreenNothingHasBeenRecordedIn": {
+    "placeholders": {
+      "rangeDays": { "type": "Object" }
+    }
+  },
+  "insightsScreenQueryCount": "{query} · {count}",
+  "@insightsScreenQueryCount": {
+    "placeholders": {
+      "query": { "type": "Object" },
+      "count": { "type": "Object" }
+    }
+  },
+  "insightsScreenReportsNotAvailableOnYour": "Reports not available on your plan",
+  "insightsScreenSalesTotalsAndRevenueAre": "Sales totals and revenue are not available. The metrics below show customer engagement, not completed sales.",
+  "insightsScreenScoreLabelOfTotalProductsProducts": "{scoreLabel} of {totalProducts} products",
+  "@insightsScreenScoreLabelOfTotalProductsProducts": {
+    "placeholders": {
+      "scoreLabel": { "type": "Object" },
+      "totalProducts": { "type": "Object" }
+    }
+  },
+  "insightsScreenSetUpYourShopTo": "Set up your shop to unlock its reports and insights.",
+  "insightsScreenToday": "{today}",
+  "@insightsScreenToday": {
+    "placeholders": {
+      "today": { "type": "Object" }
+    }
+  },
+  "insightsScreenTrailingRangeDaysDaysComputedFrom": "Trailing {rangeDays} days, computed from live customer activity.",
+  "@insightsScreenTrailingRangeDaysDaysComputedFrom": {
+    "placeholders": {
+      "rangeDays": { "type": "Object" }
+    }
+  },
+  "insightsScreenUpgradeYourPlanToSee": "Upgrade your plan to see customer activity and trends. Your current plan does not include reports.",
+  "insightsScreenValue": "{value}",
+  "@insightsScreenValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "insightsScreenViewsViews": "{views} views",
+  "@insightsScreenViewsViews": {
+    "placeholders": {
+      "views": { "type": "Object" }
+    }
+  },
+  "inventoryDashboardScreenCountsComeStraightFromYour": "Counts come straight from your shop's live inventory.",
+  "inventoryImportScreenAllRowsValidatedSuccessfullyReview": "All rows validated successfully.\nReview the summary above and confirm to apply changes.",
+  "inventoryImportScreenExcelImportNotAvailableOn": "Excel import not available on your plan",
+  "inventoryImportScreenImportProductsFromExcel": "Import products from Excel",
+  "inventoryImportScreenRowRowNumber": "Row {rowNumber}",
+  "@inventoryImportScreenRowRowNumber": {
+    "placeholders": {
+      "rowNumber": { "type": "Object" }
+    }
+  },
+  "inventoryImportScreenUpgradeYourPlanToBulk": "Upgrade your plan to bulk-import a workbook. Your current plan does not include bulk import.",
+  "inventoryImportScreenUploadAnXlsxWorkbookTo": "Upload an .xlsx workbook to bulk-add or update your shop's inventory. The file is validated before you commit changes.",
+  "inventoryImportScreenValidRowsValidErrorRowsErrors": "{validRows} valid, {errorRows} errors",
+  "@inventoryImportScreenValidRowsValidErrorRowsErrors": {
+    "placeholders": {
+      "validRows": { "type": "Object" },
+      "errorRows": { "type": "Object" }
+    }
+  },
+  "inventoryImportScreenValue": "{value}",
+  "@inventoryImportScreenValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "inventoryListScreenMatchedOfTotalProducts": "{matched} of {total} products",
+  "@inventoryListScreenMatchedOfTotalProducts": {
+    "placeholders": {
+      "matched": { "type": "Object" },
+      "total": { "type": "Object" }
+    }
+  },
+  "inventoryListScreenNoProductsMatchYourFilters": "No products match your filters",
+  "inventoryListScreenNoProductsMatchYourSearch": "No products match your search",
+  "inventoryListScreenQuantityUnitsValue": "{quantity} units · {value}",
+  "@inventoryListScreenQuantityUnitsValue": {
+    "placeholders": {
+      "quantity": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "inventoryListScreenSearchNameBrandOrSKU": "Search name, brand or SKU",
+  "inventorySharedAddProductsOrImportThem": "Add products or import them from Excel first.",
+  "inventorySharedPleaseCheckYourConnectionAnd": "Please check your connection and retry.",
+  "inventorySharedQuantityUnitsLabel": "{quantity} units · {label}",
+  "@inventorySharedQuantityUnitsLabel": {
+    "placeholders": {
+      "quantity": { "type": "Object" },
+      "label": { "type": "Object" }
+    }
+  },
+  "inventorySharedTotalEntrValue": "{total} entr{value}",
+  "@inventorySharedTotalEntrValue": {
+    "placeholders": {
+      "total": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "inventorySharedValue": "{value}",
+  "@inventorySharedValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "inventorySharedYouDoNotHaveAccess": "You do not have access to this shop's inventory.",
+  "inventorySyncStatusScreenLength": "{length}",
+  "@inventorySyncStatusScreenLength": {
+    "placeholders": {
+      "length": { "type": "Object" }
+    }
+  },
+  "inventorySyncStatusScreenSourceLabelsComeFromThe": "Source labels come from the server — they record how each stock figure last changed.",
+  "locationCaptureScreenCouldNotOpenYourPhone": "Could not open your phone settings from here.",
+  "locationCaptureScreenDetectedAddressYouMayCorrect": "Detected address — you may correct the text",
+  "locationCaptureScreenDifferentLocationDetected": "Different location detected",
+  "locationCaptureScreenEnterYourShopAddressIn": "Enter your shop address in the form.",
+  "locationCaptureScreenForBestAccuracy": "For best accuracy:",
+  "locationCaptureScreenGPSAccuracyIsAnEstimate": "GPS accuracy is an estimate, not a guarantee.",
+  "locationCaptureScreenGPSCoordinatesRemainThePrimary": "GPS coordinates remain the primary location; the address is supporting information.",
+  "locationCaptureScreenTapTheMapToPlace": "Tap the map to place your shop pin.",
+  "locationCaptureScreenTapTheMapToPlace2": "Tap the map to place the pin at your shop ENTRANCE.",
+  "locationCaptureScreenUseMyCurrentLocationInstead": "Use my current location instead",
+  "locationCaptureScreenValueAccuracyValue2AddressSummarySave": "{value}Accuracy: {value2}\n\n{addressSummary}\n\nSave this as your shop entrance location?",
+  "@locationCaptureScreenValueAccuracyValue2AddressSummarySave": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" },
+      "addressSummary": { "type": "Object" }
+    }
+  },
+  "locationCaptureScreenYourLocationIsNotAccurate": "Your location is not accurate enough. Move closer to your shop for better accuracy.",
+  "locationCaptureScreenYourSelectedShopLocationIs": "Your selected shop location is {value} km away from your current GPS location.\n\nAre you sure this is your shop?",
+  "@locationCaptureScreenYourSelectedShopLocationIs": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "loginScreenNewHereCreateAnAccount": "New here? Create an account",
+  "loginScreenSignInWithThePhone": "Sign in with the phone number or email you registered.",
+  "logoutConfirmationScreenLogOutOfPasslyBusiness": "Log out of Passly Business?",
+  "logoutConfirmationScreenYouWillNeedToSign": "You will need to sign in with the same Google account before you can manage your shop again.",
+  "lowStockScreenCountItemValueImmediateRestocking": "{count} item{value} immediate restocking",
+  "@lowStockScreenCountItemValueImmediateRestocking": {
+    "placeholders": {
+      "count": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "lowStockScreenNoRestockNeedsMatchYour": "No restock needs match your search",
+  "lowStockScreenNothingIsAtOrBelow": "Nothing is at or below its low-stock threshold right now.",
+  "lowStockScreenQuantityUnitsLeft": "{quantity} units left",
+  "@lowStockScreenQuantityUnitsLeft": {
+    "placeholders": {
+      "quantity": { "type": "Object" }
+    }
+  },
+  "lowStockScreenSKUSku": "SKU: {sku}",
+  "@lowStockScreenSKUSku": {
+    "placeholders": {
+      "sku": { "type": "Object" }
+    }
+  },
+  "lowStockScreenThresholdValueUnits": "Threshold: {value} units",
+  "@lowStockScreenThresholdValueUnits": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "myTicketsScreenCheckYourConnectionAndTry": "Check your connection and try again.",
+  "myTicketsScreenReportsYouSendFromHelp": "Reports you send from Help & support are tracked here, with the status support has set on them.",
+  "myTicketsScreenSupportRepliedResolutionNotes": "Support replied: {resolutionNotes}",
+  "@myTicketsScreenSupportRepliedResolutionNotes": {
+    "placeholders": {
+      "resolutionNotes": { "type": "Object" }
+    }
+  },
+  "notificationDetailScreenDeepLinkCopiedToClipboard": "Deep link copied to clipboard",
+  "notificationDetailScreenOpenANotificationFromThe": "Open a notification from the Alerts tab to see its details.",
+  "notificationPreferencesScreenBannersAndSoundsAreControlled": "Banners and sounds are controlled by your phone",
+  "notificationPreferencesScreenDeviceNotificationPermission": "Device notification permission",
+  "notificationPreferencesScreenInAppAlertsArePart": "In-app alerts are part of the app and are never switched off. The channels above only control how you are reached OUTSIDE the app.",
+  "notificationPreferencesScreenSavedForYourAccountOn": "Saved for your account on this device",
+  "notificationPreferencesScreenTheAlertsTabAlwaysWorks": "The Alerts tab always works",
+  "notificationSettingsScreenCouldNotOpenYourPhone": "Could not open your phone settings from here.",
+  "notificationSettingsScreenIfDeviceNotificationsAreOff": "If device notifications are off, every alert still appears in the Alerts tab. The permission only decides whether your phone may also show banners and play sounds.",
+  "notificationSettingsScreenInAppAlertsCannotBe": "In-app alerts cannot be switched off",
+  "notificationSettingsScreenInventoryOrdersOffersAndMore": "Inventory, orders, offers and more",
+  "notificationSettingsScreenLowStockPOSSyncResults": "Low stock, POS sync results and account notices are part of the app so a shop is never silently out of date. The channels below decide whether you are ALSO reached outside the app.",
+  "notificationSettingsScreenNotificationsNeverBlockTheApp": "Notifications never block the app",
+  "notificationSettingsScreenNotificationsOnThisDevice": "Notifications on this device",
+  "notificationSettingsScreenWhatYouAreToldAbout": "What you are told about, and how",
+  "notificationSettingsScreenYourPhoneWillNotAsk": "Your phone will not ask again for this app. Turn banners on in Settings > Apps > Passly Business > Notifications.",
+  "notificationsScreenCheckYourConnectionAndTry": "Check your connection and try again.",
+  "offerCreateSheetAppliesToLengthSelected": "Applies to ({length} selected)",
+  "@offerCreateSheetAppliesToLengthSelected": {
+    "placeholders": {
+      "length": { "type": "Object" }
+    }
+  },
+  "offerCreateSheetDiscount": "Discount % *",
+  "offerCreateSheetDiscount2": "Discount ₹ *",
+  "offerCreateSheetEGDiwali10Off": "e.g. Diwali 10% off",
+  "offerCreateSheetEGValidOnIn": "e.g. Valid on in-store purchases only",
+  "offerCreateSheetEndDate": "End date *",
+  "offerCreateSheetFixedSalePriceCustomersPay": "Fixed sale price customers pay",
+  "offerCreateSheetKeptOffCustomerListingsUntil": "Kept off customer listings until you activate it",
+  "offerCreateSheetNoProductsInInventoryYet": "No products in inventory yet — add products first.",
+  "offerCreateSheetOfferCreatedForLengthProduct": "Offer created for {length} product(s)",
+  "@offerCreateSheetOfferCreatedForLengthProduct": {
+    "placeholders": {
+      "length": { "type": "Object" }
+    }
+  },
+  "offerCreateSheetOfferTitle": "Offer title *",
+  "offerCreateSheetOfferType": "Offer type *",
+  "offerCreateSheetPromotionalPrice": "Promotional price *",
+  "offerCreateSheetSelectAtLeastOneProduct": "Select at least one product for the offer",
+  "offerCreateSheetStartDate": "Start date *",
+  "offerCreateSheetTermsConditionsOptional": "Terms & conditions (optional)",
+  "offerCreateSheetValueQtyQuantity": "₹{value} · qty {quantity}",
+  "@offerCreateSheetValueQtyQuantity": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "quantity": { "type": "Object" }
+    }
+  },
+  "offerListScreensOfferTypeLabelDiscountLabelProductCountProductS": "{offerTypeLabel} · {discountLabel} · {productCount} product(s)",
+  "@offerListScreensOfferTypeLabelDiscountLabelProductCountProductS": {
+    "placeholders": {
+      "offerTypeLabel": { "type": "Object" },
+      "discountLabel": { "type": "Object" },
+      "productCount": { "type": "Object" }
+    }
+  },
+  "offersScreenCheckYourConnectionAndTry": "Check your connection and try again.",
+  "offersScreenChooseAShopToSee": "Choose a shop to see its offers.",
+  "operatingHoursScreenIgnoreTheWeeklyScheduleBelow": "Ignore the weekly schedule below entirely.",
+  "operatingHoursScreenOpen247": "Open 24×7",
+  "operatingHoursScreenTheWholeWeekIsSaved": "The whole week is saved in one request. Holiday closures override these times.",
+  "operatingHoursScreenUpdateFailedPleaseRetry": "Update failed. Please retry.",
+  "phoneOtpScreenPhoneSignInUnavailable": "Phone sign-in unavailable",
+  "phoneOtpScreenThisDeviceCannotReceiveAn": "This device cannot receive an SMS code. Use Google to sign in, or open the app on an Android or iOS phone.",
+  "posConnectionSetupScreenCheckTheAPIKeySecret": "Check the API key / secret above and try again — nothing was synced.",
+  "posConnectionSetupScreenCheckYourConnectionAndTry": "Check your connection and try again.",
+  "posConnectionSetupScreenLinkYourPOSToKeep": "Link your POS to keep products and stock in step automatically.",
+  "posConnectionSetupScreenOnlyWhatYouTypeIs": "Only what you type is sent — a rotation never blanks an existing secret.",
+  "posConnectionSetupScreenProviderNameIsValue": "{providerName} is {value}.",
+  "@posConnectionSetupScreenProviderNameIsValue": {
+    "placeholders": {
+      "providerName": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "posConnectionSetupScreenThisConnectorSupportsFullSyncs": "This connector supports full syncs only.",
+  "posConnectionSetupScreenThisShopAlreadyHasA": "This shop already has a connector ({value}). Update its credentials and reconnect — no duplicate is created.",
+  "@posConnectionSetupScreenThisShopAlreadyHasA": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "posConnectionSetupScreenVendorCredentialsOptional": "Vendor credentials (optional)",
+  "posErrorScreenCheckTheConnectionAgain": "Check the connection again",
+  "posErrorScreenLeaveThisScreenAndReturn": "Leave this screen and return to the POS hub.",
+  "posErrorScreenReReadTheConnectorAnd": "Re-read the connector and its sync jobs from the server.",
+  "posErrorScreenSeeWhetherAnEarlierJob": "See whether an earlier job succeeded and what failed.",
+  "posHubSheetsEveryTillScannerOrTablet": "Every till, scanner or tablet mapped to this connector.",
+  "posHubSheetsNoTerminalsMappedYetAdd": "No terminals mapped yet. Add the first one below.",
+  "posHubSheetsRecordsPerBatchOptional": "Records per batch (optional)",
+  "posHubSheetsTerminalIdFromYourPOS": "Terminal id (from your POS vendor)",
+  "posHubSheetsTheTillIsUsuallyThe": "The till is usually the truth for stock levels; the platform keeps pricing, offers and MRP.",
+  "posHubSheetsWhenTheSameProductDisagrees": "When the same product disagrees",
+  "posScreenCheckYourConnectionAndTry": "Check your connection and try again.",
+  "posScreenChooseAShopToManage": "Choose a shop to manage its POS integration.",
+  "posScreenConnectYourBillingCounter": "Connect your billing counter",
+  "posScreenLinkYourPOSToKeep": "Link your POS to keep products and stock in step automatically.",
+  "posScreenNoSyncsYetTapSync": "No syncs yet.\nTap \"Sync now\" to pull your POS data.",
+  "posScreenPOSIntegrationIsNotConfigured": "POS integration is not configured for your account.",
+  "posScreenPOSNotAvailableOnYour": "POS not available on your plan",
+  "posScreenScheduledSyncsWillStopYou": "Scheduled syncs will stop. You can reconnect at any time.",
+  "posScreenUpgradeYourPlanToConnect": "Upgrade your plan to connect a point of sale. Your current plan does not include POS integrations.",
+  "posSharedCheckYourConnectionAndTry": "Check your connection and try again.",
+  "posSyncHistoryScreenConnectAPOSAndRun": "Connect a POS and run a sync to build a history.",
+  "posSyncHistoryScreenNothingMatchesThisFilter": "Nothing matches this filter",
+  "posSyncHistoryScreenRunASyncAndEvery": "Run a sync and every job — queued, done or failed — shows up here.",
+  "posSyncHistoryScreenSyncJobId": "Sync job #{id}",
+  "@posSyncHistoryScreenSyncJobId": {
+    "placeholders": {
+      "id": { "type": "Object" }
+    }
+  },
+  "posSyncHistoryScreenTryAnotherStatusOrClear": "Try another status, or clear the filter.",
+  "posSyncHistoryScreenValueValue2Value3": "{value} · {value2}{value3}",
+  "@posSyncHistoryScreenValueValue2Value3": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" },
+      "value3": { "type": "Object" }
+    }
+  },
+  "posSyncProgressScreenNothingIsCountedHereThe": "Nothing is counted here — the numbers below come from the POS connector.",
+  "posSyncProgressScreenStartingSync": "Starting sync…",
+  "posSyncProgressScreenSyncingYourProducts": "Syncing your products…",
+  "posSyncProgressScreenTheJobIsStillOn": "The job is still on the server — check the sync history before starting another one.",
+  "posSyncProgressScreenValue": "{value}",
+  "@posSyncProgressScreenValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "posSyncResultScreenValue": "{value}",
+  "@posSyncResultScreenValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "posSyncScreenConnectAPOSFirstThere": "Connect a POS first — there is nothing to sync from.",
+  "posSyncScreenOnlyWhatChangedSinceThe": "Only what changed since the last sync — faster, but it can miss manual edits.",
+  "posSyncScreenReReadTheWholePOS": "Re-read the whole POS catalog and reconcile every product.",
+  "priceHistoryScreenEveryPriceUpdateForThis": "Every price update for this product will be recorded here.",
+  "priceListScreenSearchNameBrandOrSKU": "Search name, brand or SKU",
+  "pricingSharedAddProductsOrImportThem": "Add products or import them from Excel first.",
+  "pricingSharedCurrentPriceValueValue2": "Current price ₹{value}{value2}",
+  "@pricingSharedCurrentPriceValueValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "privacyScreenBusinessDataIsKeptWhile": "Business data is kept while your shop is active. When an account is closed, operational data is removed or anonymised except where a record must be kept for accounting or legal reasons.",
+  "privacyScreenDecideWhichAlertsYouReceive": "Decide which alerts you receive in Notification preferences, keep your catalogue accurate from the Products and Inventory screens, and contact support to correct your account details or ask for your data to be deleted.",
+  "privacyScreenOnlyYourPublicBusinessInformation": "Only your public business information: shop name, category, address, hours, contact details and the products you publish. Stock quantities, costs, documents and your personal contact details stay private.",
+  "privacyScreenPaymentAndBillingProvidersWhen": "Payment and billing providers when you subscribe to a paid plan, providers you connect yourself (for example your POS vendor), and authorities when legally required. Nothing else is shared.",
+  "privacyScreenQuestionsAboutYourData": "Questions about your data?",
+  "privacyScreenSessionsUseShortLivedAccess": "Sessions use short-lived access tokens that are revocable from the server, and tokens are stored in the device keychain or keystore. Logging out revokes the session and erases the stored tokens from this device.",
+  "privacyScreenToShowYourShopProducts": "To show your shop, products and prices to nearby customers, to sync your stock and prices, to send you operational alerts (low stock, POS sync results, verification), and to keep your account secure. Analytics are aggregated — we never sell your data.",
+  "privacyScreenWriteToEmailAndThe": "Write to {email} and the team will respond during {hours}.",
+  "@privacyScreenWriteToEmailAndThe": {
+    "placeholders": {
+      "email": { "type": "Object" },
+      "hours": { "type": "Object" }
+    }
+  },
+  "privacyScreenYourAccountIdentityNamePhone": "Your account identity (name, phone number and e-mail from your Google sign-in), your business details (shop name, category, address, operating hours and licence documents), your catalogue (products, stock levels and prices) and the notifications you receive. Shop location is captured only when you place or update your shop on the map.",
+  "privacyScreenYourDataInPasslyBusiness": "Your data in Passly Business",
+  "productSheetsChooseHowYouWantTo": "Choose how you want to add products:",
+  "productSheetsEditName": "Edit {name}",
+  "@productSheetsEditName": {
+    "placeholders": {
+      "name": { "type": "Object" }
+    }
+  },
+  "productSheetsFullDetailsPriceStockBrand": "Full details: price, stock, brand, photo…",
+  "productSheetsJPGPNGWebPUpTo": "JPG / PNG / WebP up to 5 MB, stored securely — the shop listing shows a link to it.",
+  "productSheetsMatchAgainstTheSharedCatalog": "Match against the shared catalog",
+  "productSheetsProductName": "Product name *",
+  "productSheetsSellingPrice": "Selling price *",
+  "productSheetsTypeOrPasteTheCode": "Type or paste the code on the pack",
+  "productSheetsUnavailableProductsAreHiddenFrom": "Unavailable products are hidden from customers",
+  "productSheetsUnpublishedProductsStayAsDrafts": "Unpublished products stay as drafts",
+  "productSheetsUploadASpreadsheetOfProducts": "Upload a spreadsheet of products",
+  "productsScreenByUpdatedBy": "by {updatedBy}",
+  "@productsScreenByUpdatedBy": {
+    "placeholders": {
+      "updatedBy": { "type": "Object" }
+    }
+  },
+  "productsScreenMatchedOfTotalProducts": "{matched} of {total} products",
+  "@productsScreenMatchedOfTotalProducts": {
+    "placeholders": {
+      "matched": { "type": "Object" },
+      "total": { "type": "Object" }
+    }
+  },
+  "productsScreenPleaseCheckYourConnectionAnd": "Please check your connection and retry.",
+  "productsScreenRsValue": "Rs {value}",
+  "@productsScreenRsValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "productsScreenSearchNameBrandOrSKU": "Search name, brand or SKU…",
+  "productsScreenUpdatedValue": "Updated {value}",
+  "@productsScreenUpdatedValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "productsScreenYouDoNotHaveAccess": "You do not have access to this shop.",
+  "registerScreenAlreadyHaveAnAccountSign": "Already have an account? Sign in",
+  "registerScreenCompleteSignInInThe": "Complete sign-in in the opened Google window…",
+  "registerScreenCreateYourAccountWithYour": "Create your account with your phone number and a password.",
+  "registerScreenPhoneNumberAlreadyRegisteredPlease": "Phone number already registered. Please login instead.",
+  "registerScreenTellUsAboutYourBusiness": "Tell us about your business",
+  "registrationWidgetsTakeAPhotoWithYour": "Take a photo with your camera",
+  "registrationWidgetsText": "*",
+  "registrationWidgetsUploadingValue": "Uploading {value}…",
+  "@registrationWidgetsUploadingValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "registrationWidgetsValue": "{value}",
+  "@registrationWidgetsValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "registrationWidgetsValueReadyToUpload": "{value} · ready to upload",
+  "@registrationWidgetsValueReadyToUpload": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "registrationWidgetsValueValue2": "{value} · {value2}",
+  "@registrationWidgetsValueValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "reportIssueScreen1OpenProducts2Tap": "1. Open Products\n2. Tap a product",
+  "reportIssueScreenAPictureOfTheScreen": "A picture of the screen helps support reproduce the problem. One image, compressed to WebP under 2 MB before it is sent.",
+  "reportIssueScreenAPreciseReportIsUsually": "A precise report is usually fixed in one release",
+  "reportIssueScreenAPriceSavedAsThe": "A price saved as the old value after I tapped Save",
+  "reportIssueScreenEveryReportBecomesATracked": "Every report becomes a tracked ticket",
+  "reportIssueScreenFilenameValue": "{filename} - {value}",
+  "@reportIssueScreenFilenameValue": {
+    "placeholders": {
+      "filename": { "type": "Object" },
+      "value": { "type": "Object" }
+    }
+  },
+  "reportIssueScreenHowMuchDoesItBlock": "How much does it block you?",
+  "reportIssueScreenReportCopiedPasteItInto": "Report copied - paste it into an e-mail to {email}",
+  "@reportIssueScreenReportCopiedPasteItInto": {
+    "placeholders": {
+      "email": { "type": "Object" }
+    }
+  },
+  "reportIssueScreenSendingFilesASupportTicket": "Sending files a support ticket with the category, severity, your shop and the app version attached. Support works through the same queue, and the status stays visible under My support tickets.",
+  "reportIssueScreenStepsToReproduceOptional": "Steps to reproduce (optional)",
+  "reportIssueScreenSupportHasItInThe": "Support has it in the queue. Quote the ticket number below if you contact us about it.",
+  "resetPasswordScreenPasswordResetSuccessfully": "Password reset successfully!",
+  "resetPasswordScreenYourNewPasswordMustBe": "Your new password must be at least 8 characters and include letters and numbers.",
+  "securityScreenEndsTheSessionAndErases": "Ends the session and erases the saved tokens",
+  "securityScreenGoogleAccountVerifiedByFirebase": "Google account, verified by Firebase",
+  "securityScreenHowYouSignInAnd": "How you sign in and where you are signed in",
+  "securityScreenPasswordSignInIsNot": "Password sign-in is not enabled",
+  "securityScreenReportSuspiciousActivity": "Report suspicious activity",
+  "securityScreenSignInAndAccountNotices": "Sign-in and account notices",
+  "securityScreenYourIdentityIsVerifiedBy": "Your identity is verified by Google every time you sign in, so there is no Passly password to change or reset. To move your account to a different Google address, contact support.",
+  "sessionsScreenCheckYourConnectionAndTry": "Check your connection and try again.",
+  "sessionsScreenDevicesWithAnActivePassly": "Devices with an active Passly Business session",
+  "sessionsScreenIPIp": "IP {ip}",
+  "@sessionsScreenIPIp": {
+    "placeholders": {
+      "ip": { "type": "Object" }
+    }
+  },
+  "sessionsScreenLabelWillNeedToSign": "{label} will need to sign in again. This device stays signed in.",
+  "@sessionsScreenLabelWillNeedToSign": {
+    "placeholders": {
+      "label": { "type": "Object" }
+    }
+  },
+  "sessionsScreenNoDeviceSessionsRecorded": "No device sessions recorded",
+  "sessionsScreenOnlyThisDeviceIsSigned": "Only this device is signed in right now.",
+  "sessionsScreenSigningADeviceOutTakes": "Signing a device out takes effect immediately",
+  "sessionsScreenTheDeviceIsReturnedTo": "The device is returned to the sign-in screen the next time it reaches Passly. To end THIS session, use Log out in Settings — that also erases the saved tokens on this phone.",
+  "sessionsScreenThisAccountSignsInWith": "This account signs in with Google, so the session is managed by Google rather than stored as a Passly device session. Logging out from Settings still ends it on this device.",
+  "shopLocationDetailsGPSAccuracyIsAnEstimate": "GPS accuracy is an estimate, not a guarantee. Tap the map, drag the pin, or correct coordinates below. Check your shop entrance and address before confirming.",
+  "shopLocationDetailsOriginalGPSEstimateValue": "Original GPS estimate — {value}",
+  "@shopLocationDetailsOriginalGPSEstimateValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "shopLocationDetailsThisPinIsAboutValue": "This pin is about {value} m away from your GPS location. Are you sure this is your shop entrance?",
+  "@shopLocationDetailsThisPinIsAboutValue": {
+    "placeholders": {
+      "value": { "type": "Object" }
+    }
+  },
+  "shopLocationDetailsYesThisIsMyShop": "Yes, this is my shop entrance",
+  "shopLocationScreenCouldNotOpenYourPhone": "Could not open your phone settings from here.",
+  "shopLocationScreenCustomersSeeYourShopOn": "Customers see your shop on the map at this pin. Keep it on your shop entrance, not the street corner.",
+  "shopLocationScreenTheAppReadsYourDevice": "The app reads your device GPS a few times, keeps the most accurate fix and asks the server to replace the stored pin. Every change is audited.",
+  "shopLocationScreenWithoutAPinCustomersCannot": "Without a pin customers cannot find your shop on the map. Stand at or near the shop and save your current location.",
+  "shopProfileScreenValueValue2CategoryLabel": "{value} · {value2} · {categoryLabel}",
+  "@shopProfileScreenValueValue2CategoryLabel": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" },
+      "categoryLabel": { "type": "Object" }
+    }
+  },
+  "shopProfileSharedManagersHaveReadOnlyAccess": "Managers have read-only access here. Ask the shop owner for changes.",
+  "shopRegistrationWizardAddYourShopLocationFor": "Add your shop location for better visibility and verification.",
+  "shopRegistrationWizardAlreadyHaveAnAccountLogin": "Already have an account? Login",
+  "shopRegistrationWizardDiscoverabilityByNearbyCustomers": "Discoverability by nearby customers",
+  "shopRegistrationWizardDocumentsAndAdditionalInfo": "Documents and Additional Info",
+  "shopRegistrationWizardEGSharmaMedicalStore": "e.g. Sharma Medical Store",
+  "shopRegistrationWizardGettingLocation": "Getting location…",
+  "shopRegistrationWizardHandleProductsOrdersInventoryAnd": "Handle products, orders/inventory and business information",
+  "shopRegistrationWizardHttps": "https://",
+  "shopRegistrationWizardInstagramFacebookLink": "Instagram / Facebook link",
+  "shopRegistrationWizardJoinOurPlatformAndBring": "Join our platform and bring your business closer to local customers.",
+  "shopRegistrationWizardNear": "Near…",
+  "shopRegistrationWizardNoGPSFixTapThe": "No GPS fix — tap the map above to place your shop entrance pin, or type the coordinates below.",
+  "shopRegistrationWizardTapTheMapToPlace": "Tap the map to place your shop pin.",
+  "shopRegistrationWizardTellCustomersAboutYourShop": "Tell customers about your shop …",
+  "shopRegistrationWizardTellUsAboutYourShop": "Tell us about your shop or business.",
+  "shopRegistrationWizardTypeYourAddressBelowThen": "Type your address below, then tap the map to place your shop pin.",
+  "shopRegistrationWizardUdyamMSMENumberOptional": "Udyam / MSME Number (optional)",
+  "shopRegistrationWizardUploadRequiredDocumentsForVerification": "Upload required documents for verification.",
+  "shopRegistrationWizardVerifiedBusinessesCreateASafer": "Verified businesses create a safer marketplace",
+  "shopRegistrationWizardYouWillGetANotification": "You will get a notification once your shop is verified.",
+  "shopRegistrationWizardYourShopRegistrationHasBeen": "Your shop registration has been successfully submitted. Our team will review the details and verify your documents.",
+  "shopSettingsScreenCouldNotSavePleaseRetry": "Could not save. Please retry.",
+  "shopSettingsScreenCustomersCanPlaceNewOrders": "Customers can place new orders while on",
+  "shopSettingsScreenManagersCannotChangeShopSettings": "Managers cannot change shop settings.",
+  "shopSettingsScreenOpen247": "Open 24×7",
+  "shopsScreenNoShopsYetRegisterYour": "No shops yet.\nRegister your first business to get started.",
+  "splashScreenCouldNotCompleteStartup": "Could not complete startup",
+  "splashScreenCouldNotCompleteStartupCheck": "Could not complete startup. Check your connection and retry.",
+  "stockHistoryScreenStockMovementsAdjustmentsAndPrice": "Stock movements, adjustments and price changes will appear here.",
+  "stockSheetsCurrentStockCurrent": "Current stock: {_current}",
+  "@stockSheetsCurrentStockCurrent": {
+    "placeholders": {
+      "_current": { "type": "Object" }
+    }
+  },
+  "stockSheetsHistoryName": "History — {name}",
+  "@stockSheetsHistoryName": {
+    "placeholders": {
+      "name": { "type": "Object" }
+    }
+  },
+  "stockSheetsLastUpdatedValueValue2Value3": "Last updated {value}{value2} · {value3}",
+  "@stockSheetsLastUpdatedValueValue2Value3": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" },
+      "value3": { "type": "Object" }
+    }
+  },
+  "stockSheetsStockMovementsAdjustmentsAndPrice": "Stock movements, adjustments and price changes (newest first)",
+  "stockSheetsValueStockDelta": "{value}{stockDelta}",
+  "@stockSheetsValueStockDelta": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "stockDelta": { "type": "Object" }
+    }
+  },
+  "stockSheetsValueValue2ActorLabel": "{value}{value2} · {actorLabel}",
+  "@stockSheetsValueValue2ActorLabel": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" },
+      "actorLabel": { "type": "Object" }
+    }
+  },
+  "supportFaqScreenLengthOfLength2Articles": "{length} of {length2} articles",
+  "@supportFaqScreenLengthOfLength2Articles": {
+    "placeholders": {
+      "length": { "type": "Object" },
+      "length2": { "type": "Object" }
+    }
+  },
+  "supportFaqScreenStillNeedHelpContactSupport": "Still need help? Contact support",
+  "supportFaqScreenTryAnotherWordOrSend": "Try another word, or send your question to support.",
+  "supportScreenFrequentlyAskedQuestions": "Frequently asked questions",
+  "supportScreenWriteToEmailOrCall": "Write to {email} or call {phone}. Support hours: {hours}.",
+  "@supportScreenWriteToEmailOrCall": {
+    "placeholders": {
+      "email": { "type": "Object" },
+      "phone": { "type": "Object" },
+      "hours": { "type": "Object" }
+    }
+  },
+  "termsScreenAnAccountThatBreaksThese": "An account that breaks these terms, or that is involved in fraud, can be suspended or closed. If that happens you will see the reason the next time you open the app.",
+  "termsScreenContactEmailForAnyQuestion": "Contact {email} for any question about these terms.",
+  "@termsScreenContactEmailForAnyQuestion": {
+    "placeholders": {
+      "email": { "type": "Object" }
+    }
+  },
+  "termsScreenDoNotUploadUnlawfulProducts": "Do not upload unlawful products, attempt to access another shop's data, scrape the platform, or use the app to send spam. Barcode, import and POS tools are provided so you can manage your own catalogue.",
+  "termsScreenPaidPlansAreBilledThrough": "Paid plans are billed through the provider shown at checkout, renew until cancelled, and are refundable only where the law or the plan terms allow. Cancelling stops future renewals.",
+  "termsScreenShopNameAddressCategoryHours": "Shop name, address, category, hours and verification documents must be truthful. Shops with misleading details, or documents that do not belong to the business, can be suspended.",
+  "termsScreenTheAppIsForOwners": "The app is for owners and managers of registered shops. You may use it only for the shop you are authorised to manage, and you are responsible for keeping your sign-in device secure.",
+  "termsScreenTheseTermsMayBeUpdated": "These terms may be updated as the app gains features. Continuing to use the app after an update means you accept the current version.",
+  "termsScreenWeWorkToKeepThe": "We work to keep the app and the sync services available, but there will be maintenance windows and outages. Offline work is not lost — changes are sent when the connection returns.",
+  "termsScreenYouOwnTheProductsPrices": "You own the products, prices, stock figures and images you publish. Customers rely on them, so keep them accurate and up to date, and make sure you have the right to sell the products you list.",
+  "ticketDetailScreenReferenceCopied": "{reference} copied",
+  "@ticketDetailScreenReferenceCopied": {
+    "placeholders": {
+      "reference": { "type": "Object" }
+    }
+  },
+  "ticketDetailScreenShopShopName": "Shop: {shopName}",
+  "@ticketDetailScreenShopShopName": {
+    "placeholders": {
+      "shopName": { "type": "Object" }
+    }
+  },
+  "ticketDetailScreenSomethingElseContactSupport": "Something else? Contact support",
+  "ticketDetailScreenTicketsArePrivateToThe": "Tickets are private to the account that filed them.",
+  "updatePriceScreenCurrentValueValue2": "Current: {value}{value2}",
+  "@updatePriceScreenCurrentValueValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "updatePriceScreenMRPOptional": "MRP (₹, optional)",
+  "updatePriceScreenPriceUpdatedNowValueValue2": "Price updated — now ₹{value}{value2}",
+  "@updatePriceScreenPriceUpdatedNowValueValue2": {
+    "placeholders": {
+      "value": { "type": "Object" },
+      "value2": { "type": "Object" }
+    }
+  },
+  "updatePriceScreenSellingPrice": "Selling price (₹)",
+  "updateStockScreenCurrentQuantityUnits": "Current: {quantity} units",
+  "@updateStockScreenCurrentQuantityUnits": {
+    "placeholders": {
+      "quantity": { "type": "Object" }
+    }
+  },
+  "updateStockScreenEG24ToAdd": "e.g. 24 to add stock, -3 to remove",
+  "updateStockScreenEGSupplierDelivery123": "e.g. supplier delivery #123",
+  "updateStockScreenStockUpdatedPreviousQuantityNewQuantityUnits": "Stock updated: {previousQuantity} → {newQuantity} units ({label})",
+  "@updateStockScreenStockUpdatedPreviousQuantityNewQuantityUnits": {
+    "placeholders": {
+      "previousQuantity": { "type": "Object" },
+      "newQuantity": { "type": "Object" },
+      "label": { "type": "Object" }
+    }
+  },
+  "welcomeScreenByContinuingYouAgreeTo": "By continuing, you agree to our Terms & Privacy Policy.",
+  "welcomeScreenLoginFailedPleaseTryAgain": "Login failed. Please try again.",
+  "welcomeScreenManageYourShopProductsAnd": "Manage your shop, products and inventory.",
+  "commonCheckTheDetails": "Check the details",
+  "commonNetworkProblem": "Network problem",
+  "commonNoInternetConnection": "No internet connection",
+  "commonNotFound": "Not found",
+  "commonNothingHereYet": "Nothing here yet",
+  "commonServerError": "Server error",
+  "commonSessionExpired": "Session expired",
+  "commonSignInRequired": "Sign-in required",
+  "commonSomethingWentWrong3": "Something went wrong",
+  "commonThatChangeConflicts": "That change conflicts",
+  "commonTheServerTookTooLong": "The server took too long",
+  "commonUnderMaintenance": "Under maintenance",
+  "systemStateCheckYourMobileDataOr": "Check your mobile data or Wi-Fi, then try again. Nothing you did was lost.",
+  "systemStateForYourSecurityYouWere": "For your security you were signed out. Please sign in again to continue where you left off.",
+  "systemStateSomeOfTheInformationIs": "Some of the information is not valid. Please review it and try again.",
+  "systemStateSomethingWasAlreadyUpdatedRefresh": "Something was already updated. Refresh the list and try again.",
+  "systemStateSomethingWentWrongOnOur": "Something went wrong on our side. Please try again shortly.",
+  "systemStateTheActionCouldNotBe": "The action could not be completed. Please try again.",
+  "systemStateTheRequestTimedOutBefore": "The request timed out before the server answered. Please try again.",
+  "systemStateThereIsNothingToShow": "There is nothing to show right now.",
+  "systemStateWeAreDoingAShort": "We are doing a short maintenance. Your data is safe — please try again in a few minutes.",
+  "systemStateWeCouldNotFindThat": "We could not find that. It may have been removed.",
+  "systemStateWeCouldNotReachThe": "We could not reach the server. Check your connection and try again.",
+  "systemStateYouAreNotSignedIn": "You are not signed in for this action. Please sign in again.",
+  "systemStateYourAccountIsNotAllowed": "Your account is not allowed to do this here. Ask the shop owner, or switch to a shop you manage."
 }

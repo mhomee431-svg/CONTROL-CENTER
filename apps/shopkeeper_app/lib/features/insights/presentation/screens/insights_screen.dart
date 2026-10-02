@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -151,7 +152,7 @@ class _MessageView extends StatelessWidget {
     // action); everything else keeps Insights' own wording and icon.
     final carried = onAction == null ? null : SystemStateSpec.fromMessage(title);
     final spec = carried != null
-        ? SystemStateSpec.of(carried)
+        ? SystemStateSpec.of(carried, appText(context))
         : SystemStateSpec(
             state: onAction == null
                 ? SystemState.empty

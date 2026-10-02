@@ -1,3 +1,56 @@
+/// Which rule a product-form field broke.
+///
+/// Codes, never sentences: the wording belongs to `lib/l10n/app_en.arb` like
+/// every other user-visible string in the app, so a translator reaches it and
+/// the domain layer stays free of English. Resolve one through
+/// [productFormErrorText] in the widget layer.
+enum ProductFormFieldError {
+  nameRequired('formProductNameRequired'),
+  priceRequired('formSellingPriceRequired'),
+  invalidAmount('formEnterValidAmount'),
+  priceNegative('formPriceCannotBeNegative'),
+  mrpNegative('formMrpCannotBeNegative'),
+  mrpBelowPrice('formMrpBelowPrice'),
+  wholeNumberRequired('formWholeNumberRequired'),
+  quantityNegative('formQuantityCannotBeNegative'),
+
+  /// Needs [ProductFormFieldFailure.count] — the minimum the value fell short of.
+  barcodeTooShort('formBarcodeTooShort'),
+
+  /// Needs [ProductFormFieldFailure.count] — the maximum the value exceeded.
+  tooManyCharacters('formTooManyCharacters');
+
+  const ProductFormFieldError(this.l10nKey);
+
+  /// The `app_en.arb` key holding the shopkeeper-facing wording.
+  final String l10nKey;
+}
+
+/// A broken rule, plus the numeric bound the value crossed when the wording
+/// quotes it ("Use at most 120 characters").
+class ProductFormFieldFailure {
+  const ProductFormFieldFailure(this.code, {this.count});
+
+  final ProductFormFieldError code;
+
+  /// Only meaningful for [ProductFormFieldError.barcodeTooShort] and
+  /// [ProductFormFieldError.tooManyCharacters].
+  final int? count;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProductFormFieldFailure &&
+      other.code == code &&
+      other.count == count;
+
+  @override
+  int get hashCode => Object.hash(code, count);
+
+  @override
+  String toString() =>
+      'ProductFormFieldFailure(${code.name}${count == null ? '' : ', count: $count'})';
+}
+
 /// Client-side mirror of the backend's manual product-create contract.
 ///
 /// The backend is the authority. `ShopkeeperProductCreate`
@@ -38,14 +91,20 @@ class ProductFormRules {
   /// `barcode` is OPTIONAL. When present it must be 4–100 characters after
   /// the same strip the backend applies. Non-digits are allowed (they become
   /// a CUSTOM identifier) — no rule the backend does not enforce.
-  static String? barcode(String? value) {
+  static ProductFormFieldFailure? barcode(String? value) {
     final text = normalizeBarcode(value);
     if (text.isEmpty) return null; // optional
     if (text.length < barcodeMinLength) {
-      return 'Barcode must be at least $barcodeMinLength characters';
+      return const ProductFormFieldFailure(
+        ProductFormFieldError.barcodeTooShort,
+        count: barcodeMinLength,
+      );
     }
     if (text.length > barcodeMaxLength) {
-      return 'Use at most $barcodeMaxLength characters';
+      return const ProductFormFieldFailure(
+        ProductFormFieldError.tooManyCharacters,
+        count: barcodeMaxLength,
+      );
     }
     return null;
   }
@@ -54,56 +113,87 @@ class ProductFormRules {
   static const double minimumAmount = 0;
 
   /// `name` is REQUIRED — the only mandatory text field.
-  static String? name(String? value) {
+  static ProductFormFieldFailure? name(String? value) {
     final text = (value ?? '').trim();
-    if (text.isEmpty) return 'Product name is required';
+    if (text.isEmpty) {
+      return const ProductFormFieldFailure(ProductFormFieldError.nameRequired);
+    }
     if (text.length > nameMaxLength) {
-      return 'Use at most $nameMaxLength characters';
+      return const ProductFormFieldFailure(
+        ProductFormFieldError.tooManyCharacters,
+        count: nameMaxLength,
+      );
     }
     return null;
   }
 
   /// `price` is REQUIRED and must be a number `>= 0`.
-  static String? price(String? value) {
+  static ProductFormFieldFailure? price(String? value) {
     final text = (value ?? '').trim();
-    if (text.isEmpty) return 'Selling price is required';
+    if (text.isEmpty) {
+      return const ProductFormFieldFailure(ProductFormFieldError.priceRequired);
+    }
     final parsed = double.tryParse(text);
-    if (parsed == null) return 'Enter a valid amount';
-    if (parsed < minimumAmount) return 'Price cannot be negative';
+    if (parsed == null) {
+      return const ProductFormFieldFailure(ProductFormFieldError.invalidAmount);
+    }
+    if (parsed < minimumAmount) {
+      return const ProductFormFieldFailure(ProductFormFieldError.priceNegative);
+    }
     return null;
   }
 
   /// `mrp` is OPTIONAL. When present it must be `>= 0` and must not undercut
   /// the selling price (the backend raises "MRP cannot be lower than selling
   /// price"). [priceText] is the raw selling-price field at validation time.
-  static String? mrp(String? value, {required String? priceText}) {
+  static ProductFormFieldFailure? mrp(
+    String? value, {
+    required String? priceText,
+  }) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return null; // optional — nothing typed, nothing to check
     final parsed = double.tryParse(text);
-    if (parsed == null) return 'Enter a valid amount';
-    if (parsed < minimumAmount) return 'MRP cannot be negative';
+    if (parsed == null) {
+      return const ProductFormFieldFailure(ProductFormFieldError.invalidAmount);
+    }
+    if (parsed < minimumAmount) {
+      return const ProductFormFieldFailure(ProductFormFieldError.mrpNegative);
+    }
     final price = double.tryParse((priceText ?? '').trim());
     if (price != null && parsed < price) {
-      return 'MRP cannot be lower than the selling price';
+      return const ProductFormFieldFailure(ProductFormFieldError.mrpBelowPrice);
     }
     return null;
   }
 
   /// `quantity` is OPTIONAL. When present it must be a whole number `>= 0`.
-  static String? quantity(String? value) {
+  static ProductFormFieldFailure? quantity(String? value) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return null; // optional
     final parsed = int.tryParse(text);
-    if (parsed == null) return 'Enter a whole number';
-    if (parsed < 0) return 'Quantity cannot be negative';
+    if (parsed == null) {
+      return const ProductFormFieldFailure(
+        ProductFormFieldError.wholeNumberRequired,
+      );
+    }
+    if (parsed < 0) {
+      return const ProductFormFieldFailure(
+        ProductFormFieldError.quantityNegative,
+      );
+    }
     return null;
   }
 
   /// Any OPTIONAL free-text field with a backend maximum length.
-  static String? optionalMax(String? value, int max) {
+  static ProductFormFieldFailure? optionalMax(String? value, int max) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return null; // optional
-    if (text.length > max) return 'Use at most $max characters';
+    if (text.length > max) {
+      return ProductFormFieldFailure(
+        ProductFormFieldError.tooManyCharacters,
+        count: max,
+      );
+    }
     return null;
   }
 }

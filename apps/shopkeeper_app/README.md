@@ -17,6 +17,42 @@ flutter analyze lib test    # works on any host
 flutter test                # works on any host (includes iOS config tests)
 ```
 
+## User-visible text
+
+Every string a shopkeeper can see is defined **exactly once**, in
+`lib/l10n/app_en.arb`, and reaches the screen through the generated
+`AppLocalizations`. Business logic never produces sentences.
+
+| Layer | May say | Never says |
+| --- | --- | --- |
+| domain / data / application | a **code** — `AppMessageCode`, `ProductFormFieldError`, or a structured descriptor (`core/l10n/relative_time.dart`) | `'Some sentence'` |
+| widget layer | the resolved wording, via `appText(context)` | hand-written copy that duplicates the catalog |
+
+```
+AppMessageCode.sessionExpired  ->  appSessionExpired  ->  "Your session has expired."
+ProductFormFieldError.mrpBelowPrice -> productFormErrorText -> "MRP cannot be lower ..."
+```
+
+* `core/errors/api_failure_text.dart` turns an `ApiFailure` into an
+  `AppMessageCode`; `features/products/presentation/widgets/product_form_messages.dart`
+  turns a `ProductFormFieldFailure` into a `String` for `FormField.validator`.
+* `core/l10n/app_text.dart` resolves through the real delegate and falls back to
+  the **generated** `AppLocalizationsEn` outside an app tree — so the ~40 test
+  harnesses that pump a bare `MaterialApp` still see real catalog English and
+  cannot drift from the `.arb`.
+* Codes carry an `l10nKey` string rather than an import, keeping the domain
+  layer free of Flutter.
+
+Static labels and hints in widgets are still inline (`labelText: 'Brand'`,
+tooltips, etc.). They are catalog candidates one screen at a time; nothing in
+`lib/features/*/domain` returns a literal message.
+
+```bash
+flutter gen-l10n            # after editing lib/l10n/app_en.arb
+flutter analyze --no-pub
+flutter test
+```
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/datetime_utils.dart';
@@ -67,7 +68,7 @@ class ProductDetailsSheet extends ConsumerWidget {
               const SizedBox(height: 16),
               _AvailabilityRow(item: current),
               _DetailSection(
-                title: 'Pricing',
+                title: appText(context).commonPricing,
                 rows: [
                   ('Selling price', 'Rs ${current.price.toStringAsFixed(2)}'),
                   if (current.mrp != null && current.mrp! > 0)
@@ -76,7 +77,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                 ],
               ),
               _DetailSection(
-                title: 'Inventory',
+                title: appText(context).commonInventory3,
                 rows: [
                   ('Quantity', '${current.quantity}'),
                   ('Stock status', current.stockState.label),
@@ -91,7 +92,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                 ],
               ),
               _DetailSection(
-                title: 'Catalog reference',
+                title: appText(context).commonCatalogReference,
                 rows: [
                   ('Listing status', current.isActive ? 'Active' : 'Inactive'),
                   ('SKU', current.sku ?? 'Not set'),
@@ -108,7 +109,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                       onPressed: () =>
                           _open(context, ProductEditSheet(item: current)),
                       icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Edit product'),
+                      label: Text(appText(context).commonEditProduct),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -117,7 +118,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                       onPressed: () =>
                           _open(context, StockUpdateSheet(item: current)),
                       icon: const Icon(Icons.exposure_plus_1, size: 18),
-                      label: const Text('Update stock'),
+                      label: Text(appText(context).commonUpdateStock3),
                     ),
                   ),
                 ],
@@ -128,7 +129,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                   onPressed: () =>
                       _open(context, ProductHistorySheet(item: current)),
                   icon: const Icon(Icons.history, size: 18),
-                  label: const Text('View history'),
+                  label: Text(appText(context).commonViewHistory3),
                 ),
               ),
               const SizedBox(height: 4),
@@ -206,8 +207,8 @@ class _DetailsHeader extends StatelessWidget {
           excludeFromSemantics: true,
           cacheWidth: 144,
           placeholderWidget:
-              _ImagePlaceholder(color: scheme.outline, label: 'No image'),
-          errorWidget: _ImagePlaceholder(color: scheme.outline, label: 'Image'),
+              _ImagePlaceholder(color: scheme.outline, label: appText(context).commonNoImage),
+          errorWidget: _ImagePlaceholder(color: scheme.outline, label: appText(context).commonImage),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -243,11 +244,11 @@ class _DetailsHeader extends StatelessWidget {
                         : AppTheme.pendingAmber,
                   ),
                   if (item.isOutOfStock)
-                    const _StatusChip(
-                        label: 'Out of stock', color: AppTheme.rejectedRed)
+                    _StatusChip(
+                        label: appText(context).commonOutOfStock3, color: AppTheme.rejectedRed)
                   else if (item.isLowStock)
-                    const _StatusChip(
-                        label: 'Low stock', color: AppTheme.pendingAmber),
+                    _StatusChip(
+                        label: appText(context).commonLowStock5, color: AppTheme.pendingAmber),
                 ],
               ),
             ],
@@ -321,7 +322,7 @@ class _AvailabilityRow extends ConsumerWidget {
         onChanged: (value) => ref
             .read(productsControllerProvider.notifier)
             .setAvailability(item.id, value),
-        title: const Text('Available to customers',
+        title: Text(appText(context).commonAvailableToCustomers,
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         subtitle: Text(
           item.isAvailable

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/route_names.dart';
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/ui/lazy_list.dart';
@@ -44,6 +45,7 @@ class _MyTicketsScreenState extends ConsumerState<MyTicketsScreen> {
           ),
           SupportTicketsStatus.error => SystemStateView(
             spec: SystemStateSpec.resolve(
+              text: appText(context),
               state: SystemState.genericRetry,
               title: state.message ?? 'Could not load your tickets.',
               message: 'Check your connection and try again.',

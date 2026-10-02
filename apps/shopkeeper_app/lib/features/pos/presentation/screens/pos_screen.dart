@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
@@ -71,17 +72,17 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Disconnect POS?'),
-        content: const Text(
-            'Scheduled syncs will stop. You can reconnect at any time.'),
+        title: Text(appText(context).commonDisconnectPOS),
+        content: Text(
+            appText(context).posScreenScheduledSyncsWillStopYou),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(appText(context).commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Disconnect'),
+            child: Text(appText(context).commonDisconnect),
           ),
         ],
       ),
@@ -97,17 +98,16 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final caps = ref.watch(capabilitiesControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('POS integration')),
+      appBar: AppBar(title: Text(appText(context).commonPOSIntegration)),
       // Capability-gated (spec §103): the backend `canUsePos` flag decides
       // whether the POS surface renders at all. The flag is read from the
       // ONE centralized layer — no plan logic here. Backend stays
       // authoritative (state-changing routes still 403 on violation).
       body: CapabilityGate(
         allowed: caps.canUsePos,
-        title: 'POS not available on your plan',
+        title: appText(context).posScreenPOSNotAvailableOnYour,
         message:
-            'Upgrade your plan to connect a point of sale. Your current plan '
-            'does not include POS integrations.',
+            appText(context).posScreenUpgradeYourPlanToConnect,
         child: SafeArea(
           child: switch (state.status) {
           PosStatus.loading =>
@@ -116,14 +116,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           // "no shop" and "could not load" read exactly like every other empty
           // / failed screen in the app (icon, copy, Retry button).
           PosStatus.noShop => SystemStateView.empty(
-              title: 'No shop selected',
-              message: 'Choose a shop to manage its POS integration.',
+              title: appText(context).commonNoShopSelected4,
+              message: appText(context).posScreenChooseAShopToManage,
               icon: Icons.storefront_outlined,
             ),
           PosStatus.error => SystemStateView(
-              spec: SystemStateSpec.resolve(
+              spec: SystemStateSpec.resolve(
+                text: appText(context),
                 title: state.message ?? 'Could not load POS.',
-                message: 'Check your connection and try again.',
+                message: appText(context).posScreenCheckYourConnectionAndTry,
               ),
               onRetry: () => ref.read(posControllerProvider.notifier).load(),
             ),
@@ -174,20 +175,20 @@ class _ConnectView extends StatelessWidget {
         Icon(Icons.point_of_sale_outlined, size: 56, color: scheme.outline),
         const SizedBox(height: 16),
         Text(
-          'Connect your billing counter',
+          appText(context).posScreenConnectYourBillingCounter,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         Text(
-          'Link your POS to keep products and stock in step automatically.',
+          appText(context).posScreenLinkYourPOSToKeep,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: scheme.outline),
         ),
         const SizedBox(height: 24),
         if (providers.isEmpty)
           Text(
-            'POS integration is not configured for your account.',
+            appText(context).posScreenPOSIntegrationIsNotConfigured,
             key: const Key('pos-not-configured'),
             textAlign: TextAlign.center,
             style: TextStyle(color: scheme.outline),
@@ -195,7 +196,7 @@ class _ConnectView extends StatelessWidget {
         else ...[
           DropdownButtonFormField<String>(
             initialValue: effective,
-            decoration: const InputDecoration(labelText: 'POS provider'),
+            decoration: InputDecoration(labelText: appText(context).commonPOSProvider2),
             items: [
               for (final p in providers)
                 DropdownMenuItem(value: p.code, child: Text(p.displayName)),
@@ -208,7 +209,7 @@ class _ConnectView extends StatelessWidget {
           FilledButton.icon(
             onPressed: onConnect,
             icon: const Icon(Icons.link),
-            label: const Text('Connect POS'),
+            label: Text(appText(context).commonConnectPOS),
           ),
         ],
       ],
@@ -312,7 +313,7 @@ class _ConnectedView extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: onDisconnect,
                           icon: const Icon(Icons.link_off),
-                          label: const Text('Disconnect'),
+                          label: Text(appText(context).commonDisconnect),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -320,7 +321,7 @@ class _ConnectedView extends StatelessWidget {
                         child: FilledButton.icon(
                           onPressed: onSync,
                           icon: const Icon(Icons.sync),
-                          label: const Text('Sync now'),
+                          label: Text(appText(context).commonSyncNow2),
                         ),
                       ),
                     ],
@@ -332,7 +333,7 @@ class _ConnectedView extends StatelessWidget {
           const SizedBox(height: 16),
           _section(context, 'Manage', _manageTiles(context, integration)),
           const SizedBox(height: 16),
-          Text('Sync history', style: Theme.of(context).textTheme.titleSmall),
+          Text(appText(context).commonSyncHistory, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           Card(
             clipBehavior: Clip.antiAlias,
@@ -341,7 +342,7 @@ class _ConnectedView extends StatelessWidget {
                     padding: const EdgeInsets.all(24),
                     child: Center(
                       child: Text(
-                        'No syncs yet.\nTap "Sync now" to pull your POS data.',
+                        appText(context).posScreenNoSyncsYetTapSync,
                         textAlign: TextAlign.center,
                         style: TextStyle(color: scheme.outline),
                       ),
