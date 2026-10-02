@@ -34,6 +34,7 @@ import '../../features/directions/presentation/screens/directions_screen.dart';
 import '../../features/customer/presentation/screens/customer_favorites_screen.dart';
 import '../../features/customer/presentation/screens/customer_recently_viewed_screen.dart';
 import '../../features/support/presentation/screens/help_support_screen.dart';
+import '../../features/support/presentation/screens/support_issues_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/otp_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
@@ -206,6 +207,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/help',
         builder: (context, state) => const HelpSupportScreen(),
+      ),
+      // The READ half of /help's report form: the reports a customer already
+      // filed, with their real backend status. Its own route because it answers
+      // a different question ("what happened to my report?") than filing one,
+      // and registered directly so the answer is reachable without hunting
+      // through the help tabs — the reason the ticket history went unread before
+      // is that nothing pointed at it.
+      GoRoute(
+        path: '/support/issues',
+        builder: (context, state) => const SupportIssuesScreen(),
       ),
       GoRoute(
         path: '/orders',

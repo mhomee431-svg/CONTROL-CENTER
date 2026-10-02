@@ -13,8 +13,47 @@ class ApiSearchRepository implements SearchRepository {
 
   @override
   Future<List<String>> getRecentSearches() async {
-    // Recent searches are stored locally; the backend does not persist them in Phase 13.
-    return [];
+    // The ACCOUNT-level search history (`GET /search/v2/history`).
+    //
+    // The list the app RENDERS comes from the device store
+    // (`saved_and_history`), which is also what a signed-out shopper gets — the
+    // server has no history to return without an identity. This method is the
+    // signed-in view of the same idea, and it replaces one that returned `[]`
+    // unconditionally behind the comment "the backend does not persist them in
+    // Phase 13". That comment was wrong: the route and
+    // `search_engine.search_history` have both existed since Phase 13, so an
+    // always-empty answer was the app refusing to ask, not the server refusing
+    // to answer.
+    //
+    // A failure yields an empty list rather than throwing. History is a
+    // convenience list with a working local alternative, so a failed read must
+    // not take down the screen that offers it.
+    try {
+      final data = await _apiClient.get(
+        ApiEndpoints.searchHistory,
+        requiresAuth: true,
+      );
+      // `data` is a LIST of `{query, result_count, is_successful,
+      // searched_at}` rows. A bare string row is accepted too: the endpoint has
+      // only ever sent objects, but the extra branch costs nothing and keeps a
+      // future simplification on the server from breaking this build.
+      if (data is! List) return const [];
+
+      final queries = <String>[];
+      for (final entry in data) {
+        final query = switch (entry) {
+          String value => value.trim(),
+          Map<dynamic, dynamic> row => row['query']?.toString().trim() ?? '',
+          _ => '',
+        };
+        // Deduped, in server order. The same query searched twice is ONE recent
+        // search, and the backend may legitimately return repeats.
+        if (query.isNotEmpty && !queries.contains(query)) queries.add(query);
+      }
+      return queries;
+    } catch (_) {
+      return const [];
+    }
   }
 
   @override

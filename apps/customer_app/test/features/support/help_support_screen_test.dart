@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hyperlocal_app/features/support/data/support_repository.dart';
 import 'package:hyperlocal_app/features/support/presentation/screens/help_support_screen.dart';
 
@@ -21,6 +22,14 @@ class _FakeSupportRepository implements SupportRepository {
     calls++;
     return result;
   }
+
+  /// This fake exists to script SUBMISSIONS, so its read half is empty by
+  /// construction. The report history has its own suite
+  /// (`support_issues_screen_test.dart`), which is where a non-empty history
+  /// belongs — a fake here that volunteered rows would let an empty-state
+  /// assertion pass for the wrong reason.
+  @override
+  Future<List<SupportIssue>> listMyIssues() async => const [];
 }
 
 Future<void> _pump(WidgetTester tester, SupportSubmitResult result) async {
@@ -164,5 +173,59 @@ void main() {
     expect(find.text('Report Issue'), findsOneWidget);
     // The FAQ list is actually populated.
     expect(find.text('How do I find a product near me?'), findsOneWidget);
+  });
+
+  testWidgets('My Reports on the Contact tab opens the report history', (
+    tester,
+  ) async {
+    // Reachability guard, asserted as NAVIGATION rather than as a widget
+    // existing. The ticket-history route shipped with the intake route but had
+    // nothing pointing at it, so a report the customer filed could never be
+    // looked up again. A tile that renders but does not navigate would restore
+    // exactly that dead end, so this test taps it.
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final container = ProviderContainer(
+      overrides: [
+        supportRepositoryProvider.overrideWithValue(
+          _FakeSupportRepository(SupportSubmitResult.success),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = GoRouter(
+      initialLocation: '/help',
+      routes: [
+        GoRoute(path: '/help', builder: (_, _) => const HelpSupportScreen()),
+        GoRoute(
+          path: '/support/issues',
+          builder: (_, _) =>
+              Scaffold(appBar: AppBar(), body: const Text('SupportIssuesPage')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The entry lives on the Contact tab.
+    await tester.tap(find.text('Contact'));
+    await tester.pumpAndSettle();
+
+    final entry = find.byKey(const Key('myReportsEntry'));
+    expect(entry, findsOneWidget);
+
+    await tester.tap(entry);
+    await tester.pumpAndSettle();
+    expect(find.text('SupportIssuesPage'), findsOneWidget);
   });
 }

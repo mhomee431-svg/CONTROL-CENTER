@@ -51,7 +51,15 @@ class ApiEndpoints {
 
   // --- Products ---
   static String product(String id) => '/products/$id';
-  static String productShops(String id) => '/products/$id/shops';
+
+  /// Price/availability comparison for ONE product across nearby shops
+  /// (`GET /products/{identifier}/offers`). Returns the same
+  /// `shop_inventories` rows that the detail payload nests, without the
+  /// product-master section — for a "compare prices" view that needs only the
+  /// offers. Kept as its own constant because the detail route's identifier is
+  /// a PATH segment: an endpoint that took the id as a query parameter would
+  /// be a different contract, not a variant of this one.
+  static String productOffers(String id) => '/products/$id/offers';
 
   // --- Shops ---
   static const String nearbyShops = '/shops/nearby';
@@ -132,16 +140,18 @@ class ApiEndpoints {
       '/customer/products/$productId/share';
 
   // --- Support ---
+  //
+  // ONE path for both the customer's intake (POST) and their own report
+  // history (GET). The backend deliberately serves both on `/support/issues`
+  // because a ticket a customer files and the list they later read back are
+  // the same resource — two constants for one path would be two places to
+  // update when the route moves.
   static const String supportIssue = '/support/issues';
-  static const String supportFaq = '/support/faq';
 
   // --- Orders (API_CONTRACT SS 30-32) ---
   static const String orders = '/orders';
   static String orderById(String id) => '/orders/$id';
   static String cancelOrder(String id) => '/orders/$id/cancel';
   static String updateOrderStatus(String id) => '/orders/$id/status';
-  static String orderItems(String id) => '/orders/$id/items';
-  static String trackOrder(String id) => '/orders/$id/track';
-  static const String myOrders = '/orders/user';
   static String shopOrders(String shopId) => '/orders/shop/$shopId';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_theme.dart';
@@ -239,6 +240,19 @@ class _ContactTab extends StatelessWidget {
           value: 'support@hyperlocal.app',
           onTap: () =>
               _launch('mailto:support@hyperlocal.app?subject=App Support'),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // The READ half of the Report Issue form, next to the way to reach a
+        // human. Without an entry point here the ticket history had a route but
+        // nothing pointing at it, which is the same dead end as not having one:
+        // a customer could only ever file a report, never check it.
+        _ContactCard(
+          key: const Key('myReportsEntry'),
+          icon: Icons.receipt_long_outlined,
+          label: 'My Reports',
+          value: 'Follow the issues you have reported',
+          onTap: () => context.push('/support/issues'),
         ),
         const SizedBox(height: AppSpacing.md),
 

@@ -43,6 +43,9 @@ void main() {
     '/delete-account',
     '/privacy-data',
     '/help',
+    // The READ half of the report form at /help: the customer's own support
+    // tickets, with the status the backend actually reports.
+    '/support/issues',
     '/orders',
     '/order/:id',
     // My Trips (transport quotes + bookings). Reached from the quote sheet's
@@ -89,6 +92,7 @@ void main() {
     '/delete-account',
     '/privacy-data',
     '/help',
+    '/support/issues',
     '/orders',
     '/order/:id',
     '/trips',
