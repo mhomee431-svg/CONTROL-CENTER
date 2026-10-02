@@ -82,7 +82,10 @@ class PrivacyScreen extends ConsumerWidget {
           const Divider(indent: AppSpacing.md),
 
           // -- Data use --
-          const SectionLabel('How your data is used', padding: SectionLabel.tight),
+          const SectionLabel(
+            'How your data is used',
+            padding: SectionLabel.tight,
+          ),
           const _PrivacyCard(
             icon: Icons.analytics_outlined,
             title: 'What we collect',

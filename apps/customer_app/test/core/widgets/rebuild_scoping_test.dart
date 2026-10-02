@@ -16,10 +16,8 @@ class _Cart {
   final String title;
   final int itemCount;
 
-  _Cart copyWith({String? title, int? itemCount}) => _Cart(
-        title: title ?? this.title,
-        itemCount: itemCount ?? this.itemCount,
-      );
+  _Cart copyWith({String? title, int? itemCount}) =>
+      _Cart(title: title ?? this.title, itemCount: itemCount ?? this.itemCount);
 }
 
 final _cartProvider = NotifierProvider<_CartNotifier, _Cart>(_CartNotifier.new);
@@ -63,8 +61,9 @@ void main() {
     expect(find.text('items: 3'), findsOneWidget);
   });
 
-  testWidgets('changing the SELECTED field rebuilds exactly once',
-      (tester) async {
+  testWidgets('changing the SELECTED field rebuilds exactly once', (
+    tester,
+  ) async {
     var builds = 0;
     WidgetRef? capturedRef;
     await tester.pumpWidget(
@@ -94,8 +93,9 @@ void main() {
     expect(find.text('items: 1'), findsOneWidget);
   });
 
-  testWidgets('changing an UNRELATED field does not rebuild the subtree',
-      (tester) async {
+  testWidgets('changing an UNRELATED field does not rebuild the subtree', (
+    tester,
+  ) async {
     var builds = 0;
     WidgetRef? capturedRef;
     await tester.pumpWidget(
@@ -126,14 +126,11 @@ void main() {
     expect(find.text('items: 0'), findsOneWidget);
   });
 
-  testWidgets('RepaintIsolated puts a RepaintBoundary around its child',
-      (tester) async {
+  testWidgets('RepaintIsolated puts a RepaintBoundary around its child', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: RepaintIsolated(
-          child: Text('isolated'),
-        ),
-      ),
+      const MaterialApp(home: RepaintIsolated(child: Text('isolated'))),
     );
 
     expect(find.text('isolated'), findsOneWidget);
