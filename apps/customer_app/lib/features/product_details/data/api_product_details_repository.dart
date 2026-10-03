@@ -29,7 +29,10 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
   });
 
   @override
-  Future<ProductDetails> getProductDetails(String productId) async {
+  Future<ProductDetails> getProductDetails(
+    String productId, {
+    double? radiusKm,
+  }) async {
     try {
       // Fetch product master + shop inventory in one call.
       final data = await _apiClient.get(
@@ -39,7 +42,7 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
           if (longitude != null) 'longitude': longitude,
           // Keep the radius explicit so the product page and search page use
           // the same local-discovery boundary.
-          'radius_km': 25.0,
+          'radius_km': radiusKm ?? 25.0,
         },
         requiresAuth: false,
       );

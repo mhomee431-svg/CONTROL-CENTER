@@ -18,11 +18,21 @@ class ApiHomeRepository implements HomeRepository {
   ApiHomeRepository(this._apiClient, this._cache);
 
   @override
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
     try {
       final data = await _apiClient.get(
         ApiEndpoints.homeFeed,
-        queryParameters: {'latitude': ?latitude, 'longitude': ?longitude},
+        queryParameters: {
+          'latitude': ?latitude,
+          'longitude': ?longitude,
+          // Sent only when the customer asked to look further. Absent on the
+          // first load, where the backend default rules.
+          'radius_km': ?radiusKm,
+        },
         requiresAuth: false,
       );
 

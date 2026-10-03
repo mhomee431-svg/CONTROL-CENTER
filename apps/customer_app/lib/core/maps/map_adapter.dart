@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../env/env_config.dart';
 import '../theme/app_theme.dart';
 import 'google_map_adapter.dart';
+import 'map_loading_view.dart';
 
 /// Shared failure panel for every map provider.
 ///
@@ -400,19 +401,9 @@ class StubMapAdapter implements MapAdapter {
 
   @override
   Widget buildLoading() {
-    return Container(
-      color: Colors.grey.shade200,
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator.adaptive(),
-            SizedBox(height: 16),
-            Text('Loading map...'),
-          ],
-        ),
-      ),
-    );
+    // Shared with GoogleMapAdapter (see MapLoadingView): one loading experience
+    // for a stub build and a configured one.
+    return const MapLoadingView();
   }
 
   @override

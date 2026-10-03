@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/home_repository.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 
 /// Shops that serve a manually-entered 6-digit area pin code. Data access
 /// lives in [HomeRepository] (repository rule: screens never call the API).
@@ -68,8 +69,10 @@ class SearchResultsByPinScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        loading: () => ListLoadingView(
+          message: 'Loading shops for this pin…',
+          onRetry: () => ref.invalidate(shopsByPinProvider(pin)),
+        ),
         error: (error, stack) => Center(child: Text('Error: $error')),
       ),
     );

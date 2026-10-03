@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/user_profile.dart';
@@ -32,7 +33,23 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
       body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        // A single record, not a list: a spinner is the honest shape here (a
+        // five-row skeleton would promise content that does not exist), but it
+        // is BOUNDED — past the threshold it says so and offers a real re-read
+        // instead of spinning unexplained.
+        loading: () => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator.adaptive(),
+              SlowLoadNotice(
+                message: 'Your profile is taking longer to load.',
+                onRetry: () =>
+                    ref.read(profileControllerProvider.notifier).refresh(),
+              ),
+            ],
+          ),
+        ),
         error: (_, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

@@ -39,6 +39,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    // Guarded here as well as on the button: `onPressed: null` stops a tap, but
+    // only the handler stops a second call that arrives before the first
+    // await returns (keyboard submit, a11y action, a rapid double tap that
+    // lands in the same frame the button became disabled). Without this the
+    // customer could send two PUTs and watch the second overwrite the first.
+    if (_isSaving) return;
 
     setState(() => _isSaving = true);
     final success = await ref

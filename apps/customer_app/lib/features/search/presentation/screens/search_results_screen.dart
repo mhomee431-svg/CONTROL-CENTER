@@ -95,7 +95,14 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
   ) {
     switch (state.stage) {
       case SearchStage.loading:
-        return const SearchLoadingView(message: 'Finding products…');
+        // `retry` is passed because this stage is a real in-flight request that
+        // can be re-issued; the `typing` stage is a debounce, not a request, so
+        // it explains the wait without offering a button that would have
+        // nothing to do.
+        return SearchLoadingView(
+          message: 'Finding products…',
+          onRetry: controller.retry,
+        );
       case SearchStage.typing:
         return const SearchLoadingView(message: 'Searching…');
       case SearchStage.empty:

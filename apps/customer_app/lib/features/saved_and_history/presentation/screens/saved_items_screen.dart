@@ -7,6 +7,7 @@ import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 
 /// Index of the tab each deep-link target opens.
 ///
@@ -163,7 +164,10 @@ class _SavedProductsTab extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      // Each tab is a LIST, so the placeholder is the list: the layout does
+      // not jump when the rows land, and the wait is bounded below.
+      loading: () =>
+          const ListLoadingView(message: 'Loading your saved items…'),
       error: (err, _) => Center(child: Text(friendlyErrorMessage(err))),
     );
   }
@@ -239,7 +243,10 @@ class _SavedShopsTab extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      // Each tab is a LIST, so the placeholder is the list: the layout does
+      // not jump when the rows land, and the wait is bounded below.
+      loading: () =>
+          const ListLoadingView(message: 'Loading your saved items…'),
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -338,7 +345,10 @@ class _RecentSearchesTab extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      // Each tab is a LIST, so the placeholder is the list: the layout does
+      // not jump when the rows land, and the wait is bounded below.
+      loading: () =>
+          const ListLoadingView(message: 'Loading your saved items…'),
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -444,7 +454,10 @@ class _RecentlyViewedTab extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      // Each tab is a LIST, so the placeholder is the list: the layout does
+      // not jump when the rows land, and the wait is bounded below.
+      loading: () =>
+          const ListLoadingView(message: 'Loading your saved items…'),
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -554,7 +567,10 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      // Each tab is a LIST, so the placeholder is the list: the layout does
+      // not jump when the rows land, and the wait is bounded below.
+      loading: () =>
+          const ListLoadingView(message: 'Loading your saved items…'),
       error: (err, _) =>
           Center(child: Text('Error loading recently viewed shops: $err')),
     );

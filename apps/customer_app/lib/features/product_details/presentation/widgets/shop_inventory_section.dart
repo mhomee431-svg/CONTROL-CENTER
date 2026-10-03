@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/models/product_details_models.dart';
 import '../../../search/domain/models/search_models.dart';
 import '../../../search/presentation/widgets/freshness_disclaimer.dart';
+import '../../../home/presentation/dialogs/area_pin_dialog.dart';
+import '../providers/product_details_providers.dart';
+import '../../../../core/location/discovery_radius.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
@@ -16,7 +20,13 @@ import '../../../../core/widgets/shop_open_closed_badge.dart';
 /// global Product Master information.
 ///
 /// Navigation: Product → Nearby Shops → Shop → Directions
-class ShopInventorySection extends StatelessWidget {
+///
+/// Consumer on purpose: when the list is empty and the customer is NOT on a
+/// cached read, the state offers the same three recoveries the "View All
+/// nearby shops" screen does — widen the query, change the location, search a
+/// different area. A shared section that could not offer them would leave one
+/// of the two empty states silent about how to fix itself.
+class ShopInventorySection extends ConsumerWidget {
   final String productId;
   final List<ShopInventoryOffer> offers;
 
@@ -36,7 +46,12 @@ class ShopInventorySection extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The VALUE is watched, not the notifier: `ref.watch(p.notifier)` returns a
+    // stable object, so a radius change never notifies this widget and the
+    // button's own label would keep advertising a step it can no longer take.
+    final radiusKm = ref.watch(productSearchRadiusProvider);
+
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -46,10 +61,20 @@ class ShopInventorySection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Available at Nearby Shops',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              // Flexible, not fixed: the title is the only variable-length part
+              // of this row, and at a large text scale (or a narrow phone, or
+              // the test font, where every glyph is a full em square) a rigid
+              // title pushes the count off the right edge and overflows. The
+              // count is what must never be lost, so the title yields.
+              const Expanded(
+                child: Text(
+                  'Available at Nearby Shops',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 '${offers.length} found',
                 style: const TextStyle(
@@ -84,6 +109,46 @@ class ShopInventorySection extends StatelessWidget {
                         'nearby shops currently stock this item.'
                   : 'This product is not currently available at any nearby '
                         'shop.',
+              // Two different facts, two different recoveries. An offline read
+              // needs a RETRY (the live answer may differ); a live read that
+              // came back empty must not be retried — re-asking the identical
+              // question returns the identical empty list — so it is widened
+              // instead, and the customer is told how far the next request will
+              // actually reach.
+              actionLabel: unverified ? 'Retry' : null,
+              actionIcon: Icons.refresh,
+              onActionTap: unverified
+                  ? () => ref.invalidate(productDetailsProvider(productId))
+                  : null,
+              actions: unverified
+                  ? const []
+                  : [
+                      if (canWidenDiscoveryRadius(radiusKm))
+                        EmptyStateAction(
+                          key: const Key('inventorySearchWider'),
+                          icon: Icons.radar_outlined,
+                          label: nextDiscoveryRadiusLabel(radiusKm),
+                          onTap: () => ref
+                              .read(productSearchRadiusProvider.notifier)
+                              .widen(),
+                        ),
+                      EmptyStateAction(
+                        key: const Key('inventoryChangeLocation'),
+                        icon: Icons.place_outlined,
+                        label: 'Change location',
+                        onTap: () => context.push('/select-location'),
+                      ),
+                      EmptyStateAction(
+                        key: const Key('inventorySearchAnotherArea'),
+                        icon: Icons.pin_drop_outlined,
+                        label: 'Search another area',
+                        onTap: () => showAreaPinDialog(
+                          context,
+                          onPin: (pin) =>
+                              context.push('/search-results-by-pin/$pin'),
+                        ),
+                      ),
+                    ],
             )
           else ...[
             // ── Shop Offer Cards ─────────────────────────────────────────

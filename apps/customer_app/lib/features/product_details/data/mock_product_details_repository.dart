@@ -3,7 +3,10 @@ import '../domain/models/product_details_models.dart';
 
 class MockProductDetailsRepository implements ProductDetailsRepository {
   @override
-  Future<ProductDetails> getProductDetails(String productId) async {
+  Future<ProductDetails> getProductDetails(
+    String productId, {
+    double? radiusKm,
+  }) async {
     await Future.delayed(
       const Duration(milliseconds: 600),
     ); // Simulate network latency

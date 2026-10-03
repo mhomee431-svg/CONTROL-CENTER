@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 import '../../domain/models/app_notification.dart';
 import '../controllers/deep_link_handler.dart';
 import '../controllers/notifications_controller.dart';
@@ -69,7 +70,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ],
       ),
       body: notificationsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListLoadingView(
+          message: 'Loading your notifications…',
+          onRetry: () =>
+              ref.read(notificationsControllerProvider.notifier).refresh(),
+        ),
         error: (error, _) => _ErrorStateView(
           onRetry: () =>
               ref.read(notificationsControllerProvider.notifier).refresh(),

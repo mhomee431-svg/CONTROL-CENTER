@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 import '../controllers/support_issues_controller.dart';
 
@@ -117,9 +118,13 @@ class _SupportIssuesScreenState extends ConsumerState<SupportIssuesScreen> {
 
     final issues = ref.watch(supportIssuesProvider);
     return issues.when(
-      // The cold-load spinner. `RefreshIndicator` is deliberately NOT wrapped
-      // around this: there is nothing yet to pull.
-      loading: () => const Center(child: CircularProgressIndicator.adaptive()),
+      // The cold-load state: a LIST of reports, so rows shimmer instead of a
+      // lone spinner. `RefreshIndicator` is deliberately NOT wrapped around
+      // this: there is nothing yet to pull.
+      loading: () => ListLoadingView(
+        message: 'Loading your reports…',
+        onRetry: () => ref.invalidate(supportIssuesProvider),
+      ),
       // A failed read is a RETRY, never an empty state — telling a customer
       // "you have no reports" when the request failed would be a lie they act
       // on by filing the same report twice.

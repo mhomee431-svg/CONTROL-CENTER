@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../home/presentation/dialogs/area_pin_dialog.dart';
 import '../providers/product_details_providers.dart';
 import '../../domain/models/product_details_models.dart';
 import '../../../search/domain/models/search_models.dart';
 import '../../../search/presentation/widgets/freshness_disclaimer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/location/discovery_radius.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 import '../../../../core/widgets/shop_open_closed_badge.dart';
 
 /// "View All Nearby Shops" screen.
@@ -37,8 +40,14 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
       appBar: AppBar(title: const Text('Nearby Shops')),
       body: productAsync.when(
         data: (details) => _buildBody(context, details),
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        // A LIST of shops, so the placeholder is a list of rows rather than a
+        // lone spinner — and the retry re-reads the same product at whatever
+        // radius the customer has already widened to.
+        loading: () => ListLoadingView(
+          message: 'Finding shops near you…',
+          onRetry: () =>
+              ref.invalidate(productDetailsProvider(widget.productId)),
+        ),
         error: (err, stack) => EmptyStateView(
           icon: Icons.error_outline,
           title: 'Failed to load nearby shops',
@@ -67,6 +76,10 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
         });
 
     if (offers.isEmpty) {
+      // The VALUE, not the notifier: watching `p.notifier` hands back a stable
+      // object, so a radius change would never repaint this control and the
+      // label would keep advertising a step it can no longer take.
+      final radiusKm = ref.watch(productSearchRadiusProvider);
       return EmptyStateView(
         icon: Icons.storefront_outlined,
         title: _inStockOnly
@@ -79,6 +92,36 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
         onActionTap: _inStockOnly
             ? () => setState(() => _inStockOnly = false)
             : null,
+        // Only for a genuine "no shops nearby". With the in-stock filter on the
+        // customer already has a local recovery above, and offering a radius
+        // step alongside it would be two different diagnoses of one symptom.
+        actions: _inStockOnly
+            ? const []
+            : [
+                if (canWidenDiscoveryRadius(radiusKm))
+                  EmptyStateAction(
+                    key: const Key('productNearbySearchWider'),
+                    icon: Icons.radar_outlined,
+                    label: nextDiscoveryRadiusLabel(radiusKm),
+                    onTap: () =>
+                        ref.read(productSearchRadiusProvider.notifier).widen(),
+                  ),
+                EmptyStateAction(
+                  key: const Key('productNearbyChangeLocation'),
+                  icon: Icons.place_outlined,
+                  label: 'Change location',
+                  onTap: () => context.push('/select-location'),
+                ),
+                EmptyStateAction(
+                  key: const Key('productNearbySearchAnotherArea'),
+                  icon: Icons.pin_drop_outlined,
+                  label: 'Search another area',
+                  onTap: () => showAreaPinDialog(
+                    context,
+                    onPin: (pin) => context.push('/search-results-by-pin/$pin'),
+                  ),
+                ),
+              ],
       );
     }
 

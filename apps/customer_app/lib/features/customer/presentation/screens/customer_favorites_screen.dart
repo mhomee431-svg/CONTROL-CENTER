@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../controllers/customer_controller.dart';
 import '../../domain/models/customer_models.dart';
@@ -73,8 +74,13 @@ class _CustomerFavoritesScreenState
                   ),
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator.adaptive()),
+              // A skeleton of the rows that are arriving: the layout does not
+              // jump when the list lands, and past the threshold the wait
+              // offers a real re-read rather than an unexplained spinner.
+              loading: () => ListLoadingView(
+                message: 'Loading your favourites…',
+                onRetry: _refresh,
+              ),
               error: (err, st) => const Center(
                 child: EmptyStateView(
                   icon: Icons.error_outline,

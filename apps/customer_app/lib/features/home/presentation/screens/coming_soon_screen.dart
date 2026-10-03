@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../location/presentation/controllers/location_controller.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../dialogs/area_pin_dialog.dart';
 
 /// Shown when the customer's auto-detected location has no registered shops
 /// yet. Gives them the option to enter a pin code manually to see shops
@@ -58,7 +59,10 @@ class ComingSoonScreen extends ConsumerWidget {
             ],
             const SizedBox(height: AppSpacing.xl),
             ElevatedButton(
-              onPressed: () => _showPinDialog(context, ref),
+              onPressed: () => showAreaPinDialog(
+                context,
+                onPin: (pin) => context.push('/search-results-by-pin/$pin'),
+              ),
               child: const Text('Manually write your area pin'),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -72,62 +76,6 @@ class ComingSoonScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showPinDialog(BuildContext context, WidgetRef ref) {
-    final TextEditingController pinController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Enter Area Pin Code'),
-        content: SizedBox(
-          width: 300,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Enter your 6-digit area pin code to see shops near you.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: pinController,
-                keyboardType: const TextInputType.numberWithOptions(),
-                maxLength: 6,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. 560001',
-                  counterText: '',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final pin = pinController.text.trim();
-              if (pin.length == 6) {
-                Navigator.of(dialogContext).pop();
-                context.push('/search-results-by-pin/$pin');
-              } else {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid 6-digit pin code'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Check'),
-          ),
-        ],
       ),
     );
   }

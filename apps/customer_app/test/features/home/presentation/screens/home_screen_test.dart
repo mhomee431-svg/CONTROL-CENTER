@@ -20,13 +20,16 @@ import 'package:hyperlocal_app/features/saved_and_history/domain/models/storage_
 /// section is rendered without backing data.
 class _EmptyHomeRepository implements HomeRepository {
   @override
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async =>
-      const HomeData(
-        categories: [],
-        popularProducts: [],
-        nearbyShops: [],
-        recentSearches: [],
-      );
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async => const HomeData(
+    categories: [],
+    popularProducts: [],
+    nearbyShops: [],
+    recentSearches: [],
+  );
 
   @override
   Future<ShopsByPinPage> fetchShopsByPincode(
@@ -329,7 +332,11 @@ void main() {
 /// Repository that returns home data with no nearby shops to test empty states.
 class _EmptyNearbyShopsRepository implements HomeRepository {
   @override
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 100));
     return const HomeData(
       categories: [],

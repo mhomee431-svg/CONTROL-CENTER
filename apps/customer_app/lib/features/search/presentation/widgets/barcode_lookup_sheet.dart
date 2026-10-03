@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
 import '../../domain/barcode_validation.dart';
 import '../controllers/search_controller.dart';
 import 'freshness_disclaimer.dart';
@@ -123,9 +124,18 @@ class _BarcodeResults extends ConsumerWidget {
     final async = ref.watch(barcodeLookupProvider(barcode));
 
     return async.when(
+      // A sheet is a bounded, deliberately small space, so the placeholder is a
+      // spinner rather than a four-row skeleton that would push the sheet's own
+      // controls off screen. It is still bounded and still explains itself.
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: Center(child: CircularProgressIndicator.adaptive()),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator.adaptive(),
+            SlowLoadNotice(message: 'Looking up this barcode…'),
+          ],
+        ),
       ),
       error: (err, _) {
         // Offline/timeout vs server/auth failures read differently: the first

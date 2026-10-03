@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../controllers/customer_controller.dart';
 import '../../domain/models/customer_models.dart';
@@ -49,8 +50,7 @@ class CustomerRecentlyViewedScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        loading: () => const ListLoadingView(message: 'Loading your history…'),
         error: (err, st) => const Center(
           child: EmptyStateView(
             icon: Icons.error_outline,

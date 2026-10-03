@@ -17,6 +17,7 @@ import '../../../../core/share/share_content.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
 import '../../../../core/widgets/product_share.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 
@@ -152,8 +153,20 @@ class ShopDetailsScreen extends ConsumerWidget {
       ),
       body: shopAsync.when(
         data: (shop) => _buildBody(context, ref, shop),
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        // ONE shop, not a list: a row skeleton would promise a list this page
+        // does not have. The spinner is bounded and retryable.
+        loading: () => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator.adaptive(),
+              SlowLoadNotice(
+                message: 'This shop is taking longer to load.',
+                onRetry: () => ref.invalidate(shopDetailsProvider(shopId)),
+              ),
+            ],
+          ),
+        ),
         error: (err, stack) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

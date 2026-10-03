@@ -15,7 +15,19 @@ final homeRepositoryProvider = Provider<HomeRepository>((ref) {
 abstract class HomeRepository {
   /// Fetches the home feed. Coordinates are optional: when supplied, the
   /// backend ranks/sorts nearby content by distance.
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude});
+  ///
+  /// [radiusKm] bounds the home feed's `nearby_shops` (`GET /home/feed`, max
+  /// 100 km server-side). Null leaves the backend default in place, which is
+  /// what the first load uses; a wider value is passed only when the customer
+  /// explicitly asks to look further (the empty-state recovery action). The
+  /// parameter stays on the interface — rather than inside one implementation —
+  /// because mocks and fakes must model the same knob the real backend serves,
+  /// or tests assert against a contract the app cannot keep.
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  });
 
   /// Fetches the shops that serve a manually entered 6-digit area pin code
   /// (`GET /shops/nearby?pincode=...`, public — no auth required).

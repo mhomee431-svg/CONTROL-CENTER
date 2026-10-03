@@ -16,7 +16,10 @@ class _FakeProductRepository implements ProductDetailsRepository {
   _FakeProductRepository({this.error});
 
   @override
-  Future<ProductDetails> getProductDetails(String productId) async {
+  Future<ProductDetails> getProductDetails(
+    String productId, {
+    double? radiusKm,
+  }) async {
     if (error != null) throw error!;
     return ProductDetails(
       product: ProductMasterDetails(

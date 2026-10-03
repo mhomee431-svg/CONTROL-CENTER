@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'map_adapter.dart';
+import 'map_loading_view.dart';
 
 /// Marker icons, created once per hue instead of once per marker.
 ///
@@ -285,19 +286,9 @@ class GoogleMapAdapter implements MapAdapter {
 
   @override
   Widget buildLoading() {
-    return Container(
-      color: Colors.grey.shade200,
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator.adaptive(),
-            SizedBox(height: 16),
-            Text('Loading map...'),
-          ],
-        ),
-      ),
-    );
+    // Shared with StubMapAdapter: a configured build and an unconfigured one
+    // must not produce two different loading experiences.
+    return const MapLoadingView();
   }
 
   @override

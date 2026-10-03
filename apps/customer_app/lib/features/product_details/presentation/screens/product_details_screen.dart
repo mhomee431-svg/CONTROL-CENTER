@@ -10,6 +10,7 @@ import '../../../../core/share/share_content.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/product_share.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
 import '../../../../core/widgets/stale_data_notice.dart';
 import '../widgets/product_image_gallery.dart';
 import '../widgets/product_master_section.dart';
@@ -89,7 +90,9 @@ class ProductDetailsScreen extends ConsumerWidget {
       ),
       body: productAsync.when(
         data: (details) => _buildBody(context, ref, details),
-        loading: () => const _ProductLoadingView(),
+        loading: () => _ProductLoadingView(
+          onRetry: () => ref.refresh(productDetailsProvider(productId)),
+        ),
         error: (err, stack) => _ProductErrorView(
           error: err,
           onRetry: () => ref.refresh(productDetailsProvider(productId)),
@@ -167,8 +170,16 @@ class ProductDetailsScreen extends ConsumerWidget {
 }
 
 /// Loading state with skeleton-style placeholders.
+///
+/// The image placeholder still shows a spinner while the rest of the page
+/// shimmers, because a photograph is a single thing waiting to arrive and a
+/// block of grey is exactly its shape. [onRetry] bounds the wait: past the
+/// threshold the customer is told it is slow and offered a real re-read rather
+/// than an indefinite spinner over a grey rectangle.
 class _ProductLoadingView extends StatelessWidget {
-  const _ProductLoadingView();
+  final VoidCallback? onRetry;
+
+  const _ProductLoadingView({this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +243,10 @@ class _ProductLoadingView extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        SlowLoadNotice(
+          message: 'This product is taking longer to load.',
+          onRetry: onRetry,
         ),
       ],
     );

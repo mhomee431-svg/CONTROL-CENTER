@@ -33,7 +33,11 @@ class MockHomeRepository implements HomeRepository {
   ];
 
   @override
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
     // Simulate network latency
     await Future.delayed(const Duration(seconds: 2));
 
