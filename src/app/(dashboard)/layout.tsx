@@ -5,6 +5,7 @@ import { Box } from '@mui/material';
 import { TopBar } from '@/core/components/TopBar';
 import { Sidebar } from '@/core/components/Sidebar';
 import { GlobalSearchModal } from '@/core/components/GlobalSearchModal';
+import { RouteGuard } from '@/core/permissions/RouteGuard';
 import { useAuth } from '@/core/auth/AuthContext';
 import { CircularProgress } from '@mui/material';
 
@@ -50,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             boxSizing: 'border-box',
           }}
         >
-          {children}
+          <RouteGuard>{children}</RouteGuard>
         </Box>
       </Box>
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />    </Box>
