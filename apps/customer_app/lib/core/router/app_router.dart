@@ -50,6 +50,52 @@ import '../../features/search/presentation/controllers/search_controller.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
+
+/// Screens a signed-out / expired customer may still reach.
+///
+/// Used by the session-expiry redirect so "your session ended" lands the
+/// customer somewhere useful instead of always on a login wall. Browsing is the
+/// whole point of a guest-first hyperlocal app: expiring a token should cost
+/// them their saved lists, not their ability to look at shops nearby.
+///
+/// Exact path match, not a prefix match, because GoRouter's `matchedLocation`
+/// reports the concrete path (`/shop/42`), not the pattern (`/shop/:id`). The
+/// dynamic roots below are therefore matched separately, by [_isPublicLocation].
+///
+/// The auth flow itself is deliberately NOT public — `/login` must stay off
+/// this list, or a customer already on the login screen would be bounced home
+/// by the redirect before they could type their number. That is the infinite
+/// redirect loop this guard exists to prevent.
+const Set<String> _publicLocations = {
+  '/',
+  '/search',
+  '/search/results',
+  '/search/scan',
+  '/saved',
+  '/select-location',
+  '/location-settings',
+  '/location-permission',
+  '/map-picker',
+};
+
+/// Dynamic-route roots a signed-out customer may still reach.
+///
+/// Split from [_publicLocations] because these are declared as `/shop/:id` and
+/// resolve to `/shop/42`, which an exact set lookup would miss — and missing
+/// them is what would send an expired customer browsing a shop to a login wall
+/// for no reason.
+const Set<String> _publicLocationPrefixes = {
+  '/shop/',
+  '/product/',
+  '/offer/',
+  '/directions',
+};
+
+bool _isPublicLocation(String location) {
+  if (_publicLocations.contains(location)) return true;
+  return _publicLocationPrefixes.any(location.startsWith);
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
   final onboardingCompleted = ref.watch(onboardingCompletedProvider);
@@ -84,6 +130,36 @@ final routerProvider = Provider<GoRouter>((ref) {
           location != '/onboarding' &&
           location != '/welcome') {
         return '/onboarding';
+      }
+
+      // ── Session expiry: the customer was signed in and the server revoked
+      // the session. The network layer already tried a safe refresh and only
+      // escalated after THAT failed, so by the time this state exists there is
+      // nothing left to recover and the account's private screens must not
+      // keep rendering against data fetched with a dead token.
+      //
+      // This branch was missing entirely. `handleSessionExpired()` set
+      // [AuthStatus.sessionExpired], but with no guard consuming it the router
+      // left the customer wherever they were — still looking at "My Orders",
+      // a profile, a saved-items list, all of which now 401 on every pull to
+      // refresh, with no route to login anywhere on the screen.
+      //
+      // Guests are treated as signed OUT, not as expired: a guest browsing
+      // `/account` is doing something legitimate and has nothing to recover.
+      //
+      // THE LOOP GUARD. `redirect` re-runs after every navigation, so the
+      // destination must be excluded from its own rule: without the
+      // `location != '/login'` check, an expired customer landing on /login
+      // would be redirected back to /login forever — a screen that re-renders
+      // itself until the app is killed, which is exactly the infinite loop this
+      // must not have. Once the customer is already where we sent them, the
+      // redirect returns null and GoRouter stops asking.
+      if (authState.status == AuthStatus.sessionExpired &&
+          location != '/login' &&
+          location != '/otp' &&
+          location != '/register' &&
+          location != '/welcome') {
+        return _isPublicLocation(location) ? '/' : '/login';
       }
 
       return null;

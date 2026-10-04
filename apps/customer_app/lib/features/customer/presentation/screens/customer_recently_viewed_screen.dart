@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,7 +51,12 @@ class CustomerRecentlyViewedScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const ListLoadingView(message: 'Loading your history…'),
+        loading: () => const ListLoadingView(
+          message: 'Loading your history…',
+          // `Card` + `ListTile` with a small square image, name, "viewed N times"
+          // subtitle and a chevron — not the large three-line product card.
+          shape: SkeletonRowShape.mediaTile,
+        ),
         error: (err, st) => const Center(
           child: EmptyStateView(
             icon: Icons.error_outline,

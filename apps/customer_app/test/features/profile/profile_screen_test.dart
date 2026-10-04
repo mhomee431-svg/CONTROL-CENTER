@@ -117,7 +117,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -138,7 +138,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authControllerProvider.overrideWith(() => auth),
-          profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+          profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
         ],
       );
       addTearDown(container.dispose);
@@ -185,7 +185,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -212,7 +212,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -235,7 +235,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -253,7 +253,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -272,7 +272,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -353,7 +353,7 @@ void main() {
     tester,
   ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
-    final repository = MockProfileRepository();
+    final repository = MockProfileRepository(delay: Duration.zero);
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),

@@ -109,8 +109,10 @@ void main() {
       );
       expect(find.byKey(const Key('nearbyChangeLocation')), findsOneWidget);
       expect(find.byKey(const Key('nearbySearchAnotherArea')), findsOneWidget);
-      // The label says what leaves the device rather than "search wider".
-      expect(find.text('Search within 10 km'), findsOneWidget);
+      // The label names the NEXT request, not the one already made. The first
+      // load used the backend default (10 km), so the first offered step is the
+      // next genuine rung, 25 km — never a restatement of the empty query.
+      expect(find.text('Search within 25 km'), findsOneWidget);
     },
   );
 
@@ -124,9 +126,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // A REAL query with a wider radius — not a client-side filter over a list
-    // that is already empty.
-    expect(repository.radiusLog, [null, 10]);
-    expect(find.text('Search within 25 km'), findsOneWidget);
+    // that is already empty. `null` was the backend default (10 km), so the
+    // first widen must ask for a genuinely wider 25 km.
+    expect(repository.radiusLog, [null, 25]);
+    expect(find.text('Search within 50 km'), findsOneWidget);
   });
 
   testWidgets('the increase-radius action stops at the backend maximum', (
@@ -134,18 +137,21 @@ void main() {
   ) async {
     final repository = await _pump(tester);
 
-    // 10 → 25 → 50 → 100, then nothing: 100 is the server's `le=100`.
-    for (final expected in ['10', '25', '50', '100']) {
+    // The first load was the backend default (10 km), so the ladder the customer
+    // actually walks is 25 → 50 → 100, then nothing: 100 is the server's
+    // `le=100`. Offering "10 km" first would re-issue the query that just
+    // returned nothing.
+    for (final expected in ['25', '50', '100']) {
       expect(
         find.text('Search within $expected km'),
         findsOneWidget,
-        reason: 'next step after $expected must be named',
+        reason: 'the ladder must offer $expected km next',
       );
       await tester.tap(find.byKey(const Key('nearbySearchWider')));
       await tester.pumpAndSettle();
     }
 
-    expect(repository.radiusLog, [null, 10, 25, 50, 100]);
+    expect(repository.radiusLog, [null, 25, 50, 100]);
     // Exhausted: the button is gone rather than left there to do nothing.
     expect(find.byKey(const Key('nearbySearchWider')), findsNothing);
   });

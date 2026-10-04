@@ -51,7 +51,7 @@ class ShopOpenClosedBadge extends StatelessWidget {
 
     final color = open
         ? (acceptingOrders == false
-              ? Colors.orange.shade800
+              ? AppColors.warning
               : AppColors.secondary)
         : AppColors.error;
 

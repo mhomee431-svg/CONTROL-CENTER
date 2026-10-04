@@ -17,8 +17,15 @@ class LocalCacheService {
 
   LocalCacheService(this._storage);
 
-  /// Cache key prefix to avoid collisions
-  String _cacheKey(String key) => 'cache_v1_$key';
+  /// Namespace prefix for every key this cache owns.
+  ///
+  /// Doubles as the eviction filter for [clear]: a key belongs to the cache iff
+  /// it starts with this. The `_v1_` lets a future payload format reuse the same
+  /// logical keys without ever reading an older, incompatible entry.
+  static const String _keyPrefix = 'cache_v1_';
+
+/// Cache key prefix to avoid collisions
+  String _cacheKey(String key) => '$_keyPrefix$key';
 
   /// Store data in cache with a timestamp.
   Future<void> put(String key, dynamic data) async {
@@ -69,11 +76,33 @@ class LocalCacheService {
     await _storage.remove(_cacheKey(key));
   }
 
-  /// Clear all cached entries.
+  /// Removes every cached entry, and ONLY cached entries.
+  ///
+  /// WHY THIS IS NOT `_storage.clear()`
+  /// ---------------------------------
+  /// This used to call `clear()` on the underlying [LocalStorageDriver], whose
+  /// comment even conceded "We can't selectively clear". But that driver is
+  /// SharedPreferences, and it holds EVERYTHING the app persists locally — the
+  /// theme, the language, the analytics switches, the onboarding flag, saved
+  /// products and shops, recent searches.
+  ///
+  /// So "clear the cache" silently wiped the customer's saved items, their
+  /// theme, and sent them back through onboarding — from a method whose name
+  /// promises nothing of the sort. Worse, the privacy screen tells a customer
+  /// that clearing local data removes saved items while leaving the rest of
+  /// their setup alone; a cache clear doing the opposite is exactly the kind of
+  /// surprise that makes a privacy promise untrue.
+  ///
+  /// SharedPreferences can enumerate its own keys, so the fix is to remove only
+  /// the ones this cache owns — anything carrying [_keyPrefix]. The entries are
+  /// namespaced precisely so they can be told apart from everything else.
   Future<void> clear() async {
-    // We can't selectively clear, but we can clear all storage
-    // In practice, this is fine for a local cache
-    await _storage.clear();
+    final keys = await _storage.keys();
+    for (final key in keys) {
+      if (key.startsWith(_keyPrefix)) {
+        await _storage.remove(key);
+      }
+    }
   }
 }
 

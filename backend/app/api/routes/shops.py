@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_admin
+from app.core.dependencies import get_current_user, get_optional_user, require_admin
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.product import Inventory, ProductMaster, ShopProduct
@@ -86,11 +86,119 @@ async def get_public_shop(
     data = ShopPublicResponse.model_validate(shop).model_dump()
     data["is_open_now"] = shop_service.is_shop_open(shop)
     data["subcategories"] = shop_service.parse_subcategories(shop.subcategories)
+    data["email"] = shop.email
+    data["address"] = _primary_address_text(shop)
+    # Hours live in the `ShopHour` relationship, not a column on `Shop`. The
+    # public schema keeps a single display string so the customer card renders
+    # "9:00 AM – 9:00 PM" without the app having to parse a weekly schedule.
+    data["opening_hours"] = _opening_hours_text(shop)
     # Business type + capabilities: what the customer may be shown for THIS
     # business. Resolved server-side so a restaurant or a service provider can
     # never be rendered with product-style price/stock UI by a client guess.
     data.update(shop_service.customer_facing_business(db, shop))
+    # Stock + freshness. The customer app used to call `/shops/{id}` to obtain
+    # these, which also handed it the shop's owners, managers, verification
+    # paperwork and documents. Populating the PUBLIC schema with the same
+    # customer-facing facts removes any reason to call the broad route.
+    #
+    # Deliberately the same projection `/shops/{id}` uses: product id, name,
+    # image, price, availability and a stock word. The inventory ledger's own
+    # columns (quantities, cost, supplier) are the shopkeeper's data and are not
+    # read here.
+    shop_products = (
+        db.query(ShopProduct)
+        .filter(ShopProduct.shop_id == shop_id, ShopProduct.is_visible == True)  # noqa: E712
+        .all()
+    )
+    available_products = []
+    last_updated = None
+    for sp in shop_products:
+        inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+        if inv is None:
+            continue
+        product = db.query(ProductMaster).filter(ProductMaster.id == sp.product_master_id).first()
+        if product is None:
+            continue
+        image_url = ""
+        if product.images:
+            primary = [img for img in product.images if img.is_primary]
+            image_url = (primary[0].image_url if primary else product.images[0].image_url) or ""
+        available_products.append(
+            ShopProductSummarySchema(
+                product_id=product.id,
+                name=product.name,
+                image_url=image_url,
+                price=float(sp.price),
+                is_available=inv.is_available,
+                stock_status=inv.stock_status.value if hasattr(inv.stock_status, "value") else str(inv.stock_status),
+            )
+        )
+        if last_updated is None or inv.updated_at > last_updated:
+            last_updated = inv.updated_at
+    data["available_products"] = [p.model_dump() for p in available_products]
+    data["last_inventory_update"] = last_updated
     return success_response(data=data)
+
+
+def _opening_hours_text(shop) -> str:
+    """Human-readable opening hours for the customer-facing header.
+
+    Derived from the `ShopHour` rows rather than read from a column, because
+    there is NO `opening_hours` column on `Shop` — asking for one raises
+    AttributeError and 500s the whole shop page.
+
+    A shop with no hours entered returns an empty string so the header simply
+    omits the row, which is honest: an unstated schedule is not "open 24 hours".
+    """
+    hours = list(getattr(shop, "hours", None) or [])
+    if not hours:
+        return ""
+
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    def _fmt(value) -> str:
+        if value is None:
+            return ""
+        # Built by hand rather than `%-I`: the `-` flag that strips the leading
+        # zero is a GNU extension and raises ValueError on Windows, so a
+        # platform-dependent format would 500 in dev and pass in prod.
+        hour24 = value.hour
+        suffix = "AM" if hour24 < 12 else "PM"
+        hour12 = hour24 % 12 or 12
+        return f"{hour12}:{value.minute:02d} {suffix}"
+
+    open_days = [h for h in hours if not getattr(h, "is_closed", False)]
+    if not open_days:
+        return ""
+
+    first = min(open_days, key=lambda h: getattr(h, "day_of_week", 0))
+    span = f"{_fmt(first.open_time)} – {_fmt(first.close_time)}"
+    day_names = ", ".join(
+        days[getattr(h, "day_of_week", 0)] for h in sorted(open_days, key=lambda h: getattr(h, "day_of_week", 0))
+    )
+    return f"{span} ({day_names})"
+
+
+def _primary_address_text(shop) -> str:
+    """Single-line the shop's primary address, for the customer-facing card.
+
+    Reads the structured `ShopAddress` rows first. `getattr` is used for the
+    fallbacks because the shop's own free-text address column is not guaranteed
+    to exist on every deployment, and a bare attribute access here would 500 the
+    shop page rather than merely omitting a line.
+    """
+    for address in getattr(shop, "addresses", None) or []:
+        if getattr(address, "is_primary", False):
+            parts = [
+                getattr(address, "address_line1", ""),
+                getattr(address, "city", ""),
+                getattr(address, "state", ""),
+                getattr(address, "pincode", ""),
+            ]
+            joined = ", ".join(p for p in parts if p)
+            if joined:
+                return joined
+    return getattr(shop, "address", "") or ""
 
 
 @router.get("/{shop_id}")
@@ -100,7 +208,26 @@ async def get_shop(
     longitude: float | None = Query(None, ge=-180, le=180),
     db: Session = Depends(get_db),
 ):
-    """Return full shop profile including inventory and distance."""
+    """Shop profile with inventory and distance, for anyone who can browse it.
+
+    WHY THIS IS NOT SIMPLY "AUTHORIZED CALLERS ONLY"
+    ----------------------------------------------
+    Serializing `ShopDetailResponse` here would return `owners`, `managers`,
+    `verifications` and `documents` — the shopkeeper's roster, verification
+    paperwork and internal workflow state. Adding a login requirement does NOT
+    fix that: ANY signed-in customer would still read every other shop's owner
+    list. Authorization has to answer "is this person ALLOWED TO SEE THIS SHOP",
+    and for a publicly listed shop the answer is yes for everyone.
+
+    So the private collections are REMOVED from this response outright. That is
+    what makes the route safe to keep public: there is nothing left here to
+    authorize.
+
+    The shopkeeper's own management view — owners, managers, documents,
+    verification — is already served by `GET /shops/my/shops/{shop_id}`, which
+    requires a token AND checks ownership. Nothing was lost by removing it here;
+    it was never this route's job.
+    """
     shop = shop_service.get_shop_detail(db, shop_id)
     if shop is None:
         return error_response(message="Shop not found", error_code="SHOP_NOT_FOUND", status_code=404)
@@ -143,6 +270,21 @@ async def get_shop(
             last_updated = inv.updated_at
 
     data = ShopDetailResponse.model_validate(shop).model_dump()
+
+    # ── The authorization boundary ────────────────────────────────────────────
+    # `ShopDetailResponse` extends the shop row with owners, managers,
+    # verifications and documents. Those are the shopkeeper's private roster,
+    # verification paperwork and internal workflow state, and this route is
+    # reachable WITHOUT a token — so serializing them would publish every shop's
+    # owner list to anyone who guesses an id.
+    #
+    # They are popped here rather than hidden in the client, because the client
+    # hiding a field is not a control: the bytes still cross the wire and sit in
+    # the JSON. The management view for the people who legitimately need these
+    # already exists at `GET /shops/my/shops/{shop_id}` (token + ownership).
+    for private_field in ("owners", "managers", "verifications", "documents"):
+        data.pop(private_field, None)
+
     data["distance_km"] = round(distance_km, 2)
     data["is_open_now"] = shop_service.is_shop_open(shop)
     data["last_inventory_update"] = last_updated

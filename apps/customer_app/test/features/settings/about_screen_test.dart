@@ -71,4 +71,40 @@ void main() {
     expect(find.byKey(const Key('aboutEnvironmentTile')), findsOneWidget);
     expect(find.text('Environment'), findsOneWidget);
   });
+
+  testWidgets('the environment row copies diagnostics instead of doing nothing', (
+    tester,
+  ) async {
+    await _pump(tester);
+
+    // The row used to be drawn exactly like its navigating neighbours and then
+    // ignore the tap — a dead control. It now performs a real action.
+    //
+    // `pumpAndSettle` alone is NOT enough: the confirmation is posted after an
+    // `await` on the clipboard, which resolves on a later microtask, and
+    // `pumpAndSettle` can return before that lands. An extra pump drains it.
+    await tester.tap(find.byKey(const Key('aboutEnvironmentTile')));
+    await tester.pumpAndSettle();
+    await tester.pump();
+
+    // A copy glyph, not a navigation chevron: a chevron would promise a
+    // destination screen that does not exist. Scoped to THIS tile — the
+    // navigating rows beside it legitimately keep their chevrons.
+    final tile = find.byKey(const Key('aboutEnvironmentTile'));
+    expect(
+      find.descendant(of: tile, matching: find.byIcon(Icons.copy_all_outlined)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: tile, matching: find.byIcon(Icons.chevron_right)),
+      findsNothing,
+      reason: 'a row that copies must not advertise a destination',
+    );
+
+    // And the customer is told what happened, in terms of the action.
+    expect(find.textContaining('Build details copied'), findsOneWidget);
+
+    // No navigation occurred — the About screen is still the visible page.
+    expect(find.text('Environment'), findsOneWidget);
+  });
 }

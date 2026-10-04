@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/slow_load_notice.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../domain/models/order_models.dart';
 import '../controllers/order_controller.dart';
 import '../order_status_ui.dart';
@@ -132,19 +133,18 @@ class OrderDetailScreen extends ConsumerWidget {
             ],
           ),
         ),
-        // ONE order, not a list: a skeleton would promise rows this page does
-        // not have. The spinner is bounded and retryable rather than open-ended.
-        loading: () => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator.adaptive(),
-              SlowLoadNotice(
-                message: 'This order is taking longer to load.',
-                onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
-              ),
-            ],
-          ),
+        // An order page's silhouette, not a spinner. This is one order with a
+        // known structure (status, id/date meta, item rows, totals) — the same
+        // reasoning that moved the list screens off spinners applies here, and
+        // a centred spinner made the customer watch the whole thing assemble.
+        loading: () => Column(
+          children: [
+            const Expanded(child: SkeletonDetail()),
+            SlowLoadNotice(
+              message: 'This order is taking longer to load.',
+              onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
+            ),
+          ],
         ),
         error: (err, st) => EmptyStateView(
           icon: Icons.error_outline,

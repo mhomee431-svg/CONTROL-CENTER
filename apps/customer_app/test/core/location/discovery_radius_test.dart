@@ -3,11 +3,15 @@ import 'package:hyperlocal_app/core/location/discovery_radius.dart';
 
 void main() {
   group('the discovery radius ladder', () {
-    test('starts unset so the backend default rules the first load', () {
-      // Nothing the UI invents should override the server's own default on a
-      // cold load — the customer has not asked for anything yet.
-      expect(nextDiscoveryRadius(null), 10);
+    test('the first offered step is wider than the backend default', () {
+      // `radius_km` defaults to 10 km server-side, so the empty state was
+      // already showing the result of a 10 km query. Offering "Search within
+      // 10 km" as the recovery re-issued that exact same query and came back
+      // empty again — a button that looked live and changed nothing.
+      expect(nextDiscoveryRadius(null), greaterThan(kBackendDefaultDiscoveryRadiusKm));
+      expect(nextDiscoveryRadius(null), 25);
       expect(canWidenDiscoveryRadius(null), isTrue);
+      expect(nextDiscoveryRadiusLabel(null), 'Search within 25 km');
     });
 
     test('steps up one notch at a time and never goes back down', () {
@@ -30,8 +34,9 @@ void main() {
 
     test('the label states the radius the customer is about to ask for', () {
       // A bare "search wider" says nothing about what is leaving the device.
-      expect(nextDiscoveryRadiusLabel(null), 'Search within 10 km');
+      expect(nextDiscoveryRadiusLabel(null), 'Search within 25 km');
       expect(nextDiscoveryRadiusLabel(10), 'Search within 25 km');
+      expect(nextDiscoveryRadiusLabel(25), 'Search within 50 km');
       expect(nextDiscoveryRadiusLabel(50), 'Search within 100 km');
     });
 

@@ -330,6 +330,32 @@ class ShopPublicResponse(BaseModel):
     holidays: List[ShopHolidayResponse] = []
     is_open_now: bool = False
     distance_km: Optional[float] = None
+
+    # ── Customer-legitimate fields the customer app genuinely renders ───────
+    #
+    # These were missing, which forced the app to call the BROADER
+    # `/shops/{id}` route to get them. That route returns `ShopDetailResponse`,
+    # which carries `owners`, `managers`, `verifications` and `documents` —
+    # the shopkeeper's private roster, verification paperwork and internal
+    # workflow state — and it is unauthenticated. So the app was pulling the
+    # shopkeeper's private data to the customer's device in order to render a
+    # product list.
+    #
+    # The fix is to make the PUBLIC schema complete for what customers are
+    # meant to see, so the app never has to reach for the broad one. Only
+    # customer-facing commerce facts are added here; nothing about ownership,
+    # verification paperwork, or workflow is.
+    email: Optional[str] = None
+    address: Optional[str] = None
+    opening_hours: Optional[str] = None
+
+    # What this shop actually stocks, and how fresh that is. Both are customer
+    # decisions ("is it in stock?", "is this price current?"), so both are
+    # legitimately public — unlike the inventory ledger itself, which is the
+    # shopkeeper's own data.
+    available_products: List["ShopProductSummarySchema"] = []
+    last_inventory_update: Optional[datetime] = None
+
     created_at: datetime
     updated_at: datetime
 
@@ -354,6 +380,13 @@ class ShopProductSummarySchema(BaseModel):
     price: float
     is_available: bool
     stock_status: str
+
+
+# Resolves `ShopPublicResponse.available_products`, which forward-references the
+# class above because the public schema is declared first (it is the smaller,
+# customer-facing surface). Without this, Pydantic cannot build the field and
+# raises at import time on every startup.
+ShopPublicResponse.model_rebuild()
 
 
 # ── Admin verification ──────────────────────────────────────────────────────

@@ -63,9 +63,16 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
         // Matches the rows that are arriving: the layout does not jump when
         // the list lands, and a still-hung load past the threshold explains
         // itself with a retry instead of spinning unexplained.
+        // ORDER cards, not product cards — no image, and a status pill where the
+        // product row's third line would be.
         loading: () => Column(
           children: [
-            const Expanded(child: SkeletonList(itemCount: 4)),
+            const Expanded(
+              child: SkeletonList(
+                itemCount: 4,
+                shape: SkeletonRowShape.order,
+              ),
+            ),
             SlowLoadNotice(
               message: 'Your orders are taking longer to load.',
               onRetry: _refresh,

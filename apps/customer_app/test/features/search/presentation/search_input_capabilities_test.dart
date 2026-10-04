@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_app/features/search/domain/search_text_sanitizer.dart';
+import 'package:hyperlocal_app/features/search/presentation/controllers/search_controller.dart';
 import 'package:hyperlocal_app/features/search/presentation/search_input_capabilities.dart';
+import 'package:hyperlocal_app/features/search/presentation/widgets/search_input_field.dart';
 
 /// A stand-in for a future voice implementation. It never touches a microphone
 /// -- it just proves the seam is wired: the affordance appears, and the callback
@@ -20,6 +22,64 @@ class _FakeVoiceExtension extends SearchInputExtension {
 }
 
 void main() {
+  group('the typed query is restored when the field is rebuilt', () {
+    // The controller-level tests prove the query lives in the provider. This
+    // proves the WIDGET reads it back, which is the half that was untested:
+    // `SearchInputField.initState` copies `searchQueryProvider.query` into its
+    // own TextEditingController. Without that copy the field renders empty on
+    // return even though the state is intact, and the customer sees a blank
+    // box above their restored results.
+    testWidgets('a rebuilt field shows the query that was typed', (
+      tester,
+    ) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container
+          .read(searchQueryProvider.notifier)
+          .debouncedTextChanged('Dove Shampoo');
+
+      Future<void> pumpField() => tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: SearchInputField())),
+        ),
+      );
+
+      await pumpField();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dove Shampoo'), findsOneWidget);
+
+      // Simulate leaving to product details and coming back.
+      await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+      await pumpField();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Dove Shampoo'),
+        findsOneWidget,
+        reason: 'the query must still be in the box after returning',
+      );
+    });
+
+    testWidgets('a field with no prior query starts empty', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: SearchInputField())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller?.text, isEmpty);
+    });
+  });
+
   group('voice search ships OFF', () {
     test('the default capability set is text only', () {
       const caps = SearchInputCapabilities.textOnly();

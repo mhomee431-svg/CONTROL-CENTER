@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../controllers/directions_controller.dart';
 import '../../../../core/maps/map_adapter.dart';
+import '../../../../core/maps/map_loading_view.dart';
 import '../../domain/models/location_models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
@@ -37,16 +38,12 @@ class DirectionsScreen extends ConsumerWidget {
     MapAdapter mapAdapter,
   ) {
     if (state.isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator.adaptive(),
-            SizedBox(height: 16),
-            Text('Acquiring GPS location...'),
-          ],
-        ),
-      );
+      // The screen's real content is a MAP plus its controls, so the
+      // placeholder is the map's silhouette — not a bare centred spinner.
+      // "Acquiring GPS location..." was honest about the wait but drew nothing
+      // that resembled what was coming, and left the customer unable to tell a
+      // slow GPS fix from a map that would never arrive.
+      return const MapLoadingView(message: 'Acquiring your location…');
     }
 
     if (state.error != null) {

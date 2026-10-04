@@ -225,13 +225,10 @@ class _ShopInventoryCard extends StatelessWidget {
               ? Colors.grey.shade300
               : AppColors.error.withValues(alpha: 0.4),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        // A near-invisible hand-tuned shadow (black @ 3%) replaced with the shared
+        // [AppShadows.soft], so this row sits on the page the same way every
+        // other card does instead of by its own private number.
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +312,7 @@ class _ShopInventoryCard extends StatelessWidget {
                       color: !offer.isAvailable
                           ? AppColors.error.withValues(alpha: 0.1)
                           : stale
-                          ? Colors.orange.withValues(alpha: 0.1)
+                          ? AppColors.warningSurface
                           : AppColors.secondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -327,7 +324,7 @@ class _ShopInventoryCard extends StatelessWidget {
                         color: !offer.isAvailable
                             ? AppColors.error
                             : stale
-                            ? Colors.orange.shade800
+                            ? AppColors.warning
                             : AppColors.secondary,
                       ),
                     ),

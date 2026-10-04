@@ -1,0 +1,33 @@
+INFO:     Started server process [9684]
+INFO:     Waiting for application startup.
+2026-10-02 23:36:57,525 - app.main - INFO - [request_id=- correlation_id=-] - Starting Hyperlocal Customer API v1.0.0 (development)
+2026-10-02 23:36:57,535 - app.startup - WARNING - [request_id=- correlation_id=-] - Security check (development env): HIGH: DEBUG is enabled — stack traces leak internals
+2026-10-02 23:36:57,535 - app.startup - WARNING - [request_id=- correlation_id=-] - Security check (development env): CRITICAL: OTP_STORAGE_URI is in-memory — OTPs issued by one worker cannot be verified by another; auth breaks with 2+ workers/instances. Use a redis:// URI in production
+2026-10-02 23:36:57,541 - app.startup - WARNING - [request_id=- correlation_id=-] - Security check (development env): HIGH: RATE_LIMIT_STORAGE_URI is in-memory — limits are enforced per process, so effective limits scale up with worker count. Use a redis:// URI in production
+2026-10-02 23:36:57,543 - app.startup - WARNING - [request_id=- correlation_id=-] - Security check (development env): CRITICAL: only the MockPaymentProvider is registered and its secret is a known default — anyone can forge payment/webhook signatures. Set a strong MOCK_PAYMENT_SECRET or register a real payment gateway.
+2026-10-02 23:36:57,735 - app.database.session - WARNING - [request_id=- correlation_id=-] - Failed to enable PostGIS extension: (sqlite3.OperationalError) near "EXTENSION": syntax error
+[SQL: CREATE EXTENSION IF NOT EXISTS "postgis"]
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-02 23:36:58,957 - app.observability.deployment - INFO - [request_id=- correlation_id=-] - Deployment registered result=starting commit=7bf2f51 build_id=manual env=development version=1.0.0
+2026-10-02 23:36:58,957 - app.observability.alert - INFO - [request_id=- correlation_id=-] - Alert manager initialised with 10 rules
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-10-02 23:37:14,931 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-02 23:41:03,291 - app.exceptions - WARNING - [request_id=f45bbf1d-cca9-4d5f-9e48-a38c225cc57e correlation_id=b3321418-b1a2-488f-b00e-74ec0a9d967f] - AppError: Not authenticated (UNAUTHORIZED) path=/api/v1/admin/me method=GET request_id=f45bbf1d-cca9-4d5f-9e48-a38c225cc57e
+2026-10-02 23:41:03,300 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-02 23:41:17,745 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:14:47,693 - app.core.dependencies - WARNING - [request_id=3931f035-55b3-43dc-a90a-48f2def8d536 correlation_id=ae205fa7-05ad-4758-a459-34cabb7b07ec] - Firebase verification unavailable (Firebase credentials not configured. Set FIREBASE_CREDENTIALS_FILE (or reuse FCM_CREDENTIALS_FILE) or FIREBASE_CREDENTIALS_JSON.); falling back to legacy JWT
+2026-10-03 00:14:48,847 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:14:58,147 - app.core.dependencies - WARNING - [request_id=e12b8603-2f2b-4437-9980-f2cdb61deb75 correlation_id=07c87803-d84d-43f3-9fa3-e2eb1f5a759d] - Firebase verification unavailable (Firebase credentials not configured. Set FIREBASE_CREDENTIALS_FILE (or reuse FCM_CREDENTIALS_FILE) or FIREBASE_CREDENTIALS_JSON.); falling back to legacy JWT
+2026-10-03 00:14:58,166 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:08,611 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:08,673 - app.core.dependencies - WARNING - [request_id=req_1790966948333_qknreyd correlation_id=b183440e-4939-45ac-908a-641c9f2fd44c] - Firebase verification unavailable (Firebase credentials not configured. Set FIREBASE_CREDENTIALS_FILE (or reuse FCM_CREDENTIALS_FILE) or FIREBASE_CREDENTIALS_JSON.); falling back to legacy JWT
+2026-10-03 00:19:08,779 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:20,425 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:24,380 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:24,384 - app.core.dependencies - WARNING - [request_id=req_1790966964291_emd0aia correlation_id=fd8d4dbd-2ae2-40c2-803f-0f17960523c5] - Firebase verification unavailable (Firebase credentials not configured. Set FIREBASE_CREDENTIALS_FILE (or reuse FCM_CREDENTIALS_FILE) or FIREBASE_CREDENTIALS_JSON.); falling back to legacy JWT
+2026-10-03 00:19:24,531 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:24,536 - app.core.dependencies - WARNING - [request_id=req_1790966964290_gl6t3y3 correlation_id=c588ffa5-68a2-48a3-995c-ac09834d3186] - Firebase verification unavailable (Firebase credentials not configured. Set FIREBASE_CREDENTIALS_FILE (or reuse FCM_CREDENTIALS_FILE) or FIREBASE_CREDENTIALS_JSON.); falling back to legacy JWT
+2026-10-03 00:19:25,228 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:28,602 - app.access - INFO - [request_id=- correlation_id=-] - http_request
+2026-10-03 00:19:51,270 - app.access - INFO - [request_id=- correlation_id=-] - http_request

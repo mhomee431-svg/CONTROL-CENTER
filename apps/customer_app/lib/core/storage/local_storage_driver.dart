@@ -6,6 +6,17 @@ abstract class LocalStorageDriver {
   Future<void> setString(String key, String value);
   Future<List<String>?> getStringList(String key);
   Future<void> setStringList(String key, List<String> value);
+  /// Every key currently persisted.
+  ///
+  /// Exists so an owner of a NAMESPACE can evict exactly its own entries
+  /// without calling [clear] and destroying every other owner's data. Shared
+  /// Preferences makes this possible; an in-memory map trivially does too.
+  ///
+  /// Anything that needs "wipe everything" should call [clear] deliberately.
+  /// Anything that needs "wipe my slice" should filter this list by its own
+  /// key prefix.
+  Future<Set<String>> keys();
+
   Future<void> remove(String key);
   Future<void> clear();
 }
@@ -38,6 +49,10 @@ class SharedPreferencesStorageDriver implements LocalStorageDriver {
   }
 
   @override
+  Future<Set<String>> keys() async =>
+      (await _prefs()).getKeys();
+
+  @override
   Future<void> remove(String key) async => (await _prefs()).remove(key);
 
   @override
@@ -61,6 +76,9 @@ class InMemoryStorageDriver implements LocalStorageDriver {
   @override
   Future<void> setStringList(String key, List<String> value) async =>
       _data[key] = value;
+
+  @override
+  Future<Set<String>> keys() async => _data.keys.toSet();
 
   @override
   Future<void> remove(String key) async => _data.remove(key);

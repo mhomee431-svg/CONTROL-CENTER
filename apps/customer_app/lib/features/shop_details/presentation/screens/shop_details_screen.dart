@@ -16,7 +16,9 @@ import '../widgets/service_profile_section.dart';
 import '../../../../core/share/share_content.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/error_state.dart';
 import '../../../../core/widgets/slow_load_notice.dart';
 import '../../../../core/widgets/product_share.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
@@ -153,40 +155,33 @@ class ShopDetailsScreen extends ConsumerWidget {
       ),
       body: shopAsync.when(
         data: (shop) => _buildBody(context, ref, shop),
-        // ONE shop, not a list: a row skeleton would promise a list this page
-        // does not have. The spinner is bounded and retryable.
-        loading: () => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator.adaptive(),
-              SlowLoadNotice(
-                message: 'This shop is taking longer to load.',
-                onRetry: () => ref.invalidate(shopDetailsProvider(shopId)),
-              ),
-            ],
-          ),
+        // A shop page's silhouette, not a spinner. The old comment here said a
+        // skeleton "would promise a list this page does not have" — true of a
+        // ROW list, but not of the page's shape: a shop opens with a banner,
+        // then a name, a rating and an address. A centred spinner threw that
+        // away and made the customer watch the real layout assemble on arrival.
+        loading: () => Column(
+          children: [
+            const Expanded(
+              // Banner height matches the shop header's cover image, so the
+              // swap does not shift the content below it.
+              child: SkeletonDetail(headerHeight: 180),
+            ),
+            SlowLoadNotice(
+              message: 'This shop is taking longer to load.',
+              onRetry: () => ref.invalidate(shopDetailsProvider(shopId)),
+            ),
+          ],
         ),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.store_outlined,
-                size: 64,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Text(
-                'Unable to load shop\nPlease try again.',
-                textAlign: TextAlign.center,
-              ),
-              TextButton(
-                onPressed: () => ref.refresh(shopDetailsProvider(shopId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        // Hand-rolled icon + text + TextButton. Converted to the shared ErrorState so
+        // the retry is a real 48px RetryButton with the app's standard icon,
+        // instead of a small text button among four other constructions of the
+        // same idea. Headline copy is unchanged, so the existing test that
+        // asserts "Unable to load shop" still holds.
+        error: (err, stack) => ErrorState.fromApi(
+          err,
+          title: 'Unable to load shop',
+          onRetry: () => ref.refresh(shopDetailsProvider(shopId)),
         ),
       ),
     );
@@ -346,8 +341,8 @@ class ShopDetailsScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      border: Border.all(color: Colors.orange.shade200),
+                      color: AppColors.warningSurface,
+                      border: Border.all(color: AppColors.warningSurface),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Row(
@@ -355,7 +350,7 @@ class ShopDetailsScreen extends ConsumerWidget {
                         Icon(
                           Icons.location_off,
                           size: 20,
-                          color: Colors.orange,
+                          color: AppColors.warning,
                         ),
                         SizedBox(width: 8),
                         Expanded(
@@ -363,7 +358,7 @@ class ShopDetailsScreen extends ConsumerWidget {
                             'Shop coordinates are temporarily unavailable. You can still call the shop for directions.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.orange,
+                              color: AppColors.warning,
                             ),
                           ),
                         ),

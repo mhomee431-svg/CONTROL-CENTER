@@ -58,16 +58,8 @@ class ShopCard extends StatelessWidget {
         child: Container(
           width: 200,
           margin: const EdgeInsets.only(right: AppSpacing.md),
-          decoration: BoxDecoration(
+          decoration: appCardDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +159,7 @@ class ShopCard extends StatelessWidget {
                         // No ratings yet reads as "New" rather than a confident
                         // 0.0, which would look like a terrible shop.
                         if (rating > 0) ...[
-                          const Icon(Icons.star, size: 14, color: Colors.amber),
+                          const Icon(Icons.star, size: 14, color: AppColors.warning),
                           const SizedBox(width: 2),
                           Text(
                             rating.toStringAsFixed(1),

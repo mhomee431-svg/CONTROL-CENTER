@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_app/core/performance/debouncer.dart';
@@ -80,32 +81,43 @@ ProviderContainer _boot(_SuggestionSpy repo) {
 
 void main() {
   group('search input debounce', () {
-    test('a burst of keystrokes produces exactly one request', () async {
+    test('a burst of keystrokes produces exactly one request', () {
       final repo = _SuggestionSpy();
       final container = _boot(repo);
       final debouncer = Debouncer(delay: const Duration(milliseconds: 20));
       addTearDown(debouncer.dispose);
 
-      // "D", "Do", "Dov", "Dove" typed at normal speed.
-      for (final partial in ['D', 'Do', 'Dov', 'Dove']) {
-        container.read(searchQueryProvider.notifier).onTextChanged(partial);
-        debouncer.run(
-          () => container
-              .read(searchQueryProvider.notifier)
-              .debouncedTextChanged(partial),
-        );
-        expect(
-          container.read(searchQueryProvider).query,
-          partial,
-          reason: 'the text field must echo each keystroke right away',
-        );
-      }
+      // Drives the debounce on a VIRTUAL clock.
+      //
+      // This test used to sleep 60ms of real time and hope the 20ms timer had
+      // fired. Under parallel execution -- the suite runs files concurrently --
+      // the machine can be busy enough that the timer has not fired by the time
+      // the assertion runs, and the test fails having proved nothing.
+      // `fakeAsync` makes "the debounce elapsed" an exact, instant event, so
+      // this tests the debounce rather than the scheduler.
+      fakeAsync((async) {
+        // "D", "Do", "Dov", "Dove" typed at normal speed.
+        for (final partial in ['D', 'Do', 'Dov', 'Dove']) {
+          container.read(searchQueryProvider.notifier).onTextChanged(partial);
+          debouncer.run(
+            () => container
+                .read(searchQueryProvider.notifier)
+                .debouncedTextChanged(partial),
+          );
+          expect(
+            container.read(searchQueryProvider).query,
+            partial,
+            reason: 'the text field must echo each keystroke right away',
+          );
+        }
 
-      await Future<void>.delayed(const Duration(milliseconds: 60));
+        // Cross the debounce interval.
+        async.elapse(const Duration(milliseconds: 25));
 
-      expect(repo.requestedQueries, [
-        'Dove',
-      ], reason: 'only the settled query may reach the network');
+        expect(repo.requestedQueries, [
+          'Dove',
+        ], reason: 'only the settled query may reach the network');
+      });
     });
 
     test('a settled query below two characters is never requested', () async {

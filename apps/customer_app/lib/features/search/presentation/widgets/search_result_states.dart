@@ -57,6 +57,10 @@ class SearchLoadingView extends StatelessWidget {
           child: SkeletonList(
             itemCount: skeletonRows,
             padding: const EdgeInsets.all(AppSpacing.md),
+            // Results are offer cards — a photo, name, price and freshness. The
+            // default already is this shape; naming it keeps the search journey
+            // honest if the default ever changes.
+            shape: SkeletonRowShape.product,
           ),
         ),
         SlowLoadNotice(

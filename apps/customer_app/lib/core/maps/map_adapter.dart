@@ -319,12 +319,12 @@ class StubMapAdapter implements MapAdapter {
           const Positioned(
             top: 20,
             left: 20,
-            child: Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
+            child: Icon(Icons.person_pin_circle, color: AppColors.primary, size: 40),
           ),
           const Positioned(
             bottom: 40,
             right: 40,
-            child: Icon(Icons.location_on, color: Colors.red, size: 40),
+            child: Icon(Icons.location_on, color: AppColors.error, size: 40),
           ),
           // Show API key presence (empty = not configured)
           if (EnvConfig.mapsApiKey.isEmpty)
@@ -366,7 +366,7 @@ class StubMapAdapter implements MapAdapter {
               children: [
                 const Icon(
                   Icons.person_pin_circle,
-                  color: Colors.blue,
+                  color: AppColors.primary,
                   size: 40,
                 ),
                 const SizedBox(width: 8),
@@ -381,7 +381,7 @@ class StubMapAdapter implements MapAdapter {
             Positioned(
               left: 40.0 + (i % 3) * 70,
               bottom: 40.0 + (i ~/ 3) * 55,
-              child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+              child: const Icon(Icons.location_on, color: AppColors.error, size: 40),
             ),
           if (EnvConfig.mapsApiKey.isEmpty)
             const Positioned(

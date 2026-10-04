@@ -37,6 +37,43 @@
             <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Deep links (app_links).
+                 Two filters, and the split is deliberate: Android matches an
+                 intent filter when EVERY <data> constraint is satisfied, so a
+                 single filter carrying both a custom scheme and an https host
+                 would demand a link that is BOTH passly:// and https:// — which
+                 no link ever is, and the app would silently never open one.
+                 Separate filters express "either shape is a link". -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Custom scheme, shared by the app's own share sheet. -->
+                <data android:scheme="passly" />
+            </intent-filter>
+            <!-- Universal links (app_links).
+                 `autoVerify` asks Google to host the assetlinks.json proof; until
+                 that file is served the link still opens, just with a
+                 disambiguation dialog.
+
+                 The host is deliberately NOT hardcoded. The share origin is a
+                 per-build dart-define (SHARE_BASE_URL, see
+                 `ShareLinkConfig`), so a build that points sharing at a staging
+                 or preview origin must not have its links silently swallowed by
+                 a production host baked into the manifest. Android matches these
+                 <data> filters case-insensitively on host, and a leading `*.`
+                 wildcard covers passly.app, www., staging. and any other
+                 subdomain without enumerating them. A link for a host outside
+                 the domain falls through to the browser, which is the correct
+                 outcome for a link this app does not serve. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="*.passly.app" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

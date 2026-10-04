@@ -29,14 +29,36 @@ class ListLoadingView extends StatelessWidget {
   /// through placeholders.
   final int rows;
 
-  const ListLoadingView({super.key, this.message, this.onRetry, this.rows = 4});
+  /// The shape this screen's rows actually have.
+  ///
+  /// Required to be a deliberate choice per screen: the default matches a
+  /// product card, which is right for the search and saved lists and wrong
+  /// everywhere else. Passing it here rather than letting each screen build its
+  /// own keeps the bounded [SlowLoadNotice] behaviour that every list screen
+  /// depends on.
+  final SkeletonRowShape shape;
+
+  /// Overrides the row height [SkeletonRowShape] would use. Normally null —
+  /// prefer letting the shape name its own height over repeating a magic number.
+  final double? rowHeight;
+
+  const ListLoadingView({
+    super.key,
+    this.message,
+    this.onRetry,
+    this.rows = 4,
+    this.shape = SkeletonRowShape.product,
+    this.rowHeight,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: SkeletonList(itemCount: rows)),
+        Expanded(
+          child: SkeletonList(itemCount: rows, shape: shape, rowHeight: rowHeight),
+        ),
         if (message != null)
           SlowLoadNotice(message: message!, onRetry: onRetry)
         else

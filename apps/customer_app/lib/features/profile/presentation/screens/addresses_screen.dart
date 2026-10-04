@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,6 +31,9 @@ class AddressesScreen extends ConsumerWidget {
         // an address does not need the existing ones to have arrived.
         loading: () => ListLoadingView(
           message: 'Loading your addresses…',
+          // `ListTile`s with a circular icon leading — the same silhouette the
+          // loaded cards have, so nothing shifts when they arrive.
+          shape: SkeletonRowShape.tile,
           onRetry: () =>
               ref.read(addressesControllerProvider.notifier).refresh(),
         ),

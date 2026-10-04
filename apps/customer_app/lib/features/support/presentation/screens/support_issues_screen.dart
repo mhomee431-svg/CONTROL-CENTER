@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/list_loading_view.dart';
+import '../../../auth/presentation/controllers/post_login_destination.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 import '../controllers/support_issues_controller.dart';
 
@@ -112,7 +114,12 @@ class _SupportIssuesScreenState extends ConsumerState<SupportIssuesScreen> {
             'progress. Sign in and they will be right here.',
         actionLabel: 'Sign in',
         actionIcon: Icons.login,
-        onActionTap: () => context.push('/login'),
+        onActionTap: () {
+          // Returning the customer to the support screen after sign-in, with
+          // their draft issue still reachable, beats dropping them on Home.
+          rememberPostLoginDestination(ref, GoRouterState.of(context).uri.path);
+          context.push('/login');
+        },
       );
     }
 
@@ -123,6 +130,8 @@ class _SupportIssuesScreenState extends ConsumerState<SupportIssuesScreen> {
       // this: there is nothing yet to pull.
       loading: () => ListLoadingView(
         message: 'Loading your reports…',
+        // Report cards: reference + status chip + a description, and no image.
+        shape: SkeletonRowShape.issue,
         onRetry: () => ref.invalidate(supportIssuesProvider),
       ),
       // A failed read is a RETRY, never an empty state — telling a customer

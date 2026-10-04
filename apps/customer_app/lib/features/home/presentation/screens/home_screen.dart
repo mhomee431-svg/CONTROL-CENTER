@@ -12,10 +12,8 @@ import '../widgets/recent_searches_section.dart';
 import '../widgets/product_row_section.dart';
 import '../widgets/nearby_shops_section.dart';
 import '../widgets/saved_shops_section.dart';
-import '../screens/coming_soon_screen.dart';
 import '../../../location/presentation/controllers/location_controller.dart';
-import '../../../../core/network/api_error_handler.dart';
-import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/error_state.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -66,11 +64,15 @@ class HomeScreen extends ConsumerWidget {
               ),
               homeDataAsync.when(
                 data: (data) {
-                  // Phase 11: If the auto-detected location has no shops,
-                  // show a "Coming Soon" screen instead of an empty home.
-                  if (data.nearbyShops.isEmpty) {
-                    return const SliverToBoxAdapter(child: ComingSoonScreen());
-                  }
+                  // An empty `nearbyShops` is ONE empty section, not an empty
+                  // app. This used to short-circuit the whole feed to
+                  // `ComingSoonScreen`, which (a) replaced every other section
+                  // the backend had already returned — categories, popular and
+                  // recommended products all vanished because no shop happened
+                  // to be nearby — and (b) made the three recovery actions in
+                  // `NearbyShopsSection` unreachable dead code, since the section
+                  // itself never got built. The feed now always renders and the
+                  // section owns its own empty state.
                   return SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       // Order follows the discovery spec. Each section
@@ -130,8 +132,9 @@ class HomeScreen extends ConsumerWidget {
                 loading: () =>
                     const SliverToBoxAdapter(child: HomeSkeletonLoader()),
                 error: (error, stack) => SliverToBoxAdapter(
-                  child: _HomeErrorView(
-                    error: error,
+                  child: ErrorState.fromApi(
+                    error,
+                    title: 'Unable to load your home feed',
                     onRetry: () => ref.refresh(homeControllerProvider.future),
                   ),
                 ),
@@ -140,25 +143,6 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _HomeErrorView extends StatelessWidget {
-  final Object error;
-  final VoidCallback onRetry;
-
-  const _HomeErrorView({required this.error, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return EmptyStateView(
-      icon: Icons.cloud_off,
-      title: 'Failed to load feed',
-      // User-safe copy; raw exception text never reaches the UI.
-      message: friendlyErrorMessage(error),
-      actionLabel: 'Try Again',
-      onActionTap: onRetry,
     );
   }
 }

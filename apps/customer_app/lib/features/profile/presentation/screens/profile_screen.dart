@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../auth/presentation/controllers/post_login_destination.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/slow_load_notice.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../domain/models/user_profile.dart';
 import '../controllers/profile_controller.dart';
 
@@ -33,23 +35,42 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
       body: profileAsync.when(
-        // A single record, not a list: a spinner is the honest shape here (a
-        // five-row skeleton would promise content that does not exist), but it
-        // is BOUNDED — past the threshold it says so and offers a real re-read
-        // instead of spinning unexplained.
-        loading: () => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator.adaptive(),
-              SlowLoadNotice(
-                message: 'Your profile is taking longer to load.',
-                onRetry: () =>
-                    ref.read(profileControllerProvider.notifier).refresh(),
+        // The page's real shape, not a spinner. A bare centred spinner says
+        // only "wait" and then makes the customer watch the avatar, name and
+        // the whole run of tiles assemble from nothing on arrival. These blocks
+        // occupy the same space the real content will, so the swap is invisible.
+        //
+        // The old comment here claimed "a spinner is the honest shape here (a
+        // five-row skeleton would promise content that does not exist)". That
+        // was half right — a five-ROW skeleton would have lied — but the page
+        // is not shapeless, and the fix is to mirror the page's real silhouette,
+        // not to keep spinning.
+        //
+        // [SlowLoadNotice] is kept beneath it: a skeleton removes the "is
+        // anything happening?" question but must NOT remove the "can I do
+        // anything about it?" one. Past its threshold it still appears with a
+        // real re-read.
+        loading: () =>
+              Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      children: const [
+                        SkeletonProfileHeader(),
+                        SizedBox(height: AppSpacing.lg),
+                        Divider(),
+                        SkeletonTileList(rows: 6),
+                      ],
+                    ),
+                  ),
+                  SlowLoadNotice(
+                    message: 'Your profile is taking longer to load.',
+                    onRetry: () =>
+                        ref.read(profileControllerProvider.notifier).refresh(),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
         error: (_, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -367,7 +388,16 @@ class _GuestHeader extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             ElevatedButton.icon(
               key: const Key('guestSignInButton'),
-              onPressed: () => context.push('/login'),
+              onPressed: () {
+                // A guest signing in from Profile expects to come back to
+                // Profile, where their saved lists and orders are now
+                // populated — not to Home, having lost the context.
+                rememberPostLoginDestination(
+                  ref,
+                  GoRouterState.of(context).uri.path,
+                );
+                context.push('/login');
+              },
               icon: const Icon(Icons.login),
               label: const Text('Sign In'),
             ),

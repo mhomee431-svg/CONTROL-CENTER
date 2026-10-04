@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -79,6 +80,9 @@ class _CustomerFavoritesScreenState
               // offers a real re-read rather than an unexplained spinner.
               loading: () => ListLoadingView(
                 message: 'Loading your favourites…',
+                // `Card` + `ListTile` with a small square image, title, type
+                // subtitle and a remove button.
+                shape: SkeletonRowShape.mediaTile,
                 onRetry: _refresh,
               ),
               error: (err, st) => const Center(

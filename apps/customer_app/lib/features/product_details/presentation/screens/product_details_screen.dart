@@ -11,6 +11,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/product_share.dart';
 import '../../../../core/widgets/slow_load_notice.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../../../core/widgets/stale_data_notice.dart';
 import '../widgets/product_image_gallery.dart';
 import '../widgets/product_master_section.dart';
@@ -186,12 +187,11 @@ class _ProductLoadingView extends StatelessWidget {
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        // Image placeholder
-        Container(
-          height: 240,
-          color: Colors.grey.shade200,
-          child: const Center(child: CircularProgressIndicator.adaptive()),
-        ),
+        // Image placeholder. A SHIMMERING BLOCK, not a spinner on a grey rectangle:
+        // the spinner said "fetching" while sitting inside a box that already
+        // looked like the photo's final position, so the two layers fought each
+        // other. A shimmer block is one honest shape for one arriving photo.
+        const SkeletonBox(height: 240, radius: 0),
         Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(

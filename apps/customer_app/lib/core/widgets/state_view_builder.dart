@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../network/api_error_handler.dart';
 import '../theme/app_theme.dart';
+import 'skeletons.dart';
 
 class StateViewBuilder<T> extends StatelessWidget {
   final bool isLoading;
@@ -28,19 +29,14 @@ class StateViewBuilder<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator.adaptive(),
-            SizedBox(height: AppSpacing.md),
-            Text(
-              'Loading details...',
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      );
+      // A LIST of [T] is arriving, so the placeholder is a list of rows — not a
+      // centred spinner. This used to render `CircularProgressIndicator` +
+      // "Loading details...", which told the customer nothing about what was
+      // coming and then made the whole screen re-layout when it arrived.
+      // `product` is the right shape because the shape a caller passes here is
+      // its own row shape; callers wanting a different one should reach for
+      // `ListLoadingView`, which takes it explicitly.
+      return const SkeletonList(itemCount: 4, shape: SkeletonRowShape.product);
     }
 
     if (error != null) {

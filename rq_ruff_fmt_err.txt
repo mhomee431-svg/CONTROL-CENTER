@@ -1,0 +1,11 @@
+
+error: Ruff crashed. If you could open an issue at:
+
+    https://github.com/astral-sh/ruff/issues/new?title=%5BPanic%5D
+
+...quoting the executed command, along with the relevant file contents and `pyproject.toml` settings, we'd be very appreciative!
+
+
+thread 'main' (9372) panicked at crates\ruff_annotate_snippets\src\renderer\source_map.rs:185:13:
+Annotation range `0..2822` is beyond the end of buffer `2820`
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

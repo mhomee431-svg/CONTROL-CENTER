@@ -177,16 +177,10 @@ class _WelcomeVisual extends ConsumerWidget {
                       horizontal: AppSpacing.md,
                       vertical: 14,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: appCardDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x1A000000),
-                          blurRadius: 20,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
+                      radius: AppRadius.lg,
+                      shadow: AppShadows.raised,
                     ),
                     child: Row(
                       children: [

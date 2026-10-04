@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/skeletons.dart';
+import '../../../../core/widgets/error_state.dart';
 import '../../domain/models/search_models.dart';
 import '../../domain/search_event_tracker.dart';
 import '../controllers/search_controller.dart';
@@ -70,15 +72,21 @@ class SearchSuggestionsList extends ConsumerWidget {
             showLoadingIndicator: true,
           );
         }
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: CircularProgressIndicator.adaptive(),
-          ),
+        // A list of suggestion tiles is arriving, so the placeholder is
+        // suggestion rows. A lone centred spinner here said nothing about what
+        // was coming and left the whole panel to assemble on arrival.
+        return const Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: SkeletonList(itemCount: 5, shape: SkeletonRowShape.tile),
         );
       },
-      error: (err, stack) => _SuggestionError(
-        message: '$err',
+      // Was `_SuggestionError(message: '$err')`, which printed the raw exception as
+      // the body. The shared ErrorState resolves it through
+      // `friendlyErrorMessage` instead, and hides Retry for failures where
+      // retrying could never work.
+      error: (err, stack) => ErrorState.fromApi(
+        err,
+        title: 'Unable to load suggestions',
         onRetry: () {
           // Force re-fetch by invalidating the provider.
           ref.invalidate(suggestionsProvider);
@@ -298,45 +306,6 @@ class _NoSuggestions extends StatelessWidget {
               'No suggestions found for "$query"',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SuggestionError extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _SuggestionError({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.cloud_off, size: 64, color: AppColors.textMuted),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Failed to load suggestions',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
             ),
           ],
         ),

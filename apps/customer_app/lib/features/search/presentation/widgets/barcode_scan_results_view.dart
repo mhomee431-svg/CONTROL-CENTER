@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../domain/barcode_capability.dart';
 import '../../domain/models/search_models.dart';
@@ -44,18 +45,11 @@ class BarcodeScanResultsView extends ConsumerWidget {
     final routeMissing = ref.watch(barcodeSupportProvider).isHidden;
 
     return lookup.when(
-      loading: () => const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator.adaptive(),
-            SizedBox(height: AppSpacing.md),
-            Text(
-              'Looking for shops near you…',
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
+      // Shops are arriving: a list, so a list placeholder. The old centred spinner
+      // told the customer only "wait" and then rebuilt the panel from nothing.
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: SkeletonList(itemCount: 4, shape: SkeletonRowShape.product),
       ),
       error: (error, _) {
         // The route does not exist here: retrying is not a way forward, and the

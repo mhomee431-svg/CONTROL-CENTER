@@ -5,6 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../domain/home_repository.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/list_loading_view.dart';
+import '../../../../core/widgets/error_state.dart';
+// `SkeletonRowShape.tile` is named below to match the `ListTile`s this screen
+// actually renders (circular leading avatar). It lives in `skeletons.dart`,
+// which `list_loading_view.dart` imports but does not re-export, so naming the
+// shape requires importing the defining library directly — the same way
+// `my_orders_screen.dart` and the other list screens do.
+import '../../../../core/widgets/skeletons.dart';
 
 /// Shops that serve a manually-entered 6-digit area pin code. Data access
 /// lives in [HomeRepository] (repository rule: screens never call the API).
@@ -71,9 +78,19 @@ class SearchResultsByPinScreen extends ConsumerWidget {
         },
         loading: () => ListLoadingView(
           message: 'Loading shops for this pin…',
+          // Rows here are `ListTile`s with a circular shop avatar and a divider
+          // between them, not the product cards the search list uses.
+          shape: SkeletonRowShape.tile,
           onRetry: () => ref.invalidate(shopsByPinProvider(pin)),
         ),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+        // Was `Text('Error: $error')`, which printed the raw exception — status
+        // code, request path and all — straight to the customer. The headline
+        // names what failed; the body is the safe message.
+        error: (error, stack) => ErrorState.fromApi(
+          error,
+          title: 'Unable to load shops for this pin',
+          onRetry: () => ref.invalidate(shopsByPinProvider(pin)),
+        ),
       ),
     );
   }

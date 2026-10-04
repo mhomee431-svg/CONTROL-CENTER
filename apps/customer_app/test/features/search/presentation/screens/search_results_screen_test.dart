@@ -168,6 +168,66 @@ void main() {
       expect(afterReturn.stage, SearchStage.results);
     });
 
+    testWidgets(
+      'the whole Search-Filter-Product-Back round trip keeps all three',
+      (tester) async {
+        // The three pieces of temporary state the customer set, asserted together
+        // because that is the flow they actually perform. Each is covered
+        // individually elsewhere; this is the one that proves the COMBINATION
+        // survives, which is what "back should not lose my search" means.
+        final container = newContainer();
+        addTearDown(container.dispose);
+
+        // 1. Search: the customer types and submits.
+        container
+            .read(searchQueryProvider.notifier)
+            .debouncedTextChanged('Dove Shampoo');
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: SearchResultsScreen(query: 'Dove Shampoo'),
+            ),
+          ),
+        );
+        await settle(tester);
+
+        // 2. Filter and sort.
+        container
+            .read(searchResultsProvider('Dove Shampoo').notifier)
+            .updateFilters({'in_stock': true});
+        await settle(tester);
+        container
+            .read(searchResultsProvider('Dove Shampoo').notifier)
+            .updateSort(SortOption.lowestPrice);
+        await settle(tester);
+
+        // 3. Product: the results screen is torn down (what a push does).
+        await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+        await settle(tester);
+
+        // 4. Back: the results screen is rebuilt, as a pop does.
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: SearchResultsScreen(query: 'Dove Shampoo'),
+            ),
+          ),
+        );
+        await settle(tester);
+
+        // The typed query...
+        expect(container.read(searchQueryProvider).query, 'Dove Shampoo');
+        // ...the filter...
+        final state = container.read(searchResultsProvider('Dove Shampoo'));
+        expect(state.filters['in_stock'], true);
+        // ...and the sort all came back.
+        expect(state.sort, SortOption.lowestPrice);
+      },
+    );
+
     testWidgets('a different query does not inherit the previous filters', (
       tester,
     ) async {

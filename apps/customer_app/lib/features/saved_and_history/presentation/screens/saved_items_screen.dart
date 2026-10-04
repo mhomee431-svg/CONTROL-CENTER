@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/list_loading_view.dart';
+import '../../../../core/widgets/skeletons.dart';
 
 /// Index of the tab each deep-link target opens.
 ///
@@ -165,9 +166,13 @@ class _SavedProductsTab extends ConsumerWidget {
         );
       },
       // Each tab is a LIST, so the placeholder is the list: the layout does
-      // not jump when the rows land, and the wait is bounded below.
-      loading: () =>
-          const ListLoadingView(message: 'Loading your saved items…'),
+      // not jump when the rows land, and the wait is bounded below. Each tab
+      // names its own row shape — they are not interchangeable, and a card row
+      // in the history tab would reserve three lines per query it never uses.
+      loading: () => const ListLoadingView(
+        message: 'Loading your saved items…',
+        shape: SkeletonRowShape.mediaTile,
+      ),
       error: (err, _) => Center(child: Text(friendlyErrorMessage(err))),
     );
   }
@@ -245,8 +250,11 @@ class _SavedShopsTab extends ConsumerWidget {
       },
       // Each tab is a LIST, so the placeholder is the list: the layout does
       // not jump when the rows land, and the wait is bounded below.
-      loading: () =>
-          const ListLoadingView(message: 'Loading your saved items…'),
+      loading: () => const ListLoadingView(
+        message: 'Loading your saved items…',
+        // Saved shops: small square image, name, address + rating, remove button.
+        shape: SkeletonRowShape.mediaTile,
+      ),
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -347,8 +355,11 @@ class _RecentSearchesTab extends ConsumerWidget {
       },
       // Each tab is a LIST, so the placeholder is the list: the layout does
       // not jump when the rows land, and the wait is bounded below.
-      loading: () =>
-          const ListLoadingView(message: 'Loading your saved items…'),
+      loading: () => const ListLoadingView(
+        message: 'Loading your saved items…',
+        // Search history: ONE line per query plus a close button, divided by hairlines.
+        shape: SkeletonRowShape.history,
+      ),
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -456,8 +467,11 @@ class _RecentlyViewedTab extends ConsumerWidget {
       },
       // Each tab is a LIST, so the placeholder is the list: the layout does
       // not jump when the rows land, and the wait is bounded below.
-      loading: () =>
-          const ListLoadingView(message: 'Loading your saved items…'),
+      loading: () => const ListLoadingView(
+        message: 'Loading your saved items…',
+        // Recently viewed products: small square image, name, price, close button.
+        shape: SkeletonRowShape.mediaTile,
+      ),
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -569,8 +583,11 @@ class _RecentlyViewedShopsTab extends ConsumerWidget {
       },
       // Each tab is a LIST, so the placeholder is the list: the layout does
       // not jump when the rows land, and the wait is bounded below.
-      loading: () =>
-          const ListLoadingView(message: 'Loading your saved items…'),
+      loading: () => const ListLoadingView(
+        message: 'Loading your saved items…',
+        // Recently viewed shops: small square image, name, address + rating, close button.
+        shape: SkeletonRowShape.mediaTile,
+      ),
       error: (err, _) =>
           Center(child: Text('Error loading recently viewed shops: $err')),
     );

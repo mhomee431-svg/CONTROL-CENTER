@@ -67,6 +67,7 @@ dependencies:
   # Shared platform models (API envelope, pagination) — one source of truth
   hyperlocal_shared_models:
     path: ../../packages/shared_models
+  app_links: ^7.2.1
 
 dev_dependencies:
   flutter_test:

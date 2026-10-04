@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/error_state.dart';
 import '../../../../core/widgets/list_loading_view.dart';
 import '../../domain/models/app_notification.dart';
 import '../controllers/deep_link_handler.dart';
@@ -72,10 +74,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       body: notificationsAsync.when(
         loading: () => ListLoadingView(
           message: 'Loading your notifications…',
+          // Alerts are circular-icon ListTiles divided by hairlines, with no
+          // image at all — the product-card row would promise a photo here.
+          shape: SkeletonRowShape.tile,
           onRetry: () =>
               ref.read(notificationsControllerProvider.notifier).refresh(),
         ),
-        error: (error, _) => _ErrorStateView(
+        error: (error, _) => ErrorState.fromApi(
+          error,
+          title: 'Unable to load notifications',
+          retryButtonKey: const Key('notificationsRetryButton'),
           onRetry: () =>
               ref.read(notificationsControllerProvider.notifier).refresh(),
         ),
@@ -224,49 +232,6 @@ class _FilteredEmptyView extends StatelessWidget {
       actionLabel: 'Show all notifications',
       actionIcon: Icons.filter_alt_off_outlined,
       onActionTap: onClearFilter,
-    );
-  }
-}
-
-class _ErrorStateView extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _ErrorStateView({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 64,
-              color: AppColors.error,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Couldn\'t load notifications',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'Something went wrong. Please check your connection and try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            ElevatedButton.icon(
-              key: const Key('notificationsRetryButton'),
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

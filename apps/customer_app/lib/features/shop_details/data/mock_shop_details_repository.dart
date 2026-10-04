@@ -18,21 +18,42 @@ class MockShopDetailsRepository implements ShopDetailsRepository {
   /// mock — keyed by provider id.
   final Map<String, TransportQuoteReceipt> quoteReceipts;
 
-  MockShopDetailsRepository({Map<String, TransportQuoteReceipt>? quoteReceipts})
-    : quoteReceipts =
-          quoteReceipts ??
-          const {
-            '9001': TransportQuoteReceipt(
-              quoteId: 'Q-9001',
-              status: 'REQUESTED',
-            ),
-          };
+  MockShopDetailsRepository({
+    Map<String, TransportQuoteReceipt>? quoteReceipts,
+    this.latency = const Duration(milliseconds: 700),
+  }) : quoteReceipts =
+           quoteReceipts ??
+           const {
+             '9001': TransportQuoteReceipt(
+               quoteId: 'Q-9001',
+               status: 'REQUESTED',
+             ),
+           };
+
+  /// Artificial latency for the profile read.
+  ///
+  /// WHY IT IS INJECTABLE
+  /// --------------------
+  /// Flutter widget tests run under fake async, where `Future.delayed` only
+  /// completes when the test advances the clock itself. A hard-coded latency
+  /// means `pumpAndSettle` returns while the screen is STILL on its loading
+  /// skeleton, so an assertion about the loaded or error state fails against
+  /// perfectly correct code.
+  ///
+  /// [Duration.zero] skips the timer outright so the future settles in the
+  /// same microtask. Tests that deliberately inspect the loading state pass a
+  /// non-zero value and pump a bounded amount. This mirrors
+  /// [MockProfileRepository.delay].
+  final Duration latency;
+
+  /// Simulated round trip, skipped entirely when zero.
+  Future<void> _simulateNetwork() async {
+    if (latency > Duration.zero) await Future<void>.delayed(latency);
+  }
 
   @override
   Future<ShopProfile> getShopProfile(String shopId) async {
-    await Future.delayed(
-      const Duration(milliseconds: 700),
-    ); // Network simulation
+    await _simulateNetwork();
 
     if (shopId == 'error') throw Exception('Failed to connect to server');
     if (shopId == 'unavailable') {

@@ -80,16 +80,17 @@ void main() {
     expect(find.byKey(const Key('inventorySearchAnotherArea')), findsOneWidget);
     // The first request is the BACKEND default; the label names what the NEXT
     // one will be, not what the current one is.
-    expect(find.text('Search within 10 km'), findsOneWidget);
+    expect(find.text('Search within 25 km'), findsOneWidget);
     expect(currentRadius(tester), isNull);
   });
 
-  testWidgets('widen steps 10 -> 25 -> 50 -> 100 and then stops', (
-    tester,
-  ) async {
+  testWidgets('widen steps 25 -> 50 -> 100 and then stops', (tester) async {
     await _pump(tester);
 
-    for (final expected in [10.0, 25.0, 50.0, 100.0]) {
+    // The first load used the backend default (10 km), so the ladder the
+    // customer walks is 25 → 50 → 100. Stepping to 10 would re-issue the very
+    // query that just came back empty.
+    for (final expected in [25.0, 50.0, 100.0]) {
       await tester.tap(find.byKey(const Key('inventorySearchWider')));
       await tester.pumpAndSettle();
       expect(
@@ -106,12 +107,12 @@ void main() {
 
   testWidgets('widen repaints its own label', (tester) async {
     await _pump(tester);
-    expect(find.text('Search within 10 km'), findsOneWidget);
+    expect(find.text('Search within 25 km'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('inventorySearchWider')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Search within 25 km'), findsOneWidget);
+    expect(find.text('Search within 50 km'), findsOneWidget);
   });
 
   testWidgets('change location opens the picker', (tester) async {

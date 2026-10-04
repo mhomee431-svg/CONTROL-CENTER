@@ -63,7 +63,28 @@ class ApiEndpoints {
 
   // --- Shops ---
   static const String nearbyShops = '/shops/nearby';
-  static String shop(String id) => '/shops/$id';
+
+  /// The CUSTOMER-facing shop profile.
+  ///
+  /// WHY `/shops/public/...` AND NOT `/shops/...`
+  /// -------------------------------------------
+  /// The backend offers two shop routes, and they are NOT interchangeable:
+  ///
+  ///  * `/shops/public/{id}` returns `ShopPublicResponse` — a deliberate
+  ///    allowlist, and it 404s unless the shop is ACTIVE/VERIFIED, so an
+  ///    unverified or deleted shop is invisible to customers.
+  ///  * `/shops/{id}` returns `ShopDetailResponse`, which extends the shop row
+  ///    with `owners`, `managers`, `verifications` and `documents` — the
+  ///    shopkeeper's private roster, verification paperwork and internal
+  ///    workflow state. It is unauthenticated and has no visibility gate.
+  ///
+  /// The customer app previously called the second one. Nothing displayed those
+  /// fields — but "the UI ignores it" is not a security control: the data
+  /// reached the device and sat in the JSON, one DevTools tab or proxy away.
+  /// Hiding a field on the client is not the same as never sending it, so the
+  /// fix belongs in the endpoint the app asks for, not in a parser.
+  static String shop(String id) => '/shops/public/$id';
+
   static String shopProducts(String id) => '/shops/$id/products';
 
   // --- Restaurants (Master Spec §27: discovery-only) ---

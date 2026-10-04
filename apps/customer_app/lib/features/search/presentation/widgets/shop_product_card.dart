@@ -254,7 +254,7 @@ class ShopProductCard extends StatelessWidget {
                           const SizedBox(width: AppSpacing.sm),
                         ],
                         if (result.isRated) ...[
-                          const Icon(Icons.star, size: 14, color: Colors.amber),
+                          const Icon(Icons.star, size: 14, color: AppColors.warning),
                           const SizedBox(width: 2),
                           Text(
                             result.shopRating.toStringAsFixed(1),
@@ -419,11 +419,11 @@ class _AvailabilityBadge extends StatelessWidget {
     if (result.availability == InventoryAvailability.lowStock) {
       return const Row(
         children: [
-          Icon(Icons.inventory_2, size: 14, color: Colors.orange),
+          Icon(Icons.inventory_2, size: 14, color: AppColors.warning),
           SizedBox(width: 2),
           Text(
             'Low Stock',
-            style: TextStyle(fontSize: 11, color: Colors.orange),
+            style: TextStyle(fontSize: 11, color: AppColors.warning),
           ),
         ],
       );

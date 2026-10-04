@@ -88,5 +88,43 @@ void main() {
       expect(await cache.get('a'), isNull);
       expect(await cache.get('b'), isNull);
     });
+
+    test('clear leaves data it does not own alone', () async {
+      // THE regression this locks. `clear()` used to call `_storage.clear()`,
+      // which wiped EVERY SharedPreferences key — so evicting a cache silently
+      // destroyed the customer's theme, language, analytics switches, onboarding
+      // flag and saved items. A cache clear must only ever touch its own slice.
+      await storage.setString('theme_mode', 'dark');
+      await storage.setString('saved_products_v1', '["milk"]');
+      await storage.setString('has_onboarded', 'true');
+
+      await cache.put('a', 1);
+      await cache.clear();
+
+      expect(await cache.get('a'), isNull, reason: 'cache entry is evicted');
+      expect(
+        await storage.getString('theme_mode'),
+        'dark',
+        reason: 'theme is not the cache business',
+      );
+      expect(
+        await storage.getString('saved_products_v1'),
+        '["milk"]',
+        reason: 'saved items must survive a cache clear',
+      );
+      expect(
+        await storage.getString('has_onboarded'),
+        'true',
+        reason: 'onboarding must survive a cache clear',
+      );
+    });
+
+    test('cache keys are namespaced so they can be told apart', () async {
+      // The prefix is what makes the selective eviction above possible at all.
+      await cache.put('home_feed', 1);
+      final keys = await storage.keys();
+      expect(keys.where((k) => k.startsWith('cache_v1_')), hasLength(1));
+      expect(keys, contains('cache_v1_home_feed'));
+    });
   });
 }

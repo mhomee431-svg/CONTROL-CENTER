@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/network/api_client.dart';
 import 'core/router/app_router.dart';
+import 'core/router/os_deep_link_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/notifications/data/device_token_coordinator.dart';
@@ -43,6 +44,17 @@ class HyperlocalApp extends ConsumerWidget {
     // Replays a notification tap (background or terminated state) once the
     // router's splash/onboarding/auth gates have cleared.
     ref.watch(pendingDeepLinkDrainProvider);
+    // Subscribes to OPERATING-SYSTEM deep links — a shared product URL or a
+    // marketing link opened from a browser. This is what makes
+    // `deep_link_guard` + `DeepLinkLauncher` reachable at all: they were built
+    // and tested for exactly this, but until something handed them a platform
+    // URL the whole subsystem sat unused.
+    //
+    // Order matters. The service subscribes and queues links; the drain above
+    // replays them. Both must be watched, and neither navigates directly — the
+    // service only feeds the queue, and the queue only replays once the gates
+    // are clear.
+    ref.watch(osDeepLinkServiceProvider);
 
     // ── Phase 9: personalization sync across auth transitions ──────────
     // ── Phase 10: device-token registration across auth transitions ────
@@ -79,6 +91,29 @@ class HyperlocalApp extends ConsumerWidget {
         // Forget the sort/filter choices remembered for each search. They are
         // session UI state, not device history, so they must not carry over to
         // whoever signs in next.
+        ref.read(searchQueryPreferencesProvider).clear();
+      } else if (next.status == AuthStatus.sessionExpired) {
+        // ── Expiry, not logout ──────────────────────────────────────────
+        // The branch above is keyed on `previous == authenticated`, which is
+        // the wrong trigger for an expiry and left the account's cached data on
+        // the device. Two realistic paths never reach it:
+        //
+        //  * The app was backgrounded while signed in and a request 401s
+        //    before any rebuild restores the visible authenticated state, so
+        //    `previous` is whatever the last frame showed (often `guest`).
+        //  * The customer is already on a public screen (still
+        //    `sessionExpired` → no transition) and expiry fires again.
+        //
+        // In both cases the favourites cache, push registration and queued
+        // alerts from the dead account survived. A different customer signing
+        // in on the same device would then see them. So expiry purges the same
+        // private state as logout, independent of the previous status.
+        unawaited(
+          LocalSavedAndHistoryRepository(ref.read(localStorageDriverProvider))
+              .purgeSyncedEntries(),
+        );
+        unawaited(ref.read(deviceTokenCoordinatorProvider).handleLogout());
+        ref.read(inAppNotificationControllerProvider.notifier).clear();
         ref.read(searchQueryPreferencesProvider).clear();
       }
     });

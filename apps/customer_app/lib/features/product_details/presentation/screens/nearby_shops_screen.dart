@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,6 +12,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/location/discovery_radius.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/error_state.dart';
 import '../../../../core/widgets/list_loading_view.dart';
 import '../../../../core/widgets/shop_open_closed_badge.dart';
 
@@ -45,15 +47,20 @@ class _NearbyShopsScreenState extends ConsumerState<NearbyShopsScreen> {
         // radius the customer has already widened to.
         loading: () => ListLoadingView(
           message: 'Finding shops near you…',
+          // Offer cards: a shop photo, its name and distance, and the price on
+          // the right — the product-card silhouette.
+          shape: SkeletonRowShape.product,
           onRetry: () =>
               ref.invalidate(productDetailsProvider(widget.productId)),
         ),
-        error: (err, stack) => EmptyStateView(
-          icon: Icons.error_outline,
-          title: 'Failed to load nearby shops',
-          message: '$err',
-          actionLabel: 'Try Again',
-          onActionTap: () =>
+        // Was `message: '$err'`, which printed the raw exception as the body. The
+        // headline already says what failed, so only the safe message rides
+        // along. `fromApi` also hides Retry for a 404/403/422, where retrying
+        // could never work.
+        error: (err, stack) => ErrorState.fromApi(
+          err,
+          title: 'Unable to load nearby shops',
+          onRetry: () =>
               ref.refresh(productDetailsProvider(widget.productId)),
         ),
       ),
@@ -296,7 +303,7 @@ class _NearbyShopCard extends StatelessWidget {
                         color: !offer.isAvailable
                             ? AppColors.error.withValues(alpha: 0.1)
                             : stale
-                            ? Colors.orange.withValues(alpha: 0.1)
+                            ? AppColors.warningSurface
                             : AppColors.secondary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -308,7 +315,7 @@ class _NearbyShopCard extends StatelessWidget {
                           color: !offer.isAvailable
                               ? AppColors.error
                               : stale
-                              ? Colors.orange.shade800
+                              ? AppColors.warning
                               : AppColors.secondary,
                         ),
                       ),

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/view/load_state.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/list_loading_view.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 import '../../domain/models/business_profile_models.dart';
 import '../controllers/transport_quote_controller.dart';
@@ -83,9 +85,17 @@ class _TransportTripsScreenState extends ConsumerState<TransportTripsScreen> {
     TransportTrips? trips,
   ) {
     // The load states first: a cold load has nothing to refresh, so it is a
-    // centred indicator rather than pull-to-refresh over an empty scroll view.
+    // placeholder of the list itself rather than pull-to-refresh over an empty
+    // scroll view. Cards below, not a bare spinner — the customer can see that
+    // quotes and bookings are what is coming, and the layout does not jump when
+    // they land.
     if (state.trips is LoadLoading && trips == null) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const ListLoadingView(
+        message: 'Loading your trips…',
+        // Quote/booking cards: a title with a status chip, then the route and
+        // its metadata — the same silhouette [SkeletonRowShape.issue] draws.
+        shape: SkeletonRowShape.issue,
+      );
     }
 
     if (state.trips is LoadFailed && trips == null) {

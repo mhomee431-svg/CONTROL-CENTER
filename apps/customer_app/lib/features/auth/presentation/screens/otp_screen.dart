@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/post_login_destination.dart';
 
 /// OTP verification screen with countdown, resend, and error handling.
 class OtpVerificationScreen extends ConsumerStatefulWidget {
@@ -136,7 +137,14 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
         // Single navigation point — also covers platform auto-verification,
         // which authenticates without the customer typing a code.
         _loggedIn = true;
-        context.go('/');
+
+        // `go` (not `push`) so the auth screens are not left on the stack for
+        // Back to return to. Which page that lands on depends on where the
+        // customer was BEFORE sign-in: a guest who tapped "Sign in" from their
+        // saved items goes back to their saved items, not to Home.
+        final destination =
+            ref.read(postLoginDestinationProvider.notifier).take();
+        context.go(destination ?? '/');
         return;
       }
       if (next.status != AuthStatus.error) return;
