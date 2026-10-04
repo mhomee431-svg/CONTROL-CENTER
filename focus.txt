@@ -1,0 +1,12 @@
+implement all task with the help of coding and points and based on informations.  implement everything without error, bug, warning and dont skip task. check files , folderss, code then implement 100% code successfully working . 
+
+
+Please perform a thorough, line-by-line audit of the entire codebase, including all files and folders in this project. Follow these strict instructions:
+Complete Pending Implementations: Check all files line-by-line for any incomplete logic, placeholder functions, broken endpoints, or missing integration. Implement and fix them completely so they work end-to-end.
+Preserve Standalone / Unlinked Code: If you encounter new files, folders, or code snippets that are currently unlinked or not integrated into the main flow, DO NOT delete but modify them. Keep them completely intact, as they are saved for future feature development.
+Optimization & Flexibility: You have full authority to install new packages, introduce better frameworks/libraries, or refactor existing structures if it significantly improves app performance, speed, and responsiveness.
+Zero-Error Guarantee: Ensure there are zero compilation, build, import, or runtime errors after your changes. Verify that all existing and newly completed features function without crashing.
+Execution Summary: Once finished, provide a concise summary listing:
+What features/files were completed/implemented.
+What optimizations or new packages were added.
+Which unlinked files/folders were safely preserved for future use.

@@ -1,0 +1,54 @@
+
+> hyperlocal-control-center@1.0.0 build
+> next build
+
+   ▲ Next.js 15.2.1
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/25) ...
+   Generating static pages (6/25) 
+   Generating static pages (12/25) 
+   Generating static pages (18/25) 
+ ✓ Generating static pages (25/25)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                     4.1 kB         133 kB
+├ ○ /_not-found                            990 B         102 kB
+├ ○ /audit                               3.77 kB         310 kB
+├ ○ /brands                              2.13 kB         319 kB
+├ ○ /businesses                          2.17 kB         319 kB
+├ ƒ /businesses/[id]                      4.7 kB         172 kB
+├ ○ /categories                          2.24 kB         319 kB
+├ ○ /customers                           4.43 kB         319 kB
+├ ƒ /customers/[id]                      3.66 kB         165 kB
+├ ○ /dashboard                           9.21 kB         166 kB
+├ ○ /inventory                           4.64 kB         318 kB
+├ ○ /login                               6.05 kB         175 kB
+├ ○ /notifications                       8.29 kB         183 kB
+├ ○ /offers                              7.11 kB         318 kB
+├ ○ /products                            2.16 kB         319 kB
+├ ○ /products/approvals                  1.86 kB         319 kB
+├ ○ /search                              1.46 kB         144 kB
+├ ○ /search/zero-results                 4.17 kB         301 kB
+├ ○ /shopkeepers                         3.94 kB         310 kB
+├ ○ /subscriptions                       3.84 kB         310 kB
+├ ○ /support                             4.55 kB         315 kB
+├ ○ /system/flags                        7.92 kB         319 kB
+├ ○ /system/live-operations              4.62 kB         146 kB
+├ ○ /system/settings                     6.98 kB         318 kB
+└ ○ /verification                        1.83 kB         319 kB
++ First Load JS shared by all             101 kB
+  ├ chunks/1684-0cda122b30c21320.js      45.8 kB
+  ├ chunks/4bd1b696-79fb072bd3221207.js  53.3 kB
+  └ other shared chunks (total)          1.97 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
