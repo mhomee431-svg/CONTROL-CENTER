@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Card,
@@ -13,28 +13,58 @@ import {
   Divider,
 } from '@mui/material';
 import { ShieldCheck, Lock } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/core/auth/AuthContext';
+import { apiClient } from '@/core/api/client';
+import { API_ENDPOINTS } from '@/core/api/endpoints';
 
-export default function LoginPage() {
+// Contract stack: React Hook Form + Zod for form state and validation
+const loginSchema = z.object({
+  username: z.string().trim().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+interface LoginResponse {
+  /** Present when the approved backend uses a bearer response. */
+  access_token?: string;
+}
+
+function LoginContent() {
   const { login } = useAuth();
-  const [tokenInput, setTokenInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // Expired sessions land here with ?expired=1 for explicit re-authentication.
+  const sessionExpired = searchParams.get('expired') === '1';
+  const [error, setError] = React.useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tokenInput.trim()) {
-      setError('Please provide a valid Admin Bearer Token');
-      return;
-    }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: '', password: '' },
+  });
+
+  const onSubmit = async (values: LoginFormValues) => {
     setError(null);
-    setLoading(true);
     try {
-      await login(tokenInput.trim());
+      // Single Authoritative API Client (Section 99) — handles error envelopes,
+      // 401/403 mapping, and request IDs.
+      const data = await apiClient<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
+        method: 'POST',
+        body: JSON.stringify({ username: values.username, password: values.password }),
+        requiresAuth: false,
+      });
+      // The backend may establish an HttpOnly cookie (preferred) or return a
+      // short-lived bearer token. Support both approved backend contracts.
+      await login(data?.access_token);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Authentication failed. Check admin credentials.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -74,27 +104,45 @@ export default function LoginPage() {
             Platform Control & Governance Portal
           </Typography>
 
+          {sessionExpired && !error && (
+            <Alert severity="warning" sx={{ width: '100%', mb: 2, textAlign: 'left' }}>
+              Your admin session expired. Please re-authenticate to continue.
+            </Alert>
+          )}
+
           {error && (
             <Alert severity="error" sx={{ width: '100%', mb: 2, textAlign: 'left' }}>
               {error}
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ width: '100%' }} noValidate>
             <TextField
               margin="normal"
               required
               fullWidth
-              name="token"
-              label="Admin Access Token / Bearer Token"
+              id="username"
+              label="Admin Username"
+              autoComplete="username"
+              placeholder="Admin username"
+              disabled={isSubmitting}
+              error={!!errors.username}
+              helperText={errors.username?.message}
+              {...register('username')}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="password"
+              label="Password"
               type="password"
-              id="token"
               autoComplete="current-password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste JWT / Bearer token"
-              helperText="Validated authoritative against /api/v1/admin/me"
-              disabled={loading}
+              placeholder="••••••••"
+              disabled={isSubmitting}
+              error={!!errors.password}
+              helperText={errors.password?.message}
+              {...register('password')}
             />
 
             <Button
@@ -102,11 +150,11 @@ export default function LoginPage() {
               fullWidth
               variant="contained"
               size="large"
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <Lock size={18} />}
+              disabled={isSubmitting}
+              startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : <Lock size={18} />}
               sx={{ mt: 3, mb: 2, py: 1.25 }}
             >
-              {loading ? 'Authenticating...' : 'Sign In to Control Center'}
+              {isSubmitting ? 'Authenticating...' : 'Sign In to Control Center'}
             </Button>
           </Box>
 
@@ -118,5 +166,13 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </Box>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <LoginContent />
+    </React.Suspense>
   );
 }

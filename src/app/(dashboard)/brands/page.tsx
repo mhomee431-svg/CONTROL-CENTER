@@ -21,6 +21,8 @@ import { BrandItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function BrandsPage() {
   const queryClient = useQueryClient();
@@ -111,14 +113,16 @@ export default function BrandsPage() {
       renderCell: (params) => {
         const item = params.row as BrandItem;
         return (
-          <Button
-            size="small"
-            color="error"
-            startIcon={<Trash2 size={14} />}
-            onClick={() => setDeleteTarget(item)}
-          >
-            Delete
-          </Button>
+          <PermissionGuard capability={CAPABILITIES.TAXONOMY_MANAGE}>
+            <Button
+              size="small"
+              color="error"
+              startIcon={<Trash2 size={14} />}
+              onClick={() => setDeleteTarget(item)}
+            >
+              Delete
+            </Button>
+          </PermissionGuard>
         );
       },
     },
@@ -136,13 +140,15 @@ export default function BrandsPage() {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<Plus size={16} />}
-          onClick={() => setOpenCreate(true)}
-        >
-          Add Brand
-        </Button>
+        <PermissionGuard capability={CAPABILITIES.TAXONOMY_MANAGE}>
+          <Button
+            variant="contained"
+            startIcon={<Plus size={16} />}
+            onClick={() => setOpenCreate(true)}
+          >
+            Add Brand
+          </Button>
+        </PermissionGuard>
       </Box>
 
       <AdminDataGrid

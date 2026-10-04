@@ -27,8 +27,9 @@ export interface AdminDataGridProps {
   checkboxSelection?: boolean;
   rowSelectionModel?: GridRowSelectionModel;
   onRowSelectionModelChange?: (model: GridRowSelectionModel) => void;
-  bulkActions?: React.ReactNode;
-}
+    bulkActions?: React.ReactNode;
+    onRowClick?: (params: { row: Record<string, unknown>; id: unknown }) => void;
+  }
 
 /**
  * Section 69: Reusable AdminDataGrid Abstraction
@@ -50,8 +51,9 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
   checkboxSelection = false,
   rowSelectionModel,
   onRowSelectionModelChange,
-  bulkActions,
-}) => {
+    bulkActions,
+    onRowClick,
+  }) => {
   return (
     <Paper
       elevation={0}
@@ -130,8 +132,9 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
           rowSelectionModel={rowSelectionModel}
           onRowSelectionModelChange={onRowSelectionModelChange}
           disableRowSelectionOnClick
+          onRowClick={onRowClick}
           sx={{
-            border: 'none',
+           border: 'none',
             '& .MuiDataGrid-columnHeaders': {
               backgroundColor: '#F8FAFC',
               borderBottom: '1px solid #E2E8F0',

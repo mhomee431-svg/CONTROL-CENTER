@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel, GridRowSelectionModel } from '@mui/x-data-grid';
 import { Box, Typography, Button, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
@@ -11,12 +12,21 @@ import { ProductItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
-export default function ProductsPage() {
+function ProductsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
 
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+
+  // Keep local search synced with deep-links (?search=... from global search drill-down)
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) setSearch(q);
+  }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState('');
   const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>([]);
 
@@ -150,33 +160,39 @@ export default function ProductsPage() {
         bulkActions={
           rowSelectionModel.length > 0 ? (
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                size="small"
-                variant="contained"
-                color="success"
-                startIcon={<Check size={14} />}
-                onClick={() => setBulkAction('APPROVE')}
-              >
-                Approve ({rowSelectionModel.length})
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                color="error"
-                startIcon={<XCircle size={14} />}
-                onClick={() => setBulkAction('REJECT')}
-              >
-                Reject ({rowSelectionModel.length})
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                color="inherit"
-                startIcon={<Archive size={14} />}
-                onClick={() => setBulkAction('ARCHIVE')}
-              >
-                Archive
-              </Button>
+              <PermissionGuard capability={CAPABILITIES.PRODUCTS_APPROVE}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="success"
+                  startIcon={<Check size={14} />}
+                  onClick={() => setBulkAction('APPROVE')}
+                >
+                  Approve ({rowSelectionModel.length})
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<XCircle size={14} />}
+                  onClick={() => setBulkAction('REJECT')}
+                >
+                  Reject ({rowSelectionModel.length})
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<Archive size={14} />}
+                  onClick={() => setBulkAction('ARCHIVE')}
+                >
+                  Archive
+                </Button>
+              </PermissionGuard>
             </Box>
           ) : undefined
         }
@@ -200,5 +216,13 @@ export default function ProductsPage() {
         />
       )}
     </Box>
+  );
+}
+
+export default function ProductsPageWrapper() {
+  return (
+    <React.Suspense fallback={null}>
+      <ProductsPage />
+    </React.Suspense>
   );
 }

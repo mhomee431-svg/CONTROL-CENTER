@@ -12,6 +12,8 @@ import { ShopItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function BusinessesPage() {
   const router = useRouter();
@@ -125,37 +127,41 @@ export default function BusinessesPage() {
             </Button>
 
             {!isVerified && (
-              <Button
-                size="small"
-                color="success"
-                variant="outlined"
-                startIcon={<ShieldCheck size={14} />}
-                onClick={() => setTargetShop({ id: shop.id, name: shop.name, decision: 'VERIFY' })}
-              >
-                Verify
-              </Button>
+              <PermissionGuard capability={CAPABILITIES.SHOPS_APPROVE}>
+                <Button
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  startIcon={<ShieldCheck size={14} />}
+                  onClick={() => setTargetShop({ id: shop.id, name: shop.name, decision: 'VERIFY' })}
+                >
+                  Verify
+                </Button>
+              </PermissionGuard>
             )}
 
-            {isSuspended ? (
-              <Button
-                size="small"
-                color="primary"
-                variant="outlined"
-                onClick={() => setTargetShop({ id: shop.id, name: shop.name, decision: 'REACTIVATE' })}
-              >
-                Reactivate
-              </Button>
-            ) : (
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                startIcon={<ShieldAlert size={14} />}
-                onClick={() => setTargetShop({ id: shop.id, name: shop.name, decision: 'SUSPEND' })}
-              >
-                Suspend
-              </Button>
-            )}
+            <PermissionGuard capability={CAPABILITIES.SHOPS_SUSPEND}>
+              {isSuspended ? (
+                <Button
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  onClick={() => setTargetShop({ id: shop.id, name: shop.name, decision: 'REACTIVATE' })}
+                >
+                  Reactivate
+                </Button>
+              ) : (
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={<ShieldAlert size={14} />}
+                  onClick={() => setTargetShop({ id: shop.id, name: shop.name, decision: 'SUSPEND' })}
+                >
+                  Suspend
+                </Button>
+              )}
+            </PermissionGuard>
           </Box>
         );
       },

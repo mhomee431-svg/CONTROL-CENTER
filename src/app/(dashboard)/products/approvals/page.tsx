@@ -10,6 +10,8 @@ import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 interface ApprovalItem {
   id: number;
@@ -99,33 +101,39 @@ export default function ProductApprovalsPage() {
         const item = params.row as ApprovalItem;
         return (
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              size="small"
-              color="success"
-              variant="contained"
-              startIcon={<Check size={14} />}
-              onClick={() => setSelectedListing({ id: item.id, name: item.product_name, decision: 'APPROVE' })}
-            >
-              Approve
-            </Button>
-            <Button
-              size="small"
-              color="warning"
-              variant="outlined"
-              startIcon={<HelpCircle size={14} />}
-              onClick={() => setSelectedListing({ id: item.id, name: item.product_name, decision: 'NEEDS_INFO' })}
-            >
-              Needs Info
-            </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="outlined"
-              startIcon={<X size={14} />}
-              onClick={() => setSelectedListing({ id: item.id, name: item.product_name, decision: 'REJECT' })}
-            >
-              Reject
-            </Button>
+            <PermissionGuard capability={CAPABILITIES.PRODUCTS_APPROVE}>
+              <Button
+                size="small"
+                color="success"
+                variant="contained"
+                startIcon={<Check size={14} />}
+                onClick={() => setSelectedListing({ id: item.id, name: item.product_name, decision: 'APPROVE' })}
+              >
+                Approve
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
+              <Button
+                size="small"
+                color="warning"
+                variant="outlined"
+                startIcon={<HelpCircle size={14} />}
+                onClick={() => setSelectedListing({ id: item.id, name: item.product_name, decision: 'NEEDS_INFO' })}
+              >
+                Needs Info
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard capability={CAPABILITIES.PRODUCTS_APPROVE}>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<X size={14} />}
+                onClick={() => setSelectedListing({ id: item.id, name: item.product_name, decision: 'REJECT' })}
+              >
+                Reject
+              </Button>
+            </PermissionGuard>
           </Box>
         );
       },

@@ -6,18 +6,14 @@ import { useAuth } from '@/core/auth/AuthContext';
 import { Box, CircularProgress } from '@mui/material';
 
 export default function HomePage() {
-  const { token, isLoading } = useAuth();
+  const { status } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (token) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/login');
-      }
-    }
-  }, [token, isLoading, router]);
+    if (status === 'loading') return;
+    // Authenticated → dashboard. Unauthenticated/expired → re-authenticate.
+    router.replace(status === 'authenticated' ? '/dashboard' : '/login');
+  }, [status, router]);
 
   return (
     <Box

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import {
@@ -19,9 +20,20 @@ import { StaleInventoryItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 
-export default function InventoryPage() {
+function InventoryContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [tabIndex, setTabIndex] = useState(0);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+
+  // Deep-link support: dashboard "Stale Inventory" drill-down lands on ?filter=stale
+  useEffect(() => {
+    const filter = searchParams.get('filter');
+    if (filter === 'stale') setTabIndex(0);
+    else if (filter === 'missing-prices') setTabIndex(1);
+    else if (filter === 'anomalies') setTabIndex(2);
+    else if (filter === 'sync-failures') setTabIndex(3);
+  }, [searchParams]);
 
   // Summary Metrics
   const { data: summary } = useQuery<{
@@ -205,7 +217,21 @@ export default function InventoryPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        onRowClick={(params) => router.push(`/inventory/${params.row.shop_product_id ?? params.id}`)}
       />
+
+      {/* Drill-down hint: every row is an investigation entry point */}
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+        Click any record to open its full Inventory Record — history, shop, and shopkeeper drill-down.
+      </Typography>
     </Box>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <InventoryContent />
+    </React.Suspense>
   );
 }

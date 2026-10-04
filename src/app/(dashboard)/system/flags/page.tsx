@@ -10,6 +10,8 @@ import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { FeatureFlagItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function FeatureFlagsPage() {
   const queryClient = useQueryClient();
@@ -66,10 +68,12 @@ export default function FeatureFlagsPage() {
       renderCell: (params) => {
         const item = params.row as FeatureFlagItem;
         return (
-          <Switch
-            checked={Boolean(item.is_enabled)}
-            onChange={(e) => setToggleTarget({ flag: item, nextState: e.target.checked })}
-          />
+          <PermissionGuard capability={CAPABILITIES.SETTINGS_MANAGE}>
+            <Switch
+              checked={Boolean(item.is_enabled)}
+              onChange={(e) => setToggleTarget({ flag: item, nextState: e.target.checked })}
+            />
+          </PermissionGuard>
         );
       },
     },

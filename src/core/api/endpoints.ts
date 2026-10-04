@@ -6,7 +6,8 @@
 export const API_ENDPOINTS = {
   // Auth & Session
   AUTH: {
-    LOGIN: '/api/v1/auth/firebase-login',
+    LOGIN: '/api/v1/admin/auth/login',
+    FIREBASE_LOGIN: '/api/v1/auth/firebase-login',
     LOGOUT: '/api/v1/auth/logout',
     REFRESH: '/api/v1/auth/refresh',
     SESSIONS: '/api/v1/auth/sessions',
@@ -26,16 +27,23 @@ export const API_ENDPOINTS = {
   },
 
   // Shops & Verification
-  SHOPS: {
+   SHOPS: {
     LIST: '/api/v1/admin/shops',
     DETAIL: (shopId: number | string) => `/api/v1/admin/shops/${shopId}`,
     VERIFICATION: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/verification`,
     BULK: '/api/v1/admin/shops/bulk',
   },
 
+  // Shopkeepers (Users listing, filtered server-side)
+  SHOPKEEPERS: {
+    LIST: '/api/v1/admin/shopkeepers',
+    DETAIL: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}`,
+  },
+
   // Products & Catalog
   PRODUCTS: {
     LIST: '/api/v1/admin/products',
+    BARCODE_SEARCH: '/api/v1/admin/products/barcode-search',
     DETAIL: (productId: number | string) => `/api/v1/admin/products/${productId}`,
     UPDATE: (productId: number | string) => `/api/v1/admin/products/${productId}`,
     BULK: '/api/v1/admin/products/bulk',
@@ -67,6 +75,9 @@ export const API_ENDPOINTS = {
     MISSING_PRICES: '/api/v1/admin/inventory/missing-prices',
     ANOMALIES: '/api/v1/admin/inventory/anomalies',
     SYNC_FAILURES: '/api/v1/admin/inventory/sync-failures',
+    SHOP_INVENTORY: (shopId: number | string) => `/api/v1/admin/inventory/shop/${shopId}`,
+    RECORD_DETAIL: (shopProductId: number | string) => `/api/v1/admin/inventory/records/${shopProductId}`,
+    RECORD_HISTORY: (shopProductId: number | string) => `/api/v1/admin/inventory/records/${shopProductId}/history`,
   },
 
   // Offers
@@ -103,9 +114,9 @@ export const API_ENDPOINTS = {
 
   // System
   SYSTEM: {
+    FEATURE_FLAGS: '/api/v1/admin/feature-flags',
     SETTINGS: '/api/v1/admin/settings',
     SETTING_KEY: (key: string) => `/api/v1/admin/settings/${key}`,
-    FEATURE_FLAGS: '/api/v1/admin/feature-flags',
     FEATURE_FLAG_NAME: (name: string) => `/api/v1/admin/feature-flags/${name}`,
     REPORTS: '/api/v1/admin/reports',
     GENERATE_REPORT: '/api/v1/admin/reports/generate',

@@ -10,6 +10,8 @@ export interface AdminRoleInfo {
   role_name: string | null;
   level: AdminRoleLevel;
   permissions: string[];
+  /** True only for the single platform owner. Backend-authoritative. */
+  is_owner?: boolean;
 }
 
 export interface DashboardMetrics {
@@ -170,4 +172,58 @@ export interface FeatureFlagItem {
   scope: 'GLOBAL' | 'SHOP' | 'USER' | 'REGION';
   description?: string | null;
   updated_at?: string;
+}
+
+/**
+ * Drill-down data models (SEE → UNDERSTAND → CONTROL → INVESTIGATE → CORRECT → MEASURE)
+ */
+
+export interface InventoryRecordDetail extends StaleInventoryItem {
+  shop_id: number;
+  shop_name: string;
+  owner_id: number;
+  owner_name?: string | null;
+  owner_phone?: string | null;
+  price?: number | null;
+  mrp?: number | null;
+  availability?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  sync_source?: string | null;
+  sync_status?: string | null;
+  sync_error?: string | null;
+}
+
+export interface InventoryHistoryEntry {
+  id: number;
+  shop_product_id: number;
+  change_type: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  source?: string | null;
+  changed_by?: string | null;
+  created_at: string;
+}
+
+export interface ShopInventoryItem {
+  shop_product_id: number;
+  product_name: string;
+  product_id?: number;
+  quantity: number;
+  price?: number | null;
+  stock_status: string;
+  freshness_status?: string | null;
+  last_updated?: string | null;
+}
+
+export interface ShopkeeperDetail {
+  id: number;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  status: string;
+  created_at: string;
+  last_login?: string | null;
+  shop_ids?: number[];
+  shop_names?: string[];
 }

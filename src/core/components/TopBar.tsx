@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   AppBar,
   Toolbar,
@@ -21,14 +22,24 @@ import {
   Activity as ActivityIcon,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { getRoleLabel, isPlatformOwner } from '../permissions/permissions';
+import { ROUTES } from '../routes/routes';
 
 interface TopBarProps {
   onOpenSearch: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
-  const { adminRole, logout } = useAuth();
+  const { adminRole, logout, status } = useAuth();
+  const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Live status reflects the real admin session state (backend-authoritative).
+  const liveStatus =
+    status === 'authenticated'
+      ? { label: 'API Live', color: '#047857', bg: '#ECFDF5', border: '#A7F3D0' }
+      : { label: 'API Offline', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA' };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -41,6 +52,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
   const handleLogout = () => {
     handleMenuClose();
     logout();
+  };
+
+  const handleOpenSystemHealth = () => {
+    setNotifAnchorEl(null);
+    router.push(ROUTES.SYSTEM_HEALTH);
   };
 
   return (
@@ -116,8 +132,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
 
         {/* Status Indicators & Profile Actions (Section 198) */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {/* Health Indicator */}
-          <Tooltip title="Backend API Connected">
+          {/* Health Indicator — reflects real session state */}
+          <Tooltip title={liveStatus.label}>
             <Box
               sx={{
                 display: { xs: 'none', md: 'flex' },
@@ -126,28 +142,48 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch }) => {
                 px: 1.25,
                 py: 0.5,
                 borderRadius: 1,
-                backgroundColor: '#ECFDF5',
-                border: '1px solid #A7F3D0',
+                backgroundColor: liveStatus.bg,
+                border: `1px solid ${liveStatus.border}`,
               }}
             >
-              <ActivityIcon size={14} color="#10B981" />
-              <Typography variant="caption" sx={{ color: '#047857', fontWeight: 600 }}>
-                API Live
+              <ActivityIcon size={14} color={liveStatus.color} />
+              <Typography variant="caption" sx={{ color: liveStatus.color, fontWeight: 600 }}>
+                {liveStatus.label}
               </Typography>
             </Box>
           </Tooltip>
 
           {/* Notifications */}
-          <IconButton size="small" sx={{ color: 'text.secondary' }}>
+          <IconButton
+            size="small"
+            sx={{ color: 'text.secondary' }}
+            onClick={(e) => setNotifAnchorEl(e.currentTarget)}
+            aria-label="Operational alerts"
+          >
             <BellIcon size={18} />
           </IconButton>
+          <Menu
+            anchorEl={notifAnchorEl}
+            open={Boolean(notifAnchorEl)}
+            onClose={() => setNotifAnchorEl(null)}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem disabled sx={{ opacity: 1, minWidth: 220 }}>
+              <Typography variant="caption" color="text.secondary">
+                Operational alerts appear here
+              </Typography>
+            </MenuItem>
+            <MenuItem onClick={handleOpenSystemHealth}>Open System Health →</MenuItem>
+          </Menu>
 
-          {/* Admin User Chip */}
+          {/* Admin User Chip — owner is visually distinguished */}
           {adminRole && (
             <Chip
-              label={adminRole.level === 'SUPER' ? 'SUPER ADMIN' : adminRole.name || 'ADMIN'}
+              label={getRoleLabel(adminRole)}
               size="small"
-              color={adminRole.level === 'SUPER' ? 'primary' : 'default'}
+              color={isPlatformOwner(adminRole) || adminRole.level === 'SUPER' ? 'primary' : 'default'}
+              variant={isPlatformOwner(adminRole) ? 'filled' : 'outlined'}
               sx={{ fontWeight: 700, fontSize: '0.75rem' }}
             />
           )}

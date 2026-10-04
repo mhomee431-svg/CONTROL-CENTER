@@ -23,6 +23,8 @@ import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { ComplaintItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function SupportPage() {
   const queryClient = useQueryClient();
@@ -111,17 +113,19 @@ export default function SupportPage() {
       width: 130,
       sortable: false,
       renderCell: (params) => (
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => {
-            const row = params.row as ComplaintItem;
-            setTriageTarget(row);
-            setNewStatus(row.status === 'RESOLVED' ? 'CLOSED' : 'RESOLVED');
-          }}
-        >
-          Resolve / Update
-        </Button>
+        <PermissionGuard capability={CAPABILITIES.SUPPORT_UPDATE}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              const row = params.row as ComplaintItem;
+              setTriageTarget(row);
+              setNewStatus(row.status === 'RESOLVED' ? 'CLOSED' : 'RESOLVED');
+            }}
+          >
+            Resolve / Update
+          </Button>
+        </PermissionGuard>
       ),
     },
   ];

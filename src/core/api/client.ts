@@ -1,4 +1,5 @@
 import { ApiResponse } from '../types/api';
+import { getAdminAccessToken, clearAdminAccessToken } from '../auth/adminSession';
 
 export class ApiError extends Error {
   public statusCode: number;
@@ -50,15 +51,16 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     ...(headers as Record<string, string>),
   };
 
-  if (requiresAuth && typeof window !== 'undefined') {
-    const token = localStorage.getItem('admin_access_token');
-    if (token) {
-      requestHeaders['Authorization'] = `Bearer ${token}`;
-    }
+  if (requiresAuth) {
+    // Prefer the backend-managed HttpOnly cookie. The in-memory bearer token
+    // is only a compatibility bridge for the current runtime.
+    const token = getAdminAccessToken();
+    if (token) requestHeaders['Authorization'] = `Bearer ${token}`;
   }
 
   const config: RequestInit = {
     ...customConfig,
+    credentials: 'include',
     headers: requestHeaders,
   };
 
@@ -75,12 +77,9 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 
   // Handle Unauthorized (401)
   if (response.status === 401) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('admin_access_token');
-      localStorage.removeItem('admin_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login?expired=1';
-      }
+    clearAdminAccessToken();
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login?expired=1';
     }
     throw new ApiError('Session expired or unauthorized', 401, 'UNAUTHORIZED');
   }

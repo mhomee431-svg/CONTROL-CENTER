@@ -20,6 +20,8 @@ import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { SystemSettingItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function SystemSettingsPage() {
   const queryClient = useQueryClient();
@@ -84,13 +86,15 @@ export default function SystemSettingsPage() {
       width: 120,
       sortable: false,
       renderCell: (params) => (
-        <Button
-          size="small"
-          startIcon={<Edit2 size={14} />}
-          onClick={() => handleEditClick(params.row as SystemSettingItem)}
-        >
-          Edit
-        </Button>
+        <PermissionGuard capability={CAPABILITIES.SETTINGS_MANAGE}>
+          <Button
+            size="small"
+            startIcon={<Edit2 size={14} />}
+            onClick={() => handleEditClick(params.row as SystemSettingItem)}
+          >
+            Edit
+          </Button>
+        </PermissionGuard>
       ),
     },
   ];

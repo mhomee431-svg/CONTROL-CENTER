@@ -12,6 +12,8 @@ import { ShopItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function VerificationPage() {
   const router = useRouter();
@@ -110,24 +112,28 @@ export default function VerificationPage() {
             >
               Review
             </Button>
-            <Button
-              size="small"
-              color="success"
-              variant="contained"
-              startIcon={<ShieldCheck size={14} />}
-              onClick={() => setSelectedCase({ id: item.id, name: item.name, decision: 'VERIFY' })}
-            >
-              Approve
-            </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="outlined"
-              startIcon={<ShieldAlert size={14} />}
-              onClick={() => setSelectedCase({ id: item.id, name: item.name, decision: 'REJECT' })}
-            >
-              Reject
-            </Button>
+            <PermissionGuard capability={CAPABILITIES.SHOPS_APPROVE}>
+              <Button
+                size="small"
+                color="success"
+                variant="contained"
+                startIcon={<ShieldCheck size={14} />}
+                onClick={() => setSelectedCase({ id: item.id, name: item.name, decision: 'VERIFY' })}
+              >
+                Approve
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard capability={CAPABILITIES.SHOPS_REJECT}>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<ShieldAlert size={14} />}
+                onClick={() => setSelectedCase({ id: item.id, name: item.name, decision: 'REJECT' })}
+              >
+                Reject
+              </Button>
+            </PermissionGuard>
           </Box>
         );
       },

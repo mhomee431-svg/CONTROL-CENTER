@@ -30,6 +30,7 @@ import {
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { DashboardMetrics } from '@/core/types/admin';
+import { BarChart } from '@mui/x-charts/BarChart';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -309,6 +310,51 @@ export default function DashboardPage() {
           </Card>
         </Grid>
       </Grid>
+      {/* Popular Categories — MUI X Charts (MEASURE) */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Popular Categories by Search Demand
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Top taxonomy nodes driving discovery this period. Click a bar&apos;s category to audit its catalog.
+          </Typography>
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (metrics?.popular_categories?.length ?? 0) > 0 ? (
+            <Box sx={{ width: '100%', overflowX: 'auto' }}>
+              <BarChart
+                height={280}
+                xAxis={[{ scaleType: 'band', data: metrics!.popular_categories.map((c) => c.name) }]}
+                series={[
+                  {
+                    data: metrics!.popular_categories.map((c) => c.count),
+                    label: 'Searches',
+                    color: '#0F52BA',
+                  },
+                ]}
+                margin={{ top: 16, right: 16, bottom: 40, left: 48 }}
+                slotProps={{
+                  legend: { hidden: true },
+                  bar: {
+                    onClick: (event: React.MouseEvent<SVGRectElement>) => {
+                      const idx = Number(event.currentTarget.getAttribute('data-series-index') ?? -1);
+                      const cat = metrics?.popular_categories[idx];
+                      if (cat) router.push(`/products?search=${encodeURIComponent(cat.name)}`);
+                    },
+                  },
+                }}
+              />
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              No category demand data available yet.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
     </Box>
   );
 }

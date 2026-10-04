@@ -20,6 +20,8 @@ import { Send, Bell } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function NotificationsPage() {
   const [title, setTitle] = useState('');
@@ -111,15 +113,17 @@ export default function NotificationsPage() {
               sx={{ mb: 3 }}
             />
 
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              startIcon={<Send size={18} />}
-              disabled={sendMutation.isPending || !title.trim() || !body.trim()}
-            >
-              {sendMutation.isPending ? 'Broadcasting...' : 'Review & Send Broadcast'}
-            </Button>
+            <PermissionGuard capability={CAPABILITIES.NOTIFICATIONS_SEND}>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                startIcon={<Send size={18} />}
+                disabled={sendMutation.isPending || !title.trim() || !body.trim()}
+              >
+                {sendMutation.isPending ? 'Broadcasting...' : 'Review & Send Broadcast'}
+              </Button>
+            </PermissionGuard>
           </Box>
         </CardContent>
       </Card>

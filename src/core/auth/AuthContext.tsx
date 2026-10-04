@@ -5,14 +5,23 @@ import { useRouter, usePathname } from 'next/navigation';
 import { AdminRoleInfo } from '../types/admin';
 import { apiClient } from '../api/client';
 import { API_ENDPOINTS } from '../api/endpoints';
+import {
+  clearAdminAccessToken,
+  getAdminAccessToken,
+  setAdminAccessToken,
+} from './adminSession';
+
+export type AdminSessionStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'expired';
 
 interface AuthContextType {
   token: string | null;
   adminRole: AdminRoleInfo | null;
   isLoading: boolean;
-  login: (token: string) => Promise<void>;
-  logout: () => void;
+  status: AdminSessionStatus;
+  login: (token?: string) => Promise<void>;
+  logout: (preserveExpiredStatus?: boolean) => void;
   refreshProfile: () => Promise<void>;
+  featureFlags: Record<string, boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,57 +29,75 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [adminRole, setAdminRole] = useState<AdminRoleInfo | null>(null);
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [status, setStatus] = useState<AdminSessionStatus>('loading');
   const router = useRouter();
   const pathname = usePathname();
 
-  const fetchAdminProfile = useCallback(async () => {
-    try {
-      const data = await apiClient<AdminRoleInfo>(API_ENDPOINTS.AUTH.ME);
-      setAdminRole(data);
-      localStorage.setItem('admin_role_cache', JSON.stringify(data));
-      return data;
-    } catch {
-      // If /admin/me fails or token invalid
-      logout();
-      return null;
-    }
-  }, []);
-
-  const login = async (newToken: string) => {
-    localStorage.setItem('admin_access_token', newToken);
-    setToken(newToken);
-    const profile = await fetchAdminProfile();
-    if (profile) {
-      router.push('/dashboard');
-    }
-  };
-
-  const logout = useCallback(() => {
-    // Section 150 & 151: Security Cache Clearing on logout
-    localStorage.removeItem('admin_access_token');
-    localStorage.removeItem('admin_role_cache');
+  const logout = useCallback((preserveExpiredStatus = false) => {
+    // Session state is ephemeral. Backend remains authoritative.
+    clearAdminAccessToken();
     setToken(null);
     setAdminRole(null);
+    if (!preserveExpiredStatus) setStatus('unauthenticated');
     if (pathname !== '/login') {
       router.push('/login');
     }
   }, [pathname, router]);
 
-  useEffect(() => {
-    const savedToken = localStorage.getItem('admin_access_token');
-    if (savedToken) {
-      setToken(savedToken);
-      fetchAdminProfile().finally(() => {
-        setIsLoading(false);
-      });
-    } else {
-      setIsLoading(false);
-      if (pathname !== '/login') {
-        router.push('/login');
+  const fetchAdminProfile = useCallback(async () => {
+    try {
+      const data = await apiClient<AdminRoleInfo>(API_ENDPOINTS.AUTH.ME);
+      setAdminRole(data);
+      const flags = await apiClient<{ items?: Array<{ name: string; is_enabled: boolean }> }>(
+        API_ENDPOINTS.SYSTEM.FEATURE_FLAGS
+      );
+      setFeatureFlags(
+        Object.fromEntries((flags.items || []).map((flag) => [flag.name, flag.is_enabled]))
+      );
+      setStatus('authenticated');
+      return data;
+    } catch {
+      // Only an already-established runtime session is classified as expired.
+      // A cold start without a session is simply unauthenticated.
+      const hadRuntimeSession = Boolean(getAdminAccessToken());
+      if (hadRuntimeSession) {
+        setStatus('expired');
+        logout(true);
+      } else {
+        logout();
       }
+      return null;
     }
-  }, [fetchAdminProfile, pathname, router]);
+  }, [logout]);
+
+  const login = async (newToken?: string) => {
+    if (newToken) {
+      setAdminAccessToken(newToken);
+      setToken(newToken);
+    }
+    const profile = await fetchAdminProfile();
+    if (profile) {
+      setStatus('authenticated');
+      router.push('/dashboard');
+    }
+  };
+
+  useEffect(() => {
+    // The backend session cookie is authoritative. The in-memory token only
+    // exists for the current runtime and cannot be restored from browser storage.
+    const activeToken = getAdminAccessToken();
+    if (activeToken) {
+      setToken(activeToken);
+      fetchAdminProfile().finally(() => setIsLoading(false));
+      return;
+    }
+
+    // Ask the backend whether its HttpOnly session is still valid. If no
+    // backend session exists, apiClient will reject and we redirect to login.
+    fetchAdminProfile().finally(() => setIsLoading(false));
+  }, [fetchAdminProfile]);
 
   return (
     <AuthContext.Provider
@@ -78,6 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         adminRole,
         isLoading,
+        status,
+        featureFlags,
         login,
         logout,
         refreshProfile: async () => {

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { Box, Typography } from '@mui/material';
@@ -11,9 +12,16 @@ import { AdminUserItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 
-export default function ShopkeepersPage() {
+function ShopkeepersContent() {
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get('highlight');
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [search, setSearch] = useState('');
+
+  // Highlight a specific shopkeeper when drilling down from a shop or inventory record
+  useEffect(() => {
+    if (highlightId) setSearch('');
+  }, [highlightId]);
 
   const { data, isLoading, refetch } = useQuery<{ items: AdminUserItem[]; total: number }>({
     queryKey: ['admin', 'shopkeepers', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
@@ -29,7 +37,7 @@ export default function ShopkeepersPage() {
   });
 
   const columns: GridColDef[] = [
-    { field: 'id', headerName: 'ID', width: 80 },
+    { field: 'id', headerName: 'ID', width: 80, cellClassName: (params) => (String(params.value) === highlightId ? 'highlighted-row' : '') },
     {
       field: 'name',
       headerName: 'Shopkeeper Name',
@@ -84,5 +92,13 @@ export default function ShopkeepersPage() {
         onRefresh={() => refetch()}
       />
     </Box>
+  );
+}
+
+export default function ShopkeepersPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <ShopkeepersContent />
+    </React.Suspense>
   );
 }

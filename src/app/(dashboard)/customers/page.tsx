@@ -12,6 +12,8 @@ import { AdminUserItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -107,27 +109,29 @@ export default function CustomersPage() {
             >
               View
             </Button>
-            {isSuspended ? (
-              <Button
-                size="small"
-                color="success"
-                variant="outlined"
-                startIcon={<CheckCircle size={14} />}
-                onClick={() => setActionTarget({ id: item.id, name: item.name || `User #${item.id}`, action: 'ACTIVATE' })}
-              >
-                Reactivate
-              </Button>
-            ) : (
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                startIcon={<UserX size={14} />}
-                onClick={() => setActionTarget({ id: item.id, name: item.name || `User #${item.id}`, action: 'SUSPEND' })}
-              >
-                Suspend
-              </Button>
-            )}
+            <PermissionGuard capability={CAPABILITIES.CUSTOMERS_SUSPEND}>
+              {isSuspended ? (
+                <Button
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  startIcon={<CheckCircle size={14} />}
+                  onClick={() => setActionTarget({ id: item.id, name: item.name || `User #${item.id}`, action: 'ACTIVATE' })}
+                >
+                  Reactivate
+                </Button>
+              ) : (
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={<UserX size={14} />}
+                  onClick={() => setActionTarget({ id: item.id, name: item.name || `User #${item.id}`, action: 'SUSPEND' })}
+                >
+                  Suspend
+                </Button>
+              )}
+            </PermissionGuard>
           </Box>
         );
       },

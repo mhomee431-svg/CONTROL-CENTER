@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Box,
@@ -32,14 +32,26 @@ import {
   ChevronRight,
   Sliders,
   DollarSign,
+  MapPin,
+  Plug,
+  Upload,
+  TrendingUp,
+  BarChart2,
+  Building2,
+  Activity as ActivityIcon,
 } from 'lucide-react';
+import { usePermissions } from '../permissions/PermissionGuard';
+import { CAPABILITIES, Capability } from '../permissions/permissions';
+import { ROUTES } from '../routes/routes';
 
 const DRAWER_WIDTH = 250;
+const COLLAPSE_STORAGE_KEY = 'admin_sidebar_collapsed_groups';
 
 interface NavItem {
   title: string;
   path: string;
   icon: React.ReactNode;
+  capability?: Capability;
 }
 
 interface NavGroup {
@@ -51,61 +63,83 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: 'DASHBOARD',
     items: [
-      { title: 'Overview', path: '/dashboard', icon: <LayoutDashboard size={18} /> },
-      { title: 'Live Operations', path: '/system/live-operations', icon: <Flame size={18} /> },
+      { title: 'Overview', path: ROUTES.DASHBOARD, icon: <LayoutDashboard size={18} /> },
+      { title: 'Live Operations', path: ROUTES.SYSTEM_LIVE_OPERATIONS, icon: <Flame size={18} /> },
     ],
   },
   {
     group: 'PEOPLE',
     items: [
-      { title: 'Customers', path: '/customers', icon: <Users size={18} /> },
-      { title: 'Shopkeepers', path: '/shopkeepers', icon: <Store size={18} /> },
+      { title: 'Customers', path: ROUTES.CUSTOMERS, icon: <Users size={18} />, capability: CAPABILITIES.CUSTOMERS_READ },
+      { title: 'Shopkeepers', path: ROUTES.SHOPKEEPERS, icon: <Store size={18} />, capability: CAPABILITIES.SHOPS_READ },
     ],
   },
   {
     group: 'BUSINESSES',
     items: [
-      { title: 'Shops & Businesses', path: '/businesses', icon: <Store size={18} /> },
-      { title: 'Verification Center', path: '/verification', icon: <ShieldCheck size={18} /> },
+      { title: 'Shops & Businesses', path: ROUTES.BUSINESSES, icon: <Store size={18} />, capability: CAPABILITIES.SHOPS_READ },
+      { title: 'Verification Center', path: ROUTES.VERIFICATION, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.SHOPS_APPROVE },
+      { title: 'Locations', path: ROUTES.LOCATIONS, icon: <MapPin size={18} />, capability: CAPABILITIES.SHOPS_READ },
     ],
   },
   {
     group: 'CATALOG',
     items: [
-      { title: 'Products Master', path: '/products', icon: <Package size={18} /> },
-      { title: 'Categories', path: '/categories', icon: <Layers size={18} /> },
-      { title: 'Brands', path: '/brands', icon: <Tag size={18} /> },
-      { title: 'Approval Queue', path: '/products/approvals', icon: <ShieldCheck size={18} /> },
+      { title: 'Products Master', path: ROUTES.PRODUCTS, icon: <Package size={18} />, capability: CAPABILITIES.PRODUCTS_READ },
+      { title: 'Categories', path: ROUTES.CATEGORIES, icon: <Layers size={18} />, capability: CAPABILITIES.TAXONOMY_READ },
+      { title: 'Brands', path: ROUTES.BRANDS, icon: <Tag size={18} />, capability: CAPABILITIES.TAXONOMY_READ },
+      { title: 'Approval Queue', path: ROUTES.PRODUCTS_APPROVALS, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.PRODUCTS_APPROVE },
     ],
   },
   {
     group: 'OPERATIONS',
     items: [
-      { title: 'Inventory Freshness', path: '/inventory', icon: <Warehouse size={18} /> },
-      { title: 'Offers & Campaigns', path: '/offers', icon: <DollarSign size={18} /> },
-      { title: 'Subscriptions', path: '/subscriptions', icon: <DollarSign size={18} /> },
+      { title: 'Inventory Freshness', path: ROUTES.INVENTORY, icon: <Warehouse size={18} />, capability: CAPABILITIES.INVENTORY_READ },
+      { title: 'Pricing Integrity', path: ROUTES.PRICING, icon: <DollarSign size={18} />, capability: CAPABILITIES.INVENTORY_READ },
+      { title: 'Offers & Campaigns', path: ROUTES.OFFERS, icon: <DollarSign size={18} />, capability: CAPABILITIES.OFFERS_READ },
+      { title: 'Subscriptions', path: ROUTES.SUBSCRIPTIONS, icon: <DollarSign size={18} />, capability: CAPABILITIES.SUBSCRIPTIONS_READ },
+      { title: 'POS Integrations', path: ROUTES.POS, icon: <Plug size={18} />, capability: CAPABILITIES.INVENTORY_READ },
+      { title: 'Data Imports', path: ROUTES.IMPORTS, icon: <Upload size={18} />, capability: CAPABILITIES.INVENTORY_READ },
     ],
   },
   {
     group: 'DISCOVERY',
     items: [
-      { title: 'Search Analytics', path: '/search', icon: <Search size={18} /> },
-      { title: 'Zero Results Analysis', path: '/search/zero-results', icon: <AlertCircle size={18} /> },
+      { title: 'Search Analytics', path: ROUTES.SEARCH, icon: <Search size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Search Quality', path: ROUTES.SEARCH_QUALITY, icon: <Search size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Zero Results', path: ROUTES.SEARCH_ZERO_RESULTS, icon: <AlertCircle size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Search Trends', path: ROUTES.SEARCH_TRENDS, icon: <TrendingUp size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+    ],
+  },
+  {
+    group: 'ANALYTICS',
+    items: [
+      { title: 'Analytics Overview', path: ROUTES.ANALYTICS, icon: <BarChart2 size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Customers', path: ROUTES.ANALYTICS_CUSTOMERS, icon: <Users size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Shopkeepers', path: ROUTES.ANALYTICS_SHOPKEEPERS, icon: <Store size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Products', path: ROUTES.ANALYTICS_PRODUCTS, icon: <Package size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Shops', path: ROUTES.ANALYTICS_SHOPS, icon: <Building2 size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Search', path: ROUTES.ANALYTICS_SEARCH, icon: <Search size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Geography', path: ROUTES.ANALYTICS_GEOGRAPHY, icon: <MapPin size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
     ],
   },
   {
     group: 'ENGAGEMENT & GOVERNANCE',
     items: [
-      { title: 'Support & Complaints', path: '/support', icon: <AlertCircle size={18} /> },
-      { title: 'Push Notifications', path: '/notifications', icon: <Bell size={18} /> },
-      { title: 'Audit Logs', path: '/audit', icon: <FileText size={18} /> },
+      { title: 'Support & Complaints', path: ROUTES.SUPPORT, icon: <AlertCircle size={18} />, capability: CAPABILITIES.SUPPORT_READ },
+      { title: 'Push Notifications', path: ROUTES.NOTIFICATIONS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
+      { title: 'Campaigns', path: ROUTES.NOTIFICATION_CAMPAIGNS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
+      { title: 'Audit Logs', path: ROUTES.AUDIT, icon: <FileText size={18} />, capability: CAPABILITIES.AUDIT_READ },
     ],
   },
   {
-    group: 'SYSTEM & SETTINGS',
+    group: 'ADMINISTRATION',
     items: [
-      { title: 'System Settings', path: '/system/settings', icon: <Settings size={18} /> },
-      { title: 'Feature Flags', path: '/system/flags', icon: <Sliders size={18} /> },
+      { title: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.ADMINS_READ },
+      { title: 'System Settings', path: ROUTES.SYSTEM_SETTINGS, icon: <Settings size={18} />, capability: CAPABILITIES.SETTINGS_READ },
+      { title: 'Feature Flags', path: ROUTES.SYSTEM_FLAGS, icon: <Sliders size={18} />, capability: CAPABILITIES.SETTINGS_MANAGE },
+      { title: 'System Health', path: ROUTES.SYSTEM_HEALTH, icon: <ActivityIcon size={18} />, capability: CAPABILITIES.SETTINGS_READ },
+      { title: 'Background Jobs', path: ROUTES.SYSTEM_JOBS, icon: <Layers size={18} />, capability: CAPABILITIES.SETTINGS_READ },
     ],
   },
 ];
@@ -113,11 +147,47 @@ const NAV_GROUPS: NavGroup[] = [
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const { can, isLoading } = usePermissions();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
-  const toggleGroup = (group: string) => {
+  // Restore remembered collapse state on mount (UI preference only — no platform data).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+      if (raw) setCollapsedGroups(JSON.parse(raw));
+    } catch {
+      // Ignore malformed preference payloads
+    }
+    setPrefsLoaded(true);
+  }, []);
+
+  // Persist collapse state whenever it changes.
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    try {
+      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(collapsedGroups));
+    } catch {
+      // Storage may be unavailable (private mode) — non-fatal
+    }
+  }, [collapsedGroups, prefsLoaded]);
+
+  // Auto-expand the group containing the active route so the selected
+  // navigation state is always visible after a reload or deep-link.
+  useEffect(() => {
+    const activeGroup = NAV_GROUPS.find((g) =>
+      g.items.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
+    );
+    if (!activeGroup) return;
+    setCollapsedGroups((prev) => {
+      if (!prev[activeGroup.group]) return prev;
+      return { ...prev, [activeGroup.group]: false };
+    });
+  }, [pathname]);
+
+  const toggleGroup = useCallback((group: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
-  };
+  }, []);
 
   return (
     <Drawer
@@ -139,10 +209,21 @@ export const Sidebar: React.FC = () => {
         {NAV_GROUPS.map((navGroup, idx) => {
           const isCollapsed = collapsedGroups[navGroup.group];
 
+          // Authorization-aware navigation: only render destinations the current
+          // admin capability set permits. Centralized, never hardcoded per page.
+          const visibleItems = isLoading
+            ? []
+            : navGroup.items.filter((item) => !item.capability || can(item.capability));
+
+          if (!isLoading && visibleItems.length === 0) return null;
+
           return (
             <Box key={navGroup.group} sx={{ mb: 1 }}>
               <Box
                 onClick={() => toggleGroup(navGroup.group)}
+                role="button"
+                aria-expanded={!isCollapsed}
+                aria-label={`Toggle ${navGroup.group} section`}
                 sx={{
                   px: 2.5,
                   py: 0.75,
@@ -173,7 +254,7 @@ export const Sidebar: React.FC = () => {
 
               <Collapse in={!isCollapsed} timeout="auto" unmountOnExit>
                 <List dense disablePadding>
-                  {navGroup.items.map((item) => {
+                  {visibleItems.map((item) => {
                     const active = pathname === item.path || pathname.startsWith(`${item.path}/`);
 
                     return (

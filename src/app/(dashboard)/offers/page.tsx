@@ -11,6 +11,8 @@ import { OfferItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { CAPABILITIES } from '@/core/permissions/permissions';
 
 export default function OffersPage() {
   const queryClient = useQueryClient();
@@ -93,14 +95,16 @@ export default function OffersPage() {
         const item = params.row as OfferItem;
         const isActive = item.status === 'ACTIVE';
         return (
-          <Button
-            size="small"
-            color={isActive ? 'warning' : 'success'}
-            startIcon={isActive ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
-            onClick={() => setActionTarget({ id: item.id, title: item.title, nextStatus: isActive ? 'PAUSED' : 'ACTIVE' })}
-          >
-            {isActive ? 'Pause' : 'Activate'}
-          </Button>
+          <PermissionGuard capability={CAPABILITIES.OFFERS_UPDATE}>
+            <Button
+              size="small"
+              color={isActive ? 'warning' : 'success'}
+              startIcon={isActive ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
+              onClick={() => setActionTarget({ id: item.id, title: item.title, nextStatus: isActive ? 'PAUSED' : 'ACTIVE' })}
+            >
+              {isActive ? 'Pause' : 'Activate'}
+            </Button>
+          </PermissionGuard>
         );
       },
     },
