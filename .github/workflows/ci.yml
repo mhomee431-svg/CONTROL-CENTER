@@ -14,6 +14,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ref makes the older run obsolete. Cancelling it
+# stops several copies of the same 5-minute suite from burning minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: typecheck, lint, test, build

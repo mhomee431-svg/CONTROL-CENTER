@@ -1,0 +1,69 @@
+version: 2
+
+updates:
+  # Runtime and build dependencies.
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Kolkata'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'automation'
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    groups:
+      # One PR for the whole patch line instead of dozens of single bumps.
+      # Patch releases are low risk and this keeps the review queue short.
+      production-patches:
+        applies-to: 'version-updates'
+        update-types:
+          - 'patch'
+      production-minors:
+        applies-to: 'version-updates'
+        update-types:
+          - 'minor'
+      dev-patches:
+        applies-to: 'version-updates'
+        dependency-type: 'development'
+        update-types:
+          - 'patch'
+      dev-minors:
+        applies-to: 'version-updates'
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+    ignore:
+      # Held back deliberately: a major bump here needs manual validation
+      # against the MUI v6 and Next 15 APIs used across the admin pages.
+      - dependency-name: '@mui/material'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: '@mui/x-data-grid'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: '@mui/x-charts'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: 'next'
+        update-types:
+          - 'version-update:semver-major'
+
+  # Keeps the GitHub Actions themselves current — an outdated action can
+  # carry its own CVEs, and the CI gate is the main safety net here.
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:30'
+      timezone: 'Asia/Kolkata'
+    labels:
+      - 'dependencies'
+      - 'automation'
+    commit-message:
+      prefix: 'chore(ci)'
