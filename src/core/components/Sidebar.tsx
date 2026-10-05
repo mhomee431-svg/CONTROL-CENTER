@@ -40,6 +40,7 @@ import {
   BarChart2,
   Building2,
   Activity as ActivityIcon,
+  LayoutGrid,
 } from 'lucide-react';
 import { usePermissions } from '../permissions/PermissionGuard';
 import { CAPABILITIES, Capability } from '../permissions/permissions';
@@ -137,6 +138,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: 'ADMINISTRATION',
     items: [
+      // Landing page for the whole administration area. It collects the
+      // config, governance, audit and job destinations below it in one
+      // place, so it goes first as the section entry point.
+      { title: 'Settings Hub', path: ROUTES.SETTINGS, icon: <LayoutGrid size={18} />, capability: CAPABILITIES.SETTINGS_READ },
       { title: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.ADMINS_READ },
       { title: 'System Settings', path: ROUTES.SYSTEM_SETTINGS, icon: <Settings size={18} />, capability: CAPABILITIES.SETTINGS_READ },
       { title: 'Feature Flags', path: ROUTES.SYSTEM_FLAGS, icon: <Sliders size={18} />, capability: CAPABILITIES.SETTINGS_MANAGE },

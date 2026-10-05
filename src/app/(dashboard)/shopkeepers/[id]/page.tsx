@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import { Store, Phone, Mail, Calendar, Clock, MapPin, ArrowLeft, Tag, ShieldCheck } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
+import { fetchList } from '@/core/api/fetchList';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import {
   ShopkeeperDetail,
@@ -84,29 +85,37 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
   });
 
   /** Shops this merchant owns — the spine of the Business/Products/Inventory tabs. */
-  const { data: shops } = useQuery<{ items: ShopItem[] }>({
-    queryKey: ['admin', 'shopkeepers', id, 'shops'],
-    queryFn: () =>
-      apiClient<{ items: ShopItem[] }>(API_ENDPOINTS.SHOPKEEPERS.SHOPS(id)).catch(() => ({
-        items: [] as ShopItem[],
-      })),
-    retry: false,
-  });
+  /**
+   * The shops this merchant owns. Every other tab on this page derives from
+   * this list — inventory, prices and offers are all read through it — so a
+   * failure here is not an empty tab, it is the page having no subject.
+   *
+   * It is left unswallowed so the header can say the shops could not be
+   * loaded, instead of rendering a merchant record whose entire shop list
+   * silently reads as "owns none".
+   */
+  const { data: shops, isLoading: shopsLoading, isError: shopsError, refetch: refetchShops } =
+    useQuery<{ items: ShopItem[] }>({
+      queryKey: ['admin', 'shopkeepers', id, 'shops'],
+      queryFn: () => apiClient<{ items: ShopItem[] }>(API_ENDPOINTS.SHOPKEEPERS.SHOPS(id)),
+      retry: false,
+    });
 
   const shopIds = (shops?.items || []).map((s) => s.id);
 
   /**
    * Shared fetch helper for the merchant-scoped surfaces (Imports, POS,
-   * Notifications, Support). Each has its own backend contract; a surface
-   * whose endpoint is not yet published resolves to an empty list rather than
-   * substituting unrelated data.
+   * Notifications, Support). Each has its own backend contract.
+   *
+   * Failures are not swallowed. `fetchList` reports an unpublished route as
+   * `unavailable` so the surface can name it, and rethrows everything else so
+   * a real outage reaches the grid as an error with a retry — rather than
+   * rendering as "this merchant has no imports", which is a claim about the
+   * data that an operator would act on.
    */
-  const fetchMerchantList = <T,>(endpoint: string) =>
-    apiClient<{ items: T[]; total?: number }>(endpoint)
-      .then((r) => ({ items: r.items || [], total: r.total ?? r.items?.length ?? 0 }))
-      .catch(() => ({ items: [] as T[], total: 0 }));
+  const fetchMerchantList = <T,>(endpoint: string) => fetchList<T>(endpoint);
 
-  const { data: imports, isLoading: importsLoading } = useQuery<{
+  const { data: imports, isLoading: importsLoading, isError: importsError, refetch: refetchImports } = useQuery<{
     items: ShopkeeperImportItem[];
     total: number;
   }>({
@@ -116,7 +125,7 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
     retry: false,
   });
 
-  const { data: posIntegrations, isLoading: posLoading } = useQuery<{
+  const { data: posIntegrations, isLoading: posLoading, isError: posError, refetch: refetchPos } = useQuery<{
     items: ShopkeeperPosItem[];
     total: number;
   }>({
@@ -127,7 +136,7 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
     retry: false,
   });
 
-  const { data: notifications, isLoading: notificationsLoading } = useQuery<{
+  const { data: notifications, isLoading: notificationsLoading, isError: notificationsError, refetch: refetchNotifications } = useQuery<{
     items: ShopkeeperNotificationItem[];
     total: number;
   }>({
@@ -138,7 +147,7 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
     retry: false,
   });
 
-  const { data: tickets, isLoading: ticketsLoading } = useQuery<{
+  const { data: tickets, isLoading: ticketsLoading, isError: ticketsError, refetch: refetchTickets } = useQuery<{
     items: ShopkeeperTicketItem[];
     total: number;
   }>({
@@ -148,15 +157,23 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
     retry: false,
   });
 
-  /** Shop inventory backs the Products/Inventory/Prices tabs. */
-  const { data: inventory, isLoading: invLoading } = useQuery<{
+  /**
+   * Shop inventory backs the Products/Inventory/Prices tabs.
+   *
+   * A merchant may own several shops, so the tabs read across all of them.
+   * Each request is settled independently: one shop failing must not blank
+   * the whole tab, but it also must not silently look like an empty result —
+   * `allUnavailable` records the case where none of them answered.
+   */
+  const { data: inventory, isLoading: invLoading, isError: invError, refetch: refetchInventory } = useQuery<{
     items: ShopInventoryItem[];
     total: number;
+    allUnavailable: boolean;
   }>({
     queryKey: ['admin', 'shopkeepers', id, 'inventory', pagination],
     queryFn: async () => {
-      if (shopIds.length === 0) return { items: [], total: 0 };
-      const results = await Promise.all(
+      if (shopIds.length === 0) return { items: [], total: 0, allUnavailable: true };
+      const settled = await Promise.allSettled(
         shopIds.map((sid) =>
           apiClient<{ items: ShopInventoryItem[]; total: number }>(
             API_ENDPOINTS.INVENTORY.SHOP_INVENTORY(sid),
@@ -166,24 +183,35 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
                 offset: pagination.page * pagination.pageSize,
               },
             }
-          ).catch(() => ({ items: [] as ShopInventoryItem[], total: 0 }))
+          )
         )
       );
+      const fulfilled = settled
+        .filter((s): s is PromiseFulfilledResult<{ items: ShopInventoryItem[]; total: number }> =>
+          s.status === 'fulfilled'
+        )
+        .map((s) => s.value);
+      // Nothing answered successfully: surface it as a failure so the tab
+      // shows the error rather than an empty inventory.
+      if (fulfilled.length === 0) throw new Error('Every shop inventory request failed');
       return {
-        items: results.flatMap((r) => r.items || []),
-        total: results.reduce((sum, r) => sum + (r.total ?? 0), 0),
+        items: fulfilled.flatMap((r) => r.items || []),
+        total: fulfilled.reduce((sum, r) => sum + (r.total ?? 0), 0),
+        allUnavailable: false,
       };
     },
     enabled: tabIndex >= 2 && tabIndex <= 4 && shopIds.length > 0,
     retry: false,
   });
 
-  const { data: offers, isLoading: offersLoading } = useQuery<{ items: OfferItem[] }>({
+  const { data: offers, isLoading: offersLoading, isError: offersError, refetch: refetchOffers } = useQuery<{
+    items: OfferItem[];
+    unavailable: boolean;
+  }>({
     queryKey: ['admin', 'shopkeepers', id, 'offers'],
-    queryFn: () =>
-      apiClient<{ items: OfferItem[] }>(API_ENDPOINTS.OFFERS.LIST, {
-        params: { shop_id: shopIds[0] ?? undefined, limit: 100 },
-      }).catch(() => ({ items: [] as OfferItem[] })),
+    queryFn: () => fetchList<OfferItem>(API_ENDPOINTS.OFFERS.LIST, {
+      params: { shop_id: shopIds[0] ?? undefined, limit: 100 },
+    }),
     enabled: tabIndex === 5 && shopIds.length > 0,
     retry: false,
   });
@@ -455,6 +483,19 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
       )}
       {isError && <Alert severity="error">Could not load shopkeeper #{id}.</Alert>}
 
+      {shopsError && (
+        // The shop list is this page's subject, not one tab among many. Losing
+        // it silently would render a merchant who appears to own nothing,
+        // which is an operational claim the operator would act on.
+        <Alert severity="error" sx={{ mt: 2 }}>
+          This merchant&apos;s shops could not be loaded, so inventory, pricing and offers cannot be
+          shown. The request failed — retry, and escalate if it keeps failing.
+          <Button size="small" onClick={() => refetchShops()} sx={{ ml: 1 }}>
+            Retry
+          </Button>
+        </Alert>
+      )}
+
       {!isLoading && !isError && !shopkeeper && (
         <Alert severity="warning">
           No shopkeeper record exists for #{id}. It may have been deleted or the id may refer to a
@@ -618,6 +659,9 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={invLoading}
+                  error={invError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchInventory()}
               searchPlaceholder={`Search ${TABS[tabIndex].toLowerCase()}...`}
             />
           )}
@@ -631,6 +675,9 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={offersLoading}
+                  error={offersError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchOffers()}
             />
           )}
 
@@ -643,6 +690,9 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={importsLoading}
+                  error={importsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchImports()}
               searchPlaceholder="Search import jobs..."
             />
           )}
@@ -655,6 +705,9 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={posLoading}
+                  error={posError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchPos()}
               searchPlaceholder="Search POS integrations..."
             />
           )}
@@ -667,6 +720,9 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={notificationsLoading}
+                  error={notificationsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchNotifications()}
               searchPlaceholder="Search notifications..."
             />
           )}
@@ -679,6 +735,9 @@ export default function ShopkeeperDetailPage({ params }: { params: Promise<{ id:
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={ticketsLoading}
+                  error={ticketsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchTickets()}
               searchPlaceholder="Search support tickets..."
             />
           )}

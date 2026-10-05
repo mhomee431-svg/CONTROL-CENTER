@@ -104,3 +104,51 @@ describe('query failure surfaces an explicit state', () => {
     expect(geo).toContain('Unavailable');
   });
 });
+
+describe('every dashboard page is reachable from the sidebar', () => {
+  // A page that nothing links to is invisible: it still builds, still passes
+  // every check, and is never opened. /settings was exactly this — a working
+  // hub for eight administration sections that no navigation entry pointed at.
+  const pages: string[] = [];
+  const walk = (dir: string, prefix: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full, entry.name.startsWith('(') ? prefix : `${prefix}/${entry.name}`);
+      } else if (entry.name === 'page.tsx') {
+        pages.push(prefix || '/');
+      }
+    }
+  };
+  walk(APP_DIR, '');
+
+  const routesSrc = readFileSync(join(process.cwd(), 'src/core/routes/routes.ts'), 'utf8');
+  const sidebarSrc = readFileSync(join(process.cwd(), 'src/core/components/Sidebar.tsx'), 'utf8');
+
+  const navPaths = [...new Set([...sidebarSrc.matchAll(/ROUTES\.([A-Z_0-9]+)/g)].map((m) => m[1]))]
+    .map((key) => {
+      // Anchored so SETTINGS does not match the SYSTEM_SETTINGS entry that
+      // appears earlier in the file.
+      const found = routesSrc.match(new RegExp(`^\\s*${key}:\\s*'([^']+)'`, 'm'));
+      return found ? found[1] : null;
+    })
+    .filter((v): v is string => Boolean(v));
+
+  it('found the page corpus', () => {
+    expect(pages.length).toBeGreaterThan(20);
+  });
+
+  it('resolves sidebar route constants', () => {
+    expect(navPaths.length).toBeGreaterThan(10);
+  });
+
+  it('has no orphaned pages', () => {
+    const orphans = pages.filter((p) => {
+      // The login page is reached from the session guard on a 401, never from
+      // the authenticated nav. The root is a redirect shim to the dashboard.
+      if (p === '/login' || p === '/') return false;
+      return !navPaths.some((n) => p === n || p.startsWith(n === '/' ? '/' : `${n}/`));
+    });
+    expect(orphans).toEqual([]);
+  });
+});

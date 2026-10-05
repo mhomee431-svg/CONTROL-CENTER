@@ -32,6 +32,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
+import { fetchList } from '@/core/api/fetchList';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import {
   CustomerDetail,
@@ -117,87 +118,90 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   // The spec splits Activity into six surfaces, each its own backend contract.
   // All six share one fetcher; only the active one is enabled, so opening the
   // page issues one request rather than nine.
-  const fetchList = <T,>(endpoint: string) =>
-    apiClient<{ items: T[]; total?: number }>(endpoint)
-      .then((r) => ({ items: stripForbiddenFields(r.items || []), total: r.total ?? r.items?.length ?? 0 }))
-      .catch(() => ({ items: [] as T[], total: 0 }));
+  //
+  // Failures are deliberately not swallowed. `fetchList` reports an
+  // unpublished route as `unavailable` (a known, stable state the UI can name)
+  // and rethrows everything else, so a real outage reaches the grid as an
+  // error with a retry instead of an empty list that reads like "no data".
+  const fetchCustomerList = <T,>(endpoint: string) =>
+    fetchList<T>(endpoint).then((r) => ({ ...r, items: stripForbiddenFields(r.items) }));
 
-  const { data: activity, isLoading: activityLoading } = useQuery<{ items: CustomerActivityItem[]; total: number }>({
+  const { data: activity, isLoading: activityLoading, isError: activityError, refetch: refetchActivity } = useQuery<{ items: CustomerActivityItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'activity'],
-    queryFn: () => fetchList<CustomerActivityItem>(API_ENDPOINTS.CUSTOMERS.ACTIVITY(customerId)),
+    queryFn: () => fetchCustomerList<CustomerActivityItem>(API_ENDPOINTS.CUSTOMERS.ACTIVITY(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: searches, isLoading: searchesLoading } = useQuery<{ items: CustomerSearchItem[]; total: number }>({
+  const { data: searches, isLoading: searchesLoading, isError: searchesError, refetch: refetchSearches } = useQuery<{ items: CustomerSearchItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'searches'],
-    queryFn: () => fetchList<CustomerSearchItem>(API_ENDPOINTS.CUSTOMERS.SEARCHES(customerId)),
+    queryFn: () => fetchCustomerList<CustomerSearchItem>(API_ENDPOINTS.CUSTOMERS.SEARCHES(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: viewedProducts, isLoading: viewedProductsLoading } = useQuery<{ items: CustomerViewedItem[]; total: number }>({
+  const { data: viewedProducts, isLoading: viewedProductsLoading, isError: viewedProductsError, refetch: refetchViewedProducts } = useQuery<{ items: CustomerViewedItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'viewed-products'],
     queryFn: () =>
-      fetchList<CustomerViewedItem>(API_ENDPOINTS.CUSTOMERS.VIEWED_PRODUCTS(customerId)),
+      fetchCustomerList<CustomerViewedItem>(API_ENDPOINTS.CUSTOMERS.VIEWED_PRODUCTS(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: viewedShops, isLoading: viewedShopsLoading } = useQuery<{ items: CustomerViewedItem[]; total: number }>({
+  const { data: viewedShops, isLoading: viewedShopsLoading, isError: viewedShopsError, refetch: refetchViewedShops } = useQuery<{ items: CustomerViewedItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'viewed-shops'],
-    queryFn: () => fetchList<CustomerViewedItem>(API_ENDPOINTS.CUSTOMERS.VIEWED_SHOPS(customerId)),
+    queryFn: () => fetchCustomerList<CustomerViewedItem>(API_ENDPOINTS.CUSTOMERS.VIEWED_SHOPS(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: savedProducts, isLoading: savedProductsLoading } = useQuery<{ items: CustomerSavedEntityItem[]; total: number }>({
+  const { data: savedProducts, isLoading: savedProductsLoading, isError: savedProductsError, refetch: refetchSavedProducts } = useQuery<{ items: CustomerSavedEntityItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'saved-products'],
     queryFn: () =>
-      fetchList<CustomerSavedEntityItem>(API_ENDPOINTS.CUSTOMERS.SAVED_PRODUCTS(customerId)),
+      fetchCustomerList<CustomerSavedEntityItem>(API_ENDPOINTS.CUSTOMERS.SAVED_PRODUCTS(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: savedShops, isLoading: savedShopsLoading } = useQuery<{ items: CustomerSavedEntityItem[]; total: number }>({
+  const { data: savedShops, isLoading: savedShopsLoading, isError: savedShopsError, refetch: refetchSavedShops } = useQuery<{ items: CustomerSavedEntityItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'saved-shops'],
-    queryFn: () => fetchList<CustomerSavedEntityItem>(API_ENDPOINTS.CUSTOMERS.SAVED_SHOPS(customerId)),
+    queryFn: () => fetchCustomerList<CustomerSavedEntityItem>(API_ENDPOINTS.CUSTOMERS.SAVED_SHOPS(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: notifications, isLoading: notificationsLoading } = useQuery<{ items: CustomerNotificationItem[]; total: number }>({
+  const { data: notifications, isLoading: notificationsLoading, isError: notificationsError, refetch: refetchNotifications } = useQuery<{ items: CustomerNotificationItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'notifications'],
     queryFn: () =>
-      fetchList<CustomerNotificationItem>(API_ENDPOINTS.CUSTOMERS.NOTIFICATIONS(customerId)),
+      fetchCustomerList<CustomerNotificationItem>(API_ENDPOINTS.CUSTOMERS.NOTIFICATIONS(customerId)),
     enabled: tabIndex === 1,
     retry: false,
   });
 
-  const { data: saved, isLoading: savedLoading } = useQuery<{ items: CustomerSavedItem[]; total: number }>({
+  const { data: saved, isLoading: savedLoading, isError: savedError, refetch: refetchSaved } = useQuery<{ items: CustomerSavedItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'saved'],
-    queryFn: () => fetchList<CustomerSavedItem>(API_ENDPOINTS.CUSTOMERS.SAVED_ITEMS(customerId)),
+    queryFn: () => fetchCustomerList<CustomerSavedItem>(API_ENDPOINTS.CUSTOMERS.SAVED_ITEMS(customerId)),
     enabled: tabIndex === 2,
     retry: false,
   });
 
-  const { data: addresses, isLoading: addressesLoading } = useQuery<{ items: CustomerAddressItem[]; total: number }>({
+  const { data: addresses, isLoading: addressesLoading, isError: addressesError, refetch: refetchAddresses } = useQuery<{ items: CustomerAddressItem[]; total: number; unavailable: boolean }>({
     queryKey: ['admin', 'customers', customerId, 'addresses'],
-    queryFn: () => fetchList<CustomerAddressItem>(API_ENDPOINTS.CUSTOMERS.ADDRESSES(customerId)),
+    queryFn: () => fetchCustomerList<CustomerAddressItem>(API_ENDPOINTS.CUSTOMERS.ADDRESSES(customerId)),
     enabled: tabIndex === 3,
     retry: false,
   });
 
-  const { data: tickets, isLoading: ticketsLoading } = useQuery<{ items: CustomerTicketItem[]; total: number }>({
+  const { data: tickets, isLoading: ticketsLoading, isError: ticketsError, refetch: refetchTickets } = useQuery<{ items: CustomerTicketItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'tickets'],
-    queryFn: () => fetchList<CustomerTicketItem>(API_ENDPOINTS.CUSTOMERS.TICKETS(customerId)),
+    queryFn: () => fetchCustomerList<CustomerTicketItem>(API_ENDPOINTS.CUSTOMERS.TICKETS(customerId)),
     enabled: tabIndex === 4,
     retry: false,
   });
 
-  const { data: reports, isLoading: reportsLoading } = useQuery<{ items: CustomerReportItem[]; total: number }>({
+  const { data: reports, isLoading: reportsLoading, isError: reportsError, refetch: refetchReports } = useQuery<{ items: CustomerReportItem[]; total: number }>({
     queryKey: ['admin', 'customers', customerId, 'reports'],
-    queryFn: () => fetchList<CustomerReportItem>(API_ENDPOINTS.CUSTOMERS.REPORTS(customerId)),
+    queryFn: () => fetchCustomerList<CustomerReportItem>(API_ENDPOINTS.CUSTOMERS.REPORTS(customerId)),
     enabled: tabIndex === 4,
     retry: false,
   });
@@ -665,6 +669,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={searchesLoading}
+                  error={searchesError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchSearches()}
                 />
               )}
               {activityTab === 'Viewed Products' && (
@@ -675,6 +682,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={viewedProductsLoading}
+                  error={viewedProductsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchViewedProducts()}
                 />
               )}
               {activityTab === 'Viewed Shops' && (
@@ -685,6 +695,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={viewedShopsLoading}
+                  error={viewedShopsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchViewedShops()}
                 />
               )}
               {activityTab === 'Saved Products' && (
@@ -695,6 +708,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={savedProductsLoading}
+                  error={savedProductsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchSavedProducts()}
                 />
               )}
               {activityTab === 'Saved Shops' && (
@@ -705,6 +721,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={savedShopsLoading}
+                  error={savedShopsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchSavedShops()}
                 />
               )}
               {activityTab === 'Notifications' && (
@@ -715,6 +734,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={notificationsLoading}
+                  error={notificationsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchNotifications()}
                 />
               )}
               {/* Unified cross-entity timeline from the activity stream. */}
@@ -726,6 +748,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={activityLoading}
+                  error={activityError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchActivity()}
                 />
               )}
             </Box>
@@ -739,6 +764,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               paginationModel={pagination}
               onPaginationModelChange={setPagination}
               loading={savedLoading}
+                  error={savedError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchSaved()}
             />
           )}
 
@@ -757,6 +785,21 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                     <CircularProgress size={24} />
                   </Box>
+                ) : addressesError ? (
+                  // A failed request must not read as "this customer has no
+                  // addresses" — that is an operational claim about the data,
+                  // not a statement about the request.
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    Saved addresses could not be loaded. The request failed — retry, and
+                    escalate if it keeps failing.
+                    <Button size="small" onClick={() => refetchAddresses()} sx={{ ml: 1 }}>
+                      Retry
+                    </Button>
+                  </Alert>
+                ) : (addresses?.unavailable ?? false) ? (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    The saved-addresses endpoint is not published on this deployment.
+                  </Alert>
                 ) : (addresses?.items?.length ?? 0) === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
                     No saved addresses available for this customer.
@@ -798,6 +841,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={ticketsLoading}
+                  error={ticketsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchTickets()}
                 />
               ) : (
                 <AdminDataGrid
@@ -807,6 +853,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   paginationModel={pagination}
                   onPaginationModelChange={setPagination}
                   loading={reportsLoading}
+                  error={reportsError}
+                  errorMessage="This surface could not be loaded. The request failed — retry, and escalate if it keeps failing."
+                  onRefresh={() => refetchReports()}
                 />
               )}
             </Box>
