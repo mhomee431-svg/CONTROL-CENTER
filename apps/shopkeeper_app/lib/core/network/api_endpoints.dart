@@ -111,7 +111,28 @@ class ApiEndpoints {
   static const String businessCategories =
       '/api/v1/shopkeeper/businesses/categories';
   static String businessCategoryRequirements(String code) =>
-      '$businessCategories/$code/requirements';
+      '/api/v1/shopkeeper/businesses/categories/$code/requirements';
+
+  /// Capability-driven FIELDS for one business category.
+///
+/// The third leg of the capability contract, alongside [businessCategories] and
+/// [businessCategoryProductAttributes]. Which fields the shop profile shows, and
+/// which ones the backend will accept on save, both come from this.
+static String businessCategoryFields(String code, {String? businessType}) {
+  final base = '/api/v1/shopkeeper/businesses/categories/$code/fields';
+  if (businessType == null || businessType.isEmpty) return base;
+  final encoded = Uri.encodeQueryComponent(businessType);
+  return '$base?business_type=$encoded';
+}
+
+/// Persist the capability-driven fields for one shop.
+static String shopCapabilityFields(int shopId) =>
+    '/api/v1/shopkeeper/businesses/shops/$shopId/capability-fields';
+
+/// Product attributes for one business category — what a PRODUCT stores.
+static String businessCategoryProductAttributes(String code) =>
+    '/api/v1/shopkeeper/businesses/categories/$code/product-attributes';
+
   static String shopHours(String id) => '${shop(id)}/hours';
 
     // ── Phase 7 — media / S3 object storage (secure signed-upload flow) ──
@@ -213,6 +234,18 @@ class ApiEndpoints {
   static String inventoryImportSample(int shopId) =>
       '${inventoryImports(shopId)}/sample';
 
+  /// The import schema — the field vocabulary and rules the Column Mapping
+  /// step renders.
+  ///
+  /// Shop-independent (a spreadsheet is judged against the same vocabulary
+  /// whoever uploaded it), so it carries no `shop_id`, unlike the sample.
+  static const String inventoryImportSchema =
+      '/api/v1/shopkeeper/inventory-imports/schema';
+
+  /// Correct the Column Mapping of a staged job and re-stage its rows.
+  static String inventoryImportRemap(int shopId, int jobId) =>
+      '/api/v1/shopkeeper/inventory-imports/$jobId/remap?shop_id=$shopId';
+
   // ── Support tickets (real intake + tracking) ──────────────────────────────
   /// `GET` lists the signed-in shopkeeper's tickets (newest first, optional
   /// `status` filter), `POST` files a new one. The backend scopes every row to
@@ -233,4 +266,23 @@ class ApiEndpoints {
 
   /// The only media category a support ticket accepts.
   static const String supportAttachmentCategory = 'SUPPORT_ATTACHMENT';
+
+  // ── Restaurant menu management ────────────────────────────────────────────
+  //
+  // Shop-scoped, NOT keyed on `restaurant_id`. The app never receives a
+  // restaurant id, and the menu routes live in the shopkeeper module the app is
+  // allowed to consume; the backend resolves the restaurant through the shop.
+  static String myRestaurant(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/restaurant';
+
+  static String myMenu(int shopId) => '/api/v1/shopkeeper/shops/$shopId/menu';
+
+  static String myMenuCategories(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/menu-categories';
+
+  static String myMenuItems(int shopId) =>
+      '/api/v1/shopkeeper/shops/$shopId/menu-items';
+
+  static String myMenuItem(int shopId, int itemId) =>
+      '/api/v1/shopkeeper/shops/$shopId/menu-items/$itemId';
 }

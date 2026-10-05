@@ -20,20 +20,50 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # JWT payloads are opaque, server-generated tokens that are never interpreted
 # by the SQL layer — a single base64url segment can legitimately contain a bare
 # `--` (SQL comment terminator) or other rule substrings purely by chance, so
-# scanning JWT values produces false positives without adding real signal.
-# Fields like ``refresh_token`` and ``access_token`` carry JWTs, so they must
-# be excluded from the body scan. Prose fields (descriptions, reports, etc.)
-# are still scanned field-by-field.
+# scanning token values produces false positives without adding real signal.
+#
+# `_JWT_RE` alone was NOT enough, and the gap was a live bug: this platform's
+# refresh tokens come from `secrets.token_urlsafe(48)`, which is a single
+# base64url segment with NO dots, so the three-segment JWT pattern never matched
+# any token the system actually issues. Roughly a third of 64-character tokens
+# contain `--`, `xp_` or `sp_` by chance, so a shopkeeper's token refresh was
+# answered `400 INVALID_INPUT` at random and they were silently logged out.
 _JWT_RE = re.compile(
     r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$"
 )
 
+# An opaque single-segment credential: high-entropy base64url of the length
+# `secrets.token_urlsafe(32..64)` produces. Distinguished from prose by having
+# no spaces and only token characters.
+_OPAQUE_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{32,}$")
+
+# Field names whose value is a server-issued credential and is therefore never
+# interpreted by the SQL layer. Skipping by NAME is the reliable half of the
+# fix: it holds whatever token format is issued later, instead of depending on
+# the value happening to look a particular way.
+_TOKEN_FIELD_NAMES = frozenset(
+    {
+        "refresh_token",
+        "access_token",
+        "id_token",
+        "token",
+        "api_key",
+        "authorization",
+    }
+)
+
 
 def _looks_like_jwt(value: str) -> bool:
-    """Return True if *value* is a JWT (opaque token, safe to skip)."""
+    """Return True if *value* is an opaque server-issued credential."""
     if not isinstance(value, str):
         return False
-    return bool(_JWT_RE.match(value))
+    if _JWT_RE.match(value):
+        return True
+    return bool(_OPAQUE_TOKEN_RE.match(value))
+
+
+def _is_token_field(name: object) -> bool:
+    return isinstance(name, str) and name.strip().lower() in _TOKEN_FIELD_NAMES
 
 logger = logging.getLogger("app.core.security_middleware")
 
@@ -155,9 +185,11 @@ class InputSanitizationMiddleware(BaseHTTPMiddleware):
                                 },
                             )
                     else:
-                        # Scan each string value, skipping JWTs.
-                        for value in self._iter_string_values(payload):
-                            if _looks_like_jwt(value):
+                        # Scan each string value, skipping credentials. The
+                        # field NAME is honoured as well as the shape, so a token
+                        # stays skipped whatever format it is issued in.
+                        for key, value in self._iter_string_values(payload):
+                            if _is_token_field(key) or _looks_like_jwt(value):
                                 continue
                             if self._contains_sql_injection(value) or self._contains_xss(value):
                                 logger.warning(
@@ -190,21 +222,25 @@ class InputSanitizationMiddleware(BaseHTTPMiddleware):
         return any(pattern.search(value) for pattern in self.xss_patterns)
 
     @staticmethod
-    def _iter_string_values(payload: object):
-        """Yield every nested string value in a parsed-JSON payload.
+    def _iter_string_values(payload: object, key: object = None):
+        """Yield every nested (field name, string value) in a parsed-JSON payload.
 
         Handles dicts, lists, tuples and scalars so that arbitrary nesting
         (objects inside arrays, etc.) is covered. Non-string scalars (ints,
         bools, nulls) are skipped because the rule engines only target text.
+
+        The field name travels with the value so the caller can exempt a value by
+        the field it arrived in — which is how a credential is recognised without
+        having to guess its format.
         """
         if isinstance(payload, str):
-            yield payload
+            yield key, payload
         elif isinstance(payload, dict):
-            for v in payload.values():
-                yield from InputSanitizationMiddleware._iter_string_values(v)
+            for child_key, v in payload.items():
+                yield from InputSanitizationMiddleware._iter_string_values(v, child_key)
         elif isinstance(payload, (list, tuple)):
             for v in payload:
-                yield from InputSanitizationMiddleware._iter_string_values(v)
+                yield from InputSanitizationMiddleware._iter_string_values(v, key)
         # ints / bools / None / floats — nothing to scan
 
 

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/l10n/app_text.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/datetime_utils.dart';
+import '../../../inventory/presentation/widgets/inventory_shared.dart';
 import '../../domain/product_models.dart';
 import '../controllers/products_controller.dart';
 import 'product_image_view.dart';
@@ -60,7 +62,7 @@ class ProductDetailsSheet extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: AppRadius.xsBorder,
                   ),
                 ),
               ),
@@ -169,14 +171,13 @@ int? _discountPercent(ShopProductItem item) {
 }
 
 /// Inventory source reported by the backend (MANUAL / BARCODE_SCAN / ...).
-String _sourceLabel(String? source) => switch (source) {
-      'MANUAL' => 'Manual entry',
-      'BARCODE_SCAN' => 'Barcode scan',
-      'EXCEL_UPLOAD' || 'IMPORT' => 'Bulk import',
-      'POS_INTEGRATION' || 'POS_SYNC' => 'POS sync',
-      'SYSTEM' => 'System',
-      _ => 'Not recorded',
-    };
+///
+/// Delegates to the shared label rather than keeping a fourth wording: this
+/// screen used to say "Barcode scan" while the inventory list said "Updated via
+/// barcode" for the same fact, and a shopkeeper cannot act on two versions of
+/// it. `inventorySourceLabel` also understands `IMPORT` and `POS_SYNC`, the two
+/// spellings this private switch had to special-case.
+String _sourceLabel(String? source) => inventorySourceLabel(source);
 
 /// Relative "Updated ..." label; never invents a timestamp when the backend
 /// did not provide one.
@@ -208,7 +209,7 @@ class _DetailsHeader extends StatelessWidget {
           imageUrl: item.imageUrl,
           width: 72,
           height: 72,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: AppRadius.smBorder,
           // Decorative — the product name sits right next to it.
           excludeFromSemantics: true,
           cacheWidth: 144,
@@ -302,7 +303,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: AppRadius.xsBorder,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(

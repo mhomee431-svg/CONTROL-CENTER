@@ -121,7 +121,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               icon: Icons.storefront_outlined,
             ),
           PosStatus.error => SystemStateView(
-              spec: SystemStateSpec.resolve(
+              spec: SystemStateSpec.resolve(
                 text: appText(context),
                 title: state.message ?? 'Could not load POS.',
                 message: appText(context).posScreenCheckYourConnectionAndTry,

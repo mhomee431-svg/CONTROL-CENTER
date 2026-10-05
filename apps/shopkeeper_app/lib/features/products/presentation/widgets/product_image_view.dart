@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
 import '../../../../core/l10n/app_text.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// A resilient, self-contained product image widget supporting:
 /// - Placeholder state (when no image is present)
@@ -239,7 +241,7 @@ class ProductImageView extends StatelessWidget {
             children: [
               if (onReplace != null)
                 Material(
-                  color: Colors.black54,
+                  color: AppColors.overlayBackdrop.withValues(alpha: 0.54),
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
@@ -249,7 +251,7 @@ class ProductImageView extends StatelessWidget {
                       child: Icon(
                         Icons.edit_outlined,
                         size: 14,
-                        color: Colors.white,
+                        color: AppColors.onOverlay,
                       ),
                     ),
                   ),
@@ -257,7 +259,7 @@ class ProductImageView extends StatelessWidget {
               if (_hasImage && onRemove != null) ...[
                 const SizedBox(width: 4),
                 Material(
-                  color: Colors.black54,
+                  color: AppColors.overlayBackdrop.withValues(alpha: 0.54),
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
@@ -267,7 +269,7 @@ class ProductImageView extends StatelessWidget {
                       child: Icon(
                         Icons.delete_outline,
                         size: 14,
-                        color: Colors.white,
+                        color: AppColors.onOverlay,
                       ),
                     ),
                   ),

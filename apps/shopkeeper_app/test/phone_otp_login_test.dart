@@ -29,6 +29,7 @@ void main() {
   ProviderContainer makeContainer(
     FakeAuthRepository repo, {
     PhoneOtpService? otp,
+    List<AuthMethod>? enabledAuthMethods,
   }) {
     final container = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
@@ -36,10 +37,31 @@ void main() {
       phoneOtpServiceProvider.overrideWithValue(
         otp ?? MockPhoneOtpService(delay: Duration.zero),
       ),
+      // The password sign-in flow is FUTURE scope (`AuthMethod.password` is off
+      // in the MVP), so the tests that exercise it must switch it ON — exactly
+      // as an end user would when the method ships. Leaving it off made these
+      // tests assert against a screen that correctly renders nothing.
+      if (enabledAuthMethods != null)
+        enabledAuthMethodsProvider.overrideWithValue(enabledAuthMethods),
     ]);
     addTearDown(container.dispose);
     return container;
   }
+
+  /// Container with the password method enabled — the precondition for every
+  /// `LoginScreen password sign-in` test below.
+  ProviderContainer makePasswordContainer(
+    FakeAuthRepository repo, {
+    PhoneOtpService? otp,
+  }) =>
+      makeContainer(
+        repo,
+        otp: otp,
+        enabledAuthMethods: const [
+          AuthMethod.googleFirebase,
+          AuthMethod.password,
+        ],
+      );
 
   /// The screens navigate with `context.push`, so they need a real router — a
   /// stub destination is enough to prove the navigation happened.
@@ -328,20 +350,37 @@ void main() {
   });
 
   group('WelcomeScreen method entry points', () {
-    testWidgets('every enabled method gets a visible entry point',
+    testWidgets('the MVP offers Google only; OTP and password stay hidden',
         (tester) async {
+      // The container here intentionally does NOT override the method list —
+      // the production `kEnabledAuthMethods` decides, so this widget test
+      // proves what the MVP shopkeeper actually sees.
       final container = makeContainer(FakeAuthRepository());
       await pumpAt(tester, container, Routes.welcome);
 
       expect(find.text('Welcome Back'), findsOneWidget);
       expect(find.text(AuthMethod.googleFirebase.actionLabel), findsOneWidget);
-      expect(find.byKey(WelcomeScreen.phoneSignInKey), findsOneWidget);
-      expect(find.byKey(WelcomeScreen.passwordSignInKey), findsOneWidget);
-      expect(find.byKey(WelcomeScreen.createAccountKey), findsOneWidget);
+      expect(find.byKey(WelcomeScreen.phoneSignInKey), findsNothing);
+      expect(find.byKey(WelcomeScreen.passwordSignInKey), findsNothing);
     });
 
-    testWidgets('the phone entry point opens the OTP screen', (tester) async {
-      final container = makeContainer(FakeAuthRepository());
+    testWidgets('re-enabling a method restores its entry point', (tester) async {
+      // Future-scope seam, verified the honest way: the MVP hides OTP, so this
+      // explicitly enables it and proves the tap still opens the OTP screen —
+      // the code stays alive without being reachable in production.
+      final container = ProviderContainer(overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        phoneOtpServiceProvider.overrideWithValue(
+          MockPhoneOtpService(delay: Duration.zero),
+        ),
+        enabledAuthMethodsProvider.overrideWithValue(const [
+          AuthMethod.googleFirebase,
+          AuthMethod.phoneOtp,
+        ]),
+      ]);
+      addTearDown(container.dispose);
+
       await pumpAt(tester, container, Routes.welcome);
 
       await tester.tap(find.byKey(WelcomeScreen.phoneSignInKey));
@@ -352,7 +391,19 @@ void main() {
 
     testWidgets('the password entry point opens the sign-in screen',
         (tester) async {
-      final container = makeContainer(FakeAuthRepository());
+      final container = ProviderContainer(overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        phoneOtpServiceProvider.overrideWithValue(
+          MockPhoneOtpService(delay: Duration.zero),
+        ),
+        enabledAuthMethodsProvider.overrideWithValue(const [
+          AuthMethod.googleFirebase,
+          AuthMethod.password,
+        ]),
+      ]);
+      addTearDown(container.dispose);
+
       await pumpAt(tester, container, Routes.welcome);
 
       await tester.tap(find.byKey(WelcomeScreen.passwordSignInKey));
@@ -386,7 +437,7 @@ void main() {
   group('LoginScreen password sign-in', () {
     testWidgets('an incomplete form is refused before any network call',
         (tester) async {
-      final container = makeContainer(FakeAuthRepository());
+      final container = makePasswordContainer(FakeAuthRepository());
       await pumpAt(tester, container, Routes.login);
 
       await tester.tap(find.byKey(LoginScreen.submitKey));
@@ -401,7 +452,7 @@ void main() {
     testWidgets('a phone number + password signs the shopkeeper in',
         (tester) async {
       final fake = FakeAuthRepository()..restoreResult = makeSession();
-      final container = makeContainer(fake);
+      final container = makePasswordContainer(fake);
       await pumpAt(tester, container, Routes.login);
 
       await tester.enterText(
@@ -419,7 +470,7 @@ void main() {
 
     testWidgets('a rejected sign-in shows the backend message inline',
         (tester) async {
-      final container = makeContainer(
+      final container = makePasswordContainer(
         FakeAuthRepository()
           ..submitError = const ApiException(
             statusCode: 401,
@@ -441,7 +492,7 @@ void main() {
 
     testWidgets('the forgot-password link opens the recovery route',
         (tester) async {
-      final container = makeContainer(FakeAuthRepository());
+      final container = makePasswordContainer(FakeAuthRepository());
       await pumpAt(tester, container, Routes.login);
 
       await tester.tap(find.byKey(LoginScreen.forgotKey));

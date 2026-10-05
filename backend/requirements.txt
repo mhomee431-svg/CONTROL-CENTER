@@ -23,6 +23,13 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.2.1
 
+# Shop slug generation. `POST /shopkeeper/auth/profile-create` imports this
+# unconditionally to build `Shop.slug`, but it was never declared here — so on
+# a clean install (CI, container, Lambda zip) that endpoint raised
+# ModuleNotFoundError and returned 500, meaning NO shopkeeper could finish
+# onboarding. Declared so a fresh environment cannot reproduce it.
+python-slugify>=9.0.0
+
 # â”€â”€ Cache / Background Jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 redis>=5.2.1
 celery>=5.4.0

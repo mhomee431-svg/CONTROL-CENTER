@@ -1,0 +1,394 @@
+{
+  "_comment": "Generated from backend/app/models/merchant_category.py. Do not edit by hand \u2014 run python scripts/export_category_capabilities.py. Regenerated fixtures are the contract both languages read, so neither has to parse the other's source.",
+  "always_present": [
+    "CONTACT",
+    "LOCATION"
+  ],
+  "business_types": [
+    "Other",
+    "Retail",
+    "Retail + Wholesale",
+    "Service",
+    "Wholesale"
+  ],
+  "categories": {
+    "AUTOMOTIVE_PARTS_TOOLS": {
+      "capabilities": [
+        "BARCODE",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "PRICE",
+        "PRODUCT_CATALOG",
+        "SERVICES"
+      ],
+      "name": "Automotive Parts & Tools"
+    },
+    "BEAUTY_PERSONAL_CARE": {
+      "capabilities": [
+        "BARCODE",
+        "BOOKING",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "POS",
+        "PRICE",
+        "PRODUCT_CATALOG",
+        "SERVICES"
+      ],
+      "name": "Beauty & Personal Care"
+    },
+    "BOOKS_MEDIA_STATIONERY": {
+      "capabilities": [
+        "BARCODE",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "POS",
+        "PRICE",
+        "PRODUCT_CATALOG"
+      ],
+      "name": "Books, Media & Stationery"
+    },
+    "FURNITURE_HOME_CARE": {
+      "capabilities": [
+        "BARCODE",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "PRICE",
+        "PRODUCT_CATALOG",
+        "SERVICES"
+      ],
+      "name": "Furniture & Home Care"
+    },
+    "HARDWARE": {
+      "capabilities": [
+        "BARCODE",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "PRICE",
+        "PRODUCT_CATALOG",
+        "SERVICES"
+      ],
+      "name": "Hardware"
+    },
+    "HOUSEHOLD_GOODS": {
+      "capabilities": [
+        "BARCODE",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "POS",
+        "PRICE",
+        "PRODUCT_CATALOG"
+      ],
+      "name": "Household Goods"
+    },
+    "PERSONAL_TRANSPORT_TRAVEL": {
+      "capabilities": [
+        "CATEGORY_SPECIFIC_DATA",
+        "DOCUMENTS",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "SERVICES"
+      ],
+      "name": "Personal Transport / Personal Travel"
+    },
+    "PHARMACY_HEALTHCARE": {
+      "capabilities": [
+        "BARCODE",
+        "DOCUMENTS",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "POS",
+        "PRICE",
+        "PRODUCT_CATALOG"
+      ],
+      "name": "Pharmacy & Healthcare"
+    },
+    "RESTAURANTS": {
+      "capabilities": [
+        "BOOKING",
+        "CATEGORY_SPECIFIC_DATA",
+        "DOCUMENTS",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "POS",
+        "PRICE",
+        "SERVICES"
+      ],
+      "name": "Restaurants"
+    },
+    "SPORTS_FITNESS_OUTDOOR": {
+      "capabilities": [
+        "BARCODE",
+        "IMPORT",
+        "INVENTORY",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "POS",
+        "PRICE",
+        "PRODUCT_CATALOG",
+        "SERVICES"
+      ],
+      "name": "Sports, Fitness & Outdoor"
+    },
+    "TRANSPORT": {
+      "capabilities": [
+        "BOOKING",
+        "CATEGORY_SPECIFIC_DATA",
+        "DOCUMENTS",
+        "OFFERS",
+        "OPERATING_HOURS",
+        "PRICE",
+        "SERVICES"
+      ],
+      "name": "Transport"
+    }
+  },
+  "resolution_samples": {
+    "AUTOMOTIVE_PARTS_TOOLS|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "PRODUCT_CATALOG",
+      "SERVICES"
+    ],
+    "AUTOMOTIVE_PARTS_TOOLS|Service": [
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "BEAUTY_PERSONAL_CARE|Retail": [
+      "BARCODE",
+      "BOOKING",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "POS",
+      "PRICE",
+      "PRODUCT_CATALOG",
+      "SERVICES"
+    ],
+    "BEAUTY_PERSONAL_CARE|Service": [
+      "BOOKING",
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "BOOKS_MEDIA_STATIONERY|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "POS",
+      "PRICE",
+      "PRODUCT_CATALOG"
+    ],
+    "BOOKS_MEDIA_STATIONERY|Service": [
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE"
+    ],
+    "FURNITURE_HOME_CARE|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "PRODUCT_CATALOG",
+      "SERVICES"
+    ],
+    "FURNITURE_HOME_CARE|Service": [
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "HARDWARE|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "PRODUCT_CATALOG",
+      "SERVICES"
+    ],
+    "HARDWARE|Service": [
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "HOUSEHOLD_GOODS|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "POS",
+      "PRICE",
+      "PRODUCT_CATALOG"
+    ],
+    "HOUSEHOLD_GOODS|Service": [
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE"
+    ],
+    "PERSONAL_TRANSPORT_TRAVEL|Retail": [
+      "CATEGORY_SPECIFIC_DATA",
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "SERVICES"
+    ],
+    "PERSONAL_TRANSPORT_TRAVEL|Service": [
+      "CATEGORY_SPECIFIC_DATA",
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "SERVICES"
+    ],
+    "PHARMACY_HEALTHCARE|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "DOCUMENTS",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "POS",
+      "PRICE",
+      "PRODUCT_CATALOG"
+    ],
+    "PHARMACY_HEALTHCARE|Service": [
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE"
+    ],
+    "RESTAURANTS|Retail": [
+      "BOOKING",
+      "CATEGORY_SPECIFIC_DATA",
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "POS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "RESTAURANTS|Service": [
+      "BOOKING",
+      "CATEGORY_SPECIFIC_DATA",
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "SPORTS_FITNESS_OUTDOOR|Retail": [
+      "BARCODE",
+      "CONTACT",
+      "IMPORT",
+      "INVENTORY",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "POS",
+      "PRICE",
+      "PRODUCT_CATALOG",
+      "SERVICES"
+    ],
+    "SPORTS_FITNESS_OUTDOOR|Service": [
+      "CONTACT",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "TRANSPORT|Retail": [
+      "BOOKING",
+      "CATEGORY_SPECIFIC_DATA",
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ],
+    "TRANSPORT|Service": [
+      "BOOKING",
+      "CATEGORY_SPECIFIC_DATA",
+      "CONTACT",
+      "DOCUMENTS",
+      "LOCATION",
+      "OFFERS",
+      "OPERATING_HOURS",
+      "PRICE",
+      "SERVICES"
+    ]
+  },
+  "serving_only_exclusions": [
+    "BARCODE",
+    "IMPORT",
+    "INVENTORY",
+    "POS",
+    "PRODUCT_CATALOG"
+  ]
+}

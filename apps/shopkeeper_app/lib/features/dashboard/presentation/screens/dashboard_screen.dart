@@ -14,7 +14,8 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../products/presentation/widgets/product_sheets.dart'
     show ProductAddMethodSheet;
-import '../../../shops/domain/shop_models.dart' show ShopCapabilities;
+import '../../../shops/domain/shop_models.dart'
+    show ShopCapabilities, businessCategoryLabel;
 import '../../../notifications/domain/notification_models.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../domain/dashboard_models.dart';
@@ -316,22 +317,9 @@ class _HomeHeader extends StatelessWidget {
 
   /// Human-readable label for an approved merchant-category code.
   /// Unknown codes fall back to the raw code — never a guessed label.
-  static String _categoryLabel(String? code) {
-    return switch (code) {
-      'PHARMACY_HEALTHCARE' => 'Pharmacy & Healthcare',
-      'BEAUTY_PERSONAL_CARE' => 'Beauty & Personal Care',
-      'FURNITURE_HOME_CARE' => 'Furniture & Home Care',
-      'HOUSEHOLD_GOODS' => 'Household Goods',
-      'SPORTS_FITNESS_OUTDOOR' => 'Sports, Fitness & Outdoor',
-      'BOOKS_MEDIA_STATIONERY' => 'Books, Media & Stationery',
-      'AUTOMOTIVE_PARTS_TOOLS' => 'Automotive Parts & Tools',
-      'HARDWARE' => 'Hardware',
-      'RESTAURANTS' => 'Restaurants',
-      'TRANSPORT' => 'Transport',
-      'PERSONAL_TRANSPORT_TRAVEL' => 'Personal Transport / Personal Travel',
-      _ => code ?? 'Not set',
-    };
-  }
+  static String _categoryLabel(String? code) => businessCategoryLabel(code);
+
+
 
   @override
   Widget build(BuildContext context) {

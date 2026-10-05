@@ -258,15 +258,15 @@ GPS fix, or a real camera scan). `docs/testing/PHASE28_REAL_DEVICE_E2E_TEST.md`
 already tracks the manual equivalent.
 
 ### 🟢 F9 — Small misfilings
-* `features/auth/domain/auth_methods.dart` (42 lines) is **orphaned**. It is a
-  deliberate "future apply switch" (`kEnabledAuthMethods`,
-  `enabledAuthMethodsProvider`, `isAuthMethodEnabledProvider`) that **no screen
-  imports** — its only references outside the file are *doc comments* in
-  `phone_otp.dart` and `firebase_phone_otp_service.dart`. Those comments claim
-  "the UI simply becomes visible" when the method is enabled, but the login
-  screen never consults the provider, so flipping the constant today would
-  surface no OTP UI. Either wire the login screen to
-  `isAuthMethodEnabledProvider` or correct the comments.
+* ~~`features/auth/domain/auth_methods.dart` is **orphaned**~~ — **RESOLVED.**
+  The file is a deliberate "future apply switch" (`kEnabledAuthMethods`,
+  `enabledAuthMethodsProvider`, `isAuthMethodEnabledProvider`) and is now
+  consulted by `login_screen.dart`, `welcome_screen.dart`, `auth_widgets.dart`
+  and the shop-registration success timeline. In the MVP the list holds
+  `googleFirebase` ONLY (OTP and password stay implemented but hidden), so the
+  current visible flow offers exactly one action: **Continue with Google**.
+  Enabling OTP later is the documented one-line change; the doc comments in
+  `phone_otp.dart` / `firebase_phone_otp_service.dart` were corrected to match.
 * `core/network/token_store.dart` is a storage concern inside `network/` (F7's
   sibling smell).
 * `main.dart` installs `FlutterError.onError` with an inline `debugPrint`; there

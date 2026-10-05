@@ -322,7 +322,11 @@ def test_forward_migration_at_head(scratch_engine):
     instead of blowing up.
     """
     head = rehearsal.head_revision(rehearsal.parse_revisions(VERSIONS_DIR))
-    assert head == "0026", f"chain head is {head}, expected 0026"
+    # Derived from the chain rather than pinned: the head moves every time a
+    # migration lands, and a hardcoded value here turns every new migration into
+    # a failing test unrelated to what it changes.
+    expected_head = f"{len(list(VERSIONS_DIR.glob('0*.py'))):04d}"
+    assert head == expected_head, f"chain head is {head}, expected {expected_head}"
 
     if DATABASE_AVAILABLE:
         from sqlalchemy import create_engine
@@ -440,7 +444,8 @@ def test_rehearsal_tooling_contract():
     revisions = rehearsal.parse_revisions(VERSIONS_DIR)
     assert rehearsal.chain_issues(revisions) == []
     assert rehearsal.scan_data_safety_violations(VERSIONS_DIR) == []
-    assert rehearsal.head_revision(revisions) == "0026"
+    expected_head = f"{len(list(VERSIONS_DIR.glob('0*.py'))):04d}"
+    assert rehearsal.head_revision(revisions) == expected_head
     sync_url = rehearsal.to_sync_url("postgresql+asyncpg://u:p@localhost:5432/hyperlocal")
     assert sync_url.startswith("postgresql://") and "asyncpg" not in sync_url
     assert rehearsal.db_name_of(sync_url) == "hyperlocal"

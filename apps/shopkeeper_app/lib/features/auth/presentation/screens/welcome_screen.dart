@@ -14,9 +14,10 @@ import '../widgets/auth_widgets.dart';
 
 /// Primary entry screen for the Shopkeeper App.
 ///
-/// Every method button consults [isAuthMethodEnabledProvider], so the visible
-/// set IS the `kEnabledAuthMethods` list: Google Sign-In, Phone OTP (SMS) and
-/// password login are all reachable from here.
+/// The visible method set IS the `kEnabledAuthMethods` list, consulted via
+/// [isAuthMethodEnabledProvider]: MVP shows Google Sign-In only (Phone OTP is
+/// future scope, password is a future profile method — both implemented but
+/// hidden, re-enabled by the single-chokepoint list without touching widgets).
 ///
 /// MVP: Google Sign-In + Firebase Authentication is the only enabled method.
 /// On tap the native Google picker opens, Firebase exchanges the credential
@@ -33,30 +34,36 @@ class WelcomeScreen extends ConsumerWidget {
   Future<void> _signInWithGoogle(BuildContext context, WidgetRef ref) async {
     debugPrint('[LOGIN] Continue with Google tapped');
     try {
-      final ok =
-          await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      final ok = await ref
+          .read(authControllerProvider.notifier)
+          .signInWithGoogle();
       debugPrint('[LOGIN] signInWithGoogle() -> $ok');
       if (!context.mounted) {
         debugPrint('[LOGIN] context unmounted (router navigated away)');
         return;
       }
       if (!ok) {
-        final msg = ref.read(authControllerProvider).errorMessage ??
+        final msg =
+            ref.read(authControllerProvider).errorMessage ??
             'Google sign-in failed. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e, st) {
       debugPrint('[LOGIN] unexpected error: $e\n$st');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Login failed. Please try again.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Login failed. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -64,122 +71,139 @@ class WelcomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isLoading =
-        ref.watch(authControllerProvider.select((s) => s.isLoading));
+    final isLoading = ref.watch(
+      authControllerProvider.select((s) => s.isLoading),
+    );
     // Session-expired notice: a mid-session 401 signs the shopkeeper out and
     // lands them HERE silently. Saying why ("your session expired", not "login
     // failed") turns an alarming dead end into an expected, explainable stop.
     final sessionExpired =
         ref.watch(authControllerProvider.select((s) => s.systemState)) ==
-            SystemState.sessionExpired;
+        SystemState.sessionExpired;
     final h = MediaQuery.of(context).size.height;
 
     // Which entry points to render: the SSOT list decides, plus a platform
     // check for SMS — a build that cannot send a code must not advertise it.
-    final googleEnabled =
-        ref.watch(isAuthMethodEnabledProvider(AuthMethod.googleFirebase));
+    final googleEnabled = ref.watch(
+      isAuthMethodEnabledProvider(AuthMethod.googleFirebase),
+    );
     final phoneEnabled =
         ref.watch(isAuthMethodEnabledProvider(AuthMethod.phoneOtp)) &&
-            ref.read(authControllerProvider.notifier).isPhoneOtpSupported;
-    final passwordEnabled =
-        ref.watch(isAuthMethodEnabledProvider(AuthMethod.password));
+        ref.read(authControllerProvider.notifier).isPhoneOtpSupported;
+    final passwordEnabled = ref.watch(
+      isAuthMethodEnabledProvider(AuthMethod.password),
+    );
 
     return Scaffold(
       body: SafeArea(
-        child: Column(children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 32),
-                  Text('HyperLocal',
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 32),
+                    Text(
+                      'HyperLocal',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                         color: AppTheme.brandSeed,
-                      )),
-                  const SizedBox(height: 2),
-                  Text('Shopkeeper App',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.outline)),
-                  const SizedBox(height: 24),
-                  if (sessionExpired) ...[
-                    _SessionExpiredNotice(
-                      spec: SystemStateSpec.of(
-                        SystemState.sessionExpired,
-                        appText(context),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                  ],
-                  _StorefrontIllustration(height: h * 0.26),
-                  const SizedBox(height: 28),
-                  Text('Welcome Back',
+                    const SizedBox(height: 2),
+                    Text(
+                      'Shopkeeper App',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    if (sessionExpired) ...[
+                      _SessionExpiredNotice(
+                        spec: SystemStateSpec.of(
+                          SystemState.sessionExpired,
+                          appText(context),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    _StorefrontIllustration(height: h * 0.26),
+                    const SizedBox(height: 28),
+                    Text(
+                      'Welcome Back',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                      )),
-                  const SizedBox(height: 10),
-                  Text('Manage your shop, products and inventory.',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Manage your shop, products and inventory.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.outline,
                         height: 1.4,
-                      )),
-                  const SizedBox(height: 36),
-                  // Auth-method switch (auth_methods.dart): every button
-                  // renders only while its method is enabled, so the visible
-                  // set is the `kEnabledAuthMethods` list and nothing else.
-                  if (googleEnabled)
-                    GoogleSignInButton(
-                      isLoading: isLoading,
-                      onPressed: isLoading
-                          ? null
-                          : () => _signInWithGoogle(context, ref),
+                      ),
                     ),
-                  if (phoneEnabled) ...[
-                    const SizedBox(height: 12),
-                    PhoneSignInButton(
-                      key: WelcomeScreen.phoneSignInKey,
-                      onPressed:
-                          isLoading ? null : () => context.push(Routes.phoneOtp),
+                    const SizedBox(height: 36),
+                    // Auth-method switch (auth_methods.dart): every button
+                    // renders only while its method is enabled, so the visible
+                    // set is the `kEnabledAuthMethods` list and nothing else.
+                    if (googleEnabled)
+                      GoogleSignInButton(
+                        isLoading: isLoading,
+                        onPressed: isLoading
+                            ? null
+                            : () => _signInWithGoogle(context, ref),
+                      ),
+                    if (phoneEnabled) ...[
+                      const SizedBox(height: 12),
+                      PhoneSignInButton(
+                        key: WelcomeScreen.phoneSignInKey,
+                        onPressed: isLoading
+                            ? null
+                            : () => context.push(Routes.phoneOtp),
+                      ),
+                    ],
+                    if (passwordEnabled) ...[
+                      const SizedBox(height: 10),
+                      AuthMethodDivider(),
+                      const SizedBox(height: 6),
+                      TextButton(
+                        key: WelcomeScreen.passwordSignInKey,
+                        onPressed: isLoading
+                            ? null
+                            : () => context.push(Routes.login),
+                        child: Text(AuthMethod.password.actionLabel),
+                      ),
+                      TextButton(
+                        key: WelcomeScreen.createAccountKey,
+                        onPressed: isLoading
+                            ? null
+                            : () => context.push(Routes.register),
+                        child: const Text('Create a new account'),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    Text(
+                      'By continuing, you agree to our Terms & Privacy Policy.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
                     ),
+                    const SizedBox(height: 24),
                   ],
-                  if (passwordEnabled) ...[
-                    const SizedBox(height: 10),
-                    AuthMethodDivider(),
-                    const SizedBox(height: 6),
-                    TextButton(
-                      key: WelcomeScreen.passwordSignInKey,
-                      onPressed:
-                          isLoading ? null : () => context.push(Routes.login),
-                      child: Text(AuthMethod.password.actionLabel),
-                    ),
-                    TextButton(
-                      key: WelcomeScreen.createAccountKey,
-                      onPressed:
-                          isLoading ? null : () => context.push(Routes.register),
-                      child: const Text('Create a new account'),
-                    ),
-                  ],
-                  const SizedBox(height: 22),
-                  Text(
-                    'By continuing, you agree to our Terms & Privacy Policy.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                      fontSize: 11,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -284,7 +308,10 @@ class _StorefrontPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, h * 0.85, w, h * 0.15), groundPaint);
 
     final wallPaint = Paint()..color = wall;
-    canvas.drawRect(Rect.fromLTWH(cx - w * 0.28, h * 0.40, w * 0.56, h * 0.45), wallPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(cx - w * 0.28, h * 0.40, w * 0.56, h * 0.45),
+      wallPaint,
+    );
 
     final roofPaint = Paint()..color = roof;
     final roofPath = Path()
@@ -295,7 +322,10 @@ class _StorefrontPainter extends CustomPainter {
     canvas.drawPath(roofPath, roofPaint);
 
     final awningPaint = Paint()..color = awning;
-    canvas.drawRect(Rect.fromLTWH(cx - w * 0.16, h * 0.50, w * 0.32, h * 0.05), awningPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(cx - w * 0.16, h * 0.50, w * 0.32, h * 0.05),
+      awningPaint,
+    );
 
     final doorPaint = Paint()..color = door;
     final doorRect = Rect.fromLTWH(cx - w * 0.08, h * 0.62, w * 0.16, h * 0.23);
@@ -306,11 +336,20 @@ class _StorefrontPainter extends CustomPainter {
     final windowPaint = Paint()..color = window;
     final winW = w * 0.09;
     final winH = h * 0.10;
-    canvas.drawRect(Rect.fromLTWH(cx - w * 0.20, h * 0.55, winW, winH), windowPaint);
-    canvas.drawRect(Rect.fromLTWH(cx + w * 0.11, h * 0.55, winW, winH), windowPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(cx - w * 0.20, h * 0.55, winW, winH),
+      windowPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(cx + w * 0.11, h * 0.55, winW, winH),
+      windowPaint,
+    );
 
     final signPaint = Paint()..color = roof;
-    canvas.drawRect(Rect.fromLTWH(cx - w * 0.10, h * 0.43, w * 0.20, h * 0.06), signPaint);
+    canvas.drawRect(
+      Rect.fromLTWH(cx - w * 0.10, h * 0.43, w * 0.20, h * 0.06),
+      signPaint,
+    );
   }
 
   @override

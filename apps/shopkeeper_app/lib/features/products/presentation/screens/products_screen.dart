@@ -6,6 +6,7 @@ import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/ui/cached_data_notice.dart';
 import '../../../../core/ui/debounced_search_field.dart';
@@ -17,6 +18,7 @@ import '../../../../core/utils/datetime_utils.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../offers/presentation/widgets/offer_create_sheet.dart';
+import '../../../shops/domain/profile_scope.dart';
 import '../../domain/product_models.dart';
 import '../../domain/product_query.dart';
 import '../controllers/products_controller.dart';
@@ -56,6 +58,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
     final state = ref.watch(productsControllerProvider);
     final ready = state.status == ProductsStatus.ready;
+    // Single-profile MVP: ONE shopkeeper → ONE business, so the 403 state
+    // offers Retry instead of a "switch shop" picker we do not ship yet
+    // (profile_scope.dart).
+    final multiShop = ref.watch(multiShopEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -123,7 +129,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             _ => null,
           },
           onRetry: () => ref.read(productsControllerProvider.notifier).load(),
-          onSwitchShop: () => context.go(Routes.shops),
+          // Single-profile MVP: no business picker to send them to; `onRetry`
+          // above is the way out of the 403 (profile_scope.dart).
+          onSwitchShop: multiShop ? () => context.go(Routes.shops) : null,
           builder: (_) => RefreshIndicator(
             // Pull is the SILENT path: the rows stay on screen while fresh
             // ones load (ProductsController.refresh). Retry and the first
@@ -914,7 +922,7 @@ class _SummaryChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppRadius.smBorder,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

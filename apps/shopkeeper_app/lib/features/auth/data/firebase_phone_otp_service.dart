@@ -9,9 +9,17 @@ import 'auth_repository.dart' show kUseMockAuth;
 
 /// Real [PhoneOtpService] on top of **Firebase Phone Auth**.
 ///
-/// SHIPPED: `kEnabledAuthMethods` contains `AuthMethod.phoneOtp` and the
-/// Welcome / Sign-in screens surface it, so `/phone-otp` (`PhoneOtpScreen`) is
-/// the live entry point. The screen drives this service:
+/// FUTURE (not MVP): `kEnabledAuthMethods` holds Google only, so no visible
+/// entry point reaches `/phone-otp` today. Re-enabling is one line:
+///
+/// ```dart
+/// const List<AuthMethod> kEnabledAuthMethods = [
+///   AuthMethod.googleFirebase,
+///   AuthMethod.phoneOtp, // ← future
+/// ];
+/// ```
+///
+/// Then the screen drives this service:
 /// `requestCode` -> (optional instant verification) -> `verifyCode` -> the ID
 /// token is handed to `AuthController.verifyPhoneOtp`, which exchanges it on
 /// the SAME `/firebase-login` endpoint Google uses.
@@ -72,9 +80,7 @@ class FirebasePhoneOtpService implements PhoneOtpService {
 
     try {
       if (kIsWeb || defaultTargetPlatform == TargetPlatform.android) {
-        final confirmation = await _auth.signInWithPhoneNumber(
-          e164PhoneNumber,
-        );
+        final confirmation = await _auth.signInWithPhoneNumber(e164PhoneNumber);
         return PhoneOtpRequest(
           phoneNumber: e164PhoneNumber,
           verificationId: confirmation.verificationId,
@@ -82,7 +88,10 @@ class FirebasePhoneOtpService implements PhoneOtpService {
       }
       // `await` (not a bare return) so a failure from the iOS callback-based
       // path is still converted by the catch blocks below.
-      return await _requestCodeViaVerifyPhoneNumber(e164PhoneNumber, resendToken);
+      return await _requestCodeViaVerifyPhoneNumber(
+        e164PhoneNumber,
+        resendToken,
+      );
     } on PhoneOtpException {
       rethrow;
     } on FirebaseAuthException catch (e) {
@@ -184,31 +193,28 @@ class FirebasePhoneOtpService implements PhoneOtpService {
 
   /// Maps Firebase error codes to shopkeeper-readable text, keeping the raw
   /// code so the UI can offer targeted recovery later.
-  PhoneOtpException _map(FirebaseAuthException e) => PhoneOtpException(
-        switch (e.code) {
-          'invalid-phone-number' =>
-            'That phone number is not valid. Please check and try again.',
-          'invalid-verification-code' => 'The code you entered is incorrect.',
-          'session-expired' =>
-            'This code has expired. Please request a new one.',
-          'too-many-requests' =>
-            'Too many attempts. Please try again in a few minutes.',
-          'quota-exceeded' =>
-            'The daily SMS limit has been reached. Please try again later.',
-          'operation-not-supported-in-this-environment' =>
-            'Phone sign-in is not available on this device.',
-          'app-not-authorized' =>
-            'Phone sign-in is not configured for this build.',
-          'missing-verification-id' =>
-            'Phone verification could not be started. Please retry.',
-          'web-context-cancelled' =>
-            'Phone sign-in was cancelled. Please try again.',
-          _ => (e.message?.trim().isNotEmpty ?? false)
-              ? e.message!.trim()
-              : 'Phone sign-in failed. Please try again.',
-        },
-        code: e.code,
-      );
+  PhoneOtpException _map(
+    FirebaseAuthException e,
+  ) => PhoneOtpException(switch (e.code) {
+    'invalid-phone-number' =>
+      'That phone number is not valid. Please check and try again.',
+    'invalid-verification-code' => 'The code you entered is incorrect.',
+    'session-expired' => 'This code has expired. Please request a new one.',
+    'too-many-requests' =>
+      'Too many attempts. Please try again in a few minutes.',
+    'quota-exceeded' =>
+      'The daily SMS limit has been reached. Please try again later.',
+    'operation-not-supported-in-this-environment' =>
+      'Phone sign-in is not available on this device.',
+    'app-not-authorized' => 'Phone sign-in is not configured for this build.',
+    'missing-verification-id' =>
+      'Phone verification could not be started. Please retry.',
+    'web-context-cancelled' => 'Phone sign-in was cancelled. Please try again.',
+    _ =>
+      (e.message?.trim().isNotEmpty ?? false)
+          ? e.message!.trim()
+          : 'Phone sign-in failed. Please try again.',
+  }, code: e.code);
 }
 
 /// OTP provider used by the app.

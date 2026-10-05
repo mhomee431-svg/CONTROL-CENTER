@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/network/token_store.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/ui/lazy_list.dart';
 import '../../../../core/ui/load_more.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
@@ -263,7 +264,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppRadius.smBorder,
       ),
       child: Text(
         label,

@@ -33,14 +33,26 @@ String _humanizeKey(String key) => key
 
 /// Human label for a server inventory `source` value. Unknown values are
 /// humanised instead of throwing, so a new server source still renders.
+/// The shopkeeper-facing sentence for WHO last wrote this listing.
+///
+/// One wording for all eight surfaces that show it, because a source label
+/// that says "POS sync" on one screen and "Excel import" on another reads as
+/// two different facts. The sentence is phrased to answer the question the
+/// shopkeeper actually has - "did I do this, or something else?" - rather than
+/// naming the integration.
+///
+/// `MANUAL` is also the model's DEFAULT, so a listing nobody has touched reads
+/// as manual. That is a deliberate overstatement rather than a guess: the
+/// alternative is an "unknown" badge on every row, which trains shopkeepers to
+/// ignore the indicator entirely.
 String inventorySourceLabel(String? source) {
   final key = (source ?? '').trim().toUpperCase();
   return switch (key) {
-    '' || 'UNKNOWN' || 'MANUAL' => 'Updated in app',
-    'BARCODE_SCAN' => 'Barcode scan',
-    'POS_INTEGRATION' => 'POS sync',
-    'EXCEL_UPLOAD' => 'Excel import',
-    'SYSTEM' => 'System',
+    '' || 'UNKNOWN' || 'MANUAL' => 'Updated manually',
+    'BARCODE_SCAN' => 'Updated via barcode',
+    'POS_INTEGRATION' => 'Updated via POS',
+    'EXCEL_UPLOAD' => 'Updated via Excel/CSV',
+    'SYSTEM' => 'Updated by system',
     _ => _humanizeKey(key),
   };
 }

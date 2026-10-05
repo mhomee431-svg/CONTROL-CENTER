@@ -102,3 +102,14 @@ Thumbs.db
 test_err.txt
 test_out.txt
 temp_file.txt
+
+# Root-level scratch logs (analyzer / pytest / ruff output).
+# These were tracked by accident: 27 files, ~1.5 MB of pure tool output that
+# changed on every local run, so they polluted every diff and added noise to
+# review. They are UNTRACKED (not deleted) and ignored going forward.
+analyze_*.txt
+rq_*.txt
+ruff_fmt*.txt
+docker_install.txt
+pg_install.txt
+fa_done.txt

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/validation/field_rules.dart';
 import '../../../../core/network/token_store.dart';
 import '../../data/import_repository.dart';
 import '../../domain/import_models.dart';
@@ -32,7 +33,13 @@ class PlatformWorkbookPicker implements WorkbookPickerService {
     final file = result?.files.single;
     final path = file?.path;
     if (path == null || path.isEmpty) return null;
-    return PickedWorkbook(path: path, name: file!.name);
+    // `size` is reported even with `withData: false`, and it is what lets the
+    // 5 MB cap be checked before the upload.
+    return PickedWorkbook(
+      path: path,
+      name: file!.name,
+      sizeBytes: file.size,
+    );
   }
 }
 
@@ -50,6 +57,9 @@ class ImportState {
     this.workbook,
     this.preview,
     this.result,
+    this.schema,
+    this.remapping = false,
+    this.mappingError,
     this.jobs = const [],
     this.jobsTotal = 0,
     this.loadingMoreJobs = false,
@@ -60,6 +70,21 @@ class ImportState {
   final PickedWorkbook? workbook;
   final ImportPreview? preview;
   final ImportConfirmResult? result;
+
+  /// Backend import schema — the vocabulary and rules the Column Mapping step
+  /// renders. Null until fetched (or if the fetch failed), in which case the
+  /// panel falls back to the raw `column_mapping` the upload returned rather
+  /// than inventing rules it does not have.
+  final ImportSchema? schema;
+
+  /// True while a corrected Column Mapping is being re-staged.
+  final bool remapping;
+
+  /// Why the last correction failed, or null. Separate from [message] because a
+  /// rejected mapping is NOT a failed import — the rows are untouched and the
+  /// shopkeeper can simply try again, so it must not knock the flow into its
+  /// terminal error state.
+  final String? mappingError;
 
   /// The import jobs loaded SO FAR (newest first).
   final List<ImportJob> jobs;
@@ -97,11 +122,59 @@ class ImportState {
         workbook: workbook ?? this.workbook,
         preview: preview ?? this.preview,
         result: result ?? this.result,
+        // The schema is fetched ONCE and survives every step of the flow. It is
+        // not a per-upload artefact, so dropping it here would re-fetch on each
+        // transition and leave the mapping panel empty exactly when it is needed.
+        schema: schema,
+        remapping: remapping,
+        mappingError: mappingError,
         jobs: jobs,
         jobsTotal: jobsTotal,
         loadingMoreJobs: loadingMoreJobs,
         message: message,
       );
+
+  /// This state with only the schema replaced — the schema is fetched
+  /// independently of the pick -> preview -> confirm flow.
+  ImportState withSchema(ImportSchema? value) => ImportState(
+    status: status,
+    workbook: workbook,
+    preview: preview,
+    result: result,
+    schema: value,
+    remapping: remapping,
+    mappingError: mappingError,
+    jobs: jobs,
+    jobsTotal: jobsTotal,
+    loadingMoreJobs: loadingMoreJobs,
+    message: message,
+  );
+
+  /// This state with the mapping-correction fields replaced.
+  ///
+  /// Separate from [flow] on purpose: correcting the mapping does not move the
+  /// import along its pick -> preview -> confirm path, and must not disturb the
+  /// jobs list or the flow status the preview screen is rendering.
+  ImportState withMapping({
+    bool? remapping,
+    String? mappingError,
+    bool clearMappingError = false,
+    ImportPreview? preview,
+  }) => ImportState(
+    status: status,
+    workbook: workbook,
+    preview: preview ?? this.preview,
+    result: result,
+    schema: schema,
+    remapping: remapping ?? this.remapping,
+    mappingError: clearMappingError
+        ? null
+        : (mappingError ?? this.mappingError),
+    jobs: jobs,
+    jobsTotal: jobsTotal,
+    loadingMoreJobs: loadingMoreJobs,
+    message: message,
+  );
 
   factory ImportState.idle() => const ImportState(status: ImportStatus.idle);
 }
@@ -125,6 +198,31 @@ class InventoryImportController extends Notifier<ImportState> {
   void _patch(ImportState Function(ImportState) updater) =>
       state = updater(state);
 
+  /// Fetch the import schema — the Column Mapping step's ONLY source of
+  /// field names, accepted header spellings and validation rules.
+  ///
+  /// Idempotent and non-blocking: a second call while one is in flight, or a
+  /// schema already held, returns immediately. A FAILURE is deliberately
+  /// silent here — the mapping panel falls back to the raw `column_mapping`
+  /// the upload already returned, which is less informative than the schema
+  /// but is never wrong, and a schema outage must not block an import.
+  Future<void> loadSchema() async {
+    if (state.schema != null) return;
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) return; // not signed in — the flow reports it later
+      final schema = await ref
+          .read(inventoryImportRepositoryProvider)
+          .schema(token);
+      // Only apply if nothing arrived meanwhile; the first fetch wins so
+      // concurrent calls cannot flip the panel between two payloads.
+      if (state.schema == null) state = state.withSchema(schema);
+    } catch (_) {
+      // Schema is an enhancement over `column_mapping`; the preview still
+      // works without it. Never surface this as a flow error.
+    }
+  }
+
   /// Opens the file picker and uploads the selected workbook. On success
   /// the state moves to `preview`; on failure an error message is set.
   Future<void> pickAndUpload() async {
@@ -140,7 +238,20 @@ class InventoryImportController extends Notifier<ImportState> {
     }
     try {
       final workbook = await ref.read(workbookPickerProvider).pick();
-      if (workbook == null) return; // user cancelled — stay idle
+      if (workbook == null) return;
+      // Check type and size locally first. The backend enforces both anyway;
+      // this just turns a multi-megabyte upload that ends in a rejection into
+      // an instant message before a single byte leaves the device.
+      final fileProblem = importWorkbook(
+        workbook.name,
+        bytes: workbook.sizeBytes,
+      );
+      if (fileProblem != null) {
+        _patch(
+          (_) => ImportState(status: ImportStatus.error, message: fileProblem),
+        );
+        return;
+      } // user cancelled — stay idle
       _patch(
         (s) => s.flow(status: ImportStatus.uploading, workbook: workbook),
       );
@@ -212,6 +323,52 @@ class InventoryImportController extends Notifier<ImportState> {
           message: 'Could not apply the import.',
         ),
       );
+    }
+  }
+
+  /// Submit a corrected Column Mapping and adopt the re-staged rows.
+  ///
+  /// Returns true when the backend accepted it. On success the preview is
+  /// REPLACED rather than merged: re-validating under a different mapping
+  /// changes which rows are valid, so keeping the old counts would show the
+  /// shopkeeper a preview that no longer describes what is about to be applied.
+  ///
+  /// Failure deliberately leaves the flow where it was. A rejected mapping
+  /// changed nothing - no row was touched - so it must not knock the import
+  /// into its terminal error state and lose the review the shopkeeper was
+  /// doing.
+  Future<bool> remapColumns(Map<int, String?> assignment) async {
+    if (state.remapping) return false;
+    final shopId = ref.read(selectedShopProvider)?.id;
+    final jobId = state.preview?.meta.id;
+    if (shopId == null || jobId == null) return false;
+
+    state = state.withMapping(remapping: true, clearMappingError: true);
+    try {
+      final token = await ref.read(tokenStoreProvider).readAccessToken();
+      if (token == null) throw ApiException.localized(AppMessageCode.notSignedIn);
+      // Invert the column-keyed draft into the field-keyed shape the API takes.
+      // A column the shopkeeper left unassigned is omitted entirely, which the
+      // backend reads as "do not import this field".
+      final payload = <String, int?>{
+        for (final entry in assignment.entries)
+          if (entry.value != null) entry.value!: entry.key,
+      };
+      final preview = await _repo.remap(shopId, jobId, payload, token);
+      state = state.withMapping(remapping: false, preview: preview);
+      return true;
+    } on ApiException catch (e) {
+      state = state.withMapping(
+        remapping: false,
+        mappingError: _friendly(e, fallback: 'Could not update the mapping.'),
+      );
+      return false;
+    } catch (_) {
+      state = state.withMapping(
+        remapping: false,
+        mappingError: 'Could not update the mapping.',
+      );
+      return false;
     }
   }
 

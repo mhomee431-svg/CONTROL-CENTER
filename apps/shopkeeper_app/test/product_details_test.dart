@@ -125,7 +125,7 @@ void main() {
       expect(find.text('Inventory'), findsOneWidget);
       expect(find.text('Stock status'), findsOneWidget);
       expect(find.text('In stock'), findsOneWidget);
-      expect(find.text('Barcode scan'), findsOneWidget);
+      expect(find.text('Updated via barcode'), findsOneWidget);
       expect(find.text('Ramesh'), findsOneWidget);
       expect(find.text('Fresh'), findsOneWidget);
       // Catalog reference (read-only master data).

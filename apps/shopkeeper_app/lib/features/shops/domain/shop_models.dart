@@ -439,11 +439,29 @@ class MerchantCategoryOption {
     required this.code,
     required this.name,
     this.description,
+    this.label,
+    this.sortOrder = 0,
   });
 
   final String code;
   final String name;
   final String? description;
+
+  /// The same text as [name], under the name the pickers and the dashboard
+  /// label use. Two names for one string is redundant, but [name] is already
+  /// part of the repository contract, so [label] is an alias rather than a
+  /// second field that could disagree with it.
+  final String? label;
+
+  /// 1-based position in the offline fallback list; 0 for a category that came
+  /// from the API without one.
+  ///
+  /// Dense and ordered on purpose: a sparse or duplicated order makes the
+  /// picker ambiguous and can hide a newly inserted category.
+  final int sortOrder;
+
+  /// What to show: the explicit label when given, otherwise [name].
+  String get displayLabel => label ?? name;
 
   factory MerchantCategoryOption.fromJson(Map<String, dynamic> json) =>
       MerchantCategoryOption(
@@ -574,3 +592,432 @@ const kUniversalDocuments = <DocumentRequirement>[
     icon: Icons.upload_file_outlined,
   ),
 ];
+
+// ?? Capability model ????????????????????????????????????????????????????????
+//
+// Data-entry capabilities a business category can be granted, and the OFFLINE
+// mirror of the backend registry. The backend is the authority; this table
+// exists so a form renders before the network answers, not so the app can
+// decide anything.
+//
+// Generated from `packages/api_contracts/category_capabilities.json`, which is
+// exported from `backend/app/models/merchant_category.py`. `capability_contract_test.dart`
+// reads that same file and fails if the two drift, so this table cannot quietly
+// become a second source of truth.
+
+/// What one category is allowed to do.
+enum CategoryCapability {
+  productCatalog('PRODUCT_CATALOG'),
+  inventory('INVENTORY'),
+  price('PRICE'),
+  barcode('BARCODE'),
+  offers('OFFERS'),
+  operatingHours('OPERATING_HOURS'),
+  services('SERVICES'),
+  booking('BOOKING'),
+  contact('CONTACT'),
+  location('LOCATION'),
+  import_('IMPORT'),
+  pos('POS'),
+  documents('DOCUMENTS'),
+  categorySpecificData('CATEGORY_SPECIFIC_DATA'),
+;
+  const CategoryCapability(this.wire);
+
+  /// The backend's wire value - what travels over HTTP.
+  final String wire;
+
+  /// Resolve a wire value, or null when this build does not know it.
+  ///
+  /// Null rather than a default: an unrecognised capability must be SKIPPED, not
+  /// silently treated as granted, or the app renders a screen the server never
+  /// authorised.
+  static CategoryCapability? fromWire(String? value) {
+    final key = (value ?? '').trim().toUpperCase();
+    for (final capability in CategoryCapability.values) {
+      if (capability.wire == key) return capability;
+    }
+    return null;
+  }
+}
+
+/// Capabilities every business has, whatever its category: you can always be
+/// contacted, and a shop that cannot state its location cannot be found. These
+/// are re-applied AFTER narrowing, which is what makes narrowing safe.
+const Set<CategoryCapability> kAlwaysPresentCapabilities = {
+  CategoryCapability.contact,
+  CategoryCapability.location,
+};
+
+/// Capabilities a SERVING business type does not have. A service shop has no
+/// catalogue to fill, but still needs contact and location.
+const Set<CategoryCapability> kServingOnlyExclusions = {
+  CategoryCapability.barcode,
+  CategoryCapability.import_,
+  CategoryCapability.inventory,
+  CategoryCapability.pos,
+  CategoryCapability.productCatalog,
+};
+
+/// The five business types, in the order the wizard offers them.
+///
+/// Matched on EXACT text. A value outside this list narrows nothing, which is
+/// indistinguishable from a genuine 'Service' - the defect this vocabulary
+/// exists to prevent. `business_type_vocabulary_test` pins the spelling.
+const List<String> kBusinessTypes = <String>[
+  'Retail',
+  'Wholesale',
+  'Retail + Wholesale',
+  'Service',
+  'Other',
+];
+
+/// The same vocabulary under its capability-oriented name, so a consumer that
+/// asks about business types and narrowing cannot pick up two lists.
+const List<String> kBusinessTypesServerVocabulary = kBusinessTypes;
+
+/// Offline capability table: category code -> what it may do.
+///
+/// The BASE set, before business-type narrowing and before the always-present
+/// pair is re-applied - i.e. exactly what the backend exports per category.
+const Map<String, Set<CategoryCapability>> kCategoryCapabilityDefaults =
+    <String, Set<CategoryCapability>>{
+  // Pharmacy & Healthcare
+  'PHARMACY_HEALTHCARE': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.import_,
+    CategoryCapability.pos,
+    CategoryCapability.documents,
+  },
+  // Beauty & Personal Care
+  'BEAUTY_PERSONAL_CARE': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.booking,
+    CategoryCapability.import_,
+    CategoryCapability.pos,
+  },
+  // Furniture & Home Care
+  'FURNITURE_HOME_CARE': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.import_,
+  },
+  // Household Goods
+  'HOUSEHOLD_GOODS': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.import_,
+    CategoryCapability.pos,
+  },
+  // Sports, Fitness & Outdoor
+  'SPORTS_FITNESS_OUTDOOR': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.import_,
+    CategoryCapability.pos,
+  },
+  // Books, Media & Stationery
+  'BOOKS_MEDIA_STATIONERY': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.import_,
+    CategoryCapability.pos,
+  },
+  // Automotive Parts & Tools
+  'AUTOMOTIVE_PARTS_TOOLS': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.import_,
+  },
+  // Hardware
+  'HARDWARE': <CategoryCapability>{
+    CategoryCapability.productCatalog,
+    CategoryCapability.inventory,
+    CategoryCapability.price,
+    CategoryCapability.barcode,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.import_,
+  },
+  // Restaurants
+  'RESTAURANTS': <CategoryCapability>{
+    CategoryCapability.price,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.booking,
+    CategoryCapability.pos,
+    CategoryCapability.documents,
+    CategoryCapability.categorySpecificData,
+  },
+  // Transport
+  'TRANSPORT': <CategoryCapability>{
+    CategoryCapability.price,
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.booking,
+    CategoryCapability.documents,
+    CategoryCapability.categorySpecificData,
+  },
+  // Personal Transport / Personal Travel
+  'PERSONAL_TRANSPORT_TRAVEL': <CategoryCapability>{
+    CategoryCapability.offers,
+    CategoryCapability.operatingHours,
+    CategoryCapability.services,
+    CategoryCapability.documents,
+    CategoryCapability.categorySpecificData,
+  },
+};
+
+/// The resolved answer for one category and business type.
+class CategoryCapabilitySet {
+  const CategoryCapabilitySet({
+    required this.categoryCode,
+    this.capabilities = const <CategoryCapability>{},
+    this.businessType,
+  });
+
+  final String categoryCode;
+  final String? businessType;
+  final Set<CategoryCapability> capabilities;
+
+  bool has(CategoryCapability capability) => capabilities.contains(capability);
+  bool get isEmpty => capabilities.isEmpty;
+
+  // Named gates rather than `has(CategoryCapability.x)` at every call site: a
+  // route guard reading `!mayManageProducts` says what it is refusing, and a
+  // capability can be re-pointed behind one name without touching its callers.
+  bool get mayManageProducts => has(CategoryCapability.productCatalog);
+  bool get mayManageInventory => has(CategoryCapability.inventory);
+  bool get mayScanBarcodes => has(CategoryCapability.barcode);
+  bool get mayImportInventory => has(CategoryCapability.import_);
+  bool get mayUsePos => has(CategoryCapability.pos);
+  bool get mayRunOffers => has(CategoryCapability.offers);
+  bool get maySetOpeningHours => has(CategoryCapability.operatingHours);
+  bool get mayPublishCatalog => has(CategoryCapability.productCatalog);
+  bool get mayShowBooking => has(CategoryCapability.booking);
+  bool get mayUploadDocuments => has(CategoryCapability.documents);
+
+  /// Capability -> granted, for everything EXCEPT the always-present pair.
+  ///
+  /// CONTACT and LOCATION are excluded because they are not features - they are
+  /// the floor every shop has. Leaving them in would make a route guard read
+  /// `featureGates` as "this category does something", which is false for an
+  /// unknown category that only ever yields the pair.
+  Map<CategoryCapability, bool> get featureGates => <CategoryCapability, bool>{
+        for (final capability in CategoryCapability.values)
+          if (!kAlwaysPresentCapabilities.contains(capability))
+            capability: capabilities.contains(capability),
+      };
+
+  /// Parse the server's answer.
+  ///
+  /// An unparseable payload yields an empty set rather than throwing: a shop
+  /// whose capabilities could not be read gets an empty form and a retry, not
+  /// a crash on the screen they opened to fix something else.
+  factory CategoryCapabilitySet.fromJson(Map<String, dynamic> json) {
+    final raw = json['capabilities'];
+    final parsed = <CategoryCapability>{};
+    if (raw is List) {
+      for (final item in raw) {
+        final capability = CategoryCapability.fromWire(item as String?);
+        if (capability != null) parsed.add(capability);
+      }
+    }
+    return CategoryCapabilitySet(
+      categoryCode: '${json['category_code'] ?? ''}',
+      businessType: json['business_type'] as String?,
+      capabilities: parsed,
+    );
+  }
+}
+
+/// Resolve capabilities OFFLINE, exactly as the backend would.
+///
+/// Deliberately different from the backend in one place: the backend answers
+/// 'unknown category' with nothing, because the caller turns that into a 404.
+/// A client cannot - it must render SOMETHING, so it returns the minimum
+/// (contact + location) rather than the full set. Granting capabilities a
+/// server may not authorise is the worse failure: it fails at submit instead
+/// of hiding a field the shopkeeper is entitled to.
+///
+/// An unknown or missing business type narrows NOTHING. Hiding a capability
+/// wrongly locks a shop out of something they may have; showing one wrongly
+/// surfaces the moment they submit, and says so.
+CategoryCapabilitySet resolveCategoryCapabilities(
+  String? categoryCode,
+  String? businessType,
+) {
+  final code = (categoryCode ?? '').trim().toUpperCase();
+  final base = kCategoryCapabilityDefaults[code] ?? kAlwaysPresentCapabilities;
+  final type = (businessType ?? '').trim();
+  final narrowed = type == 'Service'
+      ? base.difference(kServingOnlyExclusions)
+      : base;
+  return CategoryCapabilitySet(
+    categoryCode: code,
+    businessType: type.isEmpty ? null : type,
+    capabilities: {...narrowed, ...kAlwaysPresentCapabilities},
+  );
+}
+
+/// The approved business categories, for the OFFLINE picker.
+///
+/// Same codes and names as the backend registry; `business_category_test`
+/// reads that registry from disk and fails if this list drifts, so a screen
+/// can never offer a category the server will reject at registration.
+const List<MerchantCategoryOption> kBusinessCategoryFallback =
+    <MerchantCategoryOption>[
+  MerchantCategoryOption(
+    code: 'PHARMACY_HEALTHCARE',
+    label: 'Pharmacy & Healthcare',
+    name: 'Pharmacy & Healthcare',
+    sortOrder: 1,
+  ),
+  MerchantCategoryOption(
+    code: 'BEAUTY_PERSONAL_CARE',
+    label: 'Beauty & Personal Care',
+    name: 'Beauty & Personal Care',
+    sortOrder: 2,
+  ),
+  MerchantCategoryOption(
+    code: 'FURNITURE_HOME_CARE',
+    label: 'Furniture & Home Care',
+    name: 'Furniture & Home Care',
+    sortOrder: 3,
+  ),
+  MerchantCategoryOption(
+    code: 'HOUSEHOLD_GOODS',
+    label: 'Household Goods',
+    name: 'Household Goods',
+    sortOrder: 4,
+  ),
+  MerchantCategoryOption(
+    code: 'SPORTS_FITNESS_OUTDOOR',
+    label: 'Sports, Fitness & Outdoor',
+    name: 'Sports, Fitness & Outdoor',
+    sortOrder: 5,
+  ),
+  MerchantCategoryOption(
+    code: 'BOOKS_MEDIA_STATIONERY',
+    label: 'Books, Media & Stationery',
+    name: 'Books, Media & Stationery',
+    sortOrder: 6,
+  ),
+  MerchantCategoryOption(
+    code: 'AUTOMOTIVE_PARTS_TOOLS',
+    label: 'Automotive Parts & Tools',
+    name: 'Automotive Parts & Tools',
+    sortOrder: 7,
+  ),
+  MerchantCategoryOption(
+    code: 'HARDWARE',
+    label: 'Hardware',
+    name: 'Hardware',
+    sortOrder: 8,
+  ),
+  MerchantCategoryOption(
+    code: 'RESTAURANTS',
+    label: 'Restaurants',
+    name: 'Restaurants',
+    sortOrder: 9,
+  ),
+  MerchantCategoryOption(
+    code: 'TRANSPORT',
+    label: 'Transport',
+    name: 'Transport',
+    sortOrder: 10,
+  ),
+  MerchantCategoryOption(
+    code: 'PERSONAL_TRANSPORT_TRAVEL',
+    label: 'Personal Transport / Personal Travel',
+    name: 'Personal Transport / Personal Travel',
+    sortOrder: 11,
+  ),
+];
+
+/// The canonical display name for a category code.
+///
+/// Reads the offline table so the ampersand the backend prints survives
+/// ('Pharmacy & Healthcare', not the 'Pharmacy healthcare' a humanise-only
+/// helper would produce). An unknown code is humanised rather than dropped,
+/// so a category the server adds early still reads sensibly.
+String businessCategoryLabel(String? code) {
+  final key = (code ?? '').trim().toUpperCase();
+  if (key.isEmpty) return 'Not set';
+  for (final category in kBusinessCategoryFallback) {
+    if (category.code == key) return category.displayLabel;
+  }
+  final words = key.toLowerCase().replaceAll('_', ' ').trim();
+  if (words.isEmpty) return 'Not set';
+  return words[0].toUpperCase() + words.substring(1);
+}
+
+/// Trades that publish data of their OWN once `CATEGORY_SPECIFIC_DATA` is granted.
+///
+/// `CATEGORY_SPECIFIC_DATA` says "this trade has data of its own" but not WHICH,
+/// and the answer is genuinely different per trade: a tour operator has a
+/// service area and a package, a restaurant has a menu. Without this axis every
+/// category with that capability would render the same fields, and two thirds of
+/// them would be wrong.
+///
+/// Mirrors the backend's `SERVICE_PROFILE_FIELDS` keys. A category with no entry
+/// simply has no profile, which means no category-specific fields.
+enum ServiceCategoryProfile {
+  personalTravel('PERSONAL_TRANSPORT_TRAVEL'),
+  transport('TRANSPORT'),
+  restaurant('RESTAURANTS');
+
+  const ServiceCategoryProfile(this.wire);
+
+  /// The backend's category code for this profile.
+  final String wire;
+
+  static ServiceCategoryProfile? fromWire(String? value) {
+    final key = (value ?? '').trim().toUpperCase();
+    for (final profile in ServiceCategoryProfile.values) {
+      if (profile.wire == key) return profile;
+    }
+    return null;
+  }
+}
+
+/// The service profile a category belongs to, or null when it has none.
+ServiceCategoryProfile? serviceProfileForCategory(String? categoryCode) =>
+    ServiceCategoryProfile.fromWire((categoryCode ?? '').trim().toUpperCase());

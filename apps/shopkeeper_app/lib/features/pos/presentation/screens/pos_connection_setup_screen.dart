@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/ui/primary_cta_bar.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
 import '../widgets/pos_shared.dart';
@@ -59,25 +60,49 @@ class _PosConnectionSetupScreenState
     await ref.read(posSetupProvider.notifier).submit();
   }
 
+  /// Queues the first sync and reports the outcome; the POS screen is where the
+  /// queued job and its progress are shown.
+  ///
+  /// Lives on the state (not on the success view) so the SAME bottom bar that
+  /// owns the form's submit can own it once the connector exists — one CTA
+  /// location per screen, whichever phase it is in.
+  Future<void> _syncNow() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final sync = await ref.read(posControllerProvider.notifier).syncNow();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          sync == null
+              ? 'Sync could not be started — open the POS screen to retry.'
+              : 'Initial sync started. Open the POS screen for progress.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(posSetupProvider);
-    final scheme = Theme.of(context).colorScheme;
     final finished = state.status == PosSetupStatus.done;
 
     return Scaffold(
       appBar: AppBar(title: Text(appText(context).commonPOSConnectionSetup)),
       body: SafeArea(
         child: switch (state.status) {
-          PosSetupStatus.loading =>
-            const Center(child: CircularProgressIndicator()),
+          PosSetupStatus.loading => const Center(
+            child: CircularProgressIndicator(),
+          ),
           PosSetupStatus.error when state.providers.isEmpty => PosMessageView(
             icon: Icons.cloud_off_outlined,
             title: state.message ?? 'Could not load the POS providers.',
-            body: appText(context).posConnectionSetupScreenCheckYourConnectionAndTry,
+            body: appText(context)
+                .posConnectionSetupScreenCheckYourConnectionAndTry,
             onRetry: () => ref.read(posSetupProvider.notifier).load(),
           ),
-          PosSetupStatus.done => _SetupSuccessView(integration: state.integration!),
+          PosSetupStatus.done => _SetupSuccessView(
+            integration: state.integration!,
+          ),
           _ => _SetupForm(
             state: state,
             baseUrl: _baseUrlController,
@@ -86,39 +111,34 @@ class _PosConnectionSetupScreenState
           ),
         },
       ),
-      // The action is pinned outside the scroll view so it stays reachable no
-      // matter how long the credential form grows.
+      // BOTTOM LAYER: exactly ONE primary per phase, always in the same slot.
+      // The form's submit and the connected state's sync share this position,
+      // so the primary action never moves when the screen advances. The
+      // "back to integration" exit is a SECONDARY — it must never compete with
+      // "Sync now" for the eye (this pair was two stacked full-width
+      // FilledButtons, the competing-CTA shape the contract forbids).
       bottomNavigationBar: finished
-          ? null
-          : Material(
-              elevation: 8,
-              color: scheme.surface,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FilledButton.icon(
-                    key: const Key('pos-setup-submit'),
-                    onPressed: state.status == PosSetupStatus.connecting
-                        ? null
-                        : _submit,
-                    icon: state.status == PosSetupStatus.connecting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.link),
-                    label: Text(
-                      state.existing == null ? 'Connect POS' : 'Save & reconnect',
-                    ),
-                  ),
-                ),
-              ),
+          ? PrimaryCtaBar(
+              primaryKey: const Key('pos-setup-sync-now'),
+              primaryLabel: appText(context).commonSyncNow,
+              primaryIcon: Icons.sync_outlined,
+              onPrimary: _syncNow,
+              secondaryKey: const Key('pos-setup-done'),
+              secondaryLabel: appText(context).commonBackToIntegration,
+              onSecondary: () => GoRouter.maybeOf(context)?.go(Routes.pos),
+            )
+          : PrimaryCtaBar(
+              primaryKey: const Key('pos-setup-submit'),
+              primaryLabel: state.existing == null
+                  ? 'Connect POS'
+                  : 'Save & reconnect',
+              primaryIcon: Icons.link,
+              onPrimary: _submit,
+              loading: state.status == PosSetupStatus.connecting,
             ),
     );
   }
 }
-
 
 /// The provider / type / credentials form.
 class _SetupForm extends ConsumerWidget {
@@ -165,7 +185,9 @@ class _SetupForm extends ConsumerWidget {
               initialValue: state.effectiveProvider.isEmpty
                   ? null
                   : state.effectiveProvider,
-              decoration: InputDecoration(labelText: appText(context).commonPOSProvider),
+              decoration: InputDecoration(
+                labelText: appText(context).commonPOSProvider,
+              ),
               items: [
                 for (final p in state.providers)
                   DropdownMenuItem(value: p.code, child: Text(p.displayName)),
@@ -180,7 +202,9 @@ class _SetupForm extends ConsumerWidget {
             DropdownButtonFormField<String>(
               key: const Key('pos-setup-type'),
               initialValue: state.integrationType,
-              decoration: InputDecoration(labelText: appText(context).commonConnectionType),
+              decoration: InputDecoration(
+                labelText: appText(context).commonConnectionType,
+              ),
               items: [
                 for (final (value, label) in kPosIntegrationTypes)
                   DropdownMenuItem(value: value, child: Text(label)),
@@ -197,12 +221,17 @@ class _SetupForm extends ConsumerWidget {
           if (provider != null && !provider.supportsIncremental) ...[
             const SizedBox(height: 8),
             Text(
-              appText(context).posConnectionSetupScreenThisConnectorSupportsFullSyncs,
+              appText(context)
+                  .posConnectionSetupScreenThisConnectorSupportsFullSyncs,
               style: TextStyle(fontSize: 12, color: scheme.outline),
             ),
           ],
           const SizedBox(height: 16),
-          _CredentialsCard(baseUrl: baseUrl, apiKey: apiKey, apiSecret: apiSecret),
+          _CredentialsCard(
+            baseUrl: baseUrl,
+            apiKey: apiKey,
+            apiSecret: apiSecret,
+          ),
           const SizedBox(height: 16),
           if (state.status == PosSetupStatus.error) ...[
             _SetupErrorCard(state: state),
@@ -251,7 +280,10 @@ class _ExistingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    appText(context).posConnectionSetupScreenThisShopAlreadyHasA(posStatusLabel(status)),
+                    appText(context)
+                        .posConnectionSetupScreenThisShopAlreadyHasA(
+                          posStatusLabel(status),
+                        ),
                     style: TextStyle(fontSize: 12, color: scheme.outline),
                   ),
                 ],
@@ -286,7 +318,10 @@ class _CredentialsCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(appText(context).posConnectionSetupScreenVendorCredentialsOptional),
+            Text(
+              appText(context)
+                  .posConnectionSetupScreenVendorCredentialsOptional,
+            ),
             const SizedBox(height: 4),
             Text(
               appText(context).posConnectionSetupScreenOnlyWhatYouTypeIs,
@@ -303,15 +338,20 @@ class _CredentialsCard extends ConsumerWidget {
                   .read(posSetupProvider.notifier)
                   .editCredentials(apiBaseUrl: v),
               keyboardType: TextInputType.url,
-              decoration: InputDecoration(labelText: appText(context).commonAPIBaseURL),
+              decoration: InputDecoration(
+                labelText: appText(context).commonAPIBaseURL,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               key: const Key('pos-setup-api-key'),
               controller: apiKey,
-              onChanged: (v) =>
-                  ref.read(posSetupProvider.notifier).editCredentials(apiKey: v),
-              decoration: InputDecoration(labelText: appText(context).commonAPIKey),
+              onChanged: (v) => ref
+                  .read(posSetupProvider.notifier)
+                  .editCredentials(apiKey: v),
+              decoration: InputDecoration(
+                labelText: appText(context).commonAPIKey,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -321,7 +361,9 @@ class _CredentialsCard extends ConsumerWidget {
                   .read(posSetupProvider.notifier)
                   .editCredentials(apiSecret: v),
               obscureText: true,
-              decoration: InputDecoration(labelText: appText(context).commonAPISecret),
+              decoration: InputDecoration(
+                labelText: appText(context).commonAPISecret,
+              ),
             ),
           ],
         ),
@@ -378,7 +420,8 @@ class _SetupErrorCard extends StatelessWidget {
                   if (state.credentialRefused) ...[
                     const SizedBox(height: 4),
                     Text(
-                      appText(context).posConnectionSetupScreenCheckTheAPIKeySecret,
+                      appText(context)
+                          .posConnectionSetupScreenCheckTheAPIKeySecret,
                       style: TextStyle(fontSize: 11, color: scheme.outline),
                     ),
                   ],
@@ -399,23 +442,6 @@ class _SetupSuccessView extends ConsumerWidget {
 
   final PosIntegration integration;
 
-  /// Queues the initial sync and reports the outcome; the POS screen is where
-  /// the queued job and its progress are shown.
-  Future<void> _syncNow(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final sync = await ref.read(posControllerProvider.notifier).syncNow();
-    if (!context.mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          sync == null
-              ? 'Sync could not be started — open the POS screen to retry.'
-              : 'Initial sync started. Open the POS screen for progress.',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
@@ -435,13 +461,15 @@ class _SetupSuccessView extends ConsumerWidget {
             Text(
               appText(context).commonPOSConnected,
               key: const Key('pos-setup-success'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
-              appText(context).posConnectionSetupScreenProviderNameIsValue(integration.providerName, posStatusLabel(status).toLowerCase()),
+              appText(context).posConnectionSetupScreenProviderNameIsValue(
+                integration.providerName,
+                posStatusLabel(status).toLowerCase(),
+              ),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: scheme.outline),
             ),
@@ -452,30 +480,9 @@ class _SetupSuccessView extends ConsumerWidget {
               color: posStatusColor(status, scheme),
               icon: posStatusIcon(status),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                key: const Key('pos-setup-sync-now'),
-                onPressed: () => _syncNow(context, ref),
-                icon: const Icon(Icons.sync_outlined),
-                label: Text(appText(context).commonSyncNow),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                key: const Key('pos-setup-done'),
-                onPressed: () => GoRouter.maybeOf(context)?.go(Routes.pos),
-                icon: const Icon(Icons.point_of_sale_outlined),
-                label: Text(appText(context).commonBackToIntegration),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 }
-

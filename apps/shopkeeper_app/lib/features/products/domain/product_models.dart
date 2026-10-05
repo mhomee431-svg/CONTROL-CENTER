@@ -425,6 +425,8 @@ class StockAdjustmentResult {
     required this.stockStatus,
     this.adjustmentType,
     this.lastInventoryUpdate,
+    this.source,
+    this.freshnessStatus,
   });
 
   final int shopProductId;
@@ -436,6 +438,16 @@ class StockAdjustmentResult {
   final String stockStatus;
   final String? adjustmentType;
   final DateTime? lastInventoryUpdate;
+
+  /// Who last moved this stock (`EXCEL_UPLOAD`, `POS_SYNC`, `MANUAL`, ...).
+  final String? source;
+
+  /// How current that write is (`RECENTLY_UPDATED`, `STALE`, ...).
+  ///
+  /// Null from an older server rather than a guess: the confirmation panel
+  /// renders nothing at all when all three facts are missing, and an invented
+  /// "Unknown" freshness would read as a real measurement.
+  final String? freshnessStatus;
 
   StockStateView get stockState => StockStateView.of(stockStatus);
 
@@ -449,6 +461,8 @@ class StockAdjustmentResult {
         adjustmentType: json['adjustment_type'] as String?,
         lastInventoryUpdate:
             ShopProductItem._parseDate(json['last_inventory_update']),
+        source: json['source'] as String?,
+        freshnessStatus: json['freshness_status'] as String?,
       );
 }
 

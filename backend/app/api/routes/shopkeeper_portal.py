@@ -27,7 +27,13 @@ from app.schemas.shopkeeper import (
     ShopkeeperShopLocationUpdate,
     ShopkeeperStockAdjustment,
 )
-from app.services import media_service, shopkeeper_service
+from app.services import media_service, shopkeeper_service, restaurant_service
+from app.schemas.restaurant import (
+    RestaurantMenuCategoryCreate,
+    RestaurantMenuCategoryResponse,
+    RestaurantMenuItemCreate,
+    RestaurantMenuItemResponse,
+)
 
 router = APIRouter(prefix="/shopkeeper", tags=["shopkeeper"])
 
@@ -384,6 +390,184 @@ async def update_product(
     return success_response(data=product, message="Product updated")
 
 
+# ── Restaurant menu management (shopkeeper module) ────────────────────────
+# The menu API first lived only on the customer-facing /restaurants router, which
+# put it outside the namespace this app is allowed to consume — the app's own
+# contract test enforces "exclusively the isolated /shopkeeper/* module". These
+# routes are keyed on the shop id the app already holds, resolve the restaurant
+# through the shop, and delegate to the SAME service functions, so there is one
+# implementation of the ownership rules rather than two.
+def _resolve_restaurant_id(db, access):
+    """The restaurant profile for the caller's shop, or None when it has none."""
+    profile = restaurant_service.get_restaurant_by_shop(db, access.shop.id)
+    return profile["id"] if profile else None
+
+
+def _no_profile():
+    return error_response(
+        message="This shop has no restaurant profile yet",
+        error_code="RESTAURANT_NOT_FOUND",
+        status_code=404,
+    )
+
+
+def _menu_error(exc):
+    if isinstance(exc, PermissionError):
+        return error_response(message=str(exc), error_code="FORBIDDEN", status_code=403)
+    return error_response(
+        message=str(exc), error_code="MENU_REQUEST_FAILED", status_code=400
+    )
+
+
+@router.get("/shops/{shop_id}/restaurant")
+async def my_restaurant(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The restaurant profile this shop owns.
+
+    404 when the shop has no profile yet — the honest answer, so the app can say
+    "set your restaurant details first" rather than showing an empty menu.
+    """
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    access.require("shop", "read")
+    profile = restaurant_service.get_restaurant_by_shop(db, access.shop.id)
+    if profile is None:
+        return _no_profile()
+    return success_response(data=profile)
+
+
+@router.get("/shops/{shop_id}/menu")
+async def my_menu(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    access.require("shop", "read")
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+@router.post("/shops/{shop_id}/menu-categories", status_code=201)
+async def add_menu_category(
+    shop_id: int,
+    payload: RestaurantMenuCategoryCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        category = restaurant_service.create_menu_category(
+            db, user_id=current_user.id, restaurant_id=restaurant_id, data=payload
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    db.commit()
+    return success_response(
+        data=RestaurantMenuCategoryResponse.model_validate(category).model_dump(),
+        message="Menu category created",
+        status_code=201,
+    )
+
+
+@router.post("/shops/{shop_id}/menu-items", status_code=201)
+async def add_menu_item(
+    shop_id: int,
+    payload: RestaurantMenuItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        item = restaurant_service.create_menu_item(
+            db, user_id=current_user.id, restaurant_id=restaurant_id, data=payload
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    db.commit()
+    return success_response(
+        data=RestaurantMenuItemResponse.model_validate(item).model_dump(),
+        message="Menu item created",
+        status_code=201,
+    )
+
+
+@router.put("/shops/{shop_id}/menu-items/{item_id}")
+async def edit_menu_item(
+    shop_id: int,
+    item_id: int,
+    payload: RestaurantMenuItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        item = restaurant_service.update_menu_item(
+            db,
+            user_id=current_user.id,
+            restaurant_id=restaurant_id,
+            item_id=item_id,
+            data=payload,
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    if item is None:
+        return error_response(
+            message="Menu item not found",
+            error_code="MENU_ITEM_NOT_FOUND",
+            status_code=404,
+        )
+    db.commit()
+    return success_response(
+        data=RestaurantMenuItemResponse.model_validate(item).model_dump(),
+        message="Menu item updated",
+    )
+
+
+@router.delete("/shops/{shop_id}/menu-items/{item_id}")
+async def remove_menu_item(
+    shop_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        removed = restaurant_service.delete_menu_item(
+            db, user_id=current_user.id, restaurant_id=restaurant_id, item_id=item_id
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    if not removed:
+        return error_response(
+            message="Menu item not found",
+            error_code="MENU_ITEM_NOT_FOUND",
+            status_code=404,
+        )
+    db.commit()
+    return success_response(data={"id": item_id, "deleted": True})
+
+
+# ── Phase 23 — Inventory management ──────────────────────────────────────
+    menu = restaurant_service.get_restaurant_menu(db, restaurant_id)
+    return success_response(data=menu or [])
 # ── Phase 23 — Inventory management ──────────────────────────────────────
 @router.get("/shops/{shop_id}/catalog/search")
 async def search_catalog(

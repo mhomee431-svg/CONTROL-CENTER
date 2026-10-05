@@ -18,7 +18,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session, defer
+from sqlalchemy.orm import Session, defer, joinedload, selectinload
 
 from app.core.exceptions import (
     AppError,
@@ -47,12 +47,13 @@ from app.models.product import (
     OfferStatus,
     OfferType,
     PriceHistory,
+    ProductAttribute,
+    ProductAttributeValue,
     ProductIdentifier,
     ProductImage,
     ProductMaster,
     ProductStatus,
     ShopProduct,
-    ShopProductStatus,
 )
 from app.services.inventory_service import compute_freshness
 from app.models.shop import (
@@ -68,6 +69,9 @@ from app.models.merchant_category import MerchantCategoryCode
 from app.models.subscription import Subscription
 from app.models.user import User, UserStatus
 from app.services import shop_service
+from app.services import product_attribute_writer
+from app.services import product_convergence
+from app.models import product_attributes
 
 logger = get_logger("app.services.shopkeeper")
 
@@ -456,6 +460,17 @@ def _iso(value: Any) -> str | None:  # pyright: ignore[reportRedeclaration]
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
+
+
+def _enum_value(value: Any) -> str | None:
+    """Enum (or plain string) → its wire value.
+
+    Same `getattr(..., "value", ...)` shape used by `_shop_summary` below, so a
+    plain string column and a real enum both serialise without branching.
+    """
+    if value is None:
+        return None
+    return str(getattr(value, "value", value))
 
 
 def _shop_summary(shop: Shop, membership: str, permissions: set[str]) -> dict[str, Any]:
@@ -1228,6 +1243,10 @@ def inventory_overview(access: ShopAccess, db: Session) -> dict[str, Any]:
                 "quantity": qty,
                 "low_stock_threshold": threshold,
                 "stock_status": status,
+                "freshness_status": _enum_value(
+                    getattr(sp, "freshness_status", None)
+                ),
+                "source": _enum_value(getattr(sp, "source", None)),
                 "last_inventory_update": _iso(sp.last_inventory_update),
             }
         )
@@ -1347,7 +1366,76 @@ def _variant_label(sp: ShopProduct) -> str | None:
     return sp.sku
 
 
-def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
+def read_master_attributes(
+    db: Session, master: ProductMaster | None, category_code: str | None = None
+) -> dict[str, str]:
+    """The category attributes stored against a product master.
+
+    Without this the write path is a one-way street: the shopkeeper enters a part
+    number, the row is saved, and nothing ever hands it back — so an edit form
+    opens blank and a listing shows none of what was recorded.
+
+    Stored identifiers are keyed back by the ATTRIBUTE key that declared them,
+    not by their `IdentifierType`. An MPN filed under `oem_reference_number` has
+    to come back under that name, because that is the key the form submits; the
+    raw type would leave the field blank while its row sat right there.
+    """
+    if master is None:
+        return {}
+    out: dict[str, str] = {}
+
+    attributes = (
+        db.query(ProductAttribute)
+        .filter(ProductAttribute.product_master_id == master.id)
+        .all()
+    )
+    if attributes:
+        values = (
+            db.query(ProductAttributeValue)
+            .filter(
+                ProductAttributeValue.attribute_id.in_([a.id for a in attributes])
+            )
+            .all()
+        )
+        by_attribute: dict[int, list[str]] = {}
+        for value in values:
+            by_attribute.setdefault(value.attribute_id, []).append(value.value)
+        for attribute in attributes:
+            stored = by_attribute.get(attribute.id) or []
+            if stored:
+                out[attribute.name] = stored[0]
+
+    # Which attribute key stands for each identifier type in this category.
+    keys_by_type: dict[str, str] = {}
+    if category_code:
+        for spec in product_attributes.product_attributes_for(
+            str(category_code).strip().upper()
+        ):
+            if spec.identifier_type:
+                keys_by_type.setdefault(spec.identifier_type, spec.key.value)
+
+    identifiers = (
+        db.query(ProductIdentifier)
+        .filter(
+            ProductIdentifier.product_master_id == master.id,
+            ProductIdentifier.is_primary.is_(False),
+            ProductIdentifier.is_active.is_(True),
+        )
+        .all()
+    )
+    for identifier in identifiers:
+        key = keys_by_type.get(identifier.identifier_type)
+        if key:
+            out.setdefault(key, identifier.identifier_value)
+
+    return out
+
+
+def serialize_product(
+    sp: ShopProduct,
+    inv: Inventory | None,
+    attributes: dict[str, str] | None = None,
+) -> dict[str, Any]:
     qty = int(inv.quantity) if inv is not None else 0
     threshold = (
         int(inv.low_stock_threshold) if inv is not None and inv.low_stock_threshold else 5
@@ -1373,6 +1461,10 @@ def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
         "variant": _variant_label(sp),
         "brand": getattr(brand, "name", None) if brand is not None else None,
         "category": getattr(category, "name", None) if category is not None else None,
+        # Category attributes, echoed back so an edit form reopens populated.
+        # Empty rather than absent when there are none, so a client never has to
+        # distinguish "no attributes" from "an older server that omits the key".
+        "attributes": attributes or {},
         "status": _shop_product_status_value(sp),
         "image_url": _primary_image_url(master),
         "price": float(sp.price or 0),
@@ -1384,10 +1476,40 @@ def serialize_product(sp: ShopProduct, inv: Inventory | None) -> dict[str, Any]:
         "low_stock_threshold": threshold,
         "stock_status": status,
         "freshness_status": freshness.value if freshness is not None and hasattr(freshness, "value") else (str(freshness) if freshness is not None else None),
+        # Who last wrote this row. Without it the client falls back to "Updated
+        # in app" for EVERY listing, so a price pushed by POS reads as a manual
+        # edit -- an indicator that is confidently wrong beats no indicator only
+        # because it is louder.
+        "source": _enum_value(getattr(sp, "source", None)),
         "last_inventory_update": _iso(sp.last_inventory_update),
         "last_price_update": _iso(sp.last_price_update),
         "created_at": _iso(getattr(sp, "created_at", None)),
     }
+
+
+# A product row is not expensive to SERIALISE; it is expensive to LOAD. Every
+# relation below is one query per product otherwise, and this function runs on
+# the shop's most-opened screen. `selectinload` collapses each relation to one
+# batched query for the whole page, which is the difference between ~5 queries
+# per product and a constant handful per request.
+#
+# `inventory` is a collection, so it is eager-loaded the same way rather than
+# fetched one-at-a-time in the loop below.
+_LOAD_OPTIONS = (
+    selectinload(ShopProduct.product_master)
+    .selectinload(ProductMaster.brand),
+    selectinload(ShopProduct.product_master).selectinload(ProductMaster.category),
+    selectinload(ShopProduct.product_master).selectinload(ProductMaster.images),
+    # `inventory` is many-to-one (one shop_product has one inventory row), so
+    # it is JOINED into the products query rather than batched separately --
+    # `selectinload` raises at runtime on a scalar relationship.
+    joinedload(ShopProduct.inventory),
+)
+
+# A hard ceiling on one response. Without it a shop with tens of thousands of
+# rows makes every page load try to render all of them, and one such request is
+# enough to starve the connection pool for everyone else.
+MAX_PRODUCTS_PER_RESPONSE = 200
 
 
 def list_products(
@@ -1396,13 +1518,33 @@ def list_products(
     search: str | None = None,
     status_filter: str | None = None,
     stock_filter: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict[str, Any]]:
+    cap = MAX_PRODUCTS_PER_RESPONSE if limit is None else max(1, min(limit, MAX_PRODUCTS_PER_RESPONSE))
     products: list[ShopProduct] = (
-        db.query(ShopProduct).filter(ShopProduct.shop_id == access.shop.id).all()
+        db.query(ShopProduct)
+        .options(*_LOAD_OPTIONS)
+        .filter(
+            ShopProduct.shop_id == access.shop.id,
+            ShopProduct.is_deleted == False,  # noqa: E712
+        )
+        .order_by(ShopProduct.id)
+        # One extra row to tell the caller whether more exist, so the cap can
+        # report truncation instead of silently looking like a complete list.
+        .limit(cap + 1)
+        .offset(max(0, offset))
+        .all()
     )
+    truncated = len(products) > cap
+    if truncated:
+        products = products[:cap]
+
     result: list[dict[str, Any]] = []
     for sp in products:
-        inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
+        # Already JOINED in by the options above; the fallback only applies to a
+        # caller that built the row itself without them.
+        inv = sp.inventory
         item = serialize_product(sp, inv)
         if search and search.lower() not in item["name"].lower():
             continue
@@ -1411,6 +1553,10 @@ def list_products(
         if stock_filter and item["stock_status"] != stock_filter.upper():
             continue
         result.append(item)
+    if truncated and result:
+        # Marked in-place rather than by adding a key, so this function's shape
+        # stays a plain list of product dicts for every existing caller.
+        result[-1]["_truncated"] = True
     return result
 
 
@@ -1718,6 +1864,18 @@ def create_product(
     # Phase 28 — subscription entitlement enforcement (product limit).
     _enforce_product_limit(db, access)
 
+    # Column-width check before anything is written: a 300-character name would
+    # otherwise reach INSERT and come back as a 500 from the storage layer.
+    from app.core.field_limits import enforce_text_lengths
+
+    enforce_text_lengths(
+        {
+            "product_name": data.get("name"),
+            "sku": data.get("sku"),
+            "brand": data.get("brand"),
+        }
+    )
+
     price = float(data["price"])
     mrp = float(data["mrp"]) if data.get("mrp") is not None else None
     if mrp is not None and mrp < price:
@@ -1733,7 +1891,6 @@ def create_product(
     quantity = int(data.get("quantity", 0))
     threshold = int(data.get("low_stock_threshold", 5))
     stock_enum = _enum_from_name("StockStatus", _derive_stock_status(quantity, threshold))
-    now = datetime.now(timezone.utc)
 
     matched = find_matching_master(db, data["name"])
     if matched is not None:
@@ -1775,47 +1932,61 @@ def create_product(
     # Barcode → the product's primary identifier, so a later scan resolves it.
     attach_identifier(db, master, data.get("barcode"), data.get("barcode_type"))
 
-    sp = ShopProduct(
+    # Category attributes — the fields this shop's category advertises. Anything
+    # the backend cannot store is refused here, loudly, rather than dropped: a
+    # silently discarded "Part number" is a part the shopkeeper believes exists.
+    if data.get("attributes"):
+        plan = product_attribute_writer.plan_attribute_write(
+            getattr(access.shop, "category", None), data.get("attributes")
+        )
+        if not plan.ok:
+            detail = "; ".join(f"{k}: {v}" for k, v in sorted(plan.rejected.items()))
+            raise ValidationError(f"Product attributes were refused — {detail}")
+        product_attribute_writer.persist_attribute_values(db, master, plan)
+
+    sp = product_convergence.attach_product_to_shop(
+        db,
         shop_id=access.shop.id,
-        product_master_id=master.id,
+        master=master,
         sku=_unique_sku(db, access.shop.id, data.get("sku")),
-        status=ShopProductStatus.ACTIVE,
+        source=InventorySource.MANUAL,
         price=price,
         mrp=mrp,
-        is_active=publish,
+        publish=publish,
         is_available=bool(data.get("is_available", True)) and publish and quantity > 0,
         stock_status=stock_enum,
-        last_inventory_update=now,
-        last_price_update=now,
     )
-    # Link eagerly so serialization sees the master name immediately.
-    sp.product_master = master
-    db.add(sp)
-    db.flush()
 
     # Phase 7 — persist the (route-validated) uploaded image as the
     # master's primary catalog image.
     if data.get("image_url"):
         _attach_master_image(db, master, data["image_url"])
 
-    db.add(
-        Inventory(
-            shop_product_id=sp.id,
-            quantity=quantity,
-            available_quantity=quantity,
-            stock_status=stock_enum,
-            low_stock_threshold=threshold,
-            last_updated_by=user.id,
-        )
+    product_convergence.set_inventory(
+        db,
+        sp,
+        quantity=quantity,
+        low_stock_threshold=threshold,
+        source=InventorySource.MANUAL,
+        user_id=user.id,
+        reference_type="MANUAL_ENTRY",
+        stock_status=stock_enum,
     )
-    db.flush()
 
     inv = db.query(Inventory).filter(Inventory.shop_product_id == sp.id).first()
     logger.info(
         "Product created: shop=%s shop_product=%s by user=%s",
         access.shop.id, sp.id, user.id,
     )
-    payload = serialize_product(sp, inv)
+    payload = serialize_product(
+        sp,
+        inv,
+        read_master_attributes(
+            db,
+            getattr(sp, "product_master", None),
+            getattr(access.shop, "category", None),
+        ),
+    )
     _notify(
         db, access, user,
         "notify_shop_product_event",
@@ -1847,9 +2018,29 @@ def update_product(
     old_price = float(sp.price) if sp.price is not None else 0.0  # pyright: ignore[reportUnnecessaryComparison]
     old_mrp = float(sp.mrp) if sp.mrp is not None else None
 
-    new_price = float(data["price"]) if data.get("price") is not None else None
+    # Same three rules as every entry route: numeric, non-negative, then the
+    # MRP-vs-price relationship. This door only checked the third, so a negative
+    # or non-numeric amount either reached the column or crashed mid-request.
+    def _amount(raw: Any, label: str) -> float:
+        """A money field: numeric and non-negative, or refused at the edge.
+
+        The nested def keeps the wording next to the two call sites instead of
+        a module helper five screens away, the way the price entry rules sit
+        next to attachment rather than in a shared validators module.
+        """
+        try:
+            value = float(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(f"{label} '{raw}' is not a valid number") from exc
+        if value < 0:
+            raise ValidationError(f"{label} cannot be negative")
+        return value
+
+    new_price = (
+        _amount(data["price"], "Price") if data.get("price") is not None else None
+    )
     if data.get("mrp") is not None:
-        mrp = float(data["mrp"])
+        mrp = _amount(data["mrp"], "MRP")
         effective_price = new_price if new_price is not None else float(sp.price or 0)
         if mrp < effective_price:
             raise ValidationError("MRP cannot be lower than selling price")
@@ -1979,12 +2170,25 @@ def update_product(
         if master is not None:
             _attach_master_image(db, master, data["image_url"])
 
+    # Category attributes on update. Only the keys actually sent are written, so
+    # a price-only edit never clears a part number stored earlier.
+    if data.get("attributes") and master is not None:
+        plan = product_attribute_writer.plan_attribute_write(
+            getattr(access.shop, "category", None), data.get("attributes")
+        )
+        if not plan.ok:
+            detail = "; ".join(f"{k}: {v}" for k, v in sorted(plan.rejected.items()))
+            raise ValidationError(f"Product attributes were refused — {detail}")
+        product_attribute_writer.persist_attribute_values(db, master, plan)
+
     db.flush()
     logger.info(
         "Product updated: shop=%s shop_product=%s by user=%s",
         access.shop.id, sp.id, user.id,
     )
-    payload = serialize_product(sp, inv)
+    payload = serialize_product(
+        sp, inv, read_master_attributes(db, master, getattr(access.shop, "category", None))
+    )
     name = str(payload.get("name") or "")
     if touched_price:
         _notify(
@@ -2141,56 +2345,32 @@ def add_product_from_master(
     threshold = int(data.get("low_stock_threshold", 5))
     available = bool(data.get("is_available", True)) and quantity > 0
     stock_enum = _enum_from_name("StockStatus", _derive_stock_status(quantity, threshold))
-    now = datetime.now(timezone.utc)
 
-    sp = ShopProduct(
+    sp = product_convergence.attach_product_to_shop(
+        db,
         shop_id=access.shop.id,
-        product_master_id=master.id,
-        variant_id=variant.id if variant else None,  # pyright: ignore[reportUnknownMemberType]
+        master=master,
+        variant=variant,
         sku=_unique_sku(db, access.shop.id, data.get("sku")),
-        status=ShopProductStatus.ACTIVE,
+        source=InventorySource.MANUAL,
         price=price,
         mrp=mrp,
-        is_active=True,
+        publish=True,
         is_available=available,
         stock_status=stock_enum,
-        source=InventorySource.MANUAL,
-        last_inventory_update=now,
-        last_price_update=now,
     )
-    sp.product_master = master
-    if variant is not None:
-        sp.variant = variant
-    db.add(sp)
-    db.flush()
 
-    inv = Inventory(
-        shop_product_id=sp.id,
+    inv = product_convergence.set_inventory(
+        db,
+        sp,
         quantity=quantity,
-        reserved_quantity=0,
-        available_quantity=quantity,
+        low_stock_threshold=threshold,
+        source=InventorySource.MANUAL,
         is_available=available,
         stock_status=stock_enum,
-        low_stock_threshold=threshold,
-        last_updated_by=user.id,
-        last_updated_source=InventorySource.MANUAL,
-        freshness_status=compute_freshness(now, InventorySource.MANUAL),
-        freshness_checked_at=now,
-    )
-    db.add(inv)
-    db.flush()
-
-    db.add(
-        InventoryMovement(
-            inventory_id=inv.id,
-            quantity_change=quantity,
-            quantity_before=0,
-            quantity_after=quantity,
-            movement_type="INITIAL",
-            source=InventorySource.MANUAL,
-            notes="Product added to shop inventory",
-            created_by=user.id,
-        )
+        user_id=user.id,
+        reference_type="CATALOG_ADD",
+        notes="Product added to shop inventory",
     )
 
     # Link eagerly so serialization sees master/variant immediately.
@@ -2308,6 +2488,13 @@ def adjust_stock(
         "stock_status": inv.stock_status.value,
         "adjustment_type": adjustment_type,
         "last_inventory_update": _iso(now),
+        # The spec's "Show: Last Updated, Source, Freshness" needs these three
+        # AFTER the save, not just before it. The row already carried them —
+        # the payload simply never surfaced them, so the confirmation panel
+        # could say "saved" without saying where the number came from.
+        "source": _enum_value(inv.last_updated_source),
+        "freshness_status": _enum_value(inv.freshness_status),
+        "freshness_checked_at": _iso(inv.freshness_checked_at),
     }
 
 

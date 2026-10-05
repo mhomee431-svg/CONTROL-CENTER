@@ -8,6 +8,7 @@ import '../../domain/location_capture_state.dart';
 import '../controllers/location_capture_controller.dart';
 import '../../../../core/permissions/widgets/permission_prompt_view.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 
 /// "Add Your Shop" location capture — mobile-first, ride-app style.
 ///
@@ -475,7 +476,7 @@ class _AccuracyChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: _color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadius.circle,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

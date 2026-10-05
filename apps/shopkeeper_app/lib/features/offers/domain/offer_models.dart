@@ -204,6 +204,8 @@ class OfferSummary {
   /// True when the offer can be deactivated (disabled) right now.
   bool get canDisable => canTransitionTo('DISABLED');
 
+  /// Human shelf words for the preview panel and offer rows, e.g.
+  /// `15% off` / `₹50 off` / `Promo ₹199`.
   /// Friendly name for the backend `offer_type` enum.
   String get offerTypeLabel {
     for (final type in ShopkeeperOfferType.values) {

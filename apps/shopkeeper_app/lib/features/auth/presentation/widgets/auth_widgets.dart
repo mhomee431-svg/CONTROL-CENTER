@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../domain/auth_methods.dart';
 import '../../domain/auth_models.dart';
@@ -166,7 +167,7 @@ class AuthErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.errorContainer,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppRadius.smBorder,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

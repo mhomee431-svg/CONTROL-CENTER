@@ -577,6 +577,7 @@ class ProductsController extends Notifier<ProductsState> {
     int? categoryId,
     int? subcategoryId,
     String? barcode,
+    Map<String, String> attributes = const {},
   }) async {
     final shopId = _shopId;
     if (shopId == null) return false;
@@ -604,6 +605,10 @@ class ProductsController extends Notifier<ProductsState> {
         'category_id': ?categoryId,
         'subcategory_id': ?subcategoryId,
         if (barcode != null && barcode.isNotEmpty) 'barcode': barcode,
+        // Category-specific attributes, keyed by the backend's own attribute
+        // keys. Sent only when there are any, so the field stays absent from the
+        // payload for a category that declares none.
+        if (attributes.isNotEmpty) 'attributes': attributes,
       }, token);
       state = ProductsState(
         status: ProductsStatus.ready,

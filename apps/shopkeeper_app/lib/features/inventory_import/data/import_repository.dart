@@ -42,6 +42,27 @@ abstract class InventoryImportRepository {
 
   /// Download Sample — the import template workbook as raw .xlsx bytes.
   Future<Uint8List> downloadSample(int shopId, String token);
+
+  /// The import schema: field vocabulary, accepted header spellings and the
+  /// rules each field is validated against.
+  ///
+  /// Fetched once per session and cached by the controller — the vocabulary
+  /// does not change between uploads, but its SOURCE must be the backend: a
+  /// client that hardcodes the rules will eventually disagree with the client's
+  /// own row errors.
+  Future<ImportSchema> schema(String token);
+
+  /// Submit a corrected Column Mapping and re-stage the job under it.
+  ///
+  /// Returns the freshly re-validated preview — the counts and row outcomes
+  /// genuinely change with the mapping, so the caller must replace its preview
+  /// rather than assume only the mapping moved.
+  Future<ImportPreview> remap(
+    int shopId,
+    int jobId,
+    Map<String, int?> columnMapping,
+    String token,
+  );
 }
 
 /// File name the sample download is offered under (kept next to the endpoint
@@ -193,6 +214,60 @@ class ApiInventoryImportRepository implements InventoryImportRepository {
       throw ApiException(
         statusCode: response.statusCode,
         message: 'Sample could not be downloaded',
+      );
+    } on DioException catch (e) {
+      _rethrow(e);
+    }
+  }
+  @override
+  Future<ImportSchema> schema(String token) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.inventoryImportSchema,
+        options: _options(token),
+      );
+      final body = response.data;
+      if (body is Map && body['success'] == true) {
+        final data = body['data'];
+        if (data is Map) {
+          return ImportSchema.fromJson(data.cast<String, dynamic>());
+        }
+      }
+      throw ApiException(statusCode: response.statusCode, message: 'No schema');
+    } on DioException catch (e) {
+      _rethrow(e);
+    }
+  }
+
+  @override
+  Future<ImportPreview> remap(
+    int shopId,
+    int jobId,
+    Map<String, int?> columnMapping,
+    String token,
+  ) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.inventoryImportRemap(shopId, jobId),
+        data: {
+          // Nulls are sent, not dropped: "don't import this field" is a real
+          // answer and the backend clears it. Dropping the key instead would
+          // leave whatever the previous mapping had.
+          'column_mapping': columnMapping,
+        },
+        options: _options(token),
+      );
+      final body = response.data;
+      if (body is Map && body['success'] == true) {
+        return ImportPreview.fromJson(
+          (body['data'] as Map).cast<String, dynamic>(),
+        );
+      }
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: body is Map
+            ? (body['message'] as String? ?? 'Could not update the mapping')
+            : 'Could not update the mapping',
       );
     } on DioException catch (e) {
       _rethrow(e);

@@ -70,6 +70,36 @@ async def get_restaurant_menu(
     return success_response(data=menu)
 
 # -- Shopkeeper endpoints (restaurant owner) --------------------------------
+@router.get("/by-shop/{shop_id}")
+async def get_my_restaurant(
+    shop_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Resolve the caller's own restaurant profile from their shop id.
+
+    The menu routes are keyed on `restaurant_id`, and a shopkeeper only knows
+    their `shop_id`. This is the lookup that lets the app reach its own menu
+    without ever showing an internal id it never received.
+
+    Answers 404 when the shop has no restaurant profile yet, which is the honest
+    answer — the caller creates one rather than this route inventing a row.
+    """
+    try:
+        profile = restaurant_service.get_restaurant_by_shop(db, shop_id)
+        if profile is None:
+            return error_response(
+                message="This shop has no restaurant profile yet",
+                error_code="RESTAURANT_NOT_FOUND",
+                status_code=404,
+            )
+        return success_response(data=profile)
+    except Exception as exc:  # noqa: BLE001
+        return error_response(
+            message=str(exc), error_code="RESTAURANT_LOOKUP_FAILED", status_code=500
+        )
+
+
 @router.post("/")
 async def create_restaurant(
     data: RestaurantCreate,

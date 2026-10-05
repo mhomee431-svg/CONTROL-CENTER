@@ -4,6 +4,7 @@
 /// values are defined in the centralized token files under `lib/core/theme/`.
 /// This file composes them into a `ThemeData`.
 library;
+
 import 'package:flutter/material.dart';
 
 import 'app_button_styles.dart';
@@ -18,14 +19,19 @@ class AppTheme {
   // ── Legacy color aliases (backward-compat for screens not yet migrated) ──
   /// @deprecated Use [AppColors.primary] — HyperLocal royal blue.
   static const Color brandSeed = AppColors.primary;
+
   /// @deprecated Use [AppColors.orange].
   static const Color accent = AppColors.orange;
+
   /// @deprecated Use [AppColors.verifiedGreen].
   static const Color verifiedGreen = AppColors.verifiedGreen;
+
   /// @deprecated Use [AppColors.pendingAmber].
   static const Color pendingAmber = AppColors.pendingAmber;
+
   /// @deprecated Use [AppColors.rejectedRed].
   static const Color rejectedRed = AppColors.rejectedRed;
+
   /// @deprecated Use [AppColors.suspendedGrey].
   static const Color suspendedGrey = AppColors.suspendedGrey;
 
@@ -39,6 +45,8 @@ class AppTheme {
         onPrimaryContainer: AppColors.onPrimary,
         secondary: AppColors.green,
         onSecondary: AppColors.onPrimary,
+        tertiary: AppColors.tertiary,
+        onTertiary: AppColors.onTertiary,
         surface: AppColors.surface,
         onSurface: AppColors.darkText,
         error: AppColors.error,
@@ -60,7 +68,7 @@ class AppTheme {
       // (colourless) — see AppTypography.themeFor.
       textTheme: AppTypography.themeFor(Brightness.light),
       scaffoldBackgroundColor: AppColors.background,
-            appBarTheme: AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.darkText,
         elevation: 0,
@@ -69,10 +77,13 @@ class AppTheme {
         titleTextStyle: AppTypography.headingMedium,
       ),
       cardTheme: AppCardStyles.standard,
-      elevatedButtonTheme:
-          ElevatedButtonThemeData(style: AppButtonStyles.elevated),
-      outlinedButtonTheme:
-          OutlinedButtonThemeData(style: AppButtonStyles.outlined),
+      filledButtonTheme: FilledButtonThemeData(style: AppButtonStyles.filled),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: AppButtonStyles.elevated,
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: AppButtonStyles.outlined,
+      ),
       textButtonTheme: TextButtonThemeData(style: AppButtonStyles.text),
       inputDecorationTheme: AppInputStyles.theme,
     );
@@ -88,6 +99,8 @@ class AppTheme {
         onPrimaryContainer: AppColors.onPrimary,
         secondary: AppColors.green,
         onSecondary: AppColors.onPrimary,
+        tertiary: AppColors.tertiary,
+        onTertiary: AppColors.onTertiary,
         surface: AppColors.surfaceDark,
         onSurface: AppColors.darkTextOnDark,
         error: AppColors.error,
@@ -112,16 +125,18 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: AppColors.darkTextOnDark),
-                titleTextStyle:
-            AppTypography.headingMedium.copyWith(color: AppColors.darkTextOnDark),
+        titleTextStyle: AppTypography.headingMedium.copyWith(
+          color: AppColors.darkTextOnDark,
+        ),
       ),
-      cardTheme: AppCardStyles.standard.copyWith(
-        color: AppColors.surfaceDark,
+      cardTheme: AppCardStyles.standard.copyWith(color: AppColors.surfaceDark),
+      filledButtonTheme: FilledButtonThemeData(style: AppButtonStyles.filled),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: AppButtonStyles.elevated,
       ),
-      elevatedButtonTheme:
-          ElevatedButtonThemeData(style: AppButtonStyles.elevated),
-      outlinedButtonTheme:
-          OutlinedButtonThemeData(style: AppButtonStyles.outlined),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: AppButtonStyles.outlined,
+      ),
       textButtonTheme: TextButtonThemeData(style: AppButtonStyles.text),
       inputDecorationTheme: AppInputStyles.theme,
     );

@@ -12,7 +12,7 @@
           "auth"
         ],
         "summary": "Send Otp",
-        "description": "Acknowledge an OTP request.\n\nOTP delivery is handled by Firebase Phone Auth on the client \u2014 the Flutter\napp calls ``firebase_auth`` directly and Google sends the SMS. This endpoint\nremains for API-contract compatibility so older clients do not break; it\nsimply acknowledges the request (no third-party SMS gateway involved).",
+        "description": "Acknowledge an OTP request.\n\nOTP delivery is handled by Firebase Phone Auth on the client — the Flutter\napp calls ``firebase_auth`` directly and Google sends the SMS. This endpoint\nremains for API-contract compatibility so older clients do not break; it\nsimply acknowledges the request (no third-party SMS gateway involved).",
         "operationId": "send_otp_api_v1_auth_send_otp_post",
         "requestBody": {
           "content": {
@@ -52,7 +52,7 @@
           "auth"
         ],
         "summary": "Firebase Login",
-        "description": "Combined Firebase login-or-register endpoint for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token here.\n\nFlow:\n  1. Verify the Firebase ID token (confirms the phone belongs to the user).\n  2. Extract the phone number from the verified token.\n  3. Look up the user by phone in PostgreSQL.\n  4. If found and active \u2192 issue JWT session tokens (login).\n  5. If not found \u2192 auto-register a new customer account, then login.\n     (``name`` is required when auto-registering.)\n\nThis \"login on first use\" pattern is the standard for phone-auth apps.",
+        "description": "Combined Firebase login-or-register endpoint for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token here.\n\nFlow:\n  1. Verify the Firebase ID token (confirms the phone belongs to the user).\n  2. Extract the phone number from the verified token.\n  3. Look up the user by phone in PostgreSQL.\n  4. If found and active → issue JWT session tokens (login).\n  5. If not found → auto-register a new customer account, then login.\n     (``name`` is required when auto-registering.)\n\nThis \"login on first use\" pattern is the standard for phone-auth apps.",
         "operationId": "firebase_login_api_v1_auth_firebase_login_post",
         "requestBody": {
           "content": {
@@ -172,7 +172,7 @@
           "auth"
         ],
         "summary": "Verify Phone",
-        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a user with that ``firebase_uid`` (or phone) exists and is active \u2192\n    issue JWT session tokens (login).\n  - Otherwise \u2192 return ``is_new_user`` so the client can collect the\n    profile (name + role) and call ``/register``.",
+        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a user with that ``firebase_uid`` (or phone) exists and is active →\n    issue JWT session tokens (login).\n  - Otherwise → return ``is_new_user`` so the client can collect the\n    profile (name + role) and call ``/register``.",
         "operationId": "verify_phone_api_v1_auth_verify_phone_post",
         "responses": {
           "200": {
@@ -192,7 +192,7 @@
           "auth"
         ],
         "summary": "Register Endpoint",
-        "description": "Register a new account (customer or shopkeeper) after phone verification.\n\nThe Flutter app calls ``/verify-phone`` first; when it reports a new user,\nthe client collects the profile (name + role) and calls this endpoint.\n\nSecurity: the Firebase ID token is verified server-side (Bearer header or\n``firebase_id_token`` in the body) and the claimed ``firebase_uid`` /\n``phone_number`` must match the verified token \u2014 clients cannot spoof an\nidentity. The chosen ``role`` (``customer`` or ``shopkeeper``) decides which\nkind of account is created.",
+        "description": "Register a new account (customer or shopkeeper) after phone verification.\n\nThe Flutter app calls ``/verify-phone`` first; when it reports a new user,\nthe client collects the profile (name + role) and calls this endpoint.\n\nSecurity: the Firebase ID token is verified server-side (Bearer header or\n``firebase_id_token`` in the body) and the claimed ``firebase_uid`` /\n``phone_number`` must match the verified token — clients cannot spoof an\nidentity. The chosen ``role`` (``customer`` or ``shopkeeper``) decides which\nkind of account is created.",
         "operationId": "register_endpoint_api_v1_auth_register_post",
         "requestBody": {
           "content": {
@@ -567,7 +567,7 @@
           "categories"
         ],
         "summary": "List Categories",
-        "description": "Return all product categories.\n\nServed from the Redis cache when warm. A Redis outage degrades to a live\nPostgreSQL query (correct, just slower) \u2014 never an error.",
+        "description": "Return all product categories.\n\nServed from the Redis cache when warm. A Redis outage degrades to a live\nPostgreSQL query (correct, just slower) — never an error.",
         "operationId": "list_categories_api_v1_categories_get",
         "responses": {
           "200": {
@@ -1707,7 +1707,7 @@
           "catalog"
         ],
         "summary": "Get Search Document",
-        "description": "Prepare a product for search indexing (requires authentication \u2014 this\nendpoint recomputes and persists the search document, so it is NOT a\nplain read).",
+        "description": "Prepare a product for search indexing (requires authentication — this\nendpoint recomputes and persists the search document, so it is NOT a\nplain read).",
         "operationId": "get_search_document_api_v1_catalog_products__product_id__search_document_get",
         "security": [
           {
@@ -3461,7 +3461,7 @@
           "inventory"
         ],
         "summary": "Create Movement",
-        "description": "Record an inventory movement (sale, restock, return, damage, etc.) \u2014 admin only.",
+        "description": "Record an inventory movement (sale, restock, return, damage, etc.) — admin only.",
         "operationId": "create_movement_api_v1_inventory_movements_post",
         "requestBody": {
           "content": {
@@ -3506,7 +3506,7 @@
           "inventory"
         ],
         "summary": "Create Adjustment",
-        "description": "Create an inventory adjustment (stock count, damage, expiry, theft) \u2014 admin only.",
+        "description": "Create an inventory adjustment (stock count, damage, expiry, theft) — admin only.",
         "operationId": "create_adjustment_api_v1_inventory_adjustments_post",
         "requestBody": {
           "content": {
@@ -4263,7 +4263,7 @@
           "inventory"
         ],
         "summary": "Remove Inventory",
-        "description": "Remove inventory (sets quantity to 0, marks unavailable) \u2014 admin only.",
+        "description": "Remove inventory (sets quantity to 0, marks unavailable) — admin only.",
         "operationId": "remove_inventory_api_v1_inventory__inventory_id__delete",
         "security": [
           {
@@ -4415,7 +4415,7 @@
           "search"
         ],
         "summary": "V2 Search Products",
-        "description": "Unified discovery engine \u2014 search products across nearby shops.\n\nUses the search index (optimized layer) backed by PostgreSQL.\nCombines text search (with typo tolerance), geo proximity, and\nall discovery filters in one query.",
+        "description": "Unified discovery engine — search products across nearby shops.\n\nUses the search index (optimized layer) backed by PostgreSQL.\nCombines text search (with typo tolerance), geo proximity, and\nall discovery filters in one query.",
         "operationId": "v2_search_products_api_v1_search_v2_products_get",
         "security": [
           {
@@ -5497,7 +5497,7 @@
           "notifications"
         ],
         "summary": "Get Unread Count",
-        "description": "Badge helper \u2014 number of unread notifications.",
+        "description": "Badge helper — number of unread notifications.",
         "operationId": "get_unread_count_api_v1_notifications_unread_count_get",
         "responses": {
           "200": {
@@ -5798,7 +5798,7 @@
           "profile"
         ],
         "summary": "Get Profile",
-        "description": "Return the current user's profile.\n\nIDOR-safe: the authenticated user is derived from the verified Firebase\ntoken \u2014 never from client input. No user_id parameter is accepted.",
+        "description": "Return the current user's profile.\n\nIDOR-safe: the authenticated user is derived from the verified Firebase\ntoken — never from client input. No user_id parameter is accepted.",
         "operationId": "get_profile_api_v1_profile_get",
         "responses": {
           "200": {
@@ -5821,7 +5821,7 @@
           "profile"
         ],
         "summary": "Update Profile",
-        "description": "Update the current user's profile.\n\nIDOR-safe: updates only the authenticated user (from verified token).\nAccepts partial updates \u2014 only provided fields are changed.",
+        "description": "Update the current user's profile.\n\nIDOR-safe: updates only the authenticated user (from verified token).\nAccepts partial updates — only provided fields are changed.",
         "operationId": "update_profile_api_v1_profile_put",
         "requestBody": {
           "content": {
@@ -5864,7 +5864,7 @@
           "profile"
         ],
         "summary": "Patch Profile",
-        "description": "Partial-update the current user's profile (alias for PUT).\n\nIDOR-safe: the user is derived from the verified Firebase token.\nOnly fields present in the payload are applied \u2014 omitted fields are left\nunchanged.",
+        "description": "Partial-update the current user's profile (alias for PUT).\n\nIDOR-safe: the user is derived from the verified Firebase token.\nOnly fields present in the payload are applied — omitted fields are left\nunchanged.",
         "operationId": "patch_profile_api_v1_profile_patch",
         "requestBody": {
           "content": {
@@ -6520,7 +6520,7 @@
           "firebase-auth"
         ],
         "summary": "Authenticate",
-        "description": "Authenticate with a Firebase ID token.\n\nThis is the primary authentication endpoint. The client:\n1. Performs Firebase Phone OTP sign-in\n2. Obtains a Firebase ID token\n3. Sends it here for verification\n\nThe backend:\n1. Verifies the Firebase ID token cryptographically\n2. Extracts firebase_uid and phone_number\n3. Finds or creates the application user\n4. Returns user context (no custom tokens \u2014 Firebase manages session)",
+        "description": "Authenticate with a Firebase ID token.\n\nThis is the primary authentication endpoint. The client:\n1. Performs Firebase Phone OTP sign-in\n2. Obtains a Firebase ID token\n3. Sends it here for verification\n\nThe backend:\n1. Verifies the Firebase ID token cryptographically\n2. Extracts firebase_uid and phone_number\n3. Finds or creates the application user\n4. Returns user context (no custom tokens — Firebase manages session)",
         "operationId": "authenticate_api_v1_auth_firebase_post",
         "requestBody": {
           "content": {
@@ -6625,7 +6625,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Send Otp",
-        "description": "OTP delivery is handled by Firebase Phone Auth on the client.\n\nThis endpoint remains for API-contract compatibility but no longer sends\nan SMS \u2014 the Flutter app calls ``firebase_auth`` directly. It simply\nacknowledges the request so older clients do not break.",
+        "description": "OTP delivery is handled by Firebase Phone Auth on the client.\n\nThis endpoint remains for API-contract compatibility but no longer sends\nan SMS — the Flutter app calls ``firebase_auth`` directly. It simply\nacknowledges the request so older clients do not break.",
         "operationId": "send_otp_api_v1_shopkeeper_auth_send_otp_post",
         "requestBody": {
           "content": {
@@ -6665,7 +6665,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Verify Phone",
-        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff (shopkeeper scope).\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a shopkeeper user with that ``firebase_uid`` (or phone) exists and\n    is active \u2192 issue JWT session tokens (login).\n  - Otherwise \u2192 return ``is_new_user`` so the client can collect the\n    profile (name) and call ``/register``.",
+        "description": "Verify a Firebase ID token and return the login payload or a new-user\nhandoff (shopkeeper scope).\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and forwards the resulting Firebase ID token in the\n``Authorization: Bearer <token>`` header. We verify it to extract the\nstable ``firebase_uid`` and the phone number, then:\n\n  - If a shopkeeper user with that ``firebase_uid`` (or phone) exists and\n    is active → issue JWT session tokens (login).\n  - Otherwise → return ``is_new_user`` so the client can collect the\n    profile (name) and call ``/register``.",
         "operationId": "verify_phone_api_v1_shopkeeper_auth_verify_phone_post",
         "responses": {
           "200": {
@@ -6805,7 +6805,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Firebase Login",
-        "description": "Combined Firebase login-or-register endpoint.\n\nWorks for BOTH providers the platform supports (per the CURRENT\nauthentication decision \u2014 Google only, phone is a future extension):\n\nGoogle Sign-In (provider ``google.com``):\n  1. The Flutter app completes Google Sign-In with Firebase client-side\n     (native Credential Manager on Android, Firebase popup on web).\n  2. The resulting Firebase ID token is sent here and verified via the\n     Firebase Admin SDK.\n  3. The shopkeeper is looked up by ``firebase_uid``, then by email.\n  4. If found and active \u2192 JWT session tokens (login).\n  5. If not found \u2192 auto-register ONE shopkeeper profile and login.\n\nPhone OTP (provider ``phone`` \u2014 FUTURE extension point): the token's\n``phone_number`` claim is matched instead of email. No OTP UI/API/SMS\nexists in this implementation; ``/send-otp`` + ``/verify-phone`` remain\nonly as the future extension surface.",
+        "description": "Combined Firebase login-or-register endpoint.\n\nWorks for BOTH providers the platform supports (per the CURRENT\nauthentication decision — Google only, phone is a future extension):\n\nGoogle Sign-In (provider ``google.com``):\n  1. The Flutter app completes Google Sign-In with Firebase client-side\n     (native Credential Manager on Android, Firebase popup on web).\n  2. The resulting Firebase ID token is sent here and verified via the\n     Firebase Admin SDK.\n  3. The shopkeeper is looked up by ``firebase_uid``, then by email.\n  4. If found and active → JWT session tokens (login).\n  5. If not found → auto-register ONE shopkeeper profile and login.\n\nPhone OTP (provider ``phone`` — FUTURE extension point): the token's\n``phone_number`` claim is matched instead of email. No OTP UI/API/SMS\nexists in this implementation; ``/send-otp`` + ``/verify-phone`` remain\nonly as the future extension surface.",
         "operationId": "firebase_login_api_v1_shopkeeper_auth_firebase_login_post",
         "requestBody": {
           "content": {
@@ -6845,7 +6845,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Profile Create",
-        "description": "Create the shopkeeper's first (and only) shop during on-profile setup.\n\nUnlike the full ``/shopkeeper/shops`` endpoint, this endpoint does NOT\nrequire location or address \u2014 those are captured later via the dedicated\nlocation-capture flow. This keeps the first-stage profile form fast and\nunblockable.\n\nSecurity: only users with the SHOPKEEPER role (server-determined) may\ncall this endpoint. The authenticated user is derived from the verified\nFirebase token \u2014 never from client input. IDOR-safe: the user can only\ncreate their own profile.",
+        "description": "Create the shopkeeper's first (and only) shop during on-profile setup.\n\nUnlike the full ``/shopkeeper/shops`` endpoint, this endpoint does NOT\nrequire location or address — those are captured later via the dedicated\nlocation-capture flow. This keeps the first-stage profile form fast and\nunblockable.\n\nSecurity: only users with the SHOPKEEPER role (server-determined) may\ncall this endpoint. The authenticated user is derived from the verified\nFirebase token — never from client input. IDOR-safe: the user can only\ncreate their own profile.",
         "operationId": "profile_create_api_v1_shopkeeper_auth_profile_create_post",
         "requestBody": {
           "content": {
@@ -7010,7 +7010,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Logout",
-        "description": "Revoke the current session (or all sessions with revoke_all).\n\nThe session is the one the bearer token was issued for when the client sends\nno explicit ``session_id`` \u2014 otherwise logout left the session active.",
+        "description": "Revoke the current session (or all sessions with revoke_all).\n\nThe session is the one the bearer token was issued for when the client sends\nno explicit ``session_id`` — otherwise logout left the session active.",
         "operationId": "logout_api_v1_shopkeeper_auth_logout_post",
         "requestBody": {
           "content": {
@@ -7055,7 +7055,7 @@
           "shopkeeper-auth"
         ],
         "summary": "List Sessions",
-        "description": "Active sign-in sessions (devices) for the current shopkeeper.\n\nMost recent activity first; each row carries the device/platform metadata\nthat Settings \u2192 Security renders. Read-only \u2014 revoking is a separate call,\nso a failed list can never look like a revoked device.",
+        "description": "Active sign-in sessions (devices) for the current shopkeeper.\n\nMost recent activity first; each row carries the device/platform metadata\nthat Settings → Security renders. Read-only — revoking is a separate call,\nso a failed list can never look like a revoked device.",
         "operationId": "list_sessions_api_v1_shopkeeper_auth_sessions_get",
         "responses": {
           "200": {
@@ -7126,7 +7126,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Get Shopkeeper Profile",
-        "description": "Return the authenticated Shopkeeper's full profile (user + shop).\n\nSecurity:\n  - Only the SHOPKEEPER role (server-determined) may call this endpoint.\n  - IDOR-safe: the user is derived from the verified Firebase token \u2014\n    never from a client-supplied user_id. A shopkeeper can only read\n    their own profile.\n\nGoogle account data: only display name, email, and photo URL are stored\nand returned. No unnecessary Google account data is persisted.",
+        "description": "Return the authenticated Shopkeeper's full profile (user + shop).\n\nSecurity:\n  - Only the SHOPKEEPER role (server-determined) may call this endpoint.\n  - IDOR-safe: the user is derived from the verified Firebase token —\n    never from a client-supplied user_id. A shopkeeper can only read\n    their own profile.\n\nGoogle account data: only display name, email, and photo URL are stored\nand returned. No unnecessary Google account data is persisted.",
         "operationId": "get_shopkeeper_profile_api_v1_shopkeeper_auth_profile_get",
         "responses": {
           "200": {
@@ -7151,7 +7151,7 @@
           "shopkeeper-auth"
         ],
         "summary": "Google Profile",
-        "description": "Return ONLY the minimal Google profile derived from the verified Firebase token.\n\nSecurity (Phase 19):\n  * The Firebase ID token is VERIFIED server-side first\n    (``verify_firebase_id_token_claims``) \u2014 never trusts the client.\n  * Only whitelisted Google fields (name, email, picture, email_verified)\n    are exposed; the firebase_uid is derived from ``sub`` and returned\n    for identity linking only.\n  * Learn more: :mod:`app.services.google_profile_service`\n\nRequires: ``Authorization: Bearer <Firebase ID Token>``",
+        "description": "Return ONLY the minimal Google profile derived from the verified Firebase token.\n\nSecurity (Phase 19):\n  * The Firebase ID token is VERIFIED server-side first\n    (``verify_firebase_id_token_claims``) — never trusts the client.\n  * Only whitelisted Google fields (name, email, picture, email_verified)\n    are exposed; the firebase_uid is derived from ``sub`` and returned\n    for identity linking only.\n  * Learn more: :mod:`app.services.google_profile_service`\n\nRequires: ``Authorization: Bearer <Firebase ID Token>``",
         "operationId": "google_profile_api_v1_shopkeeper_auth_google_profile_get",
         "responses": {
           "200": {
@@ -7425,7 +7425,7 @@
           "shopkeeper"
         ],
         "summary": "Update Shop Location",
-        "description": "Controlled shop-location update (Edit Location workflow).\n\nThe target shop is resolved from the PATH ``shop_id`` only \u2014 a body-supplied\nid is never trusted \u2014 so cross-tenant (IDOR) updates are impossible.\nManagers without ``update:shop`` are rejected (403). Every change is\nappended to the hash-chained audit trail with old/new coordinates,\naccuracies and the acting user.",
+        "description": "Controlled shop-location update (Edit Location workflow).\n\nThe target shop is resolved from the PATH ``shop_id`` only — a body-supplied\nid is never trusted — so cross-tenant (IDOR) updates are impossible.\nManagers without ``update:shop`` are rejected (403). Every change is\nappended to the hash-chained audit trail with old/new coordinates,\naccuracies and the acting user.",
         "operationId": "update_shop_location_api_v1_shopkeeper_shops__shop_id__location_patch",
         "security": [
           {
@@ -7573,7 +7573,7 @@
           "shopkeeper"
         ],
         "summary": "Get Insights",
-        "description": "Shopkeeper business insights \u2014 data-driven insight cards.\n\nReturns insight cards for top products, low stock, stale inventory,\nsearch visibility, offers performance, and profile completeness.\nAll metrics are derived from live database state.",
+        "description": "Shopkeeper business insights — data-driven insight cards.\n\nReturns insight cards for top products, low stock, stale inventory,\nsearch visibility, offers performance, and profile completeness.\nAll metrics are derived from live database state.",
         "operationId": "get_insights_api_v1_shopkeeper_shops__shop_id__insights_get",
         "security": [
           {
@@ -7619,7 +7619,7 @@
           "shopkeeper"
         ],
         "summary": "Get Inventory",
-        "description": "Inventory overview (default), counts only (``view=summary``) or a\nfilterable/sortable/searchable list (``view=list``) \u2014 items include\nlast-updated time and inventory source.\n\n``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns\nonly listings whose **current stock is at or below their own per-listing\nlow-stock threshold** (``quantity <= low_stock_threshold``). This is\nstricter than ``stock_status=LOW_STOCK`` \u2014 that filter reports the server's\nderived state, while this one answers the operational question \"what must\nbe restocked now\" directly from the two numbers that decide it.\n\n``view=summary`` returns the counts and NO items. It is the counts-only\nview a home screen should use: the body is the same size for a shop with\n5 listings and one with 50,000, so nothing has to download the catalogue\nto render a badge.",
+        "description": "Inventory overview (default), counts only (``view=summary``) or a\nfilterable/sortable/searchable list (``view=list``) — items include\nlast-updated time and inventory source.\n\n``low_below_threshold=true`` is the canonical LOW-STOCK query: it returns\nonly listings whose **current stock is at or below their own per-listing\nlow-stock threshold** (``quantity <= low_stock_threshold``). This is\nstricter than ``stock_status=LOW_STOCK`` — that filter reports the server's\nderived state, while this one answers the operational question \"what must\nbe restocked now\" directly from the two numbers that decide it.\n\n``view=summary`` returns the counts and NO items. It is the counts-only\nview a home screen should use: the body is the same size for a shop with\n5 listings and one with 50,000, so nothing has to download the catalogue\nto render a badge.",
         "operationId": "get_inventory_api_v1_shopkeeper_shops__shop_id__inventory_get",
         "security": [
           {
@@ -8015,6 +8015,323 @@
             "schema": {
               "type": "integer",
               "title": "Shop Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/restaurant": {
+      "get": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "My Restaurant",
+        "description": "The restaurant profile this shop owns.\n\n404 when the shop has no profile yet — the honest answer, so the app can say\n\"set your restaurant details first\" rather than showing an empty menu.",
+        "operationId": "my_restaurant_api_v1_shopkeeper_shops__shop_id__restaurant_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/menu": {
+      "get": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "My Menu",
+        "operationId": "my_menu_api_v1_shopkeeper_shops__shop_id__menu_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/menu-categories": {
+      "post": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Add Menu Category",
+        "operationId": "add_menu_category_api_v1_shopkeeper_shops__shop_id__menu_categories_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestaurantMenuCategoryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/menu-items": {
+      "post": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Add Menu Item",
+        "operationId": "add_menu_item_api_v1_shopkeeper_shops__shop_id__menu_items_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestaurantMenuItemCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/shops/{shop_id}/menu-items/{item_id}": {
+      "put": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Edit Menu Item",
+        "operationId": "edit_menu_item_api_v1_shopkeeper_shops__shop_id__menu_items__item_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestaurantMenuItemCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "shopkeeper"
+        ],
+        "summary": "Remove Menu Item",
+        "operationId": "remove_menu_item_api_v1_shopkeeper_shops__shop_id__menu_items__item_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
             }
           }
         ],
@@ -8691,7 +9008,7 @@
           "shopkeeper"
         ],
         "summary": "Shopkeeper Leads",
-        "description": "All verified customer leads (call views, messages, ratings) tied to the\nshops this user owns/manages. Read-only \u2014 customer submissions are\nimmutable and cannot be edited or deleted through the API.",
+        "description": "All verified customer leads (call views, messages, ratings) tied to the\nshops this user owns/manages. Read-only — customer submissions are\nimmutable and cannot be edited or deleted through the API.",
         "operationId": "shopkeeper_leads_api_v1_shopkeeper_leads_get",
         "responses": {
           "200": {
@@ -8716,7 +9033,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Resolve Barcode",
-        "description": "Scan Barcode \u2192 Identify Identifier \u2192 Find Product \u2192 Show Product.",
+        "description": "Scan Barcode → Identify Identifier → Find Product → Show Product.",
         "operationId": "resolve_barcode_api_v1_shopkeeper_barcodes__barcode__resolve_get",
         "security": [
           {
@@ -8778,7 +9095,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Save Product From Barcode",
-        "description": "Confirm Shop Product \u2192 Price \u2192 Availability/Quantity \u2192 Save \u2192 Publish.",
+        "description": "Confirm Shop Product → Price → Availability/Quantity → Save → Publish.",
         "operationId": "save_product_from_barcode_api_v1_shopkeeper_shops__shop_id__products_from_barcode_post",
         "security": [
           {
@@ -8834,7 +9151,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Upload Inventory Import",
-        "description": "Upload \u2192 Validate File \u2192 Parse \u2192 Validate Rows \u2192 Preview.",
+        "description": "Upload → Validate File → Parse → Validate Rows → Preview.",
         "operationId": "upload_inventory_import_api_v1_shopkeeper_shops__shop_id__inventory_imports_post",
         "security": [
           {
@@ -8957,7 +9274,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Download Import Sample",
-        "description": "Download Sample \u2014 a ready-to-fill .xlsx matching the import columns.\n\nReturned as raw workbook bytes (not the JSON envelope) so the app can hand\nit straight to the platform save dialog.",
+        "description": "Download Sample — a ready-to-fill .xlsx matching the import columns.\n\nReturned as raw workbook bytes (not the JSON envelope) so the app can hand\nit straight to the platform save dialog.",
         "operationId": "download_import_sample_api_v1_shopkeeper_shops__shop_id__inventory_imports_sample_get",
         "security": [
           {
@@ -8991,6 +9308,26 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/inventory-imports/schema": {
+      "get": {
+        "tags": [
+          "shopkeeper-inventory-intake"
+        ],
+        "summary": "Import Schema Route",
+        "description": "The import schema — the vocabulary and rules the mapping step renders.\n\nDeliberately static and unauthenticated: these are the column names the\nbackend accepts, and hiding them behind a shop lookup would only force the\nclient to guess a header word the validator is about to reject. Declared\nBEFORE `/inventory-imports/{job_id}` on purpose — that route takes an int\npath param, so a later declaration would have `schema` caught as a job id\nand rejected with a 422 instead of routed.",
+        "operationId": "import_schema_route_api_v1_shopkeeper_inventory_imports_schema_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -9052,13 +9389,78 @@
         }
       }
     },
+    "/api/v1/shopkeeper/inventory-imports/{job_id}/remap": {
+      "post": {
+        "tags": [
+          "shopkeeper-inventory-intake"
+        ],
+        "summary": "Remap Inventory Import",
+        "description": "Correct the Column Mapping and re-stage the rows — before anything applies.\n\nThe mapping is a pre-import decision: the shopkeeper says which of their\ncolumns is the price, which is the barcode, and so on, and every row is\nvalidated again under that answer. Refused once the import has been applied,\nbecause by then the mapping is history rather than a choice.",
+        "operationId": "remap_inventory_import_api_v1_shopkeeper_inventory_imports__job_id__remap_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "shop_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnMappingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/inventory-imports/{job_id}/confirm": {
       "post": {
         "tags": [
           "shopkeeper-inventory-intake"
         ],
         "summary": "Confirm Inventory Import",
-        "description": "Confirm \u2192 Process \u2192 Update Inventory (large imports run in background).",
+        "description": "Confirm → Process → Update Inventory (large imports run in background).",
         "operationId": "confirm_inventory_import_api_v1_shopkeeper_inventory_imports__job_id__confirm_post",
         "security": [
           {
@@ -9168,7 +9570,7 @@
           "shopkeeper-inventory-intake"
         ],
         "summary": "Inventory Import Report",
-        "description": "Generate Import Report \u2014 totals + row-level outcomes.",
+        "description": "Generate Import Report — totals + row-level outcomes.",
         "operationId": "inventory_import_report_api_v1_shopkeeper_inventory_imports__job_id__report_get",
         "security": [
           {
@@ -9341,7 +9743,7 @@
           "media"
         ],
         "summary": "Confirm Upload",
-        "description": "Verify the object landed (content-type + size re-checked) and return a\nshort-lived read URL. Failure recovery: if the object is missing, the\nclient simply re-requests an upload URL \u2014 nothing partial is stored.",
+        "description": "Verify the object landed (content-type + size re-checked) and return a\nshort-lived read URL. Failure recovery: if the object is missing, the\nclient simply re-requests an upload URL — nothing partial is stored.",
         "operationId": "confirm_upload_api_v1_media_confirm_post",
         "requestBody": {
           "content": {
@@ -9386,7 +9788,7 @@
           "media"
         ],
         "summary": "Get Media Url",
-        "description": "Authorized read access \u2014 presigned GET URL (private objects).",
+        "description": "Authorized read access — presigned GET URL (private objects).",
         "operationId": "get_media_url_api_v1_media_url_get",
         "security": [
           {
@@ -9479,7 +9881,7 @@
           "media"
         ],
         "summary": "Delete Media Object",
-        "description": "Authorized deletion \u2014 only the object's owner scope (or an admin).",
+        "description": "Authorized deletion — only the object's owner scope (or an admin).",
         "operationId": "delete_media_object_api_v1_media_objects_delete",
         "security": [
           {
@@ -9639,7 +10041,7 @@
           "shopkeeper-pos-integration"
         ],
         "summary": "Get Pos Providers",
-        "description": "Registry listing \u2014 every pluggable POS vendor adapter.",
+        "description": "Registry listing — every pluggable POS vendor adapter.",
         "operationId": "get_pos_providers_api_v1_shopkeeper_pos_providers_get",
         "responses": {
           "200": {
@@ -14125,7 +14527,7 @@
           "shopkeeper-subscription"
         ],
         "summary": "Payment Webhook",
-        "description": "Provider webhook receiver (HMAC-authenticated, idempotent).\n\nDeliberately unauthenticated at the app layer \u2014 authenticity comes from\nthe provider signature over the raw body; duplicates are ignored.",
+        "description": "Provider webhook receiver (HMAC-authenticated, idempotent).\n\nDeliberately unauthenticated at the app layer — authenticity comes from\nthe provider signature over the raw body; duplicates are ignored.",
         "operationId": "payment_webhook_api_v1_shopkeeper_subscription_webhooks__provider_code__post",
         "parameters": [
           {
@@ -15371,6 +15773,52 @@
         }
       }
     },
+    "/api/v1/restaurants/by-shop/{shop_id}": {
+      "get": {
+        "tags": [
+          "restaurants"
+        ],
+        "summary": "Get My Restaurant",
+        "description": "Resolve the caller's own restaurant profile from their shop id.\n\nThe menu routes are keyed on `restaurant_id`, and a shopkeeper only knows\ntheir `shop_id`. This is the lookup that lets the app reach its own menu\nwithout ever showing an internal id it never received.\n\nAnswers 404 when the shop has no restaurant profile yet, which is the honest\nanswer — the caller creates one rather than this route inventing a row.",
+        "operationId": "get_my_restaurant_api_v1_restaurants_by_shop__shop_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/restaurants/": {
       "post": {
         "tags": [
@@ -16564,7 +17012,7 @@
           "reviews"
         ],
         "summary": "Moderate Review",
-        "description": "Moderate a review \u2014 approve, reject, or hide (admin only).",
+        "description": "Moderate a review — approve, reject, or hide (admin only).",
         "operationId": "moderate_review_api_v1_reviews__review_id__moderate_post",
         "security": [
           {
@@ -17135,7 +17583,7 @@
           "shopkeeper-analytics"
         ],
         "summary": "Analytics Top Products",
-        "description": "Most-viewed products \u2014 which items drive the most customer interest.",
+        "description": "Most-viewed products — which items drive the most customer interest.",
         "operationId": "analytics_top_products_api_v1_shopkeeper_shops__shop_id__analytics_top_products_get",
         "security": [
           {
@@ -17205,7 +17653,7 @@
           "shopkeeper-analytics"
         ],
         "summary": "Analytics Top Searches",
-        "description": "What customers typed before landing on this shop \u2014 demand intelligence.",
+        "description": "What customers typed before landing on this shop — demand intelligence.",
         "operationId": "analytics_top_searches_api_v1_shopkeeper_shops__shop_id__analytics_top_searches_get",
         "security": [
           {
@@ -18021,7 +18469,7 @@
           "shopkeeper-management"
         ],
         "summary": "Get Shop Notifications",
-        "description": "Get notifications relevant to this shop owners/managers.\n\nPaginated (``limit`` / ``offset``) like every other list this app reads:\nthe response carries ``total`` so the client can tell whether another page\nexists instead of guessing from a short page.\n\n``unread`` is counted across the WHOLE shop-scoped set, not just the\nreturned page \u2014 a page-scoped count would make the badge shrink as the\nshopkeeper pages deeper, and a page with no unread rows would report zero\neven while earlier pages were still unread.",
+        "description": "Get notifications relevant to this shop owners/managers.\n\nPaginated (``limit`` / ``offset``) like every other list this app reads:\nthe response carries ``total`` so the client can tell whether another page\nexists instead of guessing from a short page.\n\n``unread`` is counted across the WHOLE shop-scoped set, not just the\nreturned page — a page-scoped count would make the badge shrink as the\nshopkeeper pages deeper, and a page with no unread rows would report zero\neven while earlier pages were still unread.",
         "operationId": "get_shop_notifications_api_v1_shopkeeper_shops__shop_id__notifications_get",
         "security": [
           {
@@ -18171,7 +18619,7 @@
           "shopkeeper-support"
         ],
         "summary": "Create Support Ticket",
-        "description": "Files a support ticket for the signed-in shopkeeper.\n\nReturns the created ticket INCLUDING its ``status`` and ``status_label``, so\nthe app can show the ticket reference and the real triage state immediately\ninstead of assuming \"submitted\" locally. An optional screenshot is validated\nthrough the media pipeline FIRST \u2014 a rejected attachment never leaves a\nhalf-filed ticket behind.",
+        "description": "Files a support ticket for the signed-in shopkeeper.\n\nReturns the created ticket INCLUDING its ``status`` and ``status_label``, so\nthe app can show the ticket reference and the real triage state immediately\ninstead of assuming \"submitted\" locally. An optional screenshot is validated\nthrough the media pipeline FIRST — a rejected attachment never leaves a\nhalf-filed ticket behind.",
         "operationId": "create_support_ticket_api_v1_shopkeeper_support_tickets_post",
         "security": [
           {
@@ -18441,7 +18889,7 @@
           "merchant-onboarding"
         ],
         "summary": "List Registration Categories",
-        "description": "Active merchant categories for the shop-registration dropdown.\n\nThe wizard renders exactly what this returns \u2014 no category codes are\nhardcoded in the Flutter app.",
+        "description": "Active merchant categories for the shop-registration dropdown.\n\nThe wizard renders exactly what this returns — no category codes are\nhardcoded in the Flutter app.",
         "operationId": "list_registration_categories_api_v1_shopkeeper_businesses_categories_get",
         "responses": {
           "200": {
@@ -18460,13 +18908,241 @@
         ]
       }
     },
+    "/api/v1/shopkeeper/businesses/categories/{category_code}/capabilities": {
+      "get": {
+        "tags": [
+          "merchant-onboarding"
+        ],
+        "summary": "Get Category Capabilities",
+        "description": "Resolved capabilities for one category, optionally narrowed by business type.\n\nThis is the second half of the capability contract. The category list above\nships each category's base capabilities; this answers the actual question the\ndata-entry forms ask — \"given this category AND this business type, what may\nthe shopkeeper enter?\" — so the client never has to hold that rule itself.",
+        "operationId": "get_category_capabilities_api_v1_shopkeeper_businesses_categories__category_code__capabilities_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category Code"
+            }
+          },
+          {
+            "name": "business_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Business Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/businesses/categories/{category_code}/product-attributes": {
+      "get": {
+        "tags": [
+          "merchant-onboarding"
+        ],
+        "summary": "Get Category Product Attributes",
+        "description": "The product attributes one business category actually uses.\n\nBusiness category and product category are not the same thing, so this\nanswers a different question than the capability endpoint above: not \"what\nmay this shop enter?\" but \"when this shop records a product, which\nattributes does the schema store for it?\"\n\nIt is deliberately category-driven rather than uniform. A pharmacy item\ncarries prescription and regulatory columns; a book carries a publisher and\nan edition; furniture has no scannable barcode and no unit-level stock. A\nrestaurant, a transport provider or a travel service gets an empty list —\nthey sell services, and forcing an inventory form on them is the bug this\nendpoint exists to prevent.\n\nEvery key names a real destination (a column, or a key of\n`product_variants.attributes_json`). Nothing here is invented, and\nregulatory verification is deliberately absent until the backend defines it.",
+        "operationId": "get_category_product_attributes_api_v1_shopkeeper_businesses_categories__category_code__product_attributes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/businesses/categories/{category_code}/fields": {
+      "get": {
+        "tags": [
+          "merchant-onboarding"
+        ],
+        "summary": "Get Category Fields",
+        "description": "The exact field set this category/business type may submit.\n\nThe third leg of the capability contract. `/capabilities` says what a trade\ncan DO; `/product-attributes` says what a PRODUCT stores; this says what the\nSHOP PROFILE stores. All three come from the backend registry, so the form the\nshopkeeper fills is the form the backend validates — a client that guessed a\nfield name would otherwise discover the mismatch only as a rejected save.",
+        "operationId": "get_category_fields_api_v1_shopkeeper_businesses_categories__category_code__fields_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category Code"
+            }
+          },
+          {
+            "name": "business_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Business Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shopkeeper/businesses/shops/{shop_id}/capability-fields": {
+      "put": {
+        "tags": [
+          "merchant-onboarding"
+        ],
+        "summary": "Update Shop Capability Fields",
+        "description": "Persist the capability-driven fields for one shop.\n\nTwo things make this safe to expose:\n\n  * only keys the registry approves for THIS shop's category are stored, so\n    the JSON document cannot become an unvalidated blob any client can fill;\n  * validation runs first and rejects the whole request, so a half-saved form\n    is impossible.\n\nA malformed or unapproved key rejects the WHOLE request with a 422 carrying\nthe per-field errors, rather than saving what it can and mentioning the rest\nin passing. Partial saves are how a shopkeeper ends up with a profile that\nsilently lost half its fields.",
+        "operationId": "update_shop_capability_fields_api_v1_shopkeeper_businesses_shops__shop_id__capability_fields_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Shop Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shopkeeper/businesses/categories/{category_code}/requirements": {
       "get": {
         "tags": [
           "merchant-onboarding"
         ],
         "summary": "Get Registration Category Requirements",
-        "description": "Backend-driven document/info requirements for a merchant category.\n\nThe registration wizard's Documents step is rendered from this contract \u2014\nrequired/optional documents and the verification steps (OTP, identity,\nbank, category documents, admin review) all originate here.",
+        "description": "Backend-driven document/info requirements for a merchant category.\n\nThe registration wizard's Documents step is rendered from this contract —\nrequired/optional documents and the verification steps (OTP, identity,\nbank, category documents, admin review) all originate here.",
         "operationId": "get_registration_category_requirements_api_v1_shopkeeper_businesses_categories__category_code__requirements_get",
         "security": [
           {
@@ -18512,7 +19188,7 @@
           "merchant-onboarding"
         ],
         "summary": "Start Onboarding",
-        "description": "Start merchant onboarding for a business.\n\nCreates an onboarding record and initiates the verification flow.\nIdempotent \u2014 returns existing onboarding if already started.",
+        "description": "Start merchant onboarding for a business.\n\nCreates an onboarding record and initiates the verification flow.\nIdempotent — returns existing onboarding if already started.",
         "operationId": "start_onboarding_api_v1_shopkeeper_businesses__business_id__onboarding_post",
         "security": [
           {
@@ -19720,7 +20396,7 @@
           "Health"
         ],
         "summary": "Health Check",
-        "description": "Liveness probe \u2014 always returns 200 if the process is alive.",
+        "description": "Liveness probe — always returns 200 if the process is alive.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
@@ -19741,7 +20417,7 @@
           "Health"
         ],
         "summary": "Readiness Check",
-        "description": "Readiness probe \u2014 DB, Redis, PostGIS, storage, and queue reachable.",
+        "description": "Readiness probe — DB, Redis, PostGIS, storage, and queue reachable.",
         "operationId": "readiness_check_ready_get",
         "responses": {
           "200": {
@@ -21087,6 +21763,28 @@
         "type": "object",
         "title": "CategoryUpdate"
       },
+      "ColumnMappingRequest": {
+        "properties": {
+          "column_mapping": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Column Mapping",
+            "description": "Canonical field name (e.g. 'price') to ZERO-BASED column index in the uploaded header row. Omit or null a field to skip it."
+          }
+        },
+        "type": "object",
+        "title": "ColumnMappingRequest",
+        "description": "A corrected Column Mapping: HyperLocal field -> column index.\n\nKeyed by FIELD rather than by column, because the question the shopkeeper is\nanswering is \"what is this column?\" and two columns may carry the same field\nname before the ambiguity is resolved.\n\nA `null` value means \"do not import this field\" — a legitimate answer for an\noptional column, and not an error."
+      },
       "ComplaintStatus": {
         "type": "string",
         "enum": [
@@ -21301,7 +21999,7 @@
         },
         "type": "object",
         "title": "CustomerFirebaseAuthRequest",
-        "description": "Firebase Phone Auth payload for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token. The token can\narrive in the ``Authorization: Bearer`` header (preferred) or \u2014 for\nbackward compatibility \u2014 in the body as ``firebase_id_token``.\n\nFor the new ``verify-phone`` \u2192 ``register`` flow the client may also send\nthe verified ``firebase_uid`` / ``phone_number`` and the desired ``role``."
+        "description": "Firebase Phone Auth payload for the Customer App.\n\nThe Flutter app completes the phone-OTP flow client-side with\n``firebase_auth`` and sends the resulting Firebase ID token. The token can\narrive in the ``Authorization: Bearer`` header (preferred) or — for\nbackward compatibility — in the body as ``firebase_id_token``.\n\nFor the new ``verify-phone`` → ``register`` flow the client may also send\nthe verified ``firebase_uid`` / ``phone_number`` and the desired ``role``."
       },
       "CustomerGoogleAuthRequest": {
         "properties": {
@@ -21456,7 +22154,7 @@
               }
             ],
             "title": "Shop Id",
-            "description": "Optional shop the report is about. Recorded as context only \u2014 a shopkeeper filing against their own shop is authorized through the shop-access check, so a shopper supplying this id is NOT authorized against it and must not be treated as a shop owner."
+            "description": "Optional shop the report is about. Recorded as context only — a shopkeeper filing against their own shop is authorized through the shop-access check, so a shopper supplying this id is NOT authorized against it and must not be treated as a shop owner."
           }
         },
         "type": "object",
@@ -21465,7 +22163,7 @@
           "description"
         ],
         "title": "CustomerSupportTicketCreate",
-        "description": "A support ticket filed from the customer app.\n\nThe shopper-facing twin of :class:`ShopkeeperSupportTicketCreate`. Field\nlimits deliberately match the shopkeeper schema and the service constants so\none set of validation rules covers both audiences \u2014 a limit that differs\nbetween the two intake routes is a limit that will eventually differ from\nthe database column too.\n\nThe two differences that matter:\n\n* ``category`` accepts only the ``CUST_*`` codes (enforced by the service,\n  which is passed ``CUSTOMER_CATEGORIES``), so a shopper cannot file a\n  ticket the shopkeeper triage queue is watching; and\n* ``shop_id`` is context, not subject. A shopper may name the shop a ticket\n  is about, but unlike a merchant they do not *own* a shop, so the id is\n  never treated as proof of anything \u2014 see the field description."
+        "description": "A support ticket filed from the customer app.\n\nThe shopper-facing twin of :class:`ShopkeeperSupportTicketCreate`. Field\nlimits deliberately match the shopkeeper schema and the service constants so\none set of validation rules covers both audiences — a limit that differs\nbetween the two intake routes is a limit that will eventually differ from\nthe database column too.\n\nThe two differences that matter:\n\n* ``category`` accepts only the ``CUST_*`` codes (enforced by the service,\n  which is passed ``CUSTOMER_CATEGORIES``), so a shopper cannot file a\n  ticket the shopkeeper triage queue is watching; and\n* ``shop_id`` is context, not subject. A shopper may name the shop a ticket\n  is about, but unlike a merchant they do not *own* a shop, so the id is\n  never treated as proof of anything — see the field description."
       },
       "DeviceTokenPayload": {
         "properties": {
@@ -21511,7 +22209,7 @@
           "token"
         ],
         "title": "DeviceTokenPayload",
-        "description": "Push registration payload (API_CONTRACT \u00a721.6)."
+        "description": "Push registration payload (API_CONTRACT §21.6)."
       },
       "FirebaseAuthRequest": {
         "properties": {
@@ -21698,7 +22396,7 @@
           "shop_id"
         ],
         "title": "InteractionCreateRequest",
-        "description": "Create a verified customer action on a shop.\n\nCreate-only by design \u2014 there are no update/delete endpoints for these\nrecords (Immutable Actions Rule)."
+        "description": "Create a verified customer action on a shop.\n\nCreate-only by design — there are no update/delete endpoints for these\nrecords (Immutable Actions Rule)."
       },
       "InventoryAdjustmentCreate": {
         "properties": {
@@ -22327,7 +23025,7 @@
         },
         "type": "object",
         "title": "NotificationPreferencesPayload",
-        "description": "Per-customer delivery preferences (API_CONTRACT \u00a721.4)."
+        "description": "Per-customer delivery preferences (API_CONTRACT §21.4)."
       },
       "OfferConditionCreate": {
         "properties": {
@@ -23134,7 +23832,7 @@
           "config"
         ],
         "title": "POSSyncConfigRequest",
-        "description": "Merge vendor-neutral sync configuration (authorities, thresholds\u2026)."
+        "description": "Merge vendor-neutral sync configuration (authorities, thresholds…)."
       },
       "POSTriggerSyncRequest": {
         "properties": {
@@ -26017,7 +26715,7 @@
           "price"
         ],
         "title": "ShopkeeperAddFromMaster",
-        "description": "Add an EXISTING product-master record (optionally a variant) to a shop.\n\nShopkeepers must select from the platform catalog \u2014 arbitrary duplicate\nproduct-master creation is not allowed through this endpoint."
+        "description": "Add an EXISTING product-master record (optionally a variant) to a shop.\n\nShopkeepers must select from the platform catalog — arbitrary duplicate\nproduct-master creation is not allowed through this endpoint."
       },
       "ShopkeeperBulkOperation": {
         "properties": {
@@ -26699,6 +27397,21 @@
             ],
             "title": "Barcode Type",
             "description": "Optional explicit identifier type (EAN/UPC/GTIN/JAN/ITF/CUSTOM); inferred from the barcode length when omitted"
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "Category-specific attributes keyed by the backend's own attribute keys"
           }
         },
         "type": "object",
@@ -26812,6 +27525,21 @@
             "type": "boolean",
             "title": "Remove Image",
             "default": false
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes",
+            "description": "Category-specific attributes keyed by the backend's own attribute keys; only the supplied keys are written"
           }
         },
         "type": "object",
@@ -26865,28 +27593,16 @@
             "description": "Contact number"
           },
           "category": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 50
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
             "title": "Category",
-            "description": "Merchant category code"
+            "description": "Merchant category code — required; the capability model keys off it"
           },
           "business_type": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 50
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
             "title": "Business Type",
             "description": "Retail | Wholesale | Retail + Wholesale | Service | Other"
           },
@@ -26905,10 +27621,12 @@
         },
         "type": "object",
         "required": [
-          "shop_name"
+          "shop_name",
+          "category",
+          "business_type"
         ],
         "title": "ShopkeeperProfileCreateRequest",
-        "description": "First-time profile creation payload (no location required).\n\nSent by the Flutter profile-creation screen after the shopkeeper's first\nGoogle sign-in. Creates the sole business shop and updates the user's\nprofile fields."
+        "description": "First-time profile creation payload (no location required).\n\nSent by the Flutter profile-creation screen after the shopkeeper's first\nsign-in. Creates the sole business shop and updates the user's profile\nfields.\n\n``category`` and ``business_type`` are REQUIRED here even though the app has\nalways collected them. The entire capability model hangs off the category:\n``resolve_capabilities`` returns None for a missing one, so every capability\nand product-attributes route would answer 404 for that shop forever. The\nFlutter form already refuses to submit without both, so this only closes the\ngap for a client that is not the Flutter form — it makes the server's minimum\nmatch the one the spec describes instead of trusting every caller to."
       },
       "ShopkeeperProfileUpdate": {
         "properties": {
@@ -27229,7 +27947,7 @@
           "name"
         ],
         "title": "ShopkeeperRegisterRequest",
-        "description": "First-time shopkeeper registration.\n\nPhone verification is performed client-side by Firebase Phone Auth \u2014 the\nFlutter app sends the resulting Firebase ID token (``firebase_id_token``).\nThe backend verifies the token to extract and trust the phone number.\n\nThe new ``verify-phone`` \u2192 ``register`` flow also accepts the verified\n``firebase_uid`` / ``phone_number`` (cross-checked against the token) and\na ``role`` (defaults to ``shopkeeper``)."
+        "description": "First-time shopkeeper registration.\n\nPhone verification is performed client-side by Firebase Phone Auth — the\nFlutter app sends the resulting Firebase ID token (``firebase_id_token``).\nThe backend verifies the token to extract and trust the phone number.\n\nThe new ``verify-phone`` → ``register`` flow also accepts the verified\n``firebase_uid`` / ``phone_number`` (cross-checked against the token) and\na ``role`` (defaults to ``shopkeeper``)."
       },
       "ShopkeeperResetPasswordRequest": {
         "properties": {
@@ -27537,7 +28255,7 @@
           "name"
         ],
         "title": "ShopkeeperShopCreate",
-        "description": "Payload to create a shop during first-time profile setup.\n\nLocation and address are OPTIONAL for the initial profile-creation flow \u2014\nthey are filled in later via the location-capture screen. This keeps the\nfirst-stage form fast and unblockable."
+        "description": "Payload to create a shop during first-time profile setup.\n\nLocation and address are OPTIONAL for the initial profile-creation flow —\nthey are filled in later via the location-capture screen. This keeps the\nfirst-stage form fast and unblockable."
       },
       "ShopkeeperShopLocationUpdate": {
         "properties": {

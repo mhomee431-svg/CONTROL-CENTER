@@ -552,6 +552,22 @@ class TestStockAdjustments:
         assert len(movements) == 1
         assert movements[0].movement_type == "ADJUSTMENT"
 
+    def test_the_confirmation_names_the_provenance_of_the_number(self):
+        """Spec: "Show: Last Updated, Source, Freshness."
+
+        A confirmation that only says "35" tells the shopkeeper the number
+        changed but not whether a till, a barcode or their own hands put it
+        there — which is the whole question after an import has also run.
+        """
+        sp = make_shop_product(sp_id=118, quantity=25)
+        result, _db = self._adjust(
+            sp, {"adjustment_type": "RESTOCK", "quantity_adjustment": 10}
+        )
+        assert result["source"] == "MANUAL"
+        assert result["freshness_status"] is not None
+        assert result["freshness_checked_at"] is not None
+        assert result["last_inventory_update"] is not None
+
     def test_damage_reduces_stock(self):
         sp = make_shop_product(sp_id=111, quantity=20)
         result, _ = self._adjust(

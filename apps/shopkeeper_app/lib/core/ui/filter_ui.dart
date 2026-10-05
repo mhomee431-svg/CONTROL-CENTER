@@ -17,6 +17,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../l10n/app_text.dart';
+import '../theme/app_radius.dart';
 
 /// One selectable value in a [FilterChipBar].
 class FilterChoice<T> {
@@ -101,7 +102,7 @@ class _FilterChipVisual extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: AppRadius.circle,
             border: Border.all(
               color: selected ? scheme.primary : scheme.outlineVariant,
             ),

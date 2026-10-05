@@ -1,12 +1,69 @@
 {
+  // `include` is the set of files tracked with full strictness.
+  // `shopkeeper_auth.py` is listed explicitly because it is the shopkeeper
+  // sign-in surface, and its `/profile-create` handler shipped two
+  // release-blocking defects that only a static check could see
+  // (`reportMissingImports` for `slugify`, `reportAttributeAccessIssue` for
+  // `LocationStatus.PENDING`). Keeping it here stops those classes from
+  // returning unnoticed.
   "include": [
     "backend/app/api/routes/pos_integration.py",
     "backend/app/services/pos_sync_service.py",
     "backend/app/services/shopkeeper_service.py",
+    "backend/app/api/routes/shopkeeper_auth.py",
     "backend/tests/test_production_hardening_phase30.py"
   ],
   "extraPaths": ["backend"],
   "pythonVersion": "3.12",
   "typeCheckingMode": "strict",
+
+  // ── Signal-to-noise ────────────────────────────────────────────────────────
+  // `strict` is meant for the files above, but VS Code applies the mode to the
+  // whole workspace whenever another file is opened — which put ~60
+  // `reportUnknown*` diagnostics on shopkeeper_auth.py alone. Every one of them
+  // is an ergonomics hint, not a defect:
+  //
+  //   reportUnknownVariableType / MemberType / ArgumentType / ParameterType
+  //   reportMissingTypeArgument
+  //
+  // They fire on `dict.get()` returning `Unknown`, on SQLAlchemy `filter()`
+  // criteria, and on bare `dict` annotations. None of them ever identified a
+  // real bug in this codebase.
+  //
+  // What is deliberately NOT disabled, because each one caught a shipped
+  // production defect:
+  //   reportMissingImports       -> `slugify` was never in requirements.txt,
+  //                                 so /profile-create 500'd on a clean install
+  //   reportAttributeAccessIssue -> LocationStatus.PENDING / UNKNOWN do not
+  //                                 exist, so building a Shop raised
+  //                                 AttributeError
+  // Those two stay ON and loud. Silencing everything would have hidden exactly
+  // the two bugs that made the app unusable after first sign-in.
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none",
+  "reportMissingTypeArgument": "none",
+  "reportMissingTypeStubs": "none",
+
+  // Tests deliberately reach into module internals — that is how a regression
+  // test asserts that a poisoned cache entry is treated as a miss, since no
+  // public accessor would expose the entry at all. Monkeypatch fixtures and
+  // deliberately type-invalid values (a `(None, exp)` tuple planted to prove
+  // the reader rejects it) are the same idea. Flagging them is noise, not a
+  // defect, so these two are off too.
+  "reportPrivateUsage": "none",
+  "reportMissingParameterType": "none",
+
+  // Deliberately NOT off — each of these found a shipped production bug:
+  //   reportMissingImports        — `slugify` was never in requirements.txt,
+  //                                  so /profile-create 500'd on a clean install
+  //   reportAttributeAccessIssue  — LocationStatus.PENDING / UNKNOWN do not
+  //                                  exist, so constructing a Shop raised
+  //                                  AttributeError
+  //   reportUnusedImport/Function/Variable stay ON as well. The three current
+  //   hits (`Role` side-effect import, `_normalize_phone`, `client_ip`) are
+  //   suppressed with a `# pyright: ignore` plus the reason, rather than by
+  //   switching the rule off — so genuinely dead code is still reported.
   "exclude": ["**/node_modules", "**/__pycache__", "**/.venv"]
 }

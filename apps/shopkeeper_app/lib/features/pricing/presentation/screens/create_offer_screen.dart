@@ -6,6 +6,7 @@ import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/ui/capability_gate.dart';
 import '../../../../core/ui/numeric_input.dart';
+import '../../../../core/ui/primary_cta_bar.dart';
 import '../../../offers/domain/offer_models.dart';
 import '../../../offers/presentation/controllers/offers_controller.dart';
 import '../../../products/domain/product_models.dart';
@@ -126,7 +127,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           key: Key('create-offer-success'),
-          content: Text(appText(context).createOfferScreenOfferCreatedAndLinkedTo),
+          content: Text(
+            appText(context).createOfferScreenOfferCreatedAndLinkedTo,
+          ),
         ),
       );
       // Best-effort hand-off to the offers list. The screen must also render
@@ -156,8 +159,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
       body: CapabilityGate(
         allowed: caps.canCreateOffers,
         title: appText(context).createOfferScreenOffersNotAvailableOnYour,
-        message:
-            appText(context).createOfferScreenUpgradeYourPlanToCreate,
+        message: appText(context).createOfferScreenUpgradeYourPlanToCreate,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -177,7 +179,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                 DropdownButtonFormField<ShopkeeperOfferType>(
                   key: const Key('offer-type-dropdown'),
                   initialValue: _type,
-                  decoration: InputDecoration(labelText: appText(context).commonOfferType),
+                  decoration: InputDecoration(
+                    labelText: appText(context).commonOfferType,
+                  ),
                   items: [
                     for (final t in ShopkeeperOfferType.values)
                       DropdownMenuItem(value: t, child: Text(t.label)),
@@ -232,7 +236,8 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   controller: _termsController,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    labelText: appText(context).createOfferScreenTermsConditionsOptional,
+                    labelText: appText(context)
+                        .createOfferScreenTermsConditionsOptional,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -299,25 +304,11 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
       // no matter how long the product catalogue grows. It disappears with the
       // gate above, so a locked plan shows the upgrade copy and no action.
       bottomNavigationBar: caps.canCreateOffers
-          ? Material(
-              elevation: 8,
-              color: Theme.of(context).colorScheme.surface,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FilledButton(
-                    key: const Key('offer-submit'),
-                    onPressed: saving ? null : _submit,
-                    child: saving
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(appText(context).commonCreateOffer3),
-                  ),
-                ),
-              ),
+          ? PrimaryCtaBar(
+              primaryKey: const Key('offer-submit'),
+              primaryLabel: appText(context).commonCreateOffer3,
+              onPrimary: _submit,
+              loading: saving,
             )
           : null,
     );

@@ -69,7 +69,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               // The screen owns the retry; the copy, icon and way out come from
               // the shared state vocabulary so this failure reads exactly like
               // every other failure in the app.
-              spec: SystemStateSpec.resolve(
+              spec: SystemStateSpec.resolve(
                 text: appText(context),
                 state: SystemState.genericRetry,
                 title: state.message ?? 'Could not load notifications.',

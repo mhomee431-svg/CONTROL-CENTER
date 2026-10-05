@@ -42,6 +42,11 @@ from app.models.product import (
     ShopProductStatus,
 )
 from app.services import inventory_service
+from app.services import product_convergence
+# The one dedupe rule every product-entry route shares. Imported here (as Excel
+# import already does) so a POS item and a hand-entered item cannot become two
+# masters for the same product.
+from app.services.shopkeeper_service import find_matching_master
 from app.services.pos_integration.base import (
     POSCredentials,
     POSProductRecord,
@@ -76,6 +81,66 @@ FIELD_AUTHORITIES: dict[str, str] = {
     "mrp": "PLATFORM",
     "inventory": "POS",      # stock levels are authoritative at the till
 }
+
+
+def _validated_price(raw: Any) -> float:
+    """POS price → a usable selling price.
+
+    A till is not a trusted source: a bad feed can carry a negative or
+    non-numeric amount, and `float()` would happily store it. That would write a
+    negative price straight onto `shop_products.price`, where the manual, barcode
+    and Excel paths all refuse it. Same rule, same refusal — otherwise POS
+    becomes the one door the price validation walks through.
+    """
+    if raw is None:
+        return 0.0
+    try:
+        price = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise ItemSyncError(f"Price '{raw}' is not a valid number", "INVALID_PRICE") from exc
+    if price < 0:
+        raise ItemSyncError("Price cannot be negative", "INVALID_PRICE")
+    return price
+
+
+def _validated_mrp(raw: Any, price_raw: Any) -> float | None:
+    """POS MRP → a usable MRP, never below the selling price.
+
+    MRP under price is the same incoherent state the other three paths reject.
+    Comparing against the *validated* price means a record carrying both a bad
+    price and an MRP is refused on the price first, which is the field actually
+    at fault.
+    """
+    if raw is None:
+        return None
+    try:
+        mrp = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise ItemSyncError(f"MRP '{raw}' is not a valid number", "INVALID_MRP") from exc
+    if mrp < 0:
+        raise ItemSyncError("MRP cannot be negative", "INVALID_MRP")
+    if mrp < _validated_price(price_raw):
+        raise ItemSyncError("MRP cannot be lower than selling price", "INVALID_MRP")
+    return mrp
+
+
+def _existing_listing(
+    db: Session,
+    shop_id: int,
+    master: ProductMaster,
+    variant: ProductVariant | None,
+) -> ShopProduct | None:
+    """The listing the attach step would converge on, without creating one."""
+    query = db.query(ShopProduct).filter(
+        ShopProduct.shop_id == shop_id,
+        ShopProduct.product_master_id == master.id,
+        ShopProduct.is_deleted == False,  # noqa: E712
+    )
+    if variant is None:
+        query = query.filter(ShopProduct.variant_id.is_(None))
+    else:
+        query = query.filter(ShopProduct.variant_id == variant.id)
+    return query.first()
 
 
 def field_authority(integration: POSIntegration, field: str) -> str:
@@ -767,7 +832,66 @@ def _resolve_existing_product(
 def _create_product(
     db: Session, integration: POSIntegration, record: POSProductRecord
 ) -> tuple[ProductMaster, ProductVariant]:
-    """Auto-create ProductMaster (+default variant) for an unknown POS item."""
+    """Resolve or auto-create the ProductMaster (+default variant) for a POS item.
+
+    Convergence point: the same product arriving by two different routes must
+    end up as ONE master. This function used to create a master unconditionally,
+    keyed on a POS-specific slug, so a product the shopkeeper had already added
+    by hand — which has no identifier for the POS barcode yet — was duplicated:
+    two masters, two ShopProducts, and the shop's catalogue silently split.
+
+    Manual entry and Excel import both call `find_matching_master` before
+    creating; this now does the same, so all four routes converge on one rule.
+    """
+    # A POS item for a POS-specific slug is by definition not a second copy, so
+    # the name match runs first and the POS suffix is only used for a genuine
+    # new product.
+    existing = find_matching_master(db, record.name)
+    if existing is not None:
+        sku = record.sku or f"POS-{integration.id}-{record.pos_product_code}"
+        # A record carrying no SKU distinguishes nothing from another variant, so
+        # it must not mint one. A minted variant leaves the shop's base listing
+        # (variant_id NULL) unmatched by the upsert below — its key is shop +
+        # master + variant — producing a SECOND ShopProduct for a product the
+        # shopkeeper already listed by hand. One product, one listing, whichever
+        # door it came through.
+        if not record.sku:
+            return existing, None
+
+        variant = db.query(ProductVariant).filter(ProductVariant.sku == sku).first()
+        if variant is None:
+            if (
+                db.query(ProductVariant).filter(ProductVariant.sku == sku).first()
+                is not None
+            ):
+                sku = f"{sku}-{integration.shop_id}"
+            variant = ProductVariant(
+                product_master_id=existing.id, sku=sku, name=record.name
+            )
+            db.add(variant)
+            db.flush()
+
+            # This master is already listed by THIS shop as a base product
+            # (variant_id NULL). POS minting a fresh variant leaves that listing
+            # unmatched by the upsert below — its key is shop + master + variant
+            # — and adds a second ShopProduct for one product. The shop already
+            # stocks it, so adopt the base listing instead of splitting it.
+            base_listing = (
+                db.query(ShopProduct)
+                .filter(
+                    ShopProduct.shop_id == integration.shop_id,
+                    ShopProduct.product_master_id == existing.id,
+                    ShopProduct.variant_id.is_(None),
+                    ShopProduct.is_deleted == False,  # noqa: E712
+                )
+                .first()
+            )
+            if base_listing is not None:
+                base_listing.variant_id = variant.id
+                db.flush()
+                return existing, variant
+        return existing, variant
+
     base_slug = _slugify(record.name)
     slug = f"{base_slug}-{record.pos_product_code.lower()}"
     suffix = 2
@@ -855,33 +979,38 @@ def _apply_record(
                 )
             )
 
-    # 2) ShopProduct upsert (unique per shop+master+variant).
-    sp_query = db.query(ShopProduct).filter(
-        ShopProduct.shop_id == shop_id,
-        ShopProduct.product_master_id == master.id,
+    # 2) ShopProduct attach — through the shared convergence service, so POS
+    #    cannot drift from the manual / barcode / Excel routes on the lookup key
+    #    or the listing shape. It reports whether it created a row, which is what
+    #    POS surfaces as CREATED / UPDATED per synced item.
+    #
+    #    Which price the MRP is judged against depends on who wins the price.
+    #    Under POS price authority (or for a brand-new listing the POS price
+    #    seeds) the incoming POS price is the one that must stay coherent.
+    #    Under PLATFORM price authority the persisted platform price stays, so a
+    #    POS price the engine is about to refuse as a conflict must not drag a
+    #    perfectly good MRP down with it — validating the MRP against the
+    #    not-yet-applied POS price would turn one field's disagreement into a
+    #    spurious INVALID_MRP item failure.
+    incoming_price = _validated_price(record.price)
+    # One lookup, reused for the MRP check and implicitly by the attach below.
+    existing_for_mrp = _existing_listing(db, shop_id, master, variant)
+    if field_authority(integration, "price") != "POS" and existing_for_mrp is not None:
+        mrp_value = _validated_mrp(record.mrp, float(existing_for_mrp.price))
+    else:
+        mrp_value = _validated_mrp(record.mrp, record.price)
+    sp, created = product_convergence.attach_product_to_shop_reporting_creation(
+        db,
+        shop_id=shop_id,
+        master=master,
+        variant=variant,
+        sku=record.sku,
+        source=InventorySource.POS_INTEGRATION,
+        price=incoming_price,
+        mrp=mrp_value,
+        publish=True,
     )
-    if variant is None:
-        sp_query = sp_query.filter(ShopProduct.variant_id.is_(None))
-    else:
-        sp_query = sp_query.filter(ShopProduct.variant_id == variant.id)
-    sp = sp_query.first()
-
-    if sp is None:
-        sp = ShopProduct(
-            shop_id=shop_id,
-            product_master_id=master.id,
-            variant_id=variant.id if variant else None,
-            sku=record.sku,
-            price=float(record.price) if record.price is not None else 0.0,
-            mrp=float(record.mrp) if record.mrp is not None else None,
-            source=InventorySource.POS_INTEGRATION,
-            status=ShopProductStatus.ACTIVE,
-        )
-        db.add(sp)
-        db.flush()
-        action = "CREATED"
-    else:
-        action = "UPDATED"
+    action = "CREATED" if created else "UPDATED"
 
     # 3) Price — governed by source-of-truth rules. Platform pricing is never
     #    overwritten blindly; non-authoritative differences are logged as
@@ -893,9 +1022,9 @@ def _apply_record(
         elif field_authority(integration, "price") == "POS":
             old_price = float(sp.price)
             old_mrp = float(sp.mrp) if sp.mrp is not None else None
-            sp.price = float(record.price)
+            sp.price = _validated_price(record.price)
             if record.mrp is not None:
-                sp.mrp = float(record.mrp)
+                sp.mrp = _validated_mrp(record.mrp, sp.price)
             sp.last_price_update = now
             db.add(
                 PriceHistory(

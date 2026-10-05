@@ -42,7 +42,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           SessionsStatus.loading =>
             const Center(child: CircularProgressIndicator()),
           SessionsStatus.error => SystemStateView(
-              spec: SystemStateSpec.resolve(
+              spec: SystemStateSpec.resolve(
                 text: appText(context),
                 state: SystemState.genericRetry,
                 title: state.message ?? 'Could not load your active devices.',

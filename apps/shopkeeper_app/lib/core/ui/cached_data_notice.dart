@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_radius.dart';
 
 /// Marks a list that came from the device's offline snapshot rather than a
 /// live backend response.
@@ -32,7 +33,7 @@ class CachedDataNotice extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.warning.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppRadius.smBorder,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

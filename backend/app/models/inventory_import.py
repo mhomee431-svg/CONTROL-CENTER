@@ -60,6 +60,24 @@ class InventoryImportJob(Base, TimestampMixin):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # The header row exactly as uploaded (JSON list).
+    #
+    # Persisted because the Column Mapping step has to be correctable: the
+    # shopkeeper reassigns "Selling Price" to a different field, and the server
+    # must be able to show which columns actually exist and reject an index that
+    # points past the end of the sheet. Trusting the client's idea of the header
+    # would let a stale client remap onto columns this file never had.
+    header_row: Mapped[str | None] = mapped_column(Text)
+
+    # The mapping actually applied to this job (JSON: field -> column index).
+    #
+    # Distinct from the header because the applied mapping can differ from the
+    # automatic one: once the shopkeeper corrects an ambiguous column, THAT is
+    # what the preview must keep showing — on reload, on a retry, and in the
+    # report. Re-deriving it from the header would silently throw the
+    # correction away and re-propose the ambiguity they had just resolved.
+    column_mapping: Mapped[str | None] = mapped_column(Text)
+
 
 class InventoryImportRow(Base, TimestampMixin):
     """One spreadsheet row of an import job with its validation outcome.

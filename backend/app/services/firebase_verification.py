@@ -202,12 +202,16 @@ def verify_firebase_id_token_claims(id_token: str) -> dict:
         cached = _verified_token_cache.get(fp)
         if cached:
             claims, exp_ts = cached
-            if now < exp_ts:
+            # A `None` payload means a PREVIOUS verification reserved this slot
+            # and then failed before it could store real claims. Serving it
+            # would hand the caller `None` and turn a clean 401 into an opaque
+            # 500, so it is treated as a miss and evicted.
+            if claims is not None and now < exp_ts:
                 _cache_stats["hits"] += 1
                 logger.debug("Firebase token cache hit (fp=%s…)", fp[:12])
                 return claims
-            # Entry expired — evict it below
-            del _verified_token_cache[fp]
+            # Stale (or poisoned) entry — evict it below.
+            _verified_token_cache.pop(fp, None)
             _cache_stats["evictions"] += 1
         else:
             _cache_stats["misses"] += 1
@@ -240,16 +244,13 @@ def verify_firebase_id_token_claims(id_token: str) -> dict:
 
     # ── Cache the result until the token's exp claim ──────────────────────
     exp_ts = decoded.get("exp", 0)
-    if exp_ts > now:
-        with _cache_lock:
-            # Evict oldest entries if cache is full (simple size cap)
-            if len(_verified_token_cache) >= _MAX_CACHE_SIZE:
-                # Remove up to 25% of entries (oldest first by insertion order)
-                keys_to_remove = list(_verified_token_cache.keys())[:_MAX_CACHE_SIZE // 4]
-                for k in keys_to_remove:
-                    del _verified_token_cache[k]
-                _cache_stats["evictions"] += len(keys_to_remove)
-            _verified_token_cache[fp] = (None, exp_ts)  # placeholder, filled below
+    # NOTE: this cache does NOT reserve a slot before verification. An earlier
+    # version wrote a `(None, exp_ts)` placeholder here "filled below", but the
+    # lock is released immediately, so it never prevented a concurrent verify —
+    # while any failure between here and the final store (for example a token
+    # with no `sub` claim) left `None` cached until the token expired, turning a
+    # clean 401 into a `TypeError` on every later request for that token.
+    # Claims are now published atomically, once, after validation completes.
 
     firebase_uid = decoded.get("sub")  # 'sub' is the Firebase UID
     if not firebase_uid:
@@ -282,9 +283,17 @@ def verify_firebase_id_token_claims(id_token: str) -> dict:
         "claims": decoded,
     }
 
-    # Store verified claims in cache for subsequent requests with same token
+    # Store verified claims in cache for subsequent requests with same token.
+    # Published only now that the claims are fully built, and the size cap is
+    # enforced HERE so it still bounds memory on a high-traffic worker.
     if exp_ts > now:
         with _cache_lock:
+            if len(_verified_token_cache) >= _MAX_CACHE_SIZE:
+                # Remove up to 25% of entries (oldest first by insertion order)
+                keys_to_remove = list(_verified_token_cache.keys())[: _MAX_CACHE_SIZE // 4]
+                for k in keys_to_remove:
+                    _verified_token_cache.pop(k, None)
+                _cache_stats["evictions"] += len(keys_to_remove)
             _verified_token_cache[fp] = (claims, exp_ts)
 
     logger.info(

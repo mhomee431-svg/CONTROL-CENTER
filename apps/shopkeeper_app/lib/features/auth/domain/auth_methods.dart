@@ -6,13 +6,15 @@ import 'auth_models.dart';
 ///
 /// The authentication methods THIS build surfaces in the UI.
 ///
-/// MVP: **Google Sign-In + Firebase Authentication** is the primary method;
-/// Phone OTP and password login are enabled below and reachable from the
-/// Welcome / Sign-in screens. Every screen consults
-/// [isAuthMethodEnabledProvider] instead of hardcoding a button, so removing a
-/// method from this list removes its entry points without deleting the flow.
+/// MVP: **Google Sign-In + Firebase Authentication** is the ONLY enabled method.
+/// Phone OTP and password login are IMPLEMENTED (route + screen + service seam +
+/// repository contract + tests) but DISABLED in [kEnabledAuthMethods] per the
+/// approved visual reference: OTP is future scope, password is a future profile
+/// method. Every screen consults [isAuthMethodEnabledProvider] instead of
+/// hardcoding a button, so removing a method from this list removes its entry
+/// points without deleting the flow.
 ///
-/// Adding Phone OTP later is deliberately a ONE-LINE change here:
+/// Enabling Phone OTP later is deliberately a ONE-LINE change here:
 ///
 /// ```dart
 /// const List<AuthMethod> kEnabledAuthMethods = [
@@ -24,11 +26,12 @@ import 'auth_models.dart';
 /// …plus registering a real PhoneOtpService. The OTP screen, the controller
 /// methods, the repository contract, the session models and the token storage
 /// already exist and are already tested, so nothing is rewritten — the UI
-/// simply becomes visible.
+/// simply becomes visible. The enabled list is the single chokepoint: DO NOT
+/// re-add a method without a product sign-off that overrides the MVP scope,
+/// and keep the future code (`PhoneOtpScreen`, `FirebasePhoneOtpService`,
+/// `loginWithPhoneOtp`) untouched.
 const List<AuthMethod> kEnabledAuthMethods = <AuthMethod>[
   AuthMethod.googleFirebase,
-  AuthMethod.phoneOtp,
-  AuthMethod.password,
 ];
 
 /// Runtime list of the enabled auth methods.
@@ -52,8 +55,8 @@ final isAuthMethodEnabledProvider = Provider.family<bool, AuthMethod>(
 /// never be labelled two different ways in two places.
 extension AuthMethodActionLabel on AuthMethod {
   String get actionLabel => switch (this) {
-        AuthMethod.googleFirebase => 'Continue with Google',
-        AuthMethod.phoneOtp => 'Continue with phone number',
-        AuthMethod.password => 'Sign in with password',
-      };
+    AuthMethod.googleFirebase => 'Continue with Google',
+    AuthMethod.phoneOtp => 'Continue with phone number',
+    AuthMethod.password => 'Sign in with password',
+  };
 }

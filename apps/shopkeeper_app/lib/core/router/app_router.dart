@@ -36,6 +36,8 @@ import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/shell/shopkeeper_shell.dart';
+import '../../features/shops/domain/profile_scope.dart';
+import '../../features/shops/domain/shop_models.dart';
 import '../../features/shops/presentation/screens/shops_screen.dart';
 import '../../features/shops/presentation/screens/shop_profile_screen.dart';
 import '../../features/shops/presentation/screens/shop_settings_screen.dart';
@@ -46,12 +48,14 @@ import '../../features/shops/presentation/screens/operating_hours_screen.dart';
 import '../../features/shops/presentation/screens/shop_location_screen.dart';
 import '../../features/shops/presentation/screens/shop_status_screen.dart';
 import '../../features/shops/presentation/screens/location_capture_screen.dart';
+import '../../features/restaurants/presentation/menu_management_screen.dart';
 import '../../features/shop_registration/presentation/screens/shop_registration_wizard.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/barcode/barcode_scanner_screen.dart';
 import '../../features/inventory_import/presentation/screens/inventory_import_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_center_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_history_screen.dart';
+import '../../features/inventory_import/presentation/screens/import_column_mapping_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_preview_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_processing_screen.dart';
 import '../../features/inventory_import/presentation/screens/import_result_screen.dart';
@@ -89,6 +93,43 @@ import '../../features/support/presentation/screens/support_screen.dart';
 import 'route_names.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// The route a shopkeeper is sent to when [location] needs a capability their
+/// business does not have, or null when the route is permitted.
+///
+/// Top-level, not a closure inside the router's `redirect`, so it can be tested
+/// directly — a guard reachable only through a full router harness with an
+/// authenticated session is a guard that eventually rots unverified.
+///
+/// The refusal is a redirect rather than a hidden button on purpose: hiding a
+/// button still leaves the destination reachable by deep link, so the guard
+/// would be theatre.
+String? capabilityDeniedRoute(
+  CategoryCapabilitySet gates,
+  String location,
+) {
+  // Only gate on what we actually know. `resolveCategoryCapabilities` always
+  // yields CONTACT and LOCATION, even for a category it has never heard of, so
+  // an empty set is not the signal for "unknown" — an unrecognised code is.
+  //
+  // Failing open here is deliberate. A shop whose summary has not loaded yet
+  // carries no category, and refusing on that basis bounces a real shopkeeper
+  // off their own products screen because a string was still in flight. The
+  // backend still validates on write, so nothing is actually permitted that the
+  // server would refuse.
+  if (!kCategoryCapabilityDefaults.containsKey(gates.categoryCode.toUpperCase())) {
+    return null;
+  }
+
+  if (location.startsWith(Routes.inventoryImport) &&
+      !gates.mayImportInventory) {
+    return Routes.dashboard;
+  }
+  if (location.startsWith(Routes.products) && !gates.mayManageProducts) {
+    return Routes.dashboard;
+  }
+  return null;
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
   GoRoute buildRoute(
@@ -154,6 +195,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         return Routes.welcome;
       }
 
+      // Capability-gated routes. The backend narrows these capabilities away (a
+      // service business, or any business typed as "Service", keeps no stock),
+      // so the route is refused rather than merely hidden.
+      final gates = resolveCategoryCapabilities(
+        // `ShopSummary` carries the category but not the business type; the
+        // resolver tolerates a null type, so an untyped shop is judged on its
+        // category alone rather than being locked out of everything.
+        selectedShop?.category ?? '',
+        null,
+      );
+      final denied = capabilityDeniedRoute(gates, loc);
+      if (denied != null) return denied;
+
       // ── Phase 23: account restricted (inactive/suspended/banned) ──
       // The ONLY reachable destination is the account-status screen.
       if (auth.status == AuthStatus.accountRestricted) {
@@ -200,10 +254,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         ];
         if (alwaysOpen.any(target.startsWith)) return null;
         // The remaining business screens need a selected shop.
+        //
+        // This list is DELIBERATELY EXHAUSTIVE and the fall-through DENIES.
+        // The previous shape was `if (!needsShop.any(...)) return null;` —
+        // allow-by-default — which meant a newly registered route that nobody
+        // remembered to add here silently became reachable WITHOUT a shop. A
+        // guard that fails open is a guard that fails eventually; now an
+        // unclassified route is sent Home and the missing entry is obvious
+        // rather than invisible.
         const needsShop = [
           Routes.products,
           Routes.shopProfile,
           Routes.shopSettings,
+          Routes.restaurantMenu,
           Routes.shopLocation,
           Routes.inventoryImport,
           Routes.offers,
@@ -216,11 +279,91 @@ final routerProvider = Provider<GoRouter>((ref) {
           Routes.shopOperatingHours,
           Routes.shopLocationView,
           Routes.shopStatus,
+          // Inventory module — every one of these reads shop-scoped rows, so
+          // all of them belong behind the same gate as the dashboard.
+          Routes.inventoryDashboard,
+          Routes.inventoryList,
+          Routes.lowStock,
+          Routes.outOfStock,
+          Routes.discontinuedStock,
+          Routes.inventoryFreshness,
+          Routes.inventorySyncStatus,
+          Routes.updateStock,
+          Routes.stockHistory,
+          // Price management.
+          Routes.priceList,
+          Routes.updatePrice,
+
+          // Offers.
+          Routes.createOffer,
+          Routes.activeOffers,
+          Routes.expiredOffers,
+          Routes.priceHistory,
+          Routes.offerDetails,
+          // Excel import.
+          Routes.importCenter,
+          Routes.importUpload,
+          Routes.importPreview,
+          Routes.importColumnMapping,
+          Routes.importProcessing,
+          Routes.importHistory,
+          // POS.
+          Routes.posConnectionSetup,
+          Routes.posSync,
+          Routes.posSyncProgress,
+          Routes.posSyncResult,
+          Routes.posSyncHistory,
+          Routes.posError,
+          // Reports / insights drill-downs.
+          Routes.insightsSales,
+          Routes.insightsProducts,
+          Routes.insightsInventory,
         ];
-        if (!needsShop.any(target.startsWith)) return null;
-        if (selectedShop != null) return null;
-        // No shop yet → send them Home where the "Set up your shop" CTA is.
-        return auth.shops.isEmpty ? Routes.dashboard : Routes.shops;
+        if (needsShop.any(target.startsWith)) {
+          if (selectedShop != null) return null;
+          // No shop yet → send them Home where the "Set up your shop" CTA is.
+          //
+          // Single-profile MVP: NEVER land on the business PICKER (`/shops`).
+          // One shopkeeper owns one business and it is auto-selected at login,
+          // so a shop-bearing account that reaches here is a restore hiccup,
+          // not a "choose a business" moment — Home is the honest destination.
+          // `/shops` remains the future multi-business destination
+          // (profile_scope.dart).
+          if (auth.shops.isNotEmpty && ref.read(multiShopEnabledProvider)) {
+            return Routes.shops;
+          }
+          return Routes.dashboard;
+        }
+
+        // USER-SCOPED — reachable while signed in, with or without a shop.
+        // These are the account's own settings and the help surfaces; none of
+        // them read shop inventory, so forcing a shop first would be wrong.
+        const userScoped = [
+          Routes.profileEdit,
+          Routes.accountSettings,
+          Routes.appSettings,
+          Routes.security,
+          Routes.sessions,
+          Routes.language,
+          Routes.dataStorage,
+          Routes.notificationSettings,
+          Routes.notificationPreferences,
+          Routes.notificationDetail,
+          Routes.privacy,
+          Routes.terms,
+          Routes.about,
+          Routes.logoutConfirmation,
+          Routes.faq,
+          Routes.contactSupport,
+          Routes.reportIssue,
+          Routes.myTickets,
+        ];
+        if (userScoped.any(target.startsWith)) return null;
+
+        // Anything NOT classified above is denied. A future route lands Home
+        // until it is consciously placed in one of the three lists — which is
+        // the point: adding a screen must be a deliberate act.
+        return Routes.dashboard;
       }
 
       if (authRoutes.contains(loc) || isSplash) {
@@ -238,6 +381,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         final token = state.uri.queryParameters['token'] ?? '';
         return ResetPasswordScreen(token: token);
       }),
+      // ── FUTURE auth method (Phone OTP — NOT in the MVP visible flow) ────────
+      // The route + screen + service + controller contract stay implemented so
+      // the future enable is one line in `kEnabledAuthMethods`. Nothing in the
+      // current visible flow links here: Welcome/Login render Google only.
       buildRoute(Routes.phoneOtp, (_, _) => const PhoneOtpScreen()),
       buildRoute(Routes.profileCreate, (_, _) => const CreateProfileScreen()),
       buildRoute(Routes.profileEdit, (_, _) => const EditProfileScreen()),
@@ -246,13 +393,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute(Routes.shops, (_, _) => const ShopsScreen()),
       buildRoute(Routes.shopProfile, (_, _) => const ShopProfileScreen()),
       buildRoute(Routes.shopSettings, (_, _) => const ShopSettingsScreen()),
+      buildRoute(Routes.restaurantMenu, (_, _) => const MenuManagementScreen()),
       // ── Shop Profile module sub-screens (hub tiles → these routes) ────────
       buildRoute(Routes.shopEdit, (_, _) => const EditShopScreen()),
       buildRoute(Routes.shopBusinessInfo, (_, _) => const BusinessInfoScreen()),
       buildRoute(
-          Routes.shopBusinessCategory, (_, _) => const BusinessCategoryScreen()),
+        Routes.shopBusinessCategory,
+        (_, _) => const BusinessCategoryScreen(),
+      ),
       buildRoute(
-          Routes.shopOperatingHours, (_, _) => const OperatingHoursScreen()),
+        Routes.shopOperatingHours,
+        (_, _) => const OperatingHoursScreen(),
+      ),
       buildRoute(Routes.shopLocationView, (_, _) => const ShopLocationScreen()),
       buildRoute(Routes.shopStatus, (_, _) => const ShopStatusScreen()),
       buildRoute(Routes.shopLocation, (context, state) {
@@ -260,14 +412,36 @@ final routerProvider = Provider<GoRouter>((ref) {
         return LocationCaptureScreen(shopName: extra?['shopName'] as String?);
       }),
       buildRoute(Routes.scanBarcode, (_, _) => const BarcodeScannerScreen()),
-      buildRoute(Routes.inventoryImport, (_, _) => const InventoryImportScreen()),
-      buildRoute(Routes.inventoryDashboard, (_, _) => const InventoryDashboardScreen()),
-      buildRoute(Routes.inventoryList, (_, _) => const InventoryScopeScreen(scope: InventoryScope.all)),
+      buildRoute(
+        Routes.inventoryImport,
+        (_, _) => const InventoryImportScreen(),
+      ),
+      buildRoute(
+        Routes.inventoryDashboard,
+        (_, _) => const InventoryDashboardScreen(),
+      ),
+      buildRoute(
+        Routes.inventoryList,
+        (_, _) => const InventoryScopeScreen(scope: InventoryScope.all),
+      ),
       buildRoute(Routes.lowStock, (_, _) => const LowStockScreen()),
-      buildRoute(Routes.outOfStock, (_, _) => const InventoryScopeScreen(scope: InventoryScope.outOfStock)),
-      buildRoute(Routes.discontinuedStock, (_, _) => const InventoryScopeScreen(scope: InventoryScope.discontinued)),
-      buildRoute(Routes.inventoryFreshness, (_, _) => const InventoryScopeScreen(scope: InventoryScope.freshness)),
-      buildRoute(Routes.inventorySyncStatus, (_, _) => const InventorySyncStatusScreen()),
+      buildRoute(
+        Routes.outOfStock,
+        (_, _) => const InventoryScopeScreen(scope: InventoryScope.outOfStock),
+      ),
+      buildRoute(
+        Routes.discontinuedStock,
+        (_, _) =>
+            const InventoryScopeScreen(scope: InventoryScope.discontinued),
+      ),
+      buildRoute(
+        Routes.inventoryFreshness,
+        (_, _) => const InventoryScopeScreen(scope: InventoryScope.freshness),
+      ),
+      buildRoute(
+        Routes.inventorySyncStatus,
+        (_, _) => const InventorySyncStatusScreen(),
+      ),
       buildRoute(Routes.updateStock, (context, state) {
         final extra = state.extra;
         return UpdateStockScreen(
@@ -303,7 +477,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       buildRoute(Routes.importCenter, (_, _) => const ImportCenterScreen()),
       buildRoute(Routes.importUpload, (_, _) => const ImportUploadScreen()),
       buildRoute(Routes.importPreview, (_, _) => const ImportPreviewScreen()),
-      buildRoute(Routes.importProcessing, (_, _) => const ImportProcessingScreen()),
+      buildRoute(
+        Routes.importColumnMapping,
+        (_, _) => const ImportColumnMappingScreen(),
+      ),
+      buildRoute(
+        Routes.importProcessing,
+        (_, _) => const ImportProcessingScreen(),
+      ),
       buildRoute(Routes.importHistory, (_, _) => const ImportHistoryScreen()),
       // Deep-linked import outcome. The job id arrives through `extra` and is
       // validated BEFORE the screen is built: a push payload is untrusted
@@ -333,65 +514,69 @@ final routerProvider = Provider<GoRouter>((ref) {
         (_, _) => const PosSyncProgressScreen(),
       ),
       buildRoute(Routes.posSyncResult, (_, _) => const PosSyncResultScreen()),
-      buildRoute(
-        Routes.posSyncHistory,
-        (_, _) => const PosSyncHistoryScreen(),
-      ),
+      buildRoute(Routes.posSyncHistory, (_, _) => const PosSyncHistoryScreen()),
       buildRoute(Routes.posError, (context, state) {
         final extra = state.extra;
-        return PosErrorScreen(
-          message: extra is String ? extra : null,
-        );
+        return PosErrorScreen(message: extra is String ? extra : null);
       }),
       buildRoute(Routes.insights, (_, _) => const InsightsScreen()),
-      buildRoute(Routes.insightsSales, (_, _) =>
-          const FocusedReportScreen(report: FocusedReport.sales)),
-      buildRoute(Routes.insightsProducts, (_, _) =>
-          const FocusedReportScreen(report: FocusedReport.products)),
-      buildRoute(Routes.insightsInventory, (_, _) =>
-          const FocusedReportScreen(report: FocusedReport.inventory)),
+      buildRoute(
+        Routes.insightsSales,
+        (_, _) => const FocusedReportScreen(report: FocusedReport.sales),
+      ),
+      buildRoute(
+        Routes.insightsProducts,
+        (_, _) => const FocusedReportScreen(report: FocusedReport.products),
+      ),
+      buildRoute(
+        Routes.insightsInventory,
+        (_, _) => const FocusedReportScreen(report: FocusedReport.inventory),
+      ),
       GoRoute(
         path: Routes.insightsDrillDown(':metric'),
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => InsightsDrillDownScreen(
-          metric: DrillDownMetricX.fromRoute(
-            state.pathParameters['metric'],
-          ),
+          metric: DrillDownMetricX.fromRoute(state.pathParameters['metric']),
         ),
       ),
       buildRoute(Routes.features, (_, _) => const AllFeaturesScreen()),
       buildRoute(Routes.support, (_, _) => const SupportScreen()),
 
       // ── Notification detail & preferences ─────────────────────────────────
+      buildRoute(Routes.notificationDetail, (context, state) {
+        // `extra` is optional: a cold-start deep link arrives without the
+        // row, and the screen renders an empty state instead of crashing.
+        final extra = state.extra;
+        return NotificationDetailScreen(
+          notification: extra is ShopkeeperNotification ? extra : null,
+        );
+      }),
       buildRoute(
-        Routes.notificationDetail,
-        (context, state) {
-          // `extra` is optional: a cold-start deep link arrives without the
-          // row, and the screen renders an empty state instead of crashing.
-          final extra = state.extra;
-          return NotificationDetailScreen(
-            notification: extra is ShopkeeperNotification ? extra : null,
-          );
-        },
+        Routes.notificationPreferences,
+        (_, _) => const NotificationPreferencesScreen(),
       ),
-      buildRoute(Routes.notificationPreferences, (_, _) =>
-          const NotificationPreferencesScreen()),
 
       // ── Settings module ───────────────────────────────────────────────────
-      buildRoute(Routes.accountSettings, (_, _) => const AccountSettingsScreen()),
+      buildRoute(
+        Routes.accountSettings,
+        (_, _) => const AccountSettingsScreen(),
+      ),
       buildRoute(Routes.security, (_, _) => const SecurityScreen()),
       buildRoute(Routes.sessions, (_, _) => const SessionsScreen()),
       buildRoute(Routes.appSettings, (_, _) => const AppSettingsScreen()),
       buildRoute(Routes.language, (_, _) => const LanguageScreen()),
       buildRoute(Routes.dataStorage, (_, _) => const DataStorageScreen()),
       buildRoute(
-          Routes.notificationSettings, (_, _) =>
-          const NotificationSettingsScreen()),
+        Routes.notificationSettings,
+        (_, _) => const NotificationSettingsScreen(),
+      ),
       buildRoute(Routes.privacy, (_, _) => const PrivacyScreen()),
       buildRoute(Routes.terms, (_, _) => const TermsScreen()),
       buildRoute(Routes.about, (_, _) => const AboutScreen()),
       buildRoute(
-          Routes.logoutConfirmation, (_, _) => const LogoutConfirmationScreen()),
+        Routes.logoutConfirmation,
+        (_, _) => const LogoutConfirmationScreen(),
+      ),
 
       // ── Support detail screens ────────────────────────────────────────────
       buildRoute(Routes.faq, (_, _) => const SupportFaqScreen()),
@@ -402,8 +587,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.supportTicketDetailTemplate,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => TicketDetailScreen(
-          ticketId:
-              int.tryParse(state.pathParameters['ticketId'] ?? '') ?? 0,
+          ticketId: int.tryParse(state.pathParameters['ticketId'] ?? '') ?? 0,
         ),
       ),
       StatefulShellRoute.indexedStack(

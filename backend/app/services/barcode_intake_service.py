@@ -47,6 +47,7 @@ from app.models.product import (
     ShopProduct,
 )
 from app.services.inventory_service import compute_freshness, derive_stock_status
+from app.services import product_convergence
 
 logger = get_logger("app.services.barcode_intake")
 
@@ -374,56 +375,31 @@ def save_from_scan(access, db: Session, user, data: dict[str, Any]) -> dict[str,
     stock_enum = product_models.StockStatus[derive_stock_status(quantity, threshold).value]
     now = datetime.now(timezone.utc)
 
-    sp = ShopProduct(
+    sp = product_convergence.attach_product_to_shop(
+        db,
         shop_id=access.shop.id,
-        product_master_id=master.id,
-        variant_id=variant.id if variant else None,
+        master=master,
+        variant=variant,
         sku=data.get("sku"),
-        status=ShopProductStatus.ACTIVE if publish else ShopProductStatus.INACTIVE,
+        source=InventorySource.BARCODE_SCAN,
         price=price,
         mrp=mrp,
-        is_active=publish,
+        publish=publish,
         is_available=available and publish,
         stock_status=stock_enum,
-        source=InventorySource.BARCODE_SCAN,
-        last_inventory_update=now,
-        last_price_update=now,
     )
-    sp.product_master = master
-    if variant is not None:
-        sp.variant = variant
-    db.add(sp)
-    db.flush()
 
-    inv = Inventory(
-        shop_product_id=sp.id,
+    inv = product_convergence.set_inventory(
+        db,
+        sp,
         quantity=quantity,
-        reserved_quantity=0,
-        available_quantity=quantity,
+        low_stock_threshold=threshold,
+        source=InventorySource.BARCODE_SCAN,
         is_available=available,
         stock_status=stock_enum,
-        low_stock_threshold=threshold,
-        last_updated_by=user.id,
-        last_updated_source=InventorySource.BARCODE_SCAN,
-        last_synced_at=now,
-        freshness_status=compute_freshness(now, InventorySource.BARCODE_SCAN),
-        freshness_checked_at=now,
-    )
-    db.add(inv)
-    db.flush()
-
-    db.add(
-        InventoryMovement(
-            inventory_id=inv.id,
-            quantity_change=quantity,
-            quantity_before=0,
-            quantity_after=quantity,
-            movement_type="INITIAL",
-            source=InventorySource.BARCODE_SCAN,
-            reference_type="BARCODE_SCAN",
-            notes=f"Added via barcode scan {data.get('barcode') or ''}".strip(),
-            created_by=user.id,
-        )
+        user_id=user.id,
+        reference_type="BARCODE_SCAN",
+        notes=f"Added via barcode scan {data.get('barcode') or ''}".strip(),
     )
 
     record_scan_event(

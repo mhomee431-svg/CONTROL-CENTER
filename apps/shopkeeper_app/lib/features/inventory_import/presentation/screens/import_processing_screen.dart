@@ -216,10 +216,17 @@ class _ResultView extends ConsumerWidget {
             const SizedBox(height: 24),
             // Partial failures are never hidden — the shopkeeper can open the
             // applied rows and the failed rows separately from here.
+            //
+            // DESIGN CONTRACT: these are all "let me LOOK at something" offers,
+            // so every one of them is an OUTLINE. `Done` below is the single
+            // filled primary. This state previously rendered "View Results" as a
+            // full-width FilledButton directly above a full-width FilledButton
+            // "Done" — two equally-weighted primaries with no winner, which is
+            // exactly the competing-CTA shape the contract forbids.
             if (_showResults) ...[
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
+                child: OutlinedButton.icon(
                   key: const Key('import-result-view-results'),
                   onPressed: () =>
                       _openReport(context, ref, filter: ReportFilter.all),

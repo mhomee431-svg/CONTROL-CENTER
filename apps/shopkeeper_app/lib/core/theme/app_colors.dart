@@ -7,6 +7,7 @@
 ///   Primary:        HyperLocal blue / royal blue
 ///   Supporting:     Green, Orange, White, Light gray, Dark text
 library;
+
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
@@ -24,9 +25,16 @@ abstract final class AppColors {
   static const green = Color(0xFF10B981);
   static const greenLight = Color(0xFFD1FAE5);
 
-  // ── Supporting — Orange (accent / warning) ────────────────────────
+  // ── Supporting — Orange (accent / warning highlights) ───────────────
+  //
+  // Visual-reference role: orange is the warning-highlight / tertiary accent
+  // (pending states, promotional badges, attention cues) — never a primary
+  // action color. Screens read it via the ColorScheme.tertiary mapping below
+  // (see AppTheme) or this token directly; never a hardcoded Color(0x…).
   static const orange = Color(0xFFF59E0B);
   static const orangeLight = Color(0xFFFED7AA);
+  static const tertiary = orange;
+  static const onTertiary = Colors.white;
 
   // ── Supporting — White ────────────────────────────────────────────
   static const white = Colors.white;
@@ -63,8 +71,10 @@ abstract final class AppColors {
   // ── Overlays (camera preview / full-bleed dark surfaces) ──────────
   /// Solid black backdrop behind camera previews and full-bleed overlays.
   static const overlayBackdrop = Color(0xFF000000);
+
   /// Primary content drawn on [overlayBackdrop].
   static const onOverlay = Colors.white;
+
   /// Secondary content on [overlayBackdrop] (white at 70%).
   static const onOverlayMuted = Color(0xB3FFFFFF);
 
@@ -76,6 +86,7 @@ abstract final class AppColors {
   static const googleRed = Color(0xFFEA4335);
   static const googleYellow = Color(0xFFFBBC05);
   static const googleGreen = Color(0xFF34A853);
+
   /// Google button border and label ink, per the same spec.
   static const googleBorder = Color(0xFFDADCE0);
   static const googleInk = Color(0xFF1F1F1F);
@@ -102,6 +113,7 @@ abstract final class AppColors {
   /// Deep commerce green. NB: deliberately NOT the same thing as
   /// `AppTheme.brandSeed`, which is the royal-blue brand identity.
   static const deepGreen = Color(0xFF0B5D3B);
+
   /// @deprecated Ambiguous — this name is used by [AppTheme.brandSeed] for the
   /// royal-blue brand color, so prefer [deepGreen] here.
   static const brandSeed = deepGreen;

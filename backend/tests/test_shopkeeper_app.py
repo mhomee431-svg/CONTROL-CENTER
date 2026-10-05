@@ -307,7 +307,7 @@ class TestShopkeeperRegistration:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token_claims",
-            lambda token: ("fb-uid-0000000001", "+919000000011"),
+            lambda token: {"uid": "fb-uid-0000000001", "phone": "+919000000011"},
         )
         # Mock business-ID generation (deterministic) so the test is stable
         # regardless of the mock DB's limited filter() semantics.
@@ -350,7 +350,7 @@ class TestShopkeeperRegistration:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token_claims",
-            lambda token: ("fb-uid-0000000002", "+919000000012"),
+            lambda token: {"uid": "fb-uid-0000000002", "phone": "+919000000012"},
         )
 
         request = MagicMock()
@@ -422,7 +422,7 @@ class TestShopkeeperVerifyPhone:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token_claims",
-            lambda token: ("fb-uid-new", "+919000000020"),
+            lambda token: {"uid": "fb-uid-new", "phone": "+919000000020"},
         )
 
         response = run_async(
@@ -445,7 +445,7 @@ class TestShopkeeperVerifyPhone:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token_claims",
-            lambda token: ("fb-uid-existing", "+919000000021"),
+            lambda token: {"uid": "fb-uid-existing", "phone": "+919000000021"},
         )
         monkeypatch.setattr(
             shopkeeper_auth,
@@ -505,7 +505,7 @@ class TestShopkeeperLogin:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token_claims",
-            lambda token: "+919000000014",
+            lambda token: {"uid": "fb-uid-otp", "phone": "+919000000014"},
         )
 
         request = MagicMock()
@@ -526,7 +526,7 @@ class TestShopkeeperLogin:
         monkeypatch.setattr(
             shopkeeper_auth,
             "verify_firebase_id_token_claims",
-            lambda token: "+919000000015",
+            lambda token: {"uid": "fb-uid-otp", "phone": "+919000000015"},
         )
 
         request = MagicMock()

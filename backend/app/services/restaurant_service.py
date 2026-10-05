@@ -65,6 +65,44 @@ def nearby_restaurants(
     return restaurants
 
 
+def get_restaurant_by_shop(db: Session, shop_id: int) -> Optional[dict]:
+    """The restaurant profile belonging to a shop, if it has one.
+
+    Every menu route is keyed on `restaurant_id`, but the shopkeeper app only
+    ever knows its own `shop_id` — it has no reason to learn a second id. Without
+    this lookup the menu screens would need the owner to paste an id they have
+    never seen, which is the difference between a feature that works and one that
+    looks broken.
+
+    `ensure=False`: a shop that has not been given a restaurant profile yet gets
+    `None` so the caller can offer to create one, rather than silently creating a
+    row the shopkeeper never asked for.
+    """
+    stmt = select(Restaurant).where(
+        Restaurant.shop_id == shop_id,
+        Restaurant.is_deleted == False,  # noqa: E712
+    )
+    restaurant = db.execute(stmt).scalar_one_or_none()
+    if restaurant is None:
+        return None
+    return {
+        "id": restaurant.id,
+        "shop_id": restaurant.shop_id,
+        "cuisine_types": restaurant.cuisine_types,
+        "dining_available": restaurant.dining_available,
+        "takeaway_available": restaurant.takeaway_available,
+        "avg_cost_for_two": (
+            float(restaurant.avg_cost_for_two)
+            if restaurant.avg_cost_for_two is not None
+            else None
+        ),
+        "rating": float(restaurant.rating) if restaurant.rating is not None else None,
+        "review_count": restaurant.review_count,
+        "veg_only": restaurant.veg_only,
+        "licence_fssai": restaurant.licence_fssai,
+    }
+
+
 def get_restaurant_detail(db: Session, restaurant_id: int) -> Optional[dict]:
     """Get full restaurant detail with menu."""
     restaurant = db.get(Restaurant, restaurant_id)

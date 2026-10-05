@@ -21,9 +21,10 @@
 ///
 /// The shell-tab group (`/dashboard`, `/products`, `/notifications`,
 /// `/account`) is declared by the `StatefulShellRoute.indexedStack` in
-/// `app_router.dart` — their path strings are the ShellTab constants below so
-/// the shell's `initialLocation` and the bottom-bar `goNamed` calls stay in
-/// sync.
+/// `app_router.dart` — each branch reads its path from these very constants, so
+/// the shell's `initialLocation` and the bottom-bar navigation stay in sync.
+/// (There is no separate `ShellTab` class; `shellTabPaths` below is the
+/// canonical list in branch order, kept for future tooling that needs it.)
 abstract final class Routes {
   Routes._();
 
@@ -35,8 +36,10 @@ abstract final class Routes {
   static const forgotPassword = '/forgot-password';
   static const resetPassword = '/reset-password';
   static const phoneOtp = '/phone-otp';
-  static String resetPasswordWithToken(String token) =>
-      Uri(path: '/reset-password', queryParameters: {'token': token}).toString();
+  static String resetPasswordWithToken(String token) => Uri(
+    path: '/reset-password',
+    queryParameters: {'token': token},
+  ).toString();
 
   // ── Profile / onboarding ─────────────────────────────────────────────────
   static const profileCreate = '/profile-create';
@@ -48,6 +51,14 @@ abstract final class Routes {
   // ── Business / shop identity ─────────────────────────────────────────────
   static const shopProfile = '/shop-profile';
   static const shopSettings = '/shop-settings';
+
+  /// Restaurant menu management.
+  ///
+  /// Reachable from the restaurant's shop profile. It is a normal screen, not a
+  /// capability-gated one: the backend owns the menu API and a restaurant owner
+  /// is the only person who may call it, so hiding the screen would hide the
+  /// feature rather than protect it.
+  static const restaurantMenu = '/restaurant-menu';
 
   // ── Shell tabs (the four bottom-navigation destinations) ──────────────────
   /// These are hosted inside the `StatefulShellRoute.indexedStack`. Their
@@ -108,6 +119,7 @@ abstract final class Routes {
   static const importCenter = '/import-center';
   static const importUpload = '/import-upload';
   static const importPreview = '/import-preview';
+  static const importColumnMapping = '/import-column-mapping';
   static const importProcessing = '/import-processing';
   static const importHistory = '/import-history';
 
@@ -118,7 +130,8 @@ abstract final class Routes {
   static const importResult = '/import-result';
 
   // ── Misc shell destinations (no shop required) ──────────────────────────
-  static String insightsDrillDown(String metric) => '$insights/drill-down/$metric';
+  static String insightsDrillDown(String metric) =>
+      '$insights/drill-down/$metric';
 
   // ── Misc shell destinations (no shop required) ──────────────────────────
   static const features = '/features';
@@ -163,10 +176,10 @@ abstract final class Routes {
   static const accountStatus = '/account-status';
 
   // ── Shell-tab group, for the `StatefulShellRoute` initial location ────────
-  static const shellTabPaths = [
-    dashboard,
-    products,
-    notifications,
-    account,
-  ];
+  //
+  // Canonical list of the shell branch paths, in branch order — the same
+  // order `app_router.dart` declares its `StatefulShellBranch`es. It is kept
+  // (not deleted) for future tooling/tests that need the tab set as data;
+  // the shell itself reads `Routes.dashboard` etc. branch by branch today.
+  static const shellTabPaths = [dashboard, products, notifications, account];
 }
