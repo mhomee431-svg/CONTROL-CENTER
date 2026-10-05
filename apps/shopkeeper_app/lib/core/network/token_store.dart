@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Abstraction over token persistence so business logic stays testable
@@ -34,24 +34,68 @@ class SecureTokenStore implements TokenStore {
   static const _userIdKey = 'user_id';
   static const _isLoggedInKey = 'is_logged_in';
 
-  @override
-  Future<String?> readAccessToken() => _storage.read(key: _accessKey);
+  // ── PERFORMANCE: in-memory cache over encrypted storage ────────────────
+  //
+  // Every repository reads the access token before every API call, and
+  // `FlutterSecureStorage.read` is a platform-channel hop into Keystore/Keychain.
+  // On a screen that fires several calls in parallel (dashboard loads alerts +
+  // notifications + products) that is the same encrypted read many times per
+  // frame budget, for a value that cannot change between calls.
+  //
+  // The cache is a pure read-through: the FIRST read still hits secure storage
+  // (so a cold start reads exactly what was persisted, and an app that was
+  // killed and relaunched cannot invent a token), and every write/clear evicts
+  // the affected key. That keeps the security property unchanged — the token
+  // is never held any longer or less protected than it already was, since it
+  // was already resident in the process for the whole session — while removing
+  // the repeated platform hop.
+  static final Map<String, String?> _cache = <String, String?>{};
+
+  static Future<String?> _read(String key) async {
+    if (_cache.containsKey(key)) return _cache[key];
+    final value = await _storage.read(key: key);
+    _cache[key] = value;
+    return value;
+  }
+
+  /// Storage FIRST, memory second.
+  ///
+  /// Writing the cache before the storage write succeeds leaves memory holding
+  /// a token that was never persisted: if the keystore write throws (full disk,
+  /// corrupted keystore, a locked keychain), the caller sees the exception but
+  /// every later read still returns that token from memory. The app then runs
+  /// the whole session authenticated on a credential that does not exist on
+  /// disk, and the next cold start drops the user out with no explanation.
+  ///
+  /// Ordering it this way makes memory a strict subset of what is persisted, so
+  /// the worst case is a redundant read, never a phantom session.
+  static Future<void> _write(String key, String value) async {
+    await _storage.write(key: key, value: value);
+    _cache[key] = value;
+  }
+
+  /// Drops every cached key. Called on sign-out so the next process (and the
+  /// next reader) can never see a stale token from memory.
+  static void evictAll() => _cache.clear();
 
   @override
-  Future<String?> readRefreshToken() => _storage.read(key: _refreshKey);
+  Future<String?> readAccessToken() => _read(_accessKey);
 
   @override
-  Future<String?> readSessionId() => _storage.read(key: _sessionKey);
+  Future<String?> readRefreshToken() => _read(_refreshKey);
 
   @override
-  Future<String?> readBusinessId() => _storage.read(key: _businessIdKey);
+  Future<String?> readSessionId() => _read(_sessionKey);
 
   @override
-  Future<String?> readUserId() => _storage.read(key: _userIdKey);
+  Future<String?> readBusinessId() => _read(_businessIdKey);
+
+  @override
+  Future<String?> readUserId() => _read(_userIdKey);
 
   @override
   Future<bool> isLoggedIn() async {
-    final value = await _storage.read(key: _isLoggedInKey);
+    final value = await _read(_isLoggedInKey);
     return value == 'true';
   }
 
@@ -60,30 +104,32 @@ class SecureTokenStore implements TokenStore {
     required String accessToken,
     required String refreshToken,
   }) async {
-    await _storage.write(key: _accessKey, value: accessToken);
-    await _storage.write(key: _refreshKey, value: refreshToken);
+    await _write(_accessKey, accessToken);
+    await _write(_refreshKey, refreshToken);
     // Mirror the access token to the user-specified key
-    await _storage.write(key: _jwtTokenKey, value: accessToken);
+    await _write(_jwtTokenKey, accessToken);
   }
 
   @override
   Future<void> saveSessionId(String sessionId) =>
-      _storage.write(key: _sessionKey, value: sessionId);
+      _write(_sessionKey, sessionId);
 
   @override
   Future<void> saveBusinessId(String businessId) =>
-      _storage.write(key: _businessIdKey, value: businessId);
+      _write(_businessIdKey, businessId);
 
   @override
-  Future<void> saveUserId(String userId) =>
-      _storage.write(key: _userIdKey, value: userId);
+  Future<void> saveUserId(String userId) => _write(_userIdKey, userId);
 
   @override
   Future<void> setLoggedIn(bool value) =>
-      _storage.write(key: _isLoggedInKey, value: value.toString());
+      _write(_isLoggedInKey, value.toString());
 
   @override
   Future<void> clearAll() async {
+    // Evict FIRST: if a delete throws, memory must not keep serving a token
+    // the caller believes they just signed out of.
+    evictAll();
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
     await _storage.delete(key: _sessionKey);
@@ -103,9 +149,9 @@ class InMemoryTokenStore implements TokenStore {
     this._businessId,
     this._userId,
     this._isLoggedIn = false,
-  })  : _access = accessToken,
-        _refresh = refreshToken,
-        _session = sessionId;
+  }) : _access = accessToken,
+       _refresh = refreshToken,
+       _session = sessionId;
 
   String? _access;
   String? _refresh;

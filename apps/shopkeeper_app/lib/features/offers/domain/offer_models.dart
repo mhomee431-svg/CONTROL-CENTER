@@ -204,6 +204,8 @@ class OfferSummary {
   /// True when the offer can be deactivated (disabled) right now.
   bool get canDisable => canTransitionTo('DISABLED');
 
+  /// Human shelf words for the preview panel and offer rows, e.g.
+  /// `15% off` / `₹50 off` / `Promo ₹199`.
   /// Friendly name for the backend `offer_type` enum.
   String get offerTypeLabel {
     for (final type in ShopkeeperOfferType.values) {
@@ -324,8 +326,15 @@ class OfferValidators {
     }
     if (type.requiresFlatValue) {
       final value = double.tryParse((rawValue ?? '').trim());
-      if (value == null || value <= 0) return 'Discount amount is required';
+      if (value == null) return 'Discount amount is required';
+      // Order matters: the negative case used to be unreachable, because the
+      // `<= 0` branch above returned first and claimed a negative flat discount
+      // was merely "required". Both are refused, but they are different
+      // mistakes and the shopkeeper deserves to be told which one they made.
       if (value < 0) return 'Cannot be negative';
+      // A ₹0 flat discount saves the customer nothing, so it is treated as
+      // "not filled in" rather than accepted as a live offer.
+      if (value == 0) return 'Discount amount is required';
       return null;
     }
     if (type.requiresPromotionalPrice) {

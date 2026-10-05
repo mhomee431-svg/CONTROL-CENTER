@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/ui/primary_cta_bar.dart';
 import '../../domain/pos_models.dart';
 import '../controllers/pos_controller.dart';
 import '../widgets/pos_shared.dart';
@@ -69,25 +70,24 @@ class _PosSyncScreenState extends ConsumerState<PosSyncScreen> {
           },
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FilledButton.icon(
-            key: const Key('pos-sync-start'),
-            onPressed: integration == null || flow.phase == PosSyncPhase.starting
-                ? null
-                : _start,
-            icon: flow.phase == PosSyncPhase.starting
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.sync),
-            label: Text(appText(context).commonStartSync),
-          ),
-        ),
-      ),
+      // BOTTOM LAYER: the one primary action, pinned where every screen keeps
+      // it. `PrimaryCtaBar` owns the disabled-while-starting rule too.
+      //
+      // The bar is omitted entirely when there is no connector. The contract
+      // says "Primary CTA *where necessary*" — and in that state the body
+      // already renders a filled "Go to connection setup". Keeping the bar
+      // would put a SECOND filled button on screen with a primary that cannot
+      // ever fire (there is nothing to sync), i.e. exactly the competing-CTA
+      // shape: two primaries, one of them a lie.
+      bottomNavigationBar: integration == null
+          ? null
+          : PrimaryCtaBar(
+              primaryKey: const Key('pos-sync-start'),
+              primaryLabel: appText(context).commonStartSync,
+              primaryIcon: Icons.sync,
+              onPrimary: _start,
+              loading: flow.phase == PosSyncPhase.starting,
+            ),
     );
   }
 }
@@ -142,9 +142,10 @@ class _SyncForm extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(appText(context).commonWhatShouldBePulled, style: Theme.of(context)
-              .textTheme
-              .titleSmall),
+          Text(
+            appText(context).commonWhatShouldBePulled,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: 4),
           Card(
             margin: EdgeInsets.zero,

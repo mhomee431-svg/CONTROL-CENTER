@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/l10n/app_text.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/validation/field_rules.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -40,6 +42,13 @@ class _UpdateStockScreenState extends ConsumerState<UpdateStockScreen> {
   String _adjustmentType = 'CORRECTION';
   bool _saving = false;
   String? _error;
+
+  /// Live validation for the quantity field, shown as soon as the shopkeeper
+  /// types rather than after a failed save.
+  ///
+  /// Null until the field is touched, so an untouched form does not open with
+  /// a red box telling someone what they have not typed yet.
+  String? _deltaError;
 
   /// Success payload from the last save (drives the confirmation panel).
   StockAdjustmentResult? _result;
@@ -98,18 +107,34 @@ class _UpdateStockScreenState extends ConsumerState<UpdateStockScreen> {
     });
   }
 
+  /// Re-run the same rule the server will run, on every keystroke.
+  ///
+  /// The message is the shared one so the app and the backend cannot word the
+  /// same mistake differently — the shopkeeper reads one sentence whether the
+  /// answer arrives here or from the server.
+  void _onDeltaChanged(String value) {
+    setState(() => _deltaError = stockDelta(value));
+  }
+
   void _submit() {
-    final delta = int.tryParse(_deltaController.text.trim());
-    if (delta == null || delta == 0) {
-      setState(() => _error = 'Enter a non-zero quantity change.');
+    final message = stockDelta(_deltaController.text);
+    if (message != null) {
+      // Already visible inline once the field has been touched; this also
+      // covers submitting an untouched empty form.
+      setState(() {
+        _deltaError = message;
+        _error = message;
+      });
       return;
     }
-    _applyDelta(delta);
+    _applyDelta(int.parse(_deltaController.text.trim()));
   }
 
   void _bump(int delta) {
     final current = int.tryParse(_deltaController.text.trim()) ?? 0;
     _deltaController.text = '${current + delta}';
+    // A chip press is a deliberate change: validate it like a keystroke.
+    _onDeltaChanged(_deltaController.text);
   }
 
   @override
@@ -165,6 +190,8 @@ class _UpdateStockScreenState extends ConsumerState<UpdateStockScreen> {
             adjustmentType: _adjustmentType,
             saving: _saving,
             error: _error,
+            deltaError: _deltaError,
+            onDeltaChanged: _onDeltaChanged,
             onTypeChanged: (v) =>
                 setState(() => _adjustmentType = v ?? 'CORRECTION'),
             onBump: _saving ? null : _bump,
@@ -219,7 +246,7 @@ class _ResultPanel extends StatelessWidget {
       margin: EdgeInsets.zero,
       color: AppTheme.verifiedGreen.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.mdBorder,
         side: BorderSide(color: AppTheme.verifiedGreen.withValues(alpha: 0.4)),
       ),
       child: Padding(
@@ -229,9 +256,36 @@ class _ResultPanel extends StatelessWidget {
             const Icon(Icons.check_circle, color: AppTheme.verifiedGreen),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                appText(context).updateStockScreenStockUpdatedPreviousQuantityNewQuantityUnits(result.previousQuantity, result.newQuantity, StockStateView.of(result.stockStatus).label),
-                style: const TextStyle(fontSize: 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    appText(context).updateStockScreenStockUpdatedPreviousQuantityNewQuantityUnits(result.previousQuantity, result.newQuantity, StockStateView.of(result.stockStatus).label),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  // Spec: "Show: Last Updated, Source, Freshness." Reuses the
+                  // shared inventory helpers so this panel cannot drift from the
+                  // list and sync-status screens that name the same three things.
+                  //
+                  // Omitted entirely when the server sent none of the three: an
+                  // older payload should stay quiet rather than print three
+                  // "Unknown"s under a success tick.
+                  if (result.source != null ||
+                      result.freshnessStatus != null ||
+                      result.lastInventoryUpdate != null)
+                    Text(
+                      [
+                        inventorySourceLabel(result.source),
+                        freshnessLabel(result.freshnessStatus),
+                        lastUpdatedLabel(result.lastInventoryUpdate),
+                      ].join('  ·  '),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -251,6 +305,8 @@ class _Form extends StatelessWidget {
     required this.onTypeChanged,
     required this.onBump,
     required this.onSubmit,
+    this.deltaError,
+    this.onDeltaChanged,
   });
 
   final TextEditingController deltaController;
@@ -261,6 +317,10 @@ class _Form extends StatelessWidget {
   final ValueChanged<String?> onTypeChanged;
   final ValueChanged<int>? onBump;
   final VoidCallback onSubmit;
+
+  /// Live message for the quantity field (null until the field is touched).
+  final String? deltaError;
+  final ValueChanged<String>? onDeltaChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -284,8 +344,13 @@ class _Form extends StatelessWidget {
               inputFormatters: NumericInput.signedWhole(),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => FocusScope.of(context).unfocus(),
+              // Immediate feedback: the rule runs per keystroke, so a
+              // fractional or zero change is refused before Save is pressed.
+
+              onChanged: onDeltaChanged,
               decoration: InputDecoration(
                 hintText: appText(context).updateStockScreenEG24ToAdd,
+                errorText: deltaError,
               ),
             ),
             const SizedBox(height: 8),

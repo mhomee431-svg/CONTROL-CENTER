@@ -527,10 +527,14 @@ class AuthController extends Notifier<AuthState> {
       debugPrint('  ├─ Display Name: ${firebaseUser.displayName}');
       debugPrint('  ├─ Email: ${firebaseUser.email}');
       debugPrint('  ├─ Photo URL: ${firebaseUser.photoURL}');
+      // LENGTH ONLY — never a fragment of the live credential. `debugPrint`
+      // still runs in a RELEASE build (it is not an assert-gated call), so any
+      // token substring lands in the device log / crash report. The rest of the
+      // auth chain already follows this rule (`firebase_auth_service.dart`,
+      // `auth_repository.firebaseLogin`); this line was the lone outlier.
       debugPrint(
-        '  ├─ ID Token (first 30 chars): ${result.idToken.length > 30 ? result.idToken.substring(0, 30) : result.idToken}...',
+        '  ├─ ID Token: present (${result.idToken.length} chars)',
       );
-      debugPrint('  └─ ID Token length: ${result.idToken.length} chars');
 
       // ── STEP 2: Backend API Call ───────────────────────────────────
       debugPrint('STEP 2: Sending ID token to backend /firebase-login...');

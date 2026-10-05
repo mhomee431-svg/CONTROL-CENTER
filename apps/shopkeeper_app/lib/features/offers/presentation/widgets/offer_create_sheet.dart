@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/l10n/app_text.dart';
+import '../../../../core/utils/datetime_utils.dart';
 import '../../../products/domain/product_models.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../products/presentation/controllers/products_controller.dart';
@@ -66,6 +67,30 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
     setState(() => isStart ? _start = picked : _end = picked);
   }
 
+  /// The exact offer this form is about to create.
+  ///
+  /// Built once and shown to the shopkeeper BEFORE it is sent: "Create offer"
+  /// on a form with a percentage, a window and fifteen selected products is a
+  /// lot to send on faith. The review step is what makes the tap reviewable.
+  OfferAssignRequest get reviewDraft => OfferAssignRequest(
+        title: _title.text.trim(),
+        offerType: _type,
+        discountPercentage: _type.requiresPercentage
+            ? double.tryParse(_percentage.text.trim())
+            : null,
+        discountValue: _type.requiresFlatValue
+            ? double.tryParse(_flatValue.text.trim())
+            : null,
+        promotionalPrice: _type.requiresPromotionalPrice
+            ? double.tryParse(_promoPrice.text.trim())
+            : null,
+        startDate: _start!,
+        endDate: _end!,
+        status: _saveAsDraft ? 'DRAFT' : null,
+        shopProductIds: _selectedIds.toList(growable: false),
+        termsConditions: _terms.text.trim(),
+      );
+
   Future<void> _submit() async {
     if (_saving) return; // double-submit guard
     if (!_formKey.currentState!.validate()) return;
@@ -84,28 +109,26 @@ class _OfferCreateSheetState extends ConsumerState<OfferCreateSheet> {
       return;
     }
 
+    // Review before sending. Cancelling the review leaves the form exactly as it
+    // was - nothing is cleared and nothing leaves the device - so a shopkeeper
+    // who misreads the summary can go back and fix it.
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => OfferReviewSheet(
+        request: reviewDraft,
+        productNames: {
+          for (final item in ref.read(productsControllerProvider).items)
+            item.id: item.name,
+        },
+        activatesImmediately: !_saveAsDraft,
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     final ok = await ref
         .read(offersControllerProvider.notifier)
-        .assign(
-          OfferAssignRequest(
-            title: _title.text.trim(),
-            offerType: _type,
-            discountPercentage: _type.requiresPercentage
-                ? double.tryParse(_percentage.text.trim())
-                : null,
-            discountValue: _type.requiresFlatValue
-                ? double.tryParse(_flatValue.text.trim())
-                : null,
-            promotionalPrice: _type.requiresPromotionalPrice
-                ? double.tryParse(_promoPrice.text.trim())
-                : null,
-            startDate: _start!,
-            endDate: _end!,
-            status: _saveAsDraft ? 'DRAFT' : null,
-            shopProductIds: _selectedIds.toList(growable: false),
-            termsConditions: _terms.text.trim(),
-          ),
-        );
+        .assign(reviewDraft);
     if (!mounted) return;
     if (ok) {
       Navigator.pop(context);
@@ -389,6 +412,149 @@ class _ProductCheckTile extends StatelessWidget {
         style: const TextStyle(fontSize: 12),
       ),
       onChanged: (_) => onToggle(item.id),
+    );
+  }
+}
+
+
+/// The review step of creating an offer: Preview -> Confirm.
+///
+/// Creating an offer is a one-way, many-field action — a percentage, a date
+/// window and a list of products, all sent in one tap. The shopkeeper has no
+/// second chance to notice the wrong column, so this shows the draft in plain
+/// words BEFORE anything is sent, and Cancel returns to the form with the draft
+/// untouched.
+///
+/// It sends nothing itself. The create sheet re-sends the SAME [request] it
+/// previewed, so what was reviewed and what is created cannot differ.
+class OfferReviewSheet extends StatelessWidget {
+  const OfferReviewSheet({
+    required this.request,
+    required this.productNames,
+    required this.activatesImmediately,
+    super.key,
+  });
+
+  final OfferAssignRequest request;
+
+  /// Shop-product id -> name, so the summary speaks the shopkeeper's language
+  /// instead of showing a list of ids.
+  final Map<int, String> productNames;
+
+  /// False for a draft, which is stored but never shown to customers.
+  final bool activatesImmediately;
+
+  /// The one sentence that says what will happen to CUSTOMERS, which is the
+  /// question a shopkeeper actually has when saving an offer.
+  String get _visibilityLine => activatesImmediately
+      ? 'Goes live for customers now'
+      : 'Saved as draft — customers will not see it';
+
+  /// What the offer does, in one line.
+  String get _valueLine {
+    switch (request.offerType) {
+      case ShopkeeperOfferType.percentageDiscount:
+        final pct = request.discountPercentage;
+        return pct == null ? request.offerType.label : '${_oneDecimal(pct)}% off';
+      case ShopkeeperOfferType.flatDiscount:
+        final v = request.discountValue;
+        return v == null ? request.offerType.label : '?${_money(v)} off';
+      case ShopkeeperOfferType.promotionalPrice:
+        final v = request.promotionalPrice;
+        return v == null ? request.offerType.label : 'Price ?${_money(v)}';
+      case ShopkeeperOfferType.buyXGetY:
+      case ShopkeeperOfferType.bundle:
+      case ShopkeeperOfferType.freeShipping:
+        return request.offerType.label;
+    }
+  }
+
+  /// One decimal place, ALWAYS.
+  ///
+  /// "10% off" and "10.0% off" are the same offer, but a preview whose shape
+  /// changes with the typed value ("10% off" then "12.5% off") reads like two
+  /// different things and makes the shopkeeper re-check the number.
+  static String _oneDecimal(double v) => v.toStringAsFixed(1);
+
+  static String _money(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  String get _windowLine =>
+      '${DateTimeUtils.formatShortDate(request.startDate)} — '
+      '${DateTimeUtils.formatShortDate(request.endDate)}';
+
+  String get _productsLine {
+    final names = request.shopProductIds
+        .map((id) => productNames[id])
+        .whereType<String>()
+        .toList(growable: false);
+    if (names.isEmpty) return '';
+    if (names.length == 1) return 'Applies to: ${names.first}';
+    return 'Applies to: ${names.length} products';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Review offer',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              request.title,
+              key: const Key('offer-review-title'),
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(_valueLine, style: theme.textTheme.bodyMedium),
+            Text(_windowLine, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            Text(
+              _visibilityLine,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (_productsLine.isNotEmpty)
+              Text(_productsLine, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const Key('offer-review-cancel'),
+                    // false, not null: the caller checks `== true`, so a plain
+                    // "not confirmed" is unambiguous.
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(appText(context).commonEdit),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    key: const Key('offer-review-confirm'),
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(
+                      activatesImmediately
+                          ? appText(context).commonCreateOffer2
+                          : appText(context).commonSaveAsDraft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

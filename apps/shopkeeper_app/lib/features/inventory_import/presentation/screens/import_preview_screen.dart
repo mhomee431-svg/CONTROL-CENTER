@@ -22,6 +22,19 @@ class ImportPreviewScreen extends ConsumerStatefulWidget {
 
 class _ImportPreviewScreenState extends ConsumerState<ImportPreviewScreen> {
   bool _errorsOnly = false;
+  bool _mappingOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The Column Mapping step renders the backend's import schema — field
+    // names, accepted header spellings, and the rules each field is checked
+    // against. Fetching it HERE (not at upload) keeps it as the vocabulary the
+    // preview is judged against, and loadSchema() is a no-op once it is held.
+    Future.microtask(
+      () => ref.read(importControllerProvider.notifier).loadSchema(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +52,10 @@ class _ImportPreviewScreenState extends ConsumerState<ImportPreviewScreen> {
             )
           : _PreviewBody(
               preview: preview,
+              schema: state.schema,
+              mappingOpen: _mappingOpen,
+              onToggleMapping: (v) => setState(() => _mappingOpen = v),
+              onEditMapping: () => context.push(Routes.importColumnMapping),
               errorsOnly: _errorsOnly,
               onToggleErrorsOnly: (v) => setState(() => _errorsOnly = v),
               onConfirm: () => context.push(Routes.importProcessing),
@@ -114,9 +131,20 @@ class _PreviewBody extends StatelessWidget {
     required this.onToggleErrorsOnly,
     required this.onConfirm,
     required this.onDiscard,
+    this.schema,
+    this.mappingOpen = false,
+    this.onToggleMapping,
+    this.onEditMapping,
   });
 
   final ImportPreview preview;
+
+  /// Backend import schema, when it loaded — null renders the mapping panel
+  /// from the upload's `column_mapping` alone (fewer rules, never wrong ones).
+  final ImportSchema? schema;
+  final bool mappingOpen;
+  final ValueChanged<bool>? onToggleMapping;
+  final VoidCallback? onEditMapping;
   final bool errorsOnly;
   final ValueChanged<bool> onToggleErrorsOnly;
   final VoidCallback onConfirm;
@@ -130,7 +158,13 @@ class _PreviewBody extends StatelessWidget {
         ? rows.where((r) => r.isError).toList(growable: false)
         : rows;
 
-    return Column(
+    // The Column below shares its height between the summary bar, the
+    // mapping panel, the row list and the action bar. The panel is a
+    // FIXED-height child (the row list is the Expanded one), so it must be
+    // told how much room is left: measuring against the SCREEN instead of
+    // this box overflows on short devices and on a 600dp test surface alike.
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
       children: [
         // ── Summary bar ─────────────────────────────────────────────────────
         Container(
@@ -172,10 +206,69 @@ class _PreviewBody extends StatelessWidget {
                         ? AppTheme.rejectedRed
                         : AppTheme.verifiedGreen,
                   ),
+                  // §41 lists Duplicate Rows as its own count, separate from
+                  // errors. Shown only when the payload carried row detail, so a
+                  // summarised large import never displays a "0 duplicates"
+                  // the app cannot actually vouch for.
+                  if (preview.duplicateCount > 0)
+                    _SummaryChip(
+                      key: const Key('import-chip-duplicates'),
+                      label: 'Duplicates',
+                      value: preview.duplicateCount,
+                      color: AppTheme.pendingAmber,
+                    ),
                 ],
               ),
+              // The backend deduplicates identical uploads, so this preview can
+              // belong to an EARLIER job rather than the file just picked.
+              // Saying so is the difference between reviewing your own file and
+              // reviewing a ghost of it (§40: never push an unreviewed file).
+              if (preview.isIdempotentReplay)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Container(
+                    key: const Key('import-replay-notice'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.pendingAmber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.pendingAmber.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline,
+                            size: 18, color: AppTheme.pendingAmber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This exact file was already uploaded, so these '
+                            'are the rows from that earlier import. Pick a '
+                            'changed file to import different rows.',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
+        ),
+        const SizedBox(height: 8),
+        _ColumnMappingPanel(
+          preview: preview,
+          schema: schema,
+          open: mappingOpen,
+          onToggle: onToggleMapping ?? (_) {},
+          // Under a third of the body: the summary and the action bar take a
+          // fixed ~250dp together, and the panel scrolls rather than pushing
+          // the row list off-screen.
+          maxContentHeight: constraints.maxHeight * 0.3,
+          onEdit: onEditMapping,
         ),
         const SizedBox(height: 8),
         Expanded(
@@ -206,6 +299,7 @@ class _PreviewBody extends StatelessWidget {
           onDiscard: onDiscard,
         ),
       ],
+      ),
     );
   }
 }
@@ -230,7 +324,16 @@ class _RowTile extends StatelessWidget {
       ),
       subtitle: row.isError
           ? Text(
-              appText(context).importPreviewScreenValueValue2(row.errorCode ?? 'ERROR', row.errorMessage ?? 'Invalid row'),
+              // §42 wants Row / Field / Error. The backend sends `error_field`
+              // ("barcode", "price", "row", …) and it used to be dropped, so the
+              // shopkeeper saw a bare code with nothing pointing at the cell.
+              [
+                if (row.errorField != null && row.errorField!.isNotEmpty)
+                  row.errorField!,
+                row.errorCode ?? 'ERROR',
+                if (row.errorMessage != null && row.errorMessage!.isNotEmpty)
+                  row.errorMessage!,
+              ].join(' · '),
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.error,
@@ -301,6 +404,274 @@ class _PreviewActions extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// Column Mapping — how the uploaded header row was read.
+///
+/// This is the spec's "Column Mapping" step rendered as an inspectable panel
+/// rather than a wizard: the mapping has already been decided by the server the
+/// moment the file was parsed, so a screen that let the shopkeeper "change" it
+/// would be theatre — the staged rows would not follow. What is useful is the
+/// truth: which column supplied each field, which header spellings are
+/// accepted, and what each field is required to satisfy.
+///
+/// Everything except the position comes from `GET ?/inventory-imports/schema`,
+/// so a rule change on the backend changes this panel with no app release.
+class _ColumnMappingPanel extends StatelessWidget {
+  const _ColumnMappingPanel({
+    required this.preview,
+    required this.schema,
+    required this.open,
+    required this.onToggle,
+    required this.maxContentHeight,
+    this.onEdit,
+  });
+
+  /// Opens the Column Mapping screen for correction.
+  final VoidCallback? onEdit;
+
+  final ImportPreview preview;
+  final ImportSchema? schema;
+  final bool open;
+  final ValueChanged<bool> onToggle;
+
+  /// Height cap for the EXPANDED content (the tile header is extra). Scrolling
+  /// within this cap is what keeps a ten-field mapping from overflowing.
+  final double maxContentHeight;
+
+  /// Pseudo-fields for the columns the upload mapped, in column order — used
+  /// when the schema could not be fetched. Carries no rules, because the only
+  /// honest source of those is the backend.
+  static List<ImportSchemaField> _mappedOnly(Map<String, int> mapping) {
+    final names = mapping.keys.toList()
+      ..sort((a, b) {
+        final ia = mapping[a] ?? -1, ib = mapping[b] ?? -1;
+        return ia == ib ? a.compareTo(b) : ia.compareTo(ib);
+      });
+    return [
+      for (final n in names)
+        ImportSchemaField(
+          name: n,
+          label: n
+              .split('_')
+              .where((w) => w.isNotEmpty)
+              .map((w) => w[0].toUpperCase() + w.substring(1))
+              .join(' '),
+          rules: const [],
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mapping = preview.columnMapping;
+    if (mapping.isEmpty) return const SizedBox.shrink();
+
+    final fields = schema?.fields ?? const <ImportSchemaField>[];
+    final theme = Theme.of(context);
+    // With no schema loaded there is no field vocabulary to enumerate, so the
+    // panel lists ONLY what this upload actually mapped (ordered by position).
+    // Synthesising the full field list here would mean writing the rules down a
+    // second time in the client — the drift this step exists to avoid.
+    final shown = fields.isNotEmpty ? fields : _mappedOnly(mapping);
+    final mapped = shown.where((f) => f.mappedIn(mapping)).length;
+    final total = shown.length;
+
+    // A Material (not a decorated Container) is the tile's own surface: an
+    // ExpansionTile paints its ink on the nearest Material ancestor, so
+    // decorating a Container instead leaves the tap highlight invisible.
+    final ambiguous = preview.ambiguousColumns.length;
+
+    return Material(
+      color: theme.colorScheme.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: theme.dividerColor),
+      ),
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: const Key('import-column-mapping'),
+          initiallyExpanded: open,
+          onExpansionChanged: onToggle,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          title: Row(
+            children: [
+              Text(
+                'Column Mapping',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$mapped of $total',
+                key: const Key('import-mapping-count'),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
+              if (ambiguous > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '$ambiguous to confirm',
+                  key: const Key('import-mapping-ambiguous'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppTheme.pendingAmber,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          children: [
+            // Ten fields with their aliases and rules are taller than the
+            // preview's row list, so the expanded panel scrolls inside a
+            // bounded box instead of pushing the row list off the screen.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxContentHeight),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (schema == null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'Column rules could not be loaded, so only the '
+                          'columns read from this file are shown.',
+                          key: const Key('import-mapping-noschema'),
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: theme.colorScheme.outline),
+                        ),
+                      ),
+                    ...shown.map((f) => _MappingTile(field: f, mapping: mapping)),
+                    if (schema != null &&
+                        schema!.requiredAnyOf.isNotEmpty &&
+                        schema!.requiredAnyOf
+                            .every((n) => !mapping.containsKey(n)))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Needs at least one of: '
+                          '${schema!.requiredAnyOf.join(", ")}',
+                          key: const Key('import-mapping-required'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppTheme.rejectedRed,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    // Inspecting the mapping is only half the step; the other
+                    // half is being able to change it. Without this the panel
+                    // would show a contested column with no way to resolve it
+                    // except re-editing the spreadsheet and re-uploading.
+                    if (onEdit != null)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          key: const Key('import-mapping-edit'),
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.tune, size: 18),
+                          label: const Text('Change column mapping'),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One field of the mapping: label, the column it was read from (or nothing),
+/// the accepted header spellings, and the server's rules for it.
+class _MappingTile extends StatelessWidget {
+  const _MappingTile({required this.field, required this.mapping});
+
+  final ImportSchemaField field;
+  final Map<String, int> mapping;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final column = field.columnLabel(mapping);
+    final rules = field.rules;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  field.label,
+                  key: Key('import-mapping-label-${field.name}'),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Container(
+                key: Key('import-mapping-column-${field.name}'),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (column == null
+                          ? AppTheme.rejectedRed
+                          : AppTheme.verifiedGreen)
+                      .withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  column ?? 'Not in this file',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: column == null
+                        ? AppTheme.rejectedRed
+                        : AppTheme.verifiedGreen,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (field.aliases.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Also accepts: ${field.aliases.join(", ")}',
+                key: Key('import-mapping-aliases-${field.name}'),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
+            ),
+          if (rules.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: rules
+                    .map(
+                      (r) => Text(
+                        r,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ),
+        ],
       ),
     );
   }

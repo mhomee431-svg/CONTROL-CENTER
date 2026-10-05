@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../auth/domain/auth_models.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
+import '../../domain/profile_scope.dart';
 import '../../domain/shop_models.dart';
 import '../controllers/shops_controller.dart';
 import '../widgets/verification_badge.dart';
@@ -35,6 +37,12 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(shopsControllerProvider);
     final selected = ref.watch(selectedShopProvider);
+    // Single-profile MVP: the primary shop is auto-selected after login, so
+    // there is nothing left to CHOOSE. The list-and-select picker therefore
+    // renders only when the future multi-business switch is on — the same
+    // chokepoint `account_screen.dart` and the 403 states read (see
+    // profile_scope.dart).
+    final multiShop = ref.watch(multiShopEnabledProvider);
     return Scaffold(
       appBar: AppBar(title: Text(appText(context).commonMyBusiness2)),
       body: SafeArea(
@@ -61,19 +69,41 @@ class _ShopsScreenState extends ConsumerState<ShopsScreen> {
                           ),
                         ),
                       ])
-                    : ListView.separated(
+                    : ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(16),
-                        itemCount: state.shops.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final shop = state.shops[index];
-                          return _ShopTile(
-                            shop: shop,
-                            selected: selected?.id == shop.id,
-                            onTap: () => _select(shop),
-                          );
-                        },
+                        children: [
+                          if (!multiShop)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                'Current business',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline,
+                                    ),
+                              ),
+                            ),
+                          for (var i = 0; i < state.shops.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 8),
+                            _ShopTile(
+                              shop: state.shops[i],
+                              // In the MVP there is no selection to make, so the
+                              // tile is read-only: tapping it would only ever
+                              // re-select the shop already selected.
+                              selected: multiShop
+                                  ? selected?.id == state.shops[i].id
+                                  : false,
+                              onTap: multiShop
+                                  ? () => _select(state.shops[i])
+                                  : null,
+                            ),
+                          ],
+                        ],
                       ),
               ),
       ),
@@ -94,7 +124,7 @@ class _ShopTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.mdBorder,
         side: BorderSide(
           color: selected ? scheme.primary : scheme.outlineVariant,
           width: selected ? 2 : 1,
@@ -148,7 +178,7 @@ class _ShopTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: AppRadius.xsBorder,
         ),
         child: Text(label,
             style: TextStyle(

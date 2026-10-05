@@ -1,4 +1,4 @@
-﻿"""Phase 22+ — Shopkeeper App authentication routes (/shopkeeper/auth/*).
+"""Phase 22+ — Shopkeeper App authentication routes (/shopkeeper/auth/*).
 
 Separate from the customer /auth/* routes so the two apps never share
 business flows:
@@ -32,7 +32,9 @@ from app.core.rate_limit import auth_rate_limit
 from app.core.responses import error_response, success_response
 from app.core.security import hash_password, verify_password
 from app.database.session import get_db
-from app.models.role import Role  # noqa: F401 - registers the `roles` table on Base.metadata
+from app.models.role import (  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    Role,  # registers the `roles` table on Base.metadata (import-for-side-effect)
+)
 from app.models.shop import (
     LocationIntegrityStatus,
     LocationSource,
@@ -81,7 +83,10 @@ router = APIRouter(prefix="/shopkeeper/auth", tags=["shopkeeper-auth"])
 security = HTTPBearer(auto_error=False)
 
 
-def _normalize_phone(raw: str) -> str:
+def _normalize_phone(raw: str) -> str:  # pyright: ignore[reportUnusedFunction]
+    # Deliberately unhooked. The client normalises to `+91…` before sending, so
+    # this never changes a real request; it stays as the server-side boundary
+    # helper for when the OTP flow is switched back on.
     phone = raw.strip()
     return phone if phone.startswith("+") else f"+{phone}"
 
@@ -179,10 +184,18 @@ async def verify_phone(
         )
 
     try:
-        firebase_uid, phone = verify_firebase_id_token_claims(token)
+        # `verify_firebase_id_token_claims` returns the full claims DICT.
+        # Unpacking it into two names yielded the dict's KEYS, and raised
+        # `ValueError: too many values to unpack` — which is NOT a
+        # FirebaseVerificationError and so escaped as an opaque 500 on every
+        # call to this endpoint. Read the two fields instead.
+        verified = verify_firebase_id_token_claims(token)
     except FirebaseVerificationError as exc:
         record_auth_result("shopkeeper_verify_phone", False, "token_invalid")
         return error_response(exc.message, exc.error_code, exc.status_code)
+
+    firebase_uid = verified["uid"]
+    phone = verified["phone"]
 
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
     if user is None and phone:
@@ -242,7 +255,9 @@ async def register(
     # Retained for the Firebase block documented above: it is the caller IP the
     # disabled OTP flow would have recorded. Kept so re-enabling the block stays
     # a pure uncomment, with no line to re-derive.
-    client_ip = request.client.host if request.client else None  # noqa: F841
+    client_ip = (  # pyright: ignore[reportUnusedVariable]
+        request.client.host if request.client else None
+    )  # noqa: F841
 
     phone = (payload.phone_number or "").strip()
     name = (payload.name or "").strip()
@@ -459,7 +474,10 @@ async def verify_otp_login(
     the phone number and look up the user.
     """
     try:
-        phone = verify_firebase_id_token_claims(payload.firebase_id_token)
+        # Same shape bug as /verify-phone: this assigns the whole claims DICT to
+        # `phone`, so the `User.phone_number == phone` lookup below compared a
+        # string column against a dict and could never match. Read the field.
+        verified = verify_firebase_id_token_claims(payload.firebase_id_token)
     except FirebaseVerificationError as exc:
         record_auth_result("shopkeeper_login", False, "firebase_verification_failed")
         return error_response(
@@ -467,6 +485,8 @@ async def verify_otp_login(
             error_code=exc.error_code,
             status_code=exc.status_code,
         )
+
+    phone = verified["phone"]
 
     user = db.query(User).filter(User.phone_number == phone).first()
     if user is None:
@@ -752,9 +772,16 @@ async def profile_create(
         latitude=None,
         longitude=None,
         location=None,
-        location_status=LocationStatus.PENDING.value,
-        location_source=LocationSource.UNKNOWN.value,
-        location_type=LocationType.UNKNOWN.value,
+        # These enum members DO NOT EXIST: LocationStatus has no PENDING, and
+        # neither LocationSource nor LocationType has UNKNOWN. Referencing them
+        # raised AttributeError and returned 500 from this endpoint — which
+        # every first-time shopkeeper must pass through. The values below are
+        # the ones the Shop model itself declares as these columns' defaults,
+        # and they read honestly for a shop created with no coordinates:
+        # `location_verified=False` says the location is not confirmed yet.
+        location_status=LocationStatus.CAPTURED.value,
+        location_source=LocationSource.GPS.value,
+        location_type=LocationType.SHOP_ENTRANCE.value,
         location_integrity_status=LocationIntegrityStatus.UNKNOWN.value,
         location_verified=False,
         is_open_24x7=False,

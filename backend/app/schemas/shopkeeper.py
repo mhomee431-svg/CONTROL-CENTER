@@ -6,27 +6,98 @@ import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.models.merchant_category import (
+    BUSINESS_TYPES,
+    MerchantCategoryCode,
+    is_known_business_type,
+)
+
 
 # ── Auth ─────────────────────────────────────────────────────────────────
 class ShopkeeperSendOTPRequest(BaseModel):
     phone_number: str = Field(..., min_length=10, max_length=20)
 
 
+def _check_business_type(value: str | None) -> str | None:
+    """Reject a business type outside the platform's five.
+
+    A plain function shared by create and update, so both obey one rule — two
+    copies of a five-item vocabulary is how they drift, which is exactly what
+    happened in the app (one list said `Retail + Wholesale`, another
+    `Retail & Wholesale`).
+
+    An empty value stays valid: the type is optional.
+    """
+    if value is None:
+        return None
+    text = value.strip()
+    if text == "":
+        return None
+    if not is_known_business_type(text):
+        raise ValueError(
+            "business_type must be one of: " + ", ".join(BUSINESS_TYPES)
+        )
+    return text
+
+
 class ShopkeeperProfileCreateRequest(BaseModel):
     """First-time profile creation payload (no location required).
 
     Sent by the Flutter profile-creation screen after the shopkeeper's first
-    Google sign-in. Creates the sole business shop and updates the user's
-    profile fields.
+    sign-in. Creates the sole business shop and updates the user's profile
+    fields.
+
+    ``category`` and ``business_type`` are REQUIRED here even though the app has
+    always collected them. The entire capability model hangs off the category:
+    ``resolve_capabilities`` returns None for a missing one, so every capability
+    and product-attributes route would answer 404 for that shop forever. The
+    Flutter form already refuses to submit without both, so this only closes the
+    gap for a client that is not the Flutter form — it makes the server's minimum
+    match the one the spec describes instead of trusting every caller to.
     """
 
     shop_name: str = Field(..., min_length=1, max_length=255)
     name: str | None = Field(None, max_length=100, description="Override display name")
     email: str | None = Field(None, max_length=255, description="Override email")
     phone: str | None = Field(None, max_length=20, description="Contact number")
-    category: str | None = Field(None, max_length=50, description="Merchant category code")
-    business_type: str | None = Field(None, max_length=50, description="Retail | Wholesale | Retail + Wholesale | Service | Other")
+    category: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Merchant category code — required; the capability model keys off it",
+    )
+    business_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Retail | Wholesale | Retail + Wholesale | Service | Other",
+    )
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v):
+        """Reject a code the registry does not define, rather than store it.
+
+        A category outside the registry makes every capability lookup return
+        None, so the shop would exist and be unmanageable. Failing at creation
+        says which code is wrong, while a 404 much later says nothing.
+        """
+        code = str(v or "").strip().upper()
+        if code not in set(MerchantCategoryCode):
+            raise ValueError(
+                "category must be one of: "
+                + ", ".join(sorted(c.value for c in MerchantCategoryCode))
+            )
+        return code
+
+    @field_validator("business_type")
+    @classmethod
+    def validate_business_type(cls, v):
+        return _check_business_type(v)
+
     description: str | None = Field(None, max_length=2000)
+
+
 class ShopkeeperRegisterRequest(BaseModel):
     """First-time shopkeeper registration.
 
@@ -240,7 +311,16 @@ class ShopkeeperShopCreate(BaseModel):
     description: str | None = None
     tagline: str | None = Field(None, max_length=255)
     category: str | None = Field(None, max_length=50)
-    business_type: str | None = Field(None, max_length=50, description="Retail | Wholesale | Retail + Wholesale | Service | Other")
+    business_type: str | None = Field(
+        None,
+        max_length=50,
+        description="Retail | Wholesale | Retail + Wholesale | Service | Other",
+    )
+    @field_validator("business_type")
+    @classmethod
+    def validate_business_type(cls, v):
+        return _check_business_type(v)
+
     phone: str | None = Field(None, max_length=20)
     whatsapp_number: str | None = Field(None, max_length=20)
     email: str | None = Field(None, max_length=255)
@@ -330,6 +410,17 @@ class ShopkeeperProductCreate(BaseModel):
         description="Optional explicit identifier type (EAN/UPC/GTIN/JAN/ITF/CUSTOM); "
         "inferred from the barcode length when omitted",
     )
+    # Category attributes — the fields GET /categories/{code}/product-attributes
+    # advertises for this shop's category (part number, material, size, ISBN …).
+    #
+    # They arrive as a map because the backend owns which keys exist; the client
+    # never declares them. Values the schema cannot store are rejected rather
+    # than dropped, so a refused key is visible instead of silently discarded.
+    attributes: dict[str, str] | None = Field(
+        None,
+        description="Category-specific attributes keyed by the backend's own "
+        "attribute keys",
+    )
 
 
 class ShopkeeperProductUpdate(BaseModel):
@@ -347,6 +438,14 @@ class ShopkeeperProductUpdate(BaseModel):
     # from "leave the photo alone". An explicit boolean keeps those two intents
     # separate. Supplying both is a client bug and is rejected in the route.
     remove_image: bool = False
+    # Category attributes, same contract as on create. Absent means "leave them
+    # alone" — an update is a partial edit, so a client that sends only a price
+    # must not clear the part number it stored earlier.
+    attributes: dict[str, str] | None = Field(
+        None,
+        description="Category-specific attributes keyed by the backend's own "
+        "attribute keys; only the supplied keys are written",
+    )
 
 
 class ShopkeeperLowStockThresholdUpdate(BaseModel):

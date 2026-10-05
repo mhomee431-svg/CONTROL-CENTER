@@ -239,5 +239,60 @@ void main() {
       expect(find.byKey(const Key('holiday-delete-1')), findsNothing);
       expect(find.text('04 Mar 2027'), findsOneWidget);
     });
+
+    // §74: removing a holiday is a destructive action, so it confirms and
+    // explains the impact. The icon used to DELETE on the first tap.
+    testWidgets('removing a holiday asks first and names the impact',
+        (tester) async {
+      final repo = FakeHolidayRepository(holidays: [
+        holidayFixture(id: 1, date: DateTime(2027, 3, 4), reason: 'Holi'),
+      ]);
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('holiday-delete-1')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remove this holiday?'), findsOneWidget);
+      // The impact is about what CUSTOMERS see, not just internal state.
+      expect(find.textContaining('04 Mar 2027'), findsWidgets);
+      expect(find.textContaining('shown as open'), findsOneWidget);
+      // Asking is not doing.
+      expect(repo.removedIds, isEmpty);
+    });
+
+    testWidgets('cancelling the removal deletes nothing', (tester) async {
+      final repo = FakeHolidayRepository(holidays: [
+        holidayFixture(id: 1, date: DateTime(2027, 3, 4)),
+      ]);
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('holiday-delete-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(repo.removedIds, isEmpty);
+      expect(find.text('Remove this holiday?'), findsNothing);
+      // The holiday is still on screen, still deletable.
+      expect(find.byKey(const Key('holiday-delete-1')), findsOneWidget);
+      expect(find.text('04 Mar 2027'), findsOneWidget);
+    });
+
+    testWidgets('confirming the removal reaches the backend', (tester) async {
+      final repo = FakeHolidayRepository(holidays: [
+        holidayFixture(id: 1, date: DateTime(2027, 3, 4)),
+      ]);
+      await tester.pumpWidget(wrap(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('holiday-delete-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm_remove_holiday')));
+      await tester.pumpAndSettle();
+
+      expect(repo.removedIds, [1]);
+    });
   });
 }

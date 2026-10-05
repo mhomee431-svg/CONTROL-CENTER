@@ -42,6 +42,46 @@ class _OfferDetailsSheetState extends ConsumerState<OfferDetailsSheet> {
     return scheme.outline;
   }
 
+  /// Asks before disabling, then applies it (spec §74 "remove offer" —
+  /// destructive actions must confirm and "explain impact clearly").
+  ///
+  /// Only DISABLING is confirmed. Activating restores a hidden offer and is
+  /// never destructive, so re-prompting on it would only train the shopkeeper
+  /// to tap through the confirmation that matters. Cancelling must not write
+  /// anything at all, which is why the dialog resolves first and the request
+  /// only goes out on a confirmed `true`.
+  Future<void> _confirmDisable() async {
+    if (_working) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Disable this offer?'),
+        // The offer is named in the sentence: this sheet scrolls, and the
+        // dialog is the one thing guaranteed to be read before a live discount
+        // is pulled from under a customer.
+        content: Text(
+          '"${offer.title}" will stop being shown to customers straight away. '
+          'The ${offer.productCount == 1 ? 'linked product stays' : 'linked products stay'} '
+          'in your shop and the offer itself is not deleted — you can re-activate '
+          'it any time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('confirm_disable_offer'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Disable'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _changeStatus('DISABLED', 'Offer disabled');
+  }
+
   /// Applies one lifecycle move, then closes the sheet.
   ///
   /// [OffersListController.setStatus] reloads the list on success, so the tab
@@ -161,7 +201,7 @@ class _OfferDetailsSheetState extends ConsumerState<OfferDetailsSheet> {
               offer: offer,
               working: _working,
               onActivate: () => _changeStatus('ACTIVE', 'Offer activated'),
-              onDisable: () => _changeStatus('DISABLED', 'Offer disabled'),
+              onDisable: _confirmDisable,
             ),
           ],
         ),

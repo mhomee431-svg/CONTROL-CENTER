@@ -1,9 +1,13 @@
 import 'dart:async';
+// `Tristate` is the three-valued answer a semantics flag can now carry
+// (true / false / not reported). It lives in dart:ui, which material.dart
+// does not re-export, so this import is the one the assertions need.
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
-// `SemanticsFlag` lives in `dart:ui` and is not re-exported by material.dart,
-// so the enabled/disabled assertion below needs this explicitly.
-import 'package:flutter/semantics.dart';
+// The enabled/disabled assertions read `flagsCollection.isEnabled`, which
+// material.dart already re-exports, so no extra semantics import is
+// needed for them.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hyperlocal_app/core/widgets/action_button.dart';
@@ -130,16 +134,16 @@ void main() {
       );
 
       expect(
-        tester.getSemantics(theButton()).hasFlag(SemanticsFlag.isEnabled),
-        isTrue,
+        tester.getSemantics(theButton()).flagsCollection.isEnabled,
+        Tristate.isTrue,
       );
 
       await tester.tap(find.byType(ActionButton));
       await tester.pump();
 
       expect(
-        tester.getSemantics(theButton()).hasFlag(SemanticsFlag.isEnabled),
-        isFalse,
+        tester.getSemantics(theButton()).flagsCollection.isEnabled,
+        Tristate.isFalse,
         reason: 'a screen-reader user must be told the control is now busy',
       );
 

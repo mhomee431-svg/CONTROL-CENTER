@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../domain/shop_models.dart';
@@ -34,7 +35,7 @@ class ShopModuleBody extends ConsumerWidget {
       // One shared renderer for every failure: the state's icon/action plus the
       // controller's own message when the server explained itself.
       ShopProfileStatus.error => SystemStateView(
-          spec: SystemStateSpec.resolve(
+          spec: SystemStateSpec.resolve(
             text: appText(context),
             title: appText(context).commonCouldNotLoadThisShop,
             message: state.message,
@@ -157,7 +158,7 @@ class ShopStatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppRadius.circle,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(

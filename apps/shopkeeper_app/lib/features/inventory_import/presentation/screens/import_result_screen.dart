@@ -108,7 +108,7 @@ class _ImportResultScreenState extends ConsumerState<ImportResultScreen> {
               // happened even when this one job cannot be opened.
               final error = snapshot.error;
               return SystemStateView(
-                spec: SystemStateSpec.resolve(
+                spec: SystemStateSpec.resolve(
                   text: appText(context),
                   state: error is ApiException ? error.systemState : null,
                   title: appText(context).importResultScreenCouldNotOpenThisImport,

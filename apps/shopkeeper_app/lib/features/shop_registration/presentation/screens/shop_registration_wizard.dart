@@ -8,6 +8,8 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/ui/numeric_input.dart';
+import '../../../auth/domain/auth_methods.dart';
+import '../../../auth/domain/auth_models.dart';
 import '../../controllers/shop_registration_controller.dart';
 import '../../data/document_picker_service.dart';
 import '../../domain/shop_registration_state.dart';
@@ -43,8 +45,17 @@ class _ShopRegistrationWizardState
   void initState() {
     super.initState();
     for (final c in [
-      _name, _gstin, _udyam, _address, _city, _state, _pincode, _landmark,
-      _description, _website, _social,
+      _name,
+      _gstin,
+      _udyam,
+      _address,
+      _city,
+      _state,
+      _pincode,
+      _landmark,
+      _description,
+      _website,
+      _social,
     ]) {
       c.addListener(_onFieldChanged);
     }
@@ -68,8 +79,17 @@ class _ShopRegistrationWizardState
   @override
   void dispose() {
     for (final c in [
-      _name, _gstin, _udyam, _address, _city, _state, _pincode, _landmark,
-      _description, _website, _social,
+      _name,
+      _gstin,
+      _udyam,
+      _address,
+      _city,
+      _state,
+      _pincode,
+      _landmark,
+      _description,
+      _website,
+      _social,
     ]) {
       c.dispose();
     }
@@ -90,62 +110,69 @@ class _ShopRegistrationWizardState
           switchOutCurve: Curves.easeIn,
           child: switch (state.step) {
             RegistrationStep.welcome => _WelcomeStep(
-                key: const ValueKey('welcome'),
-                onGetStarted: () => ref
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .startBusinessInfo(),
-              ),
+              key: const ValueKey('welcome'),
+              onGetStarted: () => ref
+                  .read(shopRegistrationControllerProvider.notifier)
+                  .startBusinessInfo(),
+            ),
             RegistrationStep.businessInfo => _BusinessInfoStep(
-                key: const ValueKey('business'),
-                state: state,
-                name: _name,
-                gstin: _gstin,
-                udyam: _udyam,
-                onBack: _back,
-                onNext: _nextFromBusinessInfo,
-              ),
+              key: const ValueKey('business'),
+              state: state,
+              name: _name,
+              gstin: _gstin,
+              udyam: _udyam,
+              onBack: _back,
+              onNext: _nextFromBusinessInfo,
+            ),
             RegistrationStep.location => _LocationStep(
-                key: const ValueKey('location'),
-                state: state,
-                address: _address,
-                city: _city,
-                stateName: _state,
-                pincode: _pincode,
-                landmark: _landmark,
-                onBack: _back,
-                onNext: _nextFromLocation,
-              ),
+              key: const ValueKey('location'),
+              state: state,
+              address: _address,
+              city: _city,
+              stateName: _state,
+              pincode: _pincode,
+              landmark: _landmark,
+              onBack: _back,
+              onNext: _nextFromLocation,
+            ),
             RegistrationStep.documents => _DocumentsStep(
-                key: const ValueKey('documents'),
-                state: state,
-                description: _description,
-                website: _website,
-                social: _social,
-                onBack: _back,
-                onNext: _nextFromDocuments,
-              ),
+              key: const ValueKey('documents'),
+              state: state,
+              description: _description,
+              website: _website,
+              social: _social,
+              onBack: _back,
+              onNext: _nextFromDocuments,
+            ),
             RegistrationStep.review => _ReviewStep(
-                key: const ValueKey('review'),
-                state: state,
-                onBack: _back,
-                onEditBusiness: () => ref
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .editBusinessInfo(),
-                onEditLocation: () => ref
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .editLocation(),
-                onEditDocuments: () => ref
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .editDocuments(),
-                onSubmit: _submit,
-                onDismissError: () => ref
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .clearSubmitError(),
-              ),
+              key: const ValueKey('review'),
+              state: state,
+              onBack: _back,
+              onEditBusiness: () => ref
+                  .read(shopRegistrationControllerProvider.notifier)
+                  .editBusinessInfo(),
+              onEditLocation: () => ref
+                  .read(shopRegistrationControllerProvider.notifier)
+                  .editLocation(),
+              onEditDocuments: () => ref
+                  .read(shopRegistrationControllerProvider.notifier)
+                  .editDocuments(),
+              onSubmit: _submit,
+              onDismissError: () => ref
+                  .read(shopRegistrationControllerProvider.notifier)
+                  .clearSubmitError(),
+            ),
             RegistrationStep.success => _SuccessStep(
-                key: const ValueKey('success'),
-                state: state,
+              key: const ValueKey('success'),
+              state: state,
+              // OTP is FUTURE scope — the SAME `kEnabledAuthMethods`
+              // chokepoint the Welcome / Sign-in screens consult. While the
+              // method is disabled the success timeline must not advertise a
+              // phone-OTP verification, so that row is simply not built.
+              showPhoneOtpStep: ref.watch(
+                isAuthMethodEnabledProvider(AuthMethod.phoneOtp),
               ),
+            ),
           },
         ),
       ),
@@ -169,8 +196,7 @@ class _ShopRegistrationWizardState
     if (c.text != value) c.text = value;
   }
 
-  void _back() =>
-      ref.read(shopRegistrationControllerProvider.notifier).back();
+  void _back() => ref.read(shopRegistrationControllerProvider.notifier).back();
 
   void _nextFromBusinessInfo() {
     final error = ref
@@ -194,9 +220,8 @@ class _ShopRegistrationWizardState
     }
   }
 
-  void _nextFromDocuments() => ref
-      .read(shopRegistrationControllerProvider.notifier)
-      .nextFromDocuments();
+  void _nextFromDocuments() =>
+      ref.read(shopRegistrationControllerProvider.notifier).nextFromDocuments();
 
   Future<void> _submit() async {
     await ref.read(shopRegistrationControllerProvider.notifier).submit();
@@ -242,19 +267,22 @@ class _WelcomeStep extends StatelessWidget {
         _BenefitCard(
           icon: Icons.visibility_outlined,
           title: appText(context).commonMoreVisibility,
-          body: appText(context).shopRegistrationWizardDiscoverabilityByNearbyCustomers,
+          body: appText(context)
+              .shopRegistrationWizardDiscoverabilityByNearbyCustomers,
         ),
         const SizedBox(height: 12),
         _BenefitCard(
           icon: Icons.dashboard_outlined,
           title: appText(context).commonEasyManagement,
-          body: appText(context).shopRegistrationWizardHandleProductsOrdersInventoryAnd,
+          body: appText(context)
+              .shopRegistrationWizardHandleProductsOrdersInventoryAnd,
         ),
         const SizedBox(height: 12),
         _BenefitCard(
           icon: Icons.verified_user_outlined,
           title: appText(context).commonSecureTrusted,
-          body: appText(context).shopRegistrationWizardVerifiedBusinessesCreateASafer,
+          body: appText(context)
+              .shopRegistrationWizardVerifiedBusinessesCreateASafer,
         ),
         const SizedBox(height: 32),
         PrimaryButton(
@@ -303,22 +331,21 @@ class _HeroIllustration extends StatelessWidget {
           alignment: Alignment.center,
           children: [
             Icon(Icons.storefront, size: 64, color: scheme.primary),
-          Positioned(
-            top: 18,
-            right: 40,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                shape: BoxShape.circle,
-                boxShadow: const [
-                  BoxShadow(color: AppShadows.inkAmbient, blurRadius: 6),
-                ],
+            Positioned(
+              top: 18,
+              right: 40,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: const [
+                    BoxShadow(color: AppShadows.inkAmbient, blurRadius: 6),
+                  ],
+                ),
+                child: Icon(Icons.location_on, size: 22, color: scheme.primary),
               ),
-              child:
-                  Icon(Icons.location_on, size: 22, color: scheme.primary),
             ),
-          ),
           ],
         ),
       ),
@@ -355,8 +382,9 @@ class _BenefitCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: scheme.primary.withValues(alpha: 0.1),
-              borderRadius:
-                  BorderRadius.circular(RegistrationSpacing.fieldRadius),
+              borderRadius: BorderRadius.circular(
+                RegistrationSpacing.fieldRadius,
+              ),
             ),
             child: Icon(icon, size: 22, color: scheme.primary),
           ),
@@ -365,17 +393,23 @@ class _BenefitCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: RegistrationColors.textPrimary)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                    color: RegistrationColors.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(body,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.4,
-                        color: RegistrationColors.textSecondary)),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: RegistrationColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -423,14 +457,16 @@ class _BusinessInfoStep extends StatelessWidget {
             children: [
               RegisterStepHeader(
                 title: appText(context).commonRegisterYourShop,
-                subtitle: appText(context).shopRegistrationWizardTellUsAboutYourShop,
+                subtitle: appText(context)
+                    .shopRegistrationWizardTellUsAboutYourShop,
                 onBack: onBack,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               FormFieldCard(
                 controller: name,
                 label: appText(context).commonShopBusinessName2,
-                placeholder: appText(context).shopRegistrationWizardEGSharmaMedicalStore,
+                placeholder: appText(context)
+                    .shopRegistrationWizardEGSharmaMedicalStore,
                 icon: Icons.store_outlined,
                 textCapitalization: TextCapitalization.words,
                 validator: ShopRegistrationValidators.shopName,
@@ -451,7 +487,8 @@ class _BusinessInfoStep extends StatelessWidget {
               const SizedBox(height: RegistrationSpacing.fieldGap),
               FormFieldCard(
                 controller: udyam,
-                label: appText(context).shopRegistrationWizardUdyamMSMENumberOptional,
+                label: appText(context)
+                    .shopRegistrationWizardUdyamMSMENumberOptional,
                 placeholder: appText(context).commonEnterUdyamNumber,
                 icon: Icons.badge_outlined,
                 textCapitalization: TextCapitalization.characters,
@@ -479,15 +516,18 @@ class _CategoryField extends StatelessWidget {
   final String? error;
 
   Future<void> _openPicker(BuildContext context) async {
-    final controller = ProviderScope.containerOf(context, listen: false)
-        .read(shopRegistrationControllerProvider.notifier);
+    final controller = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(shopRegistrationControllerProvider.notifier);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-            top: Radius.circular(RegistrationSpacing.cardRadius)),
+          top: Radius.circular(RegistrationSpacing.cardRadius),
+        ),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
@@ -498,9 +538,10 @@ class _CategoryField extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.all(16),
-              child: Text(appText(context).commonSelectBusinessCategory,
-                  style: TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w800)),
+              child: Text(
+                appText(context).commonSelectBusinessCategory,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
             ),
             const Divider(height: 1),
             if (state.categoriesLoading)
@@ -526,15 +567,22 @@ class _CategoryField extends StatelessWidget {
                             ? Theme.of(ctx).colorScheme.primary
                             : RegistrationColors.textSecondary,
                       ),
-                      title: Text(option.name,
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600)),
+                      title: Text(
+                        option.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       subtitle: option.description == null
                           ? null
-                          : Text(option.description!,
+                          : Text(
+                              option.description!,
                               style: const TextStyle(
-                                  fontSize: 12.5,
-                                  color: RegistrationColors.textSecondary)),
+                                fontSize: 12.5,
+                                color: RegistrationColors.textSecondary,
+                              ),
+                            ),
                       onTap: () {
                         controller.pickCategory(option);
                         Navigator.of(ctx).pop();
@@ -561,26 +609,33 @@ class _CategoryField extends StatelessWidget {
           button: true,
           child: InkWell(
             onTap: state.categoriesLoading ? null : () => _openPicker(context),
-            borderRadius:
-                BorderRadius.circular(RegistrationSpacing.fieldRadius),
+            borderRadius: BorderRadius.circular(
+              RegistrationSpacing.fieldRadius,
+            ),
             child: Container(
               width: double.infinity,
               constraints: const BoxConstraints(
-                  minHeight: RegistrationSpacing.fieldHeight),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                minHeight: RegistrationSpacing.fieldHeight,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: AppColors.white,
-                borderRadius:
-                    BorderRadius.circular(RegistrationSpacing.fieldRadius),
+                borderRadius: BorderRadius.circular(
+                  RegistrationSpacing.fieldRadius,
+                ),
                 border: Border.all(
-                  color: error != null ? scheme.error : RegistrationColors.border,
+                  color: error != null
+                      ? scheme.error
+                      : RegistrationColors.border,
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.category_outlined,
-                      size: 20, color: RegistrationColors.textSecondary),
+                  const Icon(
+                    Icons.category_outlined,
+                    size: 20,
+                    color: RegistrationColors.textSecondary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -600,8 +655,11 @@ class _CategoryField extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   else
-                    const Icon(Icons.expand_more,
-                        size: 22, color: RegistrationColors.textSecondary),
+                    const Icon(
+                      Icons.expand_more,
+                      size: 22,
+                      color: RegistrationColors.textSecondary,
+                    ),
                 ],
               ),
             ),
@@ -634,25 +692,23 @@ class _BusinessTypeField extends StatelessWidget {
         filled: true,
         fillColor: AppColors.white,
         contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: RegistrationSpacing.fieldGap),
+          horizontal: 16,
+          vertical: RegistrationSpacing.fieldGap,
+        ),
         border: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(RegistrationSpacing.fieldRadius),
+          borderRadius: BorderRadius.circular(RegistrationSpacing.fieldRadius),
           borderSide: const BorderSide(color: RegistrationColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(RegistrationSpacing.fieldRadius),
+          borderRadius: BorderRadius.circular(RegistrationSpacing.fieldRadius),
           borderSide: const BorderSide(color: RegistrationColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(RegistrationSpacing.fieldRadius),
+          borderRadius: BorderRadius.circular(RegistrationSpacing.fieldRadius),
           borderSide: BorderSide(color: scheme.primary, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(RegistrationSpacing.fieldRadius),
+          borderRadius: BorderRadius.circular(RegistrationSpacing.fieldRadius),
           borderSide: BorderSide(color: scheme.error, width: 1.2),
         ),
       ),
@@ -660,9 +716,10 @@ class _BusinessTypeField extends StatelessWidget {
         for (final type in kBusinessTypes)
           DropdownMenuItem(value: type, child: Text(type)),
       ],
-      onChanged: (v) => ProviderScope.containerOf(context, listen: false)
-          .read(shopRegistrationControllerProvider.notifier)
-          .setBusinessType(v),
+      onChanged: (v) => ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(shopRegistrationControllerProvider.notifier).setBusinessType(v),
       validator: (v) => error,
     );
   }
@@ -695,12 +752,11 @@ class _LocationStep extends StatelessWidget {
   /// Whether the blue "my location" layer may be drawn: it needs the location
   /// grant, which manual mode exists precisely because it is missing.
   bool get _showsDeviceLocationLayer => switch (state.locationStatus) {
-        RegistrationLocationStatus.locating ||
-        RegistrationLocationStatus.adjustingAccuracy =>
-          true,
-        RegistrationLocationStatus.ready => !state.locationManual,
-        _ => false,
-      };
+    RegistrationLocationStatus.locating ||
+    RegistrationLocationStatus.adjustingAccuracy => true,
+    RegistrationLocationStatus.ready => !state.locationManual,
+    _ => false,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -713,16 +769,17 @@ class _LocationStep extends StatelessWidget {
             children: [
               RegisterStepHeader(
                 title: appText(context).commonShopLocation,
-                subtitle:
-                    appText(context).shopRegistrationWizardAddYourShopLocationFor,
+                subtitle: appText(context)
+                    .shopRegistrationWizardAddYourShopLocationFor,
                 onBack: onBack,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               SizedBox(
                 height: 180,
                 child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(RegistrationSpacing.cardRadius),
+                  borderRadius: BorderRadius.circular(
+                    RegistrationSpacing.cardRadius,
+                  ),
                   child: Stack(
                     children: [
                       GoogleMap(
@@ -739,17 +796,22 @@ class _LocationStep extends StatelessWidget {
                                   draggable: true,
                                   onDragEnd: (position) =>
                                       ProviderScope.containerOf(
-                                              context, listen: false)
+                                            context,
+                                            listen: false,
+                                          )
                                           .read(
-                                              shopRegistrationControllerProvider
-                                                  .notifier)
+                                            shopRegistrationControllerProvider
+                                                .notifier,
+                                          )
                                           .movePin(position),
                                 ),
                               },
-                        onTap: (latLng) => ProviderScope.containerOf(
-                                context, listen: false)
-                            .read(shopRegistrationControllerProvider.notifier)
-                            .movePin(latLng),
+                        onTap: (latLng) =>
+                            ProviderScope.containerOf(context, listen: false)
+                                .read(
+                                  shopRegistrationControllerProvider.notifier,
+                                )
+                                .movePin(latLng),
                         // The blue-dot layer needs the location grant: on for a
                         // GPS-backed pin, off in manual mode (where the
                         // permission is exactly what is missing).
@@ -761,20 +823,23 @@ class _LocationStep extends StatelessWidget {
                         top: 10,
                         left: 10,
                         child: RegistrationAccuracyChip(
-                            accuracyMeters:
-                                (state.pinAdjusted || state.locationManual)
-                                    ? null
-                                    : state.accuracyMeters),
+                          accuracyMeters:
+                              (state.pinAdjusted || state.locationManual)
+                              ? null
+                              : state.accuracyMeters,
+                        ),
                       ),
                       Positioned(
                         bottom: 12,
                         right: 12,
                         child: FloatingActionButton.small(
                           heroTag: 'gps',
-                          onPressed: () => ProviderScope.containerOf(
-                                  context, listen: false)
-                              .read(shopRegistrationControllerProvider.notifier)
-                              .acquireLocation(),
+                          onPressed: () =>
+                              ProviderScope.containerOf(context, listen: false)
+                                  .read(
+                                    shopRegistrationControllerProvider.notifier,
+                                  )
+                                  .acquireLocation(),
                           child: const Icon(Icons.my_location),
                         ),
                       ),
@@ -795,19 +860,20 @@ class _LocationStep extends StatelessWidget {
               const SizedBox(height: 12),
               ShopLocationDetails(
                 state: state,
-                onAdjust: (position) => ProviderScope.containerOf(
-                        context, listen: false)
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .movePin(position),
-                onConfirmDrift: () => ProviderScope.containerOf(
-                        context, listen: false)
-                    .read(shopRegistrationControllerProvider.notifier)
-                    .confirmPinDrift(),
+                onAdjust: (position) =>
+                    ProviderScope.containerOf(context, listen: false)
+                        .read(shopRegistrationControllerProvider.notifier)
+                        .movePin(position),
+                onConfirmDrift: () =>
+                    ProviderScope.containerOf(context, listen: false)
+                        .read(shopRegistrationControllerProvider.notifier)
+                        .confirmPinDrift(),
               ),
               const SizedBox(height: 12),
               _LocationActions(
-                  locationStatus: state.locationStatus,
-                  controllerState: state),
+                locationStatus: state.locationStatus,
+                controllerState: state,
+              ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
               FormFieldCard(
                 controller: address,
@@ -882,6 +948,7 @@ class _LocationStep extends StatelessWidget {
     );
   }
 }
+
 class _LocationActions extends StatelessWidget {
   const _LocationActions({
     required this.locationStatus,
@@ -893,8 +960,10 @@ class _LocationActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notifier = ProviderScope.containerOf(context, listen: false)
-        .read(shopRegistrationControllerProvider.notifier);
+    final notifier = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(shopRegistrationControllerProvider.notifier);
     if (locationStatus == RegistrationLocationStatus.requestingPermission ||
         locationStatus == RegistrationLocationStatus.locating ||
         locationStatus == RegistrationLocationStatus.adjustingAccuracy) {
@@ -904,9 +973,10 @@ class _LocationActions extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2)),
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
             SizedBox(width: 10),
             Text(appText(context).shopRegistrationWizardGettingLocation),
           ],
@@ -922,9 +992,9 @@ class _LocationActions extends StatelessWidget {
         icon: Icons.lock_outline,
         message: blocked
             ? 'Location permission is blocked for this app. Allow it in your '
-                'phone settings, or place your shop pin on the map below.'
+                  'phone settings, or place your shop pin on the map below.'
             : 'Permission denied. Allow location access, then retry, or select '
-                'your shop location on the map below.',
+                  'your shop location on the map below.',
         // A blocked permission cannot be asked again — the system settings are
         // the only way back, so the primary action changes with the state.
         retryLabel: blocked ? 'Open System Settings' : 'Allow Location',
@@ -937,9 +1007,13 @@ class _LocationActions extends StatelessWidget {
             label: 'Choose Location on Map',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
-              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    appText(context).shopRegistrationWizardTapTheMapToPlace,
+                  ),
+                ),
+              );
             },
           ),
           RegistrationErrorAction(
@@ -947,11 +1021,14 @@ class _LocationActions extends StatelessWidget {
             label: 'Enter Address Manually',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(
-                  appText(context).shopRegistrationWizardTypeYourAddressBelowThen,
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    appText(context)
+                        .shopRegistrationWizardTypeYourAddressBelowThen,
+                  ),
                 ),
-              ));
+              );
             },
           ),
         ],
@@ -961,8 +1038,7 @@ class _LocationActions extends StatelessWidget {
       return RegistrationErrorCard(
         key: const Key('registration_location_services_card'),
         icon: Icons.location_off_outlined,
-        message:
-            'Location services are turned off. Please enable GPS and try again.',
+        message: 'Location services are turned off. Please enable GPS and try again.',
         // The permission is fine — only the device switch can be turned on.
         retryLabel: 'Turn On GPS',
         onRetry: () => notifier.openDeviceLocationSettings(),
@@ -972,9 +1048,13 @@ class _LocationActions extends StatelessWidget {
             label: 'Choose Location on Map',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
-              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    appText(context).shopRegistrationWizardTapTheMapToPlace,
+                  ),
+                ),
+              );
             },
           ),
           RegistrationErrorAction(
@@ -982,11 +1062,14 @@ class _LocationActions extends StatelessWidget {
             label: 'Enter Address Manually',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(
-                  appText(context).shopRegistrationWizardTypeYourAddressBelowThen,
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    appText(context)
+                        .shopRegistrationWizardTypeYourAddressBelowThen,
+                  ),
                 ),
-              ));
+              );
             },
           ),
         ],
@@ -1004,9 +1087,13 @@ class _LocationActions extends StatelessWidget {
             label: 'Choose Location on Map',
             onPressed: () {
               notifier.useManualLocation();
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
-              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    appText(context).shopRegistrationWizardTapTheMapToPlace,
+                  ),
+                ),
+              );
             },
           ),
         ],
@@ -1025,9 +1112,13 @@ class _LocationActions extends StatelessWidget {
           if (controllerState.pin == null) {
             // Manual mode: GPS is unavailable by choice, so never re-run the
             // permission flow behind the shopkeeper's back.
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(appText(context).shopRegistrationWizardTapTheMapToPlace),
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  appText(context).shopRegistrationWizardTapTheMapToPlace,
+                ),
+              ),
+            );
             return;
           }
           await notifier.confirmPinAndReverseGeocode();
@@ -1078,10 +1169,14 @@ class _DocumentsStep extends StatefulWidget {
 
 class _DocumentsStepState extends State<_DocumentsStep> {
   Future<PickedFile?> _pick(PickSource source, DocumentSlot slot) {
-    final picker = ProviderScope.containerOf(context, listen: false)
-        .read(documentPickerProvider);
+    final picker = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(documentPickerProvider);
     return picker.pick(
-        source: source, mediaCategory: slot.requirement.mediaCategory);
+      source: source,
+      mediaCategory: slot.requirement.mediaCategory,
+    );
   }
 
   @override
@@ -1096,8 +1191,11 @@ class _DocumentsStepState extends State<_DocumentsStep> {
             padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
             children: [
               RegisterStepHeader(
-                title: appText(context).shopRegistrationWizardDocumentsAndAdditionalInfo,
-                subtitle: appText(context).shopRegistrationWizardUploadRequiredDocumentsForVerification,
+                title: appText(context)
+                    .shopRegistrationWizardDocumentsAndAdditionalInfo,
+                subtitle: appText(
+                  context,
+                ).shopRegistrationWizardUploadRequiredDocumentsForVerification,
                 onBack: widget.onBack,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
@@ -1123,15 +1221,18 @@ class _DocumentsStepState extends State<_DocumentsStep> {
                   DocumentUploadCard(
                     key: ValueKey(slot.requirement.key),
                     slot: slot,
-                    onPick: (source) => ProviderScope.containerOf(
-                            context, listen: false)
-                        .read(shopRegistrationControllerProvider.notifier)
-                        .pickDocument(
-                            slot.requirement.key, source, (s) => _pick(s, slot)),
-                    onRemove: () => ProviderScope.containerOf(
-                            context, listen: false)
-                        .read(shopRegistrationControllerProvider.notifier)
-                        .removeDocument(slot.requirement.key),
+                    onPick: (source) =>
+                        ProviderScope.containerOf(context, listen: false)
+                            .read(shopRegistrationControllerProvider.notifier)
+                            .pickDocument(
+                              slot.requirement.key,
+                              source,
+                              (s) => _pick(s, slot),
+                            ),
+                    onRemove: () =>
+                        ProviderScope.containerOf(context, listen: false)
+                            .read(shopRegistrationControllerProvider.notifier)
+                            .removeDocument(slot.requirement.key),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -1142,7 +1243,8 @@ class _DocumentsStepState extends State<_DocumentsStep> {
               FormFieldCard(
                 controller: widget.description,
                 label: appText(context).commonBusinessDescription,
-                placeholder: appText(context).shopRegistrationWizardTellCustomersAboutYourShop,
+                placeholder: appText(context)
+                    .shopRegistrationWizardTellCustomersAboutYourShop,
                 icon: Icons.description_outlined,
                 textCapitalization: TextCapitalization.sentences,
               ),
@@ -1151,22 +1253,24 @@ class _DocumentsStepState extends State<_DocumentsStep> {
                 children: [
                   Expanded(
                     child: _TimeField(
-                        label: appText(context).commonOpeningTime,
-                        initial: state.openTime,
-                        onPicked: (v) => ProviderScope.containerOf(
-                                context, listen: false)
-                            .read(shopRegistrationControllerProvider.notifier)
-                            .setOpenTime(v)),
+                      label: appText(context).commonOpeningTime,
+                      initial: state.openTime,
+                      onPicked: (v) =>
+                          ProviderScope.containerOf(context, listen: false)
+                              .read(shopRegistrationControllerProvider.notifier)
+                              .setOpenTime(v),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _TimeField(
-                        label: appText(context).commonClosingTime,
-                        initial: state.closeTime,
-                        onPicked: (v) => ProviderScope.containerOf(
-                                context, listen: false)
-                            .read(shopRegistrationControllerProvider.notifier)
-                            .setCloseTime(v)),
+                      label: appText(context).commonClosingTime,
+                      initial: state.closeTime,
+                      onPicked: (v) =>
+                          ProviderScope.containerOf(context, listen: false)
+                              .read(shopRegistrationControllerProvider.notifier)
+                              .setCloseTime(v),
+                    ),
                   ),
                 ],
               ),
@@ -1181,7 +1285,8 @@ class _DocumentsStepState extends State<_DocumentsStep> {
               FormFieldCard(
                 controller: widget.social,
                 label: appText(context).commonSocialMediaOptional,
-                placeholder: appText(context).shopRegistrationWizardInstagramFacebookLink,
+                placeholder: appText(context)
+                    .shopRegistrationWizardInstagramFacebookLink,
                 icon: Icons.alternate_email,
               ),
               const SizedBox(height: RegistrationSpacing.sectionGap),
@@ -1246,35 +1351,48 @@ class _TimeField extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius:
-                BorderRadius.circular(RegistrationSpacing.fieldRadius),
+            borderRadius: BorderRadius.circular(
+              RegistrationSpacing.fieldRadius,
+            ),
             border: Border.all(color: RegistrationColors.border),
           ),
           child: Row(
             children: [
-              const Icon(Icons.schedule,
-                  size: 20, color: RegistrationColors.textSecondary),
+              const Icon(
+                Icons.schedule,
+                size: 20,
+                color: RegistrationColors.textSecondary,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: RegistrationColors.textSecondary)),
-                    Text(initial,
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: scheme.primary)),
+                    Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: RegistrationColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      initial,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.primary,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.expand_more,
-                  size: 20, color: RegistrationColors.textSecondary),
+              const Icon(
+                Icons.expand_more,
+                size: 20,
+                color: RegistrationColors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -1321,21 +1439,23 @@ class _ReviewStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(RegistrationSpacing.screenPadding),
       children: [
-        Row(children: [
-          IconButton(
-            // Accessible name for the icon-only back control.
-            tooltip: appText(context).commonBack5,
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back),
-          ),
-          Expanded(
-            child: Text(appText(context).commonReviewYourDetails,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800)),
-          ),
-        ]),
+        Row(
+          children: [
+            IconButton(
+              // Accessible name for the icon-only back control.
+              tooltip: appText(context).commonBack5,
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Expanded(
+              child: Text(
+                appText(context).commonReviewYourDetails,
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: RegistrationSpacing.sectionGap),
         _ReviewSection(
           title: appText(context).commonBusinessInformation,
@@ -1363,7 +1483,7 @@ class _ReviewStep extends StatelessWidget {
               pin == null
                   ? 'Not placed — required'
                   : 'Lat ${pin.latitude.toStringAsFixed(5)}, '
-                      'Lng ${pin.longitude.toStringAsFixed(5)}'
+                        'Lng ${pin.longitude.toStringAsFixed(5)}',
             ),
           ],
         ),
@@ -1373,8 +1493,10 @@ class _ReviewStep extends StatelessWidget {
           onEdit: onEditDocuments,
           rows: [
             ('Description', orDash(state.description)),
-            ('Open hours',
-                '${orDash(state.openTime)} – ${orDash(state.closeTime)}'),
+            (
+              'Open hours',
+              '${orDash(state.openTime)} – ${orDash(state.closeTime)}',
+            ),
             ('Website', orDash(state.website)),
             ('Social media', orDash(state.socialMedia)),
           ],
@@ -1388,8 +1510,10 @@ class _ReviewStep extends StatelessWidget {
             margin: EdgeInsets.zero,
             child: ListTile(
               leading: Icon(Icons.error_outline, color: scheme.error),
-              title: Text(state.submitError!,
-                  style: TextStyle(color: scheme.onErrorContainer)),
+              title: Text(
+                state.submitError!,
+                style: TextStyle(color: scheme.onErrorContainer),
+              ),
               trailing: IconButton(
                 // Accessible name for the icon-only dismiss control.
                 tooltip: appText(context).commonDismiss,
@@ -1445,11 +1569,11 @@ class _ReviewSection extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: onEdit,
@@ -1467,15 +1591,22 @@ class _ReviewSection extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 110,
-                    child: Text(label,
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            color: scheme.onSurfaceVariant)),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                   Expanded(
-                    child: Text(value,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1507,16 +1638,18 @@ class _ReviewDocuments extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(appText(context).commonDocuments,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  child: Text(
+                    appText(context).commonDocuments,
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: () {
-                    final container =
-                        ProviderScope.containerOf(context, listen: false);
+                    final container = ProviderScope.containerOf(
+                      context,
+                      listen: false,
+                    );
                     container
                         .read(shopRegistrationControllerProvider.notifier)
                         .editDocuments();
@@ -1534,28 +1667,34 @@ class _ReviewDocuments extends StatelessWidget {
                 slot.isUploaded
                     ? Icons.check_circle
                     : (slot.hasFile
-                        ? Icons.description
-                        : Icons.radio_button_off),
+                          ? Icons.description
+                          : Icons.radio_button_off),
                 size: 20,
-                color:
-                    slot.isUploaded ? AppColors.success : scheme.onSurfaceVariant,
+                color: slot.isUploaded
+                    ? AppColors.success
+                    : scheme.onSurfaceVariant,
               ),
-              title: Text(slot.requirement.label,
-                  style: const TextStyle(fontSize: 14)),
+              title: Text(
+                slot.requirement.label,
+                style: const TextStyle(fontSize: 14),
+              ),
               subtitle: slot.pickedName != null
-                  ? Text(slot.pickedName!,
+                  ? Text(
+                      slot.pickedName!,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12))
+                      style: const TextStyle(fontSize: 12),
+                    )
                   : null,
               trailing: Text(
                 slot.isUploaded
                     ? 'Uploaded'
                     : (slot.hasFile ? 'Selected' : 'Not provided'),
                 style: TextStyle(
-                    fontSize: 12,
-                    color: slot.isUploaded
-                        ? AppColors.success
-                        : scheme.onSurfaceVariant),
+                  fontSize: 12,
+                  color: slot.isUploaded
+                      ? AppColors.success
+                      : scheme.onSurfaceVariant,
+                ),
               ),
             ),
           const SizedBox(height: 8),
@@ -1568,9 +1707,21 @@ class _ReviewDocuments extends StatelessWidget {
 // ---- Screen 5 -- Registration Submitted / Success ----
 
 class _SuccessStep extends StatelessWidget {
-  const _SuccessStep({super.key, required this.state});
+  const _SuccessStep({
+    super.key,
+    required this.state,
+    this.showPhoneOtpStep = false,
+  });
 
   final ShopRegistrationState state;
+
+  /// Whether the "OTP Verification" timeline row is built at all.
+  ///
+  /// FALSE in the MVP: phone OTP is FUTURE scope (`kEnabledAuthMethods` holds
+  /// Google only), and the auth override forbids placing OTP in the CURRENT
+  /// visible flow. The row comes back by itself when the method is re-enabled —
+  /// there is no second switch to remember.
+  final bool showPhoneOtpStep;
 
   @override
   Widget build(BuildContext context) {
@@ -1587,8 +1738,11 @@ class _SuccessStep extends StatelessWidget {
               color: RegistrationColors.successSoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle,
-                size: 48, color: RegistrationColors.success),
+            child: const Icon(
+              Icons.check_circle,
+              size: 48,
+              color: RegistrationColors.success,
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -1614,11 +1768,12 @@ class _SuccessStep extends StatelessWidget {
         const SizedBox(height: 28),
         const SectionHeader(title: 'Verification Timeline'),
         const SizedBox(height: 12),
-        _TimelineItem(
-          icon: Icons.phone_android_outlined,
-          title: appText(context).commonOTPVerification,
-          done: requirements?.phoneOtpRequired ?? true,
-        ),
+        if (showPhoneOtpStep)
+          _TimelineItem(
+            icon: Icons.phone_android_outlined,
+            title: appText(context).commonOTPVerification,
+            done: requirements?.phoneOtpRequired ?? true,
+          ),
         _TimelineItem(
           icon: Icons.description_outlined,
           title: appText(context).commonDocumentVerification,
@@ -1641,8 +1796,9 @@ class _SuccessStep extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: RegistrationColors.successSoft,
-            borderRadius:
-                BorderRadius.circular(RegistrationSpacing.fieldRadius),
+            borderRadius: BorderRadius.circular(
+              RegistrationSpacing.fieldRadius,
+            ),
           ),
           child: Text(
             appText(context).shopRegistrationWizardYouWillGetANotification,
@@ -1701,17 +1857,18 @@ class _TimelineItem extends StatelessWidget {
                 : RegistrationColors.textSecondary,
           ),
           const SizedBox(width: 12),
-          Text(title,
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w600,
-                color: done
-                    ? RegistrationColors.textPrimary
-                    : RegistrationColors.textSecondary,
-              )),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: done
+                  ? RegistrationColors.textPrimary
+                  : RegistrationColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );
   }
 }
-

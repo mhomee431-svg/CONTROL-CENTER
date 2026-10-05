@@ -182,13 +182,53 @@ class _HolidayTile extends ConsumerWidget {
                   key: Key('holiday-delete-${holiday.id}'),
                   tooltip: appText(context).commonRemoveHoliday,
                   icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: () => ref
-                      .read(holidaysControllerProvider.notifier)
-                      .remove(holiday.id),
+                  onPressed: () =>
+                      _confirmRemoveHoliday(context, ref, holiday),
                 )
               : null),
     );
   }
+}
+
+/// Asks before removing a holiday (spec §74 — a destructive action must
+/// confirm and "explain impact clearly").
+///
+/// This is a real `DELETE`, not a toggle, and it is one tap on a dense list
+/// where a stray finger lands easily. It also changes what CUSTOMERS see: the
+/// date stops counting as a closure day and the shop is advertised as open
+/// instead, so the confirmation says exactly that. Re-adding the holiday is
+/// possible, but only if the shopkeeper notices the gap first — which is the
+/// whole reason to ask.
+Future<void> _confirmRemoveHoliday(
+  BuildContext context,
+  WidgetRef ref,
+  ShopHoliday holiday,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Remove this holiday?'),
+      // Named, because the list behind is dense and two holidays can share a
+      // label — the date is the only unambiguous identifier.
+      content: Text(
+        'Customers will stop seeing "${holiday.dateLabel}" as a closure day, '
+        'and your shop will be shown as open on that date instead.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text(appText(context).commonCancel),
+        ),
+        FilledButton(
+          key: const Key('confirm_remove_holiday'),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(appText(context).commonRemove),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  await ref.read(holidaysControllerProvider.notifier).remove(holiday.id);
 }
 
 /// Reason + recurrence capture after the date is picked.

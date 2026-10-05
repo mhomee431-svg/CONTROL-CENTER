@@ -23,9 +23,37 @@ class ShopkeeperShell extends StatelessWidget {
         initialLocation: index == navigationShell.currentIndex,
       );
 
+  /// ── BACK CONTRACT ───────────────────────────────────────────────────────
+  /// System back has three answers, and without this the middle one is undefined:
+  ///
+  ///   1. A **pushed route** (product details, an insights drill-down) pops
+  ///      normally — Flutter handles it above this widget and `PopScope` never
+  ///      fires, so the user returns exactly where they came from.
+  ///   2. A **non-first tab** returns to the first tab. Without `canPop: false`
+  ///      here, back on Products/Alerts/Account pops the whole shell and exits
+  ///      the app — the shopkeeper loses their place and, worse, loses the
+  ///      navigation context they were working in. This is the platform
+  ///      convention on both Android and iOS.
+  ///   3. The **first tab** exits the app, which is what the user expects and
+  ///      is why `canPop` stays true there.
+  ///
+  /// Placed on the shell rather than on individual screens so a new tab gets the
+  /// behaviour for free instead of re-deciding it.
+  Widget _withBackContract(Widget child) {
+    return PopScope<Object?>(
+      canPop: navigationShell.currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return; // case 3 (or a pushed route already handled it)
+        navigationShell.goBranch(0); // case 2
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
+    return _withBackContract(
+      LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         if (width >= 900) {
@@ -96,6 +124,7 @@ class ShopkeeperShell extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 }

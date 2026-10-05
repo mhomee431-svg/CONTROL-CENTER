@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io' show ProcessInfo;
-import 'dart:ui';
 
+// `PlatformDispatcher` and friends arrive through foundation's
+// re-export of dart:ui; importing dart:ui as well makes the origin of
+// each symbol ambiguous to a reader and is flagged by the analyzer.
 import 'package:flutter/foundation.dart';
 
 import '../security/safe_logger.dart';

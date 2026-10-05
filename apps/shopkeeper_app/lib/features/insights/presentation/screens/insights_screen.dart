@@ -8,6 +8,7 @@ import '../../../../core/l10n/app_text.dart';
 import '../../../../core/state/system_state.dart';
 import '../../../../core/state/system_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/ui/capability_gate.dart';
@@ -435,7 +436,7 @@ class _KpiCard extends StatelessWidget {
 
     if (drillDown == null) return card;
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: AppRadius.mdBorder,
       onTap: () => openDrillDown(context, drillDown!),
       child: card,
     );

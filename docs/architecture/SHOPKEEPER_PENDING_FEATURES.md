@@ -237,13 +237,16 @@ server's integration payload and job history.
 ## E. DELIBERATE "FUTURE APPLY" SEAMS (correctly off — just document them)
 
 ### E1 — Phone OTP
-`features/auth/domain/phone_otp.dart` (156 lines) and
-`features/auth/data/firebase_phone_otp_service.dart` (214 lines) implement the
-whole OTP flow. `auth_methods.dart` holds `kEnabledAuthMethods`
-(`googleFirebase`, `phoneOtp`, `password`) and is **wired**: the Welcome and
-Sign-in screens gate their buttons on `isAuthMethodEnabledProvider` (3 lib
-importers, 6 call sites), so removing a method from the list removes its entry
-points without deleting the flow.
+`features/auth/domain/phone_otp.dart` and
+`features/auth/data/firebase_phone_otp_service.dart` implement the whole OTP
+flow. `auth_methods.dart` holds `kEnabledAuthMethods`, which in the **MVP holds
+`googleFirebase` ONLY** — `phoneOtp` and `password` stay implemented but
+disabled, exactly as the approved visual reference requires. The switch is
+**wired**: the Welcome and Sign-in screens gate their buttons on
+`isAuthMethodEnabledProvider` (3 lib importers, 6 call sites), and the
+shop-registration success timeline gates its "OTP Verification" row on the same
+provider, so adding a method to the list adds its entry points and removing it
+removes them — without deleting the flow.
 
 > **RESOLVED (audited).** An earlier note here said the file was "orphaned" and
 > that the login screen "never consults the provider". That was true when

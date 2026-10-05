@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.core.exceptions import ForbiddenError, ValidationError
-from app.core.responses import success_response
+from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.user import User
 from app.schemas.shopkeeper import (
@@ -27,7 +27,13 @@ from app.schemas.shopkeeper import (
     ShopkeeperShopLocationUpdate,
     ShopkeeperStockAdjustment,
 )
-from app.services import media_service, shopkeeper_service
+from app.services import media_service, shopkeeper_service, restaurant_service
+from app.schemas.restaurant import (
+    RestaurantMenuCategoryCreate,
+    RestaurantMenuCategoryResponse,
+    RestaurantMenuItemCreate,
+    RestaurantMenuItemResponse,
+)
 
 router = APIRouter(prefix="/shopkeeper", tags=["shopkeeper"])
 
@@ -78,7 +84,6 @@ async def register_shop(
 ):
     """Register a new shop; the caller becomes its primary owner."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     data = payload.model_dump(exclude_none=True)
     try:
@@ -100,7 +105,6 @@ async def register_shop(
 
 
 def _validation_error(exc: ValidationError):
-    from app.core.responses import error_response
 
     return error_response(
         message=exc.message, error_code=exc.error_code, status_code=exc.status_code
@@ -175,7 +179,6 @@ async def update_shop_location(
     accuracies and the acting user.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -331,7 +334,6 @@ async def create_product(
     db: Session = Depends(get_db),
 ):
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "create")
@@ -358,7 +360,6 @@ async def update_product(
     db: Session = Depends(get_db),
 ):
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "update")
@@ -384,6 +385,184 @@ async def update_product(
     return success_response(data=product, message="Product updated")
 
 
+# ── Restaurant menu management (shopkeeper module) ────────────────────────
+# The menu API first lived only on the customer-facing /restaurants router, which
+# put it outside the namespace this app is allowed to consume — the app's own
+# contract test enforces "exclusively the isolated /shopkeeper/* module". These
+# routes are keyed on the shop id the app already holds, resolve the restaurant
+# through the shop, and delegate to the SAME service functions, so there is one
+# implementation of the ownership rules rather than two.
+def _resolve_restaurant_id(db, access):
+    """The restaurant profile for the caller's shop, or None when it has none."""
+    profile = restaurant_service.get_restaurant_by_shop(db, access.shop.id)
+    return profile["id"] if profile else None
+
+
+def _no_profile():
+    return error_response(
+        message="This shop has no restaurant profile yet",
+        error_code="RESTAURANT_NOT_FOUND",
+        status_code=404,
+    )
+
+
+def _menu_error(exc):
+    if isinstance(exc, PermissionError):
+        return error_response(message=str(exc), error_code="FORBIDDEN", status_code=403)
+    return error_response(
+        message=str(exc), error_code="MENU_REQUEST_FAILED", status_code=400
+    )
+
+
+@router.get("/shops/{shop_id}/restaurant")
+async def my_restaurant(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The restaurant profile this shop owns.
+
+    404 when the shop has no profile yet — the honest answer, so the app can say
+    "set your restaurant details first" rather than showing an empty menu.
+    """
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    access.require("shop", "read")
+    profile = restaurant_service.get_restaurant_by_shop(db, access.shop.id)
+    if profile is None:
+        return _no_profile()
+    return success_response(data=profile)
+
+
+@router.get("/shops/{shop_id}/menu")
+async def my_menu(
+    shop_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    access.require("shop", "read")
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+@router.post("/shops/{shop_id}/menu-categories", status_code=201)
+async def add_menu_category(
+    shop_id: int,
+    payload: RestaurantMenuCategoryCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        category = restaurant_service.create_menu_category(
+            db, user_id=current_user.id, restaurant_id=restaurant_id, data=payload
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    db.commit()
+    return success_response(
+        data=RestaurantMenuCategoryResponse.model_validate(category).model_dump(),
+        message="Menu category created",
+        status_code=201,
+    )
+
+
+@router.post("/shops/{shop_id}/menu-items", status_code=201)
+async def add_menu_item(
+    shop_id: int,
+    payload: RestaurantMenuItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        item = restaurant_service.create_menu_item(
+            db, user_id=current_user.id, restaurant_id=restaurant_id, data=payload
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    db.commit()
+    return success_response(
+        data=RestaurantMenuItemResponse.model_validate(item).model_dump(),
+        message="Menu item created",
+        status_code=201,
+    )
+
+
+@router.put("/shops/{shop_id}/menu-items/{item_id}")
+async def edit_menu_item(
+    shop_id: int,
+    item_id: int,
+    payload: RestaurantMenuItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        item = restaurant_service.update_menu_item(
+            db,
+            user_id=current_user.id,
+            restaurant_id=restaurant_id,
+            item_id=item_id,
+            data=payload,
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    if item is None:
+        return error_response(
+            message="Menu item not found",
+            error_code="MENU_ITEM_NOT_FOUND",
+            status_code=404,
+        )
+    db.commit()
+    return success_response(
+        data=RestaurantMenuItemResponse.model_validate(item).model_dump(),
+        message="Menu item updated",
+    )
+
+
+@router.delete("/shops/{shop_id}/menu-items/{item_id}")
+async def remove_menu_item(
+    shop_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
+    restaurant_id = _resolve_restaurant_id(db, access)
+    if restaurant_id is None:
+        return _no_profile()
+    try:
+        removed = restaurant_service.delete_menu_item(
+            db, user_id=current_user.id, restaurant_id=restaurant_id, item_id=item_id
+        )
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        return _menu_error(exc)
+    if not removed:
+        return error_response(
+            message="Menu item not found",
+            error_code="MENU_ITEM_NOT_FOUND",
+            status_code=404,
+        )
+    db.commit()
+    return success_response(data={"id": item_id, "deleted": True})
+
+
+# ── Phase 23 — Inventory management ──────────────────────────────────────
+    menu = restaurant_service.get_restaurant_menu(db, restaurant_id)
+    return success_response(data=menu or [])
 # ── Phase 23 — Inventory management ──────────────────────────────────────
 @router.get("/shops/{shop_id}/catalog/search")
 async def search_catalog(
@@ -411,7 +590,6 @@ async def add_product_from_master(
     """Add an EXISTING product-master (optionally a variant) to the shop with
     shop-level price / MRP / availability / quantity."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -435,7 +613,6 @@ async def create_stock_adjustment(
     """Apply a delta stock adjustment (restock/damage/correction) with a full
     audit trail; updates propagate to the platform inventory system."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -462,7 +639,6 @@ async def update_low_stock_threshold(
     never has to guess the new status.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -487,7 +663,6 @@ async def list_stock_adjustments(
     """Adjustment-only audit trail for one product (damage / expiry /
     stock count / correction), newest first."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -508,7 +683,6 @@ async def remove_product(
 ):
     """Remove/deactivate a shop product listing (soft delete)."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -531,7 +705,6 @@ async def get_product_history(
     """Inventory history for one product: movements, adjustments and price
     changes, newest first, paginated (`limit` + `offset`)."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -552,7 +725,6 @@ async def bulk_inventory_operation(
 ):
     """Bulk operations foundation: price_update / stock_set / availability."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -574,7 +746,6 @@ async def assign_offer_to_products(
 ):
     """Assign (create + link) an offer to selected shop products."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -604,7 +775,6 @@ async def list_shop_offers(
     freshly created offer is visible without a reload.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -627,7 +797,6 @@ async def update_shop_offer_status(
     Expired and cancelled offers are terminal and can never be re-activated.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:

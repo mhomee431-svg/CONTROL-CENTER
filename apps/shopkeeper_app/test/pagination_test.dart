@@ -198,6 +198,19 @@ class PagedImportRepo implements InventoryImportRepository {
       throw UnimplementedError();
 
   @override
+  Future<ImportSchema> schema(String token) =>
+      throw UnimplementedError();
+
+  @override
+  Future<ImportPreview> remap(
+    int shopId,
+    int jobId,
+    Map<String, int?> columnMapping,
+    String token,
+  ) =>
+      throw UnimplementedError();
+
+  @override
   Future<ImportJobPage> listJobs(
     int shopId,
     String token, {

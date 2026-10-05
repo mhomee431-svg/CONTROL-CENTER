@@ -854,6 +854,78 @@ class FakeOffersRepo implements OffersRepository {
 
 // ---- Inventory import fakes ------------------------------------------------
 
+/// A backend import schema shaped like the real `import_schema()` document:
+/// the spec's column list (now including Category / Subcategory), the header
+/// aliases the alias table accepts, and the rules the validator enforces.
+///
+/// Fixtures copy the shape of the real payload rather than inventing a shorter
+/// one, so a test cannot pass against fields the backend stopped sending.
+ImportSchema importSchemaFixture() => const ImportSchema(
+  fields: [
+    ImportSchemaField(
+      name: 'product_name',
+      label: 'Product Name',
+      aliases: ['name', 'item name'],
+      rules: ['Required unless a barcode or SKU identifies the row'],
+    ),
+    ImportSchemaField(
+      name: 'brand',
+      label: 'Brand',
+      aliases: ['brand name'],
+      rules: ['Optional; must already exist in the catalog'],
+    ),
+    ImportSchemaField(
+      name: 'category',
+      label: 'Category',
+      aliases: ['dept', 'department'],
+      rules: ['Optional', 'Must match an existing top-level category'],
+    ),
+    ImportSchemaField(
+      name: 'subcategory',
+      label: 'Subcategory',
+      aliases: ['sub category', 'sub-category'],
+      rules: ['Optional', 'Must be a subcategory of the Category above'],
+    ),
+    ImportSchemaField(
+      name: 'barcode',
+      label: 'Barcode',
+      aliases: ['ean', 'gtin', 'upc'],
+      rules: ['EAN-8 / EAN-13 / UPC-12'],
+    ),
+    ImportSchemaField(
+      name: 'sku',
+      label: 'SKU',
+      aliases: ['item code', 'product code'],
+      rules: ['Unique within this shop'],
+    ),
+    ImportSchemaField(
+      name: 'price',
+      label: 'Price',
+      aliases: ['selling price', 'sale price'],
+      rules: ['Required', 'Must be a number greater than or equal to 0'],
+    ),
+    ImportSchemaField(
+      name: 'mrp',
+      label: 'MRP',
+      aliases: ['m.r.p.', 'list price'],
+      rules: ['Optional', 'Must be at least the Price'],
+    ),
+    ImportSchemaField(
+      name: 'quantity',
+      label: 'Stock',
+      aliases: ['qty', 'stock', 'on hand'],
+      rules: ['Required', 'Whole number, 0 or more'],
+    ),
+    ImportSchemaField(
+      name: 'is_available',
+      label: 'Availability',
+      aliases: ['available', 'in stock'],
+      rules: ['yes / no', 'Defaults to Yes when Stock is above 0'],
+    ),
+  ],
+  requiredAnyOf: ['Barcode', 'SKU', 'Product Name'],
+);
+
 class FakeImportRepo implements InventoryImportRepository {
   FakeImportRepo({
     this.onUpload,
@@ -862,6 +934,10 @@ class FakeImportRepo implements InventoryImportRepository {
     this.allJobs,
     this.error,
     this.sampleBytes,
+    this.schemaResult,
+    this.schemaError,
+    this.remapResult,
+    this.remapError,
   });
 
   /// When set, returned from upload/preview list calls.
@@ -882,16 +958,80 @@ class FakeImportRepo implements InventoryImportRepository {
   /// Returned by [downloadSample] (defaults to a plausible .xlsx magic).
   final Uint8List? sampleBytes;
 
+  /// Returned by [schema]. Defaults to [importSchemaFixture] so a widget test
+  /// that cares about the Column Mapping panel gets the real field list ?
+  /// including the category columns — without restating it.
+  final ImportSchema? schemaResult;
+
+  /// When set, [schema] throws it (simulates the schema endpoint being down).
+  final Object? schemaError;
+
+  /// Returned by [remap]. Defaults to the upload preview, so a test that only
+  /// cares that the correction was SENT does not have to restate the preview.
+  final ImportPreview? remapResult;
+
+  /// When set, [remap] throws it — a rejected mapping must not look applied.
+  final Object? remapError;
+
   /// The `offset` of every list request, in order — the proof that paging asks
   /// for the rows it does not already hold.
   final List<int> requestedJobOffsets = [];
 
   int uploadCalls = 0;
   int confirmCalls = 0;
+  int schemaCalls = 0;
+  int remapCalls = 0;
+
+  /// Every mapping handed to [remap], in order — the proof of what was
+  /// corrected, including which columns were deliberately left out.
+  final List<Map<String, int?>> remappedMappings = [];
+
+  /// The job id the correction was submitted against.
+  final List<int> remappedJobIds = [];
+
+  @override
+  Future<ImportPreview> remap(
+    int shopId,
+    int jobId,
+    Map<String, int?> columnMapping,
+    String token,
+  ) async {
+    remapCalls++;
+    remappedJobIds.add(jobId);
+    remappedMappings.add(Map<String, int?>.of(columnMapping));
+    if (remapError != null) throw remapError!;
+    if (error != null) throw error!;
+    return remapResult ??
+        onUpload ??
+        ImportPreview(
+          meta: ImportJob(
+            id: jobId,
+            filename: 'remapped.xlsx',
+            status: 'AWAITING_CONFIRMATION',
+            totalRows: 0,
+            validRows: 0,
+            errorRows: 0,
+          ),
+        );
+  }
+
+  @override
+  Future<ImportSchema> schema(String token) async {
+    schemaCalls++;
+    if (schemaError != null) throw schemaError!;
+    if (error != null) throw error!;
+    return schemaResult ?? importSchemaFixture();
+  }
   int sampleCalls = 0;
   int? lastShopId;
   int? lastSampleShopId;
   PickedWorkbook? lastWorkbook;
+
+  /// Mutable on purpose: a RETRY test clears it to model the backend recovering
+  /// on the second attempt (same convention as `FakeProductRepo.failOverview`
+  /// and `FakeHolidayRepository.listError`). Takes precedence over [error] so a
+  /// permanently-broken [error] can still be set for the other calls.
+  Object? uploadError;
 
   @override
   Future<ImportPreview> upload(
@@ -902,6 +1042,7 @@ class FakeImportRepo implements InventoryImportRepository {
     uploadCalls++;
     lastShopId = shopId;
     lastWorkbook = workbook;
+    if (uploadError != null) throw uploadError!;
     if (error != null) throw error!;
     return onUpload ??
         ImportPreview(
@@ -932,6 +1073,11 @@ class FakeImportRepo implements InventoryImportRepository {
         );
   }
 
+  /// Mutable, like [uploadError]: lets a test fail the CONFIRM while the upload
+  /// still succeeds, which is the retry case — the rows are already staged, so
+  /// the shopkeeper retries the apply without re-picking the file.
+  Object? confirmError;
+
   @override
   Future<ImportConfirmResult> confirm(
     int shopId,
@@ -940,6 +1086,7 @@ class FakeImportRepo implements InventoryImportRepository {
   ) async {
     confirmCalls++;
     lastShopId = shopId;
+    if (confirmError != null) throw confirmError!;
     if (error != null) throw error!;
     return onConfirm ?? const ImportConfirmResult(processed: 8, failed: 2);
   }
@@ -1041,6 +1188,11 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   /// When true, [fetchInventoryOverview] throws — the failed-refresh fixture.
   bool failOverview = false;
 
+  /// Thrown by [fetchInventoryOverview] verbatim, so a test can script an exact
+  /// `ApiException` (a 409, a timeout…) rather than the generic [failOverview]
+  /// Exception. Same convention as `uploadError` / `confirmError` / `listError`.
+  Object? overviewError;
+
   int? lastShopId;
   Map<String, dynamic>? lastCreatePayload;
   int? lastUpdatedId;
@@ -1050,6 +1202,42 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   /// and with which term — asserted by the server-search tests.
   int searchCalls = 0;
   String? lastSearchQuery;
+
+  /// The post-update row for [productId]: the existing item with [fields]
+  /// applied, and every field the PATCH did not mention left alone.
+  ///
+  /// Leaving unmentioned fields alone mirrors the server's `exclude_none` dump,
+  /// and it is what proves an edit does not drag a stale copy of a field the
+  /// caller never touched.
+  ShopProductItem _updatedItem(int productId, Map<String, dynamic> fields) {
+    final base = items.firstWhere(
+      (i) => i.id == productId,
+      orElse: () => const ShopProductItem(
+        id: 0,
+        name: 'Unknown product',
+        status: 'ACTIVE',
+        price: 0,
+        isActive: true,
+        isAvailable: true,
+        quantity: 0,
+        stockStatus: 'UNKNOWN',
+      ),
+    );
+    return base.copyWith(
+      price: (fields['price'] as num?)?.toDouble() ?? base.price,
+      mrp: (fields['mrp'] as num?)?.toDouble() ?? base.mrp,
+      quantity: (fields['quantity'] as num?)?.toInt() ?? base.quantity,
+      isAvailable: fields['is_available'] as bool? ?? base.isAvailable,
+      status: fields['status'] as String? ?? base.status,
+      stockStatus: fields['quantity'] == null
+          ? base.stockStatus
+          : _stockStatusFor((fields['quantity'] as num).toInt()),
+      lastUpdated: DateTime.now(),
+    );
+  }
+
+  static String _stockStatusFor(int quantity) =>
+      quantity <= 0 ? 'OUT_OF_STOCK' : 'IN_STOCK';
 
   ShopProductItem _itemFromPayload(Map<String, dynamic> payload) =>
       ShopProductItem(
@@ -1083,6 +1271,7 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     overviewCalls++;
     lastShopId = shopId;
     await overviewGate?.future;
+    if (overviewError != null) throw overviewError!;
     if (failOverview) throw Exception('offline');
     return InventoryOverview(items: items, summary: _derivedSummary);
   }
@@ -1148,7 +1337,12 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     lastUpdateFields = fields;
     final overridden = onUpdate?.call(productId, fields);
     if (overridden != null) return overridden;
-    return _itemFromPayload(fields);
+    // An update returns THE SAME product with the new fields - not a
+    // create-shaped answer. Handing back a fresh id would make every edit look
+    // like it replaced the row with a different product, which is exactly the
+    // "disconnected copies" failure the edit flow has to rule out, and no test
+    // could ever catch it.
+    return _updatedItem(productId, fields);
   }
 
   /// Overrides the [adjustStock] response; receives
@@ -1177,6 +1371,15 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
   /// The `offset` of every history request, in order.
   final List<int> requestedHistoryOffsets = [];
 
+  /// Per-CALL gates for [adjustStock], indexed by call order (0-based). The
+  /// Nth adjustment awaits `adjustStockGates[N]` when that slot exists.
+  ///
+  /// This is what lets a test model an OUT-OF-ORDER pair of stock writes: hold
+  /// the first call's response, let the second answer, then release the first.
+  /// A single shared gate (like [overviewGate]) could only stall every call at
+  /// once, which cannot express one response overtaking another.
+  final List<Completer<void>?> adjustStockGates = [];
+
   @override
   Future<StockAdjustmentResult> adjustStock(
     int shopId,
@@ -1188,6 +1391,10 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
     lastShopId = shopId;
     lastAdjustedId = productId;
     lastAdjustPayload = payload;
+    final callIndex = adjustStockCalls - 1;
+    if (callIndex < adjustStockGates.length) {
+      await adjustStockGates[callIndex]?.future;
+    }
     final overridden = onAdjustStock?.call(shopId, productId, payload, token);
     if (overridden != null) return overridden;
     final delta = (payload['quantity_adjustment'] as num?)?.toInt() ?? 0;
@@ -1200,6 +1407,12 @@ class FakeProductRepo implements ProductRepository, InventoryRepository {
       newQuantity: previous + delta,
       stockStatus: 'IN_STOCK',
       adjustmentType: payload['adjustment_type'] as String?,
+      // Mirrors the real POST .../stock-adjustments payload: the server
+      // re-stamps provenance on every adjustment, so a fake that omitted it
+      // would let a confirmation panel quietly stop rendering it.
+      lastInventoryUpdate: DateTime.now().toUtc(),
+      source: 'MANUAL',
+      freshnessStatus: 'RECENTLY_UPDATED',
     );
   }
 

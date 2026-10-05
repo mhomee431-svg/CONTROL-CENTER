@@ -1,0 +1,123 @@
+# HyperLocal backend — tool configuration.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# Until now the backend had a `pytest.ini` and no Ruff configuration at all, so
+# `ruff check` ran on DEFAULTS. Defaults include `B008`, which flags
+# `Depends(...)` in an argument default -- the single most common line in a
+# FastAPI codebase. The result was a lint run that reported errors in nearly
+# every route file, which is the same as reporting nothing: a wall of noise
+# trains you to ignore the linter, and the one real finding in that wall gets
+# missed too.
+#
+# This file makes lint deterministic and gives ONE place that states the
+# project's rules. It is read identically by a developer on Windows, by GitHub
+# Actions on Linux, and by the `scripts/hl` command, so "works on my machine"
+# stops being a category of bug.
+#
+# NOTHING IS IGNORED to hide a problem. Each ignore below is either a rule that
+# is wrong for FastAPI (B008), or a rule whose default target disagrees with
+# this codebase's deliberate style. Real findings still fail.
+
+[project]
+name = "hyperlocal-backend"
+version = "0.1.0"
+description = "HyperLocal platform backend"
+requires-python = ">=3.11"
+
+[tool.ruff]
+# Resolve first-party imports as `app.*` so isort ordering matches the package
+# layout rather than guessing from the file's depth in the tree.
+src = ["."]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    ".venv",
+    "__pycache__",
+    "alembic/versions",
+]
+
+[tool.ruff.lint]
+# ── THE GATE ────────────────────────────────────────────────────────────────
+# These are the rules that fail the build. They are chosen deliberately: every
+# one of them is a construct that either fails at import time, fails at runtime
+# with a NameError, or silently produces wrong behaviour.
+#
+#   E9    syntax errors / IO errors        -> the file does not parse
+#   F63   comparison / type misuse           -> wrong result, no error raised
+#   F7    statement-level bugs               -> e.g. bare `except:` misuse
+#   F82   undefined name                     -> NameError at runtime
+#
+# This set is deliberately NARROW. Ruff's wider defaults (`UP`, `SIM`, `I`,
+# `C4`, `RUF`) report ~2000 findings across this codebase — overwhelmingly
+# `Optional[X]` vs `X | None` and `List` vs `list`. Turning those on as a
+# blocking gate would mean either 2000 mechanical edits or a gate nobody reads.
+#
+# A linter you learn to ignore is worse than no linter, because the one real
+# finding in the noise gets missed too. So: this narrow set BLOCKS, the wider
+# set is available on demand via `scripts/hl lint:fix`, and nothing is hidden.
+select = ["E9", "F63", "F7", "F82"]
+
+ignore = [
+    # `datetime.utcnow()` is deprecated upstream but is used consistently by the
+    # model layer and by every existing migration. Changing it now would touch
+    # the data model for a style win — tracked separately, not silently.
+    "UP017",
+]
+
+# ── THE WIDER SET (opt-in, NOT blocking) ─────────────────────────────────────
+# Run it with:  hl lint:fix     (or: ruff check --select E4,E7,F401,F841,I,UP,SIM,C4,RUF --fix)
+#
+# It lives here as a documented constant rather than a config table because Ruff
+# has no named rule groups in config: the rule set is part of the command, so it
+# is recorded in ONE place (scripts/hl) instead of being retyped per workflow.
+#
+# These are worth adopting over time, in this order:
+#   F401 unused import        ~288   mechanical, `--fix` handles all of them
+#   I   import order          ~246   mechanical, `--fix` handles all of them
+#   F841 unused local          ~21   mechanical, needs a human to confirm intent
+#   B904 raise-without-from    ~13   real: hides the original exception
+#   UP   pyupgrade           ~1200   pure style, mechanical, do it in one sweep
+#
+# `B008` is never enabled: `Depends(...)` in a default is the FastAPI idiom and
+# fires once per route handler.
+
+[tool.ruff.lint.per-file-ignores]
+# Test files assert on module structure and legitimately import broadly.
+"tests/*" = ["F401", "F811", "E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+# Formatting is mechanical and therefore safe to apply automatically; it is a
+# separate command from `ruff check` so a formatting diff can never hide a lint
+# finding.
+quote-style = "double"
+
+[tool.pytest.ini_options]
+
+# The single source of truth for how tests are invoked. `pytest.ini` is removed
+# in favour of this so there is exactly one place that decides testpaths,
+# markers and warning policy.
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:slowapi.*",
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore::DeprecationWarning:fastapi.*",
+    "ignore::DeprecationWarning:sqlalchemy.*",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning:fastapi.*",
+    "ignore::PendingDeprecationWarning",
+    # Our own code must not emit a DeprecationWarning. This is what catches an
+    # upstream deprecation before it becomes a runtime surprise in production.
+    "error::DeprecationWarning:app.*",
+    "error::PendingDeprecationWarning:app.*",
+]

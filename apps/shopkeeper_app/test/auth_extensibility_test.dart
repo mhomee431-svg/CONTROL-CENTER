@@ -33,10 +33,14 @@ void main() {
 
   group('AuthMethod decision (single source of truth: kEnabledAuthMethods)',
       () {
-    test('Google, Phone OTP and password are all enabled and labelled', () {
+    test('only Google is enabled in the MVP; OTP stays future-gated', () {
       expect(kEnabledAuthMethods, contains(AuthMethod.googleFirebase));
-      expect(kEnabledAuthMethods, contains(AuthMethod.phoneOtp));
-      expect(kEnabledAuthMethods, contains(AuthMethod.password));
+
+      // Visual-reference MVP conformance: phone OTP and password remain
+      // implemented but hidden. Re-enabling them is the product sign-off that
+      // overrides the MVP — this test fails loudly if that happens silently.
+      expect(kEnabledAuthMethods, isNot(contains(AuthMethod.phoneOtp)));
+      expect(kEnabledAuthMethods, isNot(contains(AuthMethod.password)));
 
       // Every enabled method must carry a shopkeeper-facing action label, or a
       // screen would render a button with nothing on it.

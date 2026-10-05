@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/forms/draft_store.dart';
+import '../../../../core/forms/unsaved_changes_guard.dart';
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -11,6 +13,8 @@ import '../../../auth/presentation/controllers/selected_shop.dart';
 import '../../../media/data/media_repository.dart';
 import '../../../pos/presentation/controllers/pos_controller.dart';
 import '../../domain/category_taxonomy.dart';
+import '../../../shops/domain/product_attributes.dart';
+import 'product_attributes_section.dart';
 import '../../domain/product_form_rules.dart';
 import '../../domain/product_image_picker_service.dart';
 import '../../domain/product_models.dart';
@@ -311,6 +315,76 @@ class _ProductEditSheetState extends ConsumerState<ProductEditSheet> {
 /// Only name and price are required (backend ShopkeeperProductCreate);
 /// brand / unit / SKU / description / image / availability are optional.
 /// No barcode field on purpose — barcodes only enter via the scanner flow.
+/// The half-finished state of the create-product form, kept so the shopkeeper
+/// does not retype it.
+///
+/// Plain values only: a `MediaObject` is deliberately NOT part of it. That
+/// object holds a server-minted image key, meaningless once the product was
+/// never created, so restoring one would hand back an image the backend has no
+/// record of. The local path is kept instead, which is the part that still means
+/// something within a session.
+@immutable
+class ProductDraft {
+  const ProductDraft({
+    this.name = '',
+    this.price = '',
+    this.mrp = '',
+    this.quantity = '0',
+    this.brand = '',
+    this.unit = '',
+    this.sku = '',
+    this.description = '',
+    this.barcode = '',
+    this.publish = true,
+    this.isAvailable = true,
+    this.imagePath,
+    this.categoryId,
+    this.subcategoryId,
+    this.attributes = const {},
+  });
+
+  final String name;
+  final String price;
+  final String mrp;
+  final String quantity;
+  final String brand;
+  final String unit;
+  final String sku;
+  final String description;
+  final String barcode;
+  final bool publish;
+  final bool isAvailable;
+  final String? imagePath;
+  final int? categoryId;
+  final int? subcategoryId;
+  final Map<String, String> attributes;
+
+  /// Whether this draft holds work worth warning about.
+  ///
+  /// Compared against the form's INITIAL state, not against empty: the sheet
+  /// opens with quantity "0" and both switches on, so a shopkeeper who touched
+  /// nothing must never be asked whether to discard changes.
+  bool get isDirty =>
+      name.isNotEmpty ||
+      price.isNotEmpty ||
+      mrp.isNotEmpty ||
+      brand.isNotEmpty ||
+      unit.isNotEmpty ||
+      sku.isNotEmpty ||
+      description.isNotEmpty ||
+      barcode.isNotEmpty ||
+      imagePath != null ||
+      categoryId != null ||
+      subcategoryId != null ||
+      attributes.isNotEmpty ||
+      quantity != '0' ||
+      !publish ||
+      !isAvailable;
+}
+
+/// Draft slot for the create-product form.
+const String kProductDraftKey = 'productCreate';
+
 class ProductCreateSheet extends ConsumerStatefulWidget {
   const ProductCreateSheet({super.key, this.onCreated});
 
@@ -356,19 +430,126 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
   int? _categoryId;
   int? _subcategoryId;
 
+  /// The trade-specific values (part number, material, ISBN …), keyed by the
+  /// backend's own attribute keys. Never declared here — the backend decides
+  /// which keys exist for this shop's category.
+  final Map<String, String> _attributeValues = {};
+
+  /// Server-side objections to a specific attribute, shown against the input.
+  Map<String, String> _attributeErrors = {};
+
+  /// The merchant category of the selected shop, which is what decides the
+  /// attribute set. Empty when no shop is selected, which the provider maps to
+  /// the closed form rather than a request for nothing.
+  String get _merchantCategory =>
+      ref.read(selectedShopProvider)?.category?.trim() ?? '';
+
+  /// The extra specs this form shows: the server's list minus the keys the main
+  /// form and the taxonomy pickers already own.
+  ///
+  /// Takes the whole declared set because `toAttributeMap` — which decides what
+  /// is SUBMITTED — also belongs to it. Deriving the visible list from the same
+  /// object is what keeps "what you saw" and "what was sent" from drifting.
+  List<ProductAttributeSpec> _extraSpecs(
+      CategoryProductAttributes? declared) {
+    if (declared == null) return const <ProductAttributeSpec>[];
+    return declared.attributes
+        .where((spec) => declared.belongsInAttributeMap(spec))
+        .toList(growable: false);
+  }
+
+  /// The draft store, captured while this State is still mounted.
+  ///
+  /// Held in a field rather than read on demand because [dispose] runs AFTER
+  /// the element is deactivated, and reading `ref` there is unsafe - Flutter
+  /// throws "Bad state: Using ref when a widget is about to or has been
+  /// unmounted". A draft is written from dispose, so the reference must be
+  /// taken while it is still legal.
+  late final DraftStore _drafts;
+
   @override
   void initState() {
     super.initState();
+    _drafts = ref.read(draftStoreProvider);
     // The taxonomy is cached for the whole session: the first sheet-open
     // fetches it, every later one renders instantly from memory. A failure
     // leaves the form fully usable with a retry beside the dropdowns.
     Future.microtask(
       () => ref.read(categoryControllerProvider.notifier).ensureLoaded(),
     );
+
+    // Restore a draft from an earlier visit in this session, before the first
+    // frame: the sheet then OPENS with the work already in it, rather than
+    // flashing an empty form and filling itself a tick later.
+    final draft = _drafts.read<ProductDraft>(kProductDraftKey);
+    if (draft != null && draft.isDirty) _applyDraft(draft);
+  }
+
+  /// The form has been SAVED, so it no longer counts as unsaved work and the
+  /// pop on success is not intercepted.
+  bool _saved = false;
+
+  /// Anything the shopkeeper typed, in the fields that are not defaulted.
+  bool get _hasUnsavedChanges => !_saved && _captureDraft().isDirty;
+
+  ProductDraft _captureDraft() => ProductDraft(
+        name: _name.text,
+        price: _price.text,
+        mrp: _mrp.text,
+        quantity: _quantity.text,
+        brand: _brand.text,
+        unit: _unit.text,
+        sku: _sku.text,
+        description: _description.text,
+        barcode: _barcode.text,
+        publish: _publish,
+        isAvailable: _isAvailable,
+        imagePath: _imagePath,
+        categoryId: _categoryId,
+        subcategoryId: _subcategoryId,
+        attributes: Map.of(_attributeValues),
+      );
+
+  void _applyDraft(ProductDraft d) {
+    _name.text = d.name;
+    _price.text = d.price;
+    _mrp.text = d.mrp;
+    _quantity.text = d.quantity;
+    _brand.text = d.brand;
+    _unit.text = d.unit;
+    _sku.text = d.sku;
+    _description.text = d.description;
+    _barcode.text = d.barcode;
+    _publish = d.publish;
+    _isAvailable = d.isAvailable;
+    _imagePath = d.imagePath;
+    _categoryId = d.categoryId;
+    _subcategoryId = d.subcategoryId;
+    _attributeValues
+      ..clear()
+      ..addAll(d.attributes);
+  }
+
+  /// Keep the draft while the sheet is open, so leaving and coming back is free.
+  ///
+  /// Written on dispose rather than on every keystroke: the sheet rebuilds
+  /// constantly (taxonomy arrives, attributes resolve), and a rebuild must not
+  /// be the thing that decides whether work is kept.
+  void _persistDraft() {
+    if (_saved) return;
+    final draft = _captureDraft();
+    if (draft.isDirty) {
+      _drafts.save(kProductDraftKey, draft);
+    }
+  }
+
+  void _discardDraft() {
+    _drafts.clear(kProductDraftKey);
   }
 
   @override
   void dispose() {
+    _persistDraft();
     _name.dispose();
     _price.dispose();
     _mrp.dispose();
@@ -488,11 +669,64 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
     );
   }
 
+  /// `{key: error}` for every declared attribute that is missing or malformed.
+///
+/// Read from the same spec list the section renders, so a key that is not on
+/// screen can never block the submit, and a key that IS on screen can never be
+/// allowed past blank.
+Map<String, String> _attributeIssues() {
+    final specs = _extraSpecs(_declaredAttributes());
+    return {
+      for (final spec in specs)
+        if (spec.errorFor(_attributeValues[spec.key]) != null)
+          spec.key: spec.errorFor(_attributeValues[spec.key])!,
+    };
+  }
+
+  /// The backend's declared set for this shop's category, or null when the
+  /// backend never answered.
+  CategoryProductAttributes? _declaredAttributes() {
+    final state = ref.read(productAttributesProvider(_merchantCategory));
+    final list = state.asData?.value.attributes;
+    if (list == null) return null;
+    return CategoryProductAttributes(
+      categoryCode: _merchantCategory,
+      attributes: list,
+    );
+  }
+
+  /// The `attributes` body for the create payload.
+  ///
+  /// Built through the domain's own `toAttributeMap`, so the keys that travel are
+  /// decided by the same rule that decided which inputs rendered. Anything not
+  /// on screen therefore cannot be sent, and a key that IS on screen is never
+  /// filtered out by a second, divergent list.
+  Map<String, String> _attributeMap() {
+    final declared = _declaredAttributes();
+    if (declared == null) return const {};
+    return declared.toAttributeMap(_attributeValues);
+  }
+
   Future<void> _create() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // The trade-specific inputs live OUTSIDE the Form (the section renders its
+    // own column), so `_formKey.validate()` cannot reach them. Without this a
+    // required part number could be left blank and the write refused by the
+    // backend after the fact.
+    final attributeIssues = _attributeIssues();
+    if (attributeIssues.isNotEmpty) {
+      setState(() {
+        _saving = false;
+        _attributeErrors = attributeIssues;
+      });
+      return;
+    }
+
     setState(() {
       _saving = true;
       _error = null;
+      _attributeErrors = {};
     });
     final ok = await ref.read(productsControllerProvider.notifier).createProduct(
           name: _name.text.trim(),
@@ -509,6 +743,7 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
           categoryId: _categoryId,
           subcategoryId: _subcategoryId,
           barcode: ProductFormRules.normalizeBarcode(_barcode.text),
+          attributes: _attributeMap(),
         );
     if (!mounted) return;
     if (!ok) {
@@ -524,6 +759,10 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
       return;
     }
     setState(() => _saving = false);
+    // Saved, not left behind: the draft goes and the guard stops guarding, so
+    // this pop is not answered with "Discard changes?".
+    _discardDraft();
+    _saved = true;
     Navigator.pop(context);
     widget.onCreated?.call();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -534,7 +773,10 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
+    return UnsavedChangesGuard(
+      hasUnsavedChanges: _hasUnsavedChanges,
+      onDiscard: _discardDraft,
+      child: Padding(
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
@@ -760,6 +1002,42 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
                     ],
                   ),
                 ),
+                // ── Trade-specific fields (backend-declared) ───────
+                // Rendered only from what `GET /categories/{code}/product-attributes`
+                // returned for THIS shop's category, and only for the keys this
+                // form does not already own. A restaurant gets nothing (it has no
+                // product form); a hardware shop gets size and material; an
+                // automotive shop gets part number and OEM reference.
+                Builder(
+                  builder: (context) {
+                    final category = _merchantCategory;
+                    if (category.isEmpty) return const SizedBox.shrink();
+                    // `watch` here so the section appears the moment the
+                    // backend's list lands, and re-appears if the shop changes.
+                    ref.watch(productAttributesProvider(category));
+                    final specs = _extraSpecs(_declaredAttributes());
+                    if (specs.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: ProductAttributesSection(
+                        specs: specs,
+                        values: _attributeValues,
+                        enabled: !_saving,
+                        errors: _attributeErrors,
+                        onChanged: (key, value) => setState(() {
+                          _attributeValues[key] = value;
+                          // Clear the objection the moment it is addressed; a
+                          // stale error under a just-fixed field reads as
+                          // "still wrong".
+                          if (_attributeErrors.containsKey(key)) {
+                            _attributeErrors = Map.of(_attributeErrors)
+                              ..remove(key);
+                          }
+                        }),
+                      ),
+                    );
+                  },
+                ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(appText(context).commonPublishImmediately2),
@@ -790,9 +1068,10 @@ class _ProductCreateSheetState extends ConsumerState<ProductCreateSheet> {
           ),
         ),
       ),
+      ),
     );
   }
-}
+  }
 
 
 

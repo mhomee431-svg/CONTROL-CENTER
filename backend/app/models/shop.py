@@ -1,7 +1,7 @@
 """Shop, ShopOwner, ShopManager, ShopAddress, ShopHours, ShopHoliday, ShopDocument, ShopVerification models."""
 from datetime import date, datetime, time
 from sqlalchemy import (
-    String, Float, Integer, DateTime, Boolean, Text, ForeignKey, Enum, Time, Date, UniqueConstraint, CheckConstraint
+    String, Float, Integer, DateTime, Boolean, Text, ForeignKey, Enum, Time, Date, UniqueConstraint, CheckConstraint, JSON
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2 import Geography
@@ -91,6 +91,15 @@ class Shop(Base, TimestampMixin, SoftDeleteMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     slug: Mapped[str | None] = mapped_column(String(280), unique=True, index=True)
     description: Mapped[str | None] = mapped_column(Text)
+    # The capability-driven fields this shop's category actually asked for,
+    # stored as a JSON object of {key: value}. A document rather than a column
+    # per field, because the fields are category-driven: a pharmacy submits
+    # `prescription_required`, a tour operator submits `service_area`, and
+    # neither should need a migration when the other trade appears. Only keys the
+    # backend registry approves are ever written.
+    capability_fields: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
     tagline: Mapped[str | None] = mapped_column(String(255))
     image_url: Mapped[str | None] = mapped_column(String(500))
     cover_image_url: Mapped[str | None] = mapped_column(String(500))
@@ -116,8 +125,21 @@ class Shop(Base, TimestampMixin, SoftDeleteMixin):
     # Set during first-time profile creation; free-form string, nullable.
     business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     subcategories: Mapped[str | None] = mapped_column(String(500))  # JSON array of subcategories
-    location: Mapped[object] = mapped_column(
-        Geography(geometry_type="POINT", srid=4326, spatial_index=True), nullable=False
+    # Deliberately NULLABLE, matching migration 0002 which created this column
+    # with `nullable=True`.
+    #
+    # It was declared `nullable=False` here while the database, the profile-create
+    # route and every other consumer all allowed no location. That disagreement is
+    # a live landmine rather than a cosmetic one: the database accepts the row, so
+    # nothing fails today, but the FIRST autogenerate migration would read this
+    # declaration and emit an ALTER to NOT NULL — which would then reject every
+    # new shop created before its location is captured.
+    #
+    # A shop is legitimately locationless for a while. Registration creates it
+    # without a pin, then the dedicated location-capture flow supplies one with
+    # GPS, manual correction and map confirmation.
+    location: Mapped[object | None] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326, spatial_index=True), nullable=True
     )
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)

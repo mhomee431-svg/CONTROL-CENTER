@@ -127,6 +127,24 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
                       'Order acceptance, delivery and pickup',
                       Routes.shopSettings,
                     ),
+                    // Restaurants only. The backend owns a real menu API and a
+                    // restaurant is the only category with one, so this tile is
+                    // the whole of that capability's entry point — offered to
+                    // every other trade it would be a dead end.
+                    // Restaurants only, asked of the registry rather than by writing the code out:
+                    // the one home for category codes is shop_models.dart, and a
+                    // literal here would be a second copy of it.
+                    if (serviceProfileForCategory(
+                          detail.summary.category ?? '',
+                        ) ==
+                        ServiceCategoryProfile.restaurant)
+                      ShopHubTile(
+                        const Key('shop-tile-menu'),
+                        Icons.restaurant_menu,
+                        'Menu',
+                        'Sections and dishes customers can browse',
+                        Routes.restaurantMenu,
+                      ),
                   ],
                 ),
                 if (!shopCanEdit(ref)) ...[

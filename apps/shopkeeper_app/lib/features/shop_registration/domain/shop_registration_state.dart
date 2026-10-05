@@ -4,18 +4,25 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../shops/data/location_accuracy_config.dart';
 import '../../shops/data/location_service.dart';
 import '../../shops/domain/shop_models.dart';
+// Also imported under a prefix so the business-type list below can be aliased
+// without shadowing the many other types this file uses from the same library.
+import '../../shops/domain/shop_models.dart' as shops_domain;
 
 /// Steps of the "Register Your Shop" wizard, in visual order.
 enum RegistrationStep { welcome, businessInfo, location, documents, review, success }
 
-/// Business types offered on the Business Information step.
-const kBusinessTypes = <String>[
-  'Retail',
-  'Wholesale',
-  'Retail & Wholesale',
-  'Service',
-  'Other',
-];
+/// The app's single business-type vocabulary, re-exported under the short name
+/// this file's consumers already use.
+const kBusinessTypesCanonical = shops_domain.kBusinessTypes;
+///
+/// This used to be a private list of its own, and it spelled the combined entry
+/// `Retail & Wholesale` — a DIFFERENT string from the backend's
+/// `Retail + Wholesale`. The backend treats an unmatched type as "unknown, stay
+/// permissive", so the wizard silently sent a value no narrowing rule could ever
+/// match, and nothing failed to point at it.
+///
+/// It is now an alias of the one list, so the two cannot drift again.
+const kBusinessTypes = kBusinessTypesCanonical;
 
 /// Lifecycle of a single verification-document upload slot.
 enum DocumentUploadStatus { idle, uploading, uploaded, error }

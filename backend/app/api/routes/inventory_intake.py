@@ -13,8 +13,12 @@ from app.core.exceptions import AppError
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.inventory_intake import BarcodeSaveRequest
-from app.services import barcode_intake_service, excel_import_service, shopkeeper_service
+from app.schemas.inventory_intake import BarcodeSaveRequest, ColumnMappingRequest
+from app.services import (
+    barcode_intake_service,
+    excel_import_service,
+    shopkeeper_service,
+)
 
 router = APIRouter(prefix="/shopkeeper", tags=["shopkeeper-inventory-intake"])
 
@@ -253,6 +257,23 @@ async def list_inventory_imports(
     )
 
 
+@router.get("/inventory-imports/schema")
+async def import_schema_route():
+    """The import schema — the vocabulary and rules the mapping step renders.
+
+    Deliberately static and unauthenticated: these are the column names the
+    backend accepts, and hiding them behind a shop lookup would only force the
+    client to guess a header word the validator is about to reject. Declared
+    BEFORE `/inventory-imports/{job_id}` on purpose — that route takes an int
+    path param, so a later declaration would have `schema` caught as a job id
+    and rejected with a 422 instead of routed.
+    """
+    return success_response(
+        data=excel_import_service.import_schema(),
+        message="Import schema loaded",
+    )
+
+
 @router.get("/inventory-imports/{job_id}")
 async def get_inventory_import(
     job_id: int,
@@ -267,6 +288,31 @@ async def get_inventory_import(
     except AppError as exc:
         return _app_error(exc)
     return success_response(data=result)
+
+
+@router.post("/inventory-imports/{job_id}/remap")
+async def remap_inventory_import(
+    payload: ColumnMappingRequest,
+    job_id: int,
+    shop_id: int = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Correct the Column Mapping and re-stage the rows — before anything applies.
+
+    The mapping is a pre-import decision: the shopkeeper says which of their
+    columns is the price, which is the barcode, and so on, and every row is
+    validated again under that answer. Refused once the import has been applied,
+    because by then the mapping is history rather than a choice.
+    """
+    try:
+        access = _resolve(shop_id, current_user, db)
+        result = excel_import_service.remap_import(
+            access, db, job_id, payload.column_mapping
+        )
+    except AppError as exc:
+        return _app_error(exc)
+    return success_response(data=result, message="Column mapping updated")
 
 
 @router.post("/inventory-imports/{job_id}/confirm")

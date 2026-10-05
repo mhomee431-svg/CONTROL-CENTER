@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/app_text.dart';
+import '../../../../core/ui/primary_cta_bar.dart';
 import '../controllers/settings_controller.dart';
 
 /// Confirmation step for signing out of the Shopkeeper app.
@@ -12,6 +13,13 @@ import '../controllers/settings_controller.dart';
 /// sign-out, backend session revoke, token wipe, cached-state reset) and the
 /// router then redirects to Welcome on its own — this screen never navigates by
 /// hand, it only asks for confirmation and shows progress while it runs.
+///
+/// PAGE HIERARCHY: Top = AppBar title, Body = the what-happens-next cards,
+/// Bottom = **ONE** primary CTA (Sign out) with its cancel demoted beneath it.
+/// Both actions used to live inside the scrolling body, so on a tall screen
+/// they drifted into the middle of the page and the destructive primary had no
+/// fixed home; [PrimaryCtaBar] pins them and makes a second competing primary
+/// unrepresentable.
 class LogoutConfirmationScreen extends ConsumerWidget {
   const LogoutConfirmationScreen({super.key});
 
@@ -38,10 +46,9 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            appText(context).logoutConfirmationScreenLogOutOfPasslyBusiness,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            appText(context)
+                                .logoutConfirmationScreenLogOutOfPasslyBusiness,
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -49,7 +56,8 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      appText(context).logoutConfirmationScreenYouWillNeedToSign,
+                      appText(context)
+                          .logoutConfirmationScreenYouWillNeedToSign,
                       style: TextStyle(fontSize: 13),
                     ),
                   ],
@@ -68,7 +76,8 @@ class LogoutConfirmationScreen extends ConsumerWidget {
                 children: const [
                   _Consequence(
                     icon: Icons.key_off_outlined,
-                    text: 'This device is signed out and its saved session '
+                    text:
+                        'This device is signed out and its saved session '
                         'is erased.',
                   ),
                   Divider(height: 1),
@@ -85,39 +94,23 @@ class LogoutConfirmationScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton(
-              key: const Key('logout_confirm_button'),
-              onPressed: loggingOut
-                  ? null
-                  : () =>
-                      ref.read(settingsControllerProvider.notifier).logout(),
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.error,
-                foregroundColor: scheme.onError,
-              ),
-              child: loggingOut
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 12),
-                        Text(appText(context).commonSigningOut),
-                      ],
-                    )
-                  : Text(appText(context).commonLogOut2),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              key: const Key('logout_cancel_button'),
-              onPressed: loggingOut ? null : () => context.pop(),
-              child: Text(appText(context).commonStaySignedIn),
-            ),
           ],
         ),
+      ),
+      // Bottom layer: exactly ONE primary (destroy the session), with the
+      // "stay signed in" escape demoted to a secondary beneath it.
+      bottomNavigationBar: PrimaryCtaBar(
+        primaryKey: const Key('logout_confirm_button'),
+        primaryLabel: appText(context).commonLogOut2,
+        onPrimary: loggingOut
+            ? null
+            : () => ref.read(settingsControllerProvider.notifier).logout(),
+        loading: loggingOut,
+        loadingLabel: appText(context).commonSigningOut,
+        destructive: true,
+        secondaryKey: const Key('logout_cancel_button'),
+        secondaryLabel: appText(context).commonStaySignedIn,
+        onSecondary: () => context.pop(),
       ),
     );
   }

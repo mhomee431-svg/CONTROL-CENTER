@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     REDIS_SOCKET_TIMEOUT: float = Field(2.0, gt=0)           # per-command budget (s)
     REDIS_HEALTH_CHECK_INTERVAL: int = Field(30, ge=0)       # pooled-connection health probe (s)
     REDIS_HEALTH_PING_TIMEOUT: float = Field(1.0, gt=0)      # ping budget for health probes (s)
+    # Total budget a WRITE path gives a best-effort cache call. Smaller
+    # than the connect timeout on purpose: a write that merely invalidates
+    # a cache must not inherit that cache's outage latency.
+    REDIS_WRITE_PATH_BUDGET_SECONDS: float = Field(0.5, gt=0)
     REDIS_RETRY_ON_TIMEOUT: bool = True
     REDIS_MAX_RETRIES: int = Field(3, ge=0)
     REDIS_RETRY_BACKOFF_BASE: float = Field(0.05, ge=0)

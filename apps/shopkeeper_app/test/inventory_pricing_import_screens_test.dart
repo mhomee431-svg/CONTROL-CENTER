@@ -29,6 +29,7 @@ import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/
 import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/price_list_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/pricing/presentation/screens/update_price_screen.dart';
 import 'package:hyperlocal_shopkeeper_app/features/inventory/data/inventory_repository.dart';
+import 'package:hyperlocal_shopkeeper_app/features/offers/presentation/widgets/offer_create_sheet.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/data/product_repository.dart';
 import 'package:hyperlocal_shopkeeper_app/features/products/domain/product_models.dart';
 
@@ -83,22 +84,21 @@ ShopProductItem p({
   String? source,
   String? freshnessStatus,
   DateTime? lastUpdated,
-}) =>
-    ShopProductItem(
-      id: id,
-      name: name,
-      status: 'ACTIVE',
-      price: price,
-      mrp: mrp,
-      sku: sku,
-      isActive: true,
-      isAvailable: quantity > 0,
-      quantity: quantity,
-      stockStatus: stockStatus,
-      source: source,
-      freshnessStatus: freshnessStatus,
-      lastUpdated: lastUpdated,
-    );
+}) => ShopProductItem(
+  id: id,
+  name: name,
+  status: 'ACTIVE',
+  price: price,
+  mrp: mrp,
+  sku: sku,
+  isActive: true,
+  isAvailable: quantity > 0,
+  quantity: quantity,
+  stockStatus: stockStatus,
+  source: source,
+  freshnessStatus: freshnessStatus,
+  lastUpdated: lastUpdated,
+);
 
 ProviderContainer makeContainer({
   FakeProductRepo? productRepo,
@@ -113,7 +113,8 @@ ProviderContainer makeContainer({
         productRepositoryProvider.overrideWithValue(productRepo),
         inventoryRepositoryProvider.overrideWithValue(productRepo),
       ],
-      if (offersRepo != null) offersRepositoryProvider.overrideWithValue(offersRepo),
+      if (offersRepo != null)
+        offersRepositoryProvider.overrideWithValue(offersRepo),
       if (importRepo != null)
         inventoryImportRepositoryProvider.overrideWithValue(importRepo),
       if (picker != null) workbookPickerProvider.overrideWithValue(picker),
@@ -121,7 +122,9 @@ ProviderContainer makeContainer({
       tokenStoreProvider.overrideWithValue(
         InMemoryTokenStore(accessToken: 'test-access-token'),
       ),
-      selectedShopProvider.overrideWith(() => SelectedShopOverride(ownerShop())),
+      selectedShopProvider.overrideWith(
+        () => SelectedShopOverride(ownerShop()),
+      ),
     ],
   );
 }
@@ -143,25 +146,28 @@ Future<void> pumpScreen(
 void main() {
   // ── INVENTORY ──────────────────────────────────────────────────────────────
   group('InventoryDashboardScreen', () {
-    testWidgets('renders stock-health stats and navigation tiles',
-        (tester) async {
-      final repo = FakeProductRepo(items: [
-        p(id: 1, name: 'Rice 5kg', quantity: 40, source: 'EXCEL_UPLOAD'),
-        p(
-          id: 2,
-          name: 'Oil 1L',
-          quantity: 2,
-          stockStatus: 'LOW_STOCK',
-          source: 'MANUAL',
-        ),
-        p(
-          id: 3,
-          name: 'Bread',
-          quantity: 0,
-          stockStatus: 'OUT_OF_STOCK',
-          source: 'BARCODE_SCAN',
-        ),
-      ]);
+    testWidgets('renders stock-health stats and navigation tiles', (
+      tester,
+    ) async {
+      final repo = FakeProductRepo(
+        items: [
+          p(id: 1, name: 'Rice 5kg', quantity: 40, source: 'EXCEL_UPLOAD'),
+          p(
+            id: 2,
+            name: 'Oil 1L',
+            quantity: 2,
+            stockStatus: 'LOW_STOCK',
+            source: 'MANUAL',
+          ),
+          p(
+            id: 3,
+            name: 'Bread',
+            quantity: 0,
+            stockStatus: 'OUT_OF_STOCK',
+            source: 'BARCODE_SCAN',
+          ),
+        ],
+      );
       final container = makeContainer(productRepo: repo);
       addTearDown(container.dispose);
 
@@ -170,24 +176,33 @@ void main() {
       expect(find.byKey(const Key('stat-total-products')), findsOneWidget);
       expect(find.byKey(const Key('stat-low-stock')), findsOneWidget);
       expect(find.byKey(const Key('stat-out-of-stock')), findsOneWidget);
+      expect(find.byKey(const Key('inventory-tile-list')), findsOneWidget);
+      expect(find.byKey(const Key('inventory-tile-low-stock')), findsOneWidget);
       expect(
-          find.byKey(const Key('inventory-tile-list')), findsOneWidget);
+        find.byKey(const Key('inventory-tile-out-of-stock')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('inventory-tile-freshness')), findsOneWidget);
       expect(
-          find.byKey(const Key('inventory-tile-low-stock')), findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-out-of-stock')),
-          findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-freshness')),
-          findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-sync-status')),
-          findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-update-stock')),
-          findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-stock-history')),
-          findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-price-list')),
-          findsOneWidget);
-      expect(find.byKey(const Key('inventory-tile-import-center')),
-          findsOneWidget);
+        find.byKey(const Key('inventory-tile-sync-status')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('inventory-tile-update-stock')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('inventory-tile-stock-history')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('inventory-tile-price-list')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('inventory-tile-import-center')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -198,14 +213,16 @@ void main() {
       p(id: 3, name: 'Bread', quantity: 0, stockStatus: 'OUT_OF_STOCK'),
     ];
 
-    testWidgets('list view shows every product with a counter',
-        (tester) async {
+    testWidgets('list view shows every product with a counter', (tester) async {
       final container = makeContainer(
         productRepo: FakeProductRepo(items: items),
       );
       addTearDown(container.dispose);
-      await pumpScreen(tester, container,
-          const InventoryScopeScreen(scope: InventoryScope.all));
+      await pumpScreen(
+        tester,
+        container,
+        const InventoryScopeScreen(scope: InventoryScope.all),
+      );
 
       expect(find.byKey(const Key('inventory-count')), findsOneWidget);
       expect(find.text('3 of 3 products'), findsOneWidget);
@@ -219,60 +236,77 @@ void main() {
         productRepo: FakeProductRepo(items: items),
       );
       addTearDown(container.dispose);
-      await pumpScreen(tester, container,
-          const InventoryScopeScreen(scope: InventoryScope.low));
+      await pumpScreen(
+        tester,
+        container,
+        const InventoryScopeScreen(scope: InventoryScope.low),
+      );
 
       expect(find.text('1 of 3 products'), findsOneWidget);
       expect(find.text('Oil 1L'), findsOneWidget);
       expect(find.text('Rice 5kg'), findsNothing);
     });
 
-    testWidgets('out of stock view filters to OUT_OF_STOCK rows',
-        (tester) async {
+    testWidgets('out of stock view filters to OUT_OF_STOCK rows', (
+      tester,
+    ) async {
       final container = makeContainer(
         productRepo: FakeProductRepo(items: items),
       );
       addTearDown(container.dispose);
-      await pumpScreen(tester, container,
-          const InventoryScopeScreen(scope: InventoryScope.outOfStock));
+      await pumpScreen(
+        tester,
+        container,
+        const InventoryScopeScreen(scope: InventoryScope.outOfStock),
+      );
 
       expect(find.text('1 of 3 products'), findsOneWidget);
       expect(find.text('Bread'), findsOneWidget);
       expect(find.text('Rice 5kg'), findsNothing);
     });
 
-    testWidgets('freshness view surfaces stale items with labels',
-        (tester) async {
+    testWidgets('freshness view surfaces stale items with labels', (
+      tester,
+    ) async {
       final container = makeContainer(
-        productRepo: FakeProductRepo(items: [
-          p(
-            id: 1,
-            name: 'Fresh Item',
-            freshnessStatus: 'RECENTLY_UPDATED',
-            lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
-          ),
-          p(id: 2, name: 'Old Item', freshnessStatus: 'STALE'),
-        ]),
+        productRepo: FakeProductRepo(
+          items: [
+            p(
+              id: 1,
+              name: 'Fresh Item',
+              freshnessStatus: 'RECENTLY_UPDATED',
+              lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
+            ),
+            p(id: 2, name: 'Old Item', freshnessStatus: 'STALE'),
+          ],
+        ),
       );
       addTearDown(container.dispose);
-      await pumpScreen(tester, container,
-          const InventoryScopeScreen(scope: InventoryScope.freshness));
+      await pumpScreen(
+        tester,
+        container,
+        const InventoryScopeScreen(scope: InventoryScope.freshness),
+      );
 
       expect(find.text('Old Item'), findsOneWidget);
       expect(find.text('Fresh Item'), findsOneWidget);
       expect(find.textContaining('Needs update'), findsWidgets);
       // The row age speaks the app-wide freshness vocabulary
       // (DateTimeUtils.formatInventoryFreshness), not a screen-local format.
-      expect(find.textContaining('Inventory updated 5 min ago'), findsOneWidget);
+      expect(
+        find.textContaining('Inventory updated 5 min ago'),
+        findsOneWidget,
+      );
     });
   });
 
   group('UpdateStockScreen', () {
-    testWidgets('applies a delta adjustment through the audit endpoint',
-        (tester) async {
-      final repo = FakeProductRepo(items: [
-        p(id: 11, name: 'Rice 5kg', quantity: 5),
-      ]);
+    testWidgets('applies a delta adjustment through the audit endpoint', (
+      tester,
+    ) async {
+      final repo = FakeProductRepo(
+        items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
+      );
       final container = makeContainer(productRepo: repo);
       addTearDown(container.dispose);
 
@@ -293,11 +327,40 @@ void main() {
       expect(find.textContaining('5 → 10 units'), findsOneWidget);
     });
 
-    testWidgets('rejects a zero delta with a readable message',
-        (tester) async {
-      final repo = FakeProductRepo(items: [
-        p(id: 11, name: 'Rice 5kg', quantity: 5),
-      ]);
+    testWidgets('the confirmation names source, freshness and last update', (
+      tester,
+    ) async {
+      final repo = FakeProductRepo(
+        items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
+      );
+      final container = makeContainer(productRepo: repo);
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container, const UpdateStockScreen());
+
+      await tester.tap(find.text('Rice 5kg'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('update-stock-delta')), '5');
+      await tester.tap(find.byKey(const Key('update-stock-save')));
+      await tester.pumpAndSettle();
+
+      // Spec: "Show: Last Updated, Source, Freshness." All three ride on ONE
+      // line, so they are asserted against that line — losing any one of them
+      // fails here instead of passing on the other two.
+      final line = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data ?? '')
+          .firstWhere((s) => s.contains('Updated'), orElse: () => '');
+      expect(line, contains('Updated manually')); // source
+      expect(line, contains('Fresh')); // freshness
+      expect(line, contains('Today')); // last updated
+    });
+
+    testWidgets('rejects a zero delta with a readable message', (tester) async {
+      final repo = FakeProductRepo(
+        items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
+      );
       final container = makeContainer(productRepo: repo);
       addTearDown(container.dispose);
 
@@ -317,8 +380,9 @@ void main() {
   });
 
   group('StockHistoryScreen', () {
-    testWidgets('renders movements, adjustments and price changes',
-        (tester) async {
+    testWidgets('renders movements, adjustments and price changes', (
+      tester,
+    ) async {
       final repo = FakeProductRepo(
         items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
         onHistory: (_, _, _) => ProductHistoryResult(
@@ -372,34 +436,51 @@ void main() {
   group('InventorySyncStatusScreen', () {
     testWidgets('groups products by inventory source', (tester) async {
       final container = makeContainer(
-        productRepo: FakeProductRepo(items: [
-          p(id: 1, name: 'A', source: 'EXCEL_UPLOAD',
-              lastUpdated: DateTime(2026, 9, 1)),
-          p(id: 2, name: 'B', source: 'EXCEL_UPLOAD',
-              lastUpdated: DateTime(2026, 9, 2)),
-          p(id: 3, name: 'C', source: 'BARCODE_SCAN',
-              lastUpdated: DateTime(2026, 9, 3)),
-        ]),
+        productRepo: FakeProductRepo(
+          items: [
+            p(
+              id: 1,
+              name: 'A',
+              source: 'EXCEL_UPLOAD',
+              lastUpdated: DateTime(2026, 9, 1),
+            ),
+            p(
+              id: 2,
+              name: 'B',
+              source: 'EXCEL_UPLOAD',
+              lastUpdated: DateTime(2026, 9, 2),
+            ),
+            p(
+              id: 3,
+              name: 'C',
+              source: 'BARCODE_SCAN',
+              lastUpdated: DateTime(2026, 9, 3),
+            ),
+          ],
+        ),
       );
       addTearDown(container.dispose);
 
       await pumpScreen(tester, container, const InventorySyncStatusScreen());
 
-      expect(find.text('Excel import'), findsWidgets);
-      expect(find.text('Barcode scan'), findsWidgets);
+      expect(find.text('Updated via Excel/CSV'), findsWidgets);
+      expect(find.text('Updated via barcode'), findsWidgets);
       expect(find.byKey(const Key('sync-last-update')), findsOneWidget);
     });
   });
 
   // ── PRICING ────────────────────────────────────────────────────────────────
   group('PriceListScreen', () {
-    testWidgets('renders price rows with MRP and implied discount',
-        (tester) async {
+    testWidgets('renders price rows with MRP and implied discount', (
+      tester,
+    ) async {
       final container = makeContainer(
-        productRepo: FakeProductRepo(items: [
-          p(id: 1, name: 'Rice 5kg', price: 90, mrp: 120),
-          p(id: 2, name: 'Oil 1L', price: 150),
-        ]),
+        productRepo: FakeProductRepo(
+          items: [
+            p(id: 1, name: 'Rice 5kg', price: 90, mrp: 120),
+            p(id: 2, name: 'Oil 1L', price: 150),
+          ],
+        ),
       );
       addTearDown(container.dispose);
 
@@ -414,23 +495,26 @@ void main() {
       expect(find.textContaining('Price updated'), findsNothing);
     });
 
-    testWidgets('shows a unified freshness line, amber once stale',
-        (tester) async {
+    testWidgets('shows a unified freshness line, amber once stale', (
+      tester,
+    ) async {
       final container = makeContainer(
-        productRepo: FakeProductRepo(items: [
-          p(
-            id: 1,
-            name: 'Rice 5kg',
-            price: 90,
-            lastUpdated: DateTime.now().subtract(const Duration(days: 2)),
-          ),
-          p(
-            id: 2,
-            name: 'Oil 1L',
-            price: 150,
-            lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
-          ),
-        ]),
+        productRepo: FakeProductRepo(
+          items: [
+            p(
+              id: 1,
+              name: 'Rice 5kg',
+              price: 90,
+              lastUpdated: DateTime.now().subtract(const Duration(days: 2)),
+            ),
+            p(
+              id: 2,
+              name: 'Oil 1L',
+              price: 150,
+              lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
+            ),
+          ],
+        ),
       );
       addTearDown(container.dispose);
 
@@ -442,9 +526,11 @@ void main() {
       // …and only the >24h row carries the stale indicator (amber weight).
       final staleTexts = tester
           .widgetList<Text>(find.byType(Text))
-          .where((t) =>
-              (t.data ?? '').startsWith('Price updated') &&
-              t.style?.fontWeight == FontWeight.w600)
+          .where(
+            (t) =>
+                (t.data ?? '').startsWith('Price updated') &&
+                t.style?.fontWeight == FontWeight.w600,
+          )
           .toList();
       expect(staleTexts, hasLength(1));
       expect(staleTexts.single.data, isNot(contains('5 min ago')));
@@ -452,38 +538,9 @@ void main() {
   });
 
   group('UpdatePriceScreen', () {
-    testWidgets('saves the new price and MRP through the products PATCH',
-        (tester) async {
-      final repo = FakeProductRepo(
-        items: [p(id: 11, name: 'Rice 5kg', price: 90)],
-      );
-      final container = makeContainer(productRepo: repo);
-      addTearDown(container.dispose);
-
-      await pumpScreen(tester, container, const UpdatePriceScreen());
-
-      await tester.tap(find.text('Rice 5kg'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-          find.byKey(const Key('update-price-field')), '95');
-      await tester.enterText(
-          find.byKey(const Key('update-price-mrp-field')), '120');
-      await tester.tap(find.byKey(const Key('update-price-save')));
-      await tester.pumpAndSettle();
-
-      expect(repo.lastUpdatedId, 11);
-      expect(repo.lastUpdateFields?['price'], 95.0);
-      expect(repo.lastUpdateFields?['mrp'], 120.0);
-      expect(find.byKey(const Key('update-price-success')), findsOneWidget);
-
-      // Let the snackbar time out so no timer outlives the test.
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('rejects an MRP lower than the selling price',
-        (tester) async {
+    testWidgets('saves the new price and MRP through the products PATCH', (
+      tester,
+    ) async {
       final repo = FakeProductRepo(
         items: [p(id: 11, name: 'Rice 5kg', price: 90)],
       );
@@ -497,7 +554,39 @@ void main() {
 
       await tester.enterText(find.byKey(const Key('update-price-field')), '95');
       await tester.enterText(
-          find.byKey(const Key('update-price-mrp-field')), '50');
+        find.byKey(const Key('update-price-mrp-field')),
+        '120',
+      );
+      await tester.tap(find.byKey(const Key('update-price-save')));
+      await tester.pumpAndSettle();
+
+      expect(repo.lastUpdatedId, 11);
+      expect(repo.lastUpdateFields?['price'], 95.0);
+      expect(repo.lastUpdateFields?['mrp'], 120.0);
+      expect(find.byKey(const Key('update-price-success')), findsOneWidget);
+
+      // Let the snackbar time out so no timer outlives the test.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('rejects an MRP lower than the selling price', (tester) async {
+      final repo = FakeProductRepo(
+        items: [p(id: 11, name: 'Rice 5kg', price: 90)],
+      );
+      final container = makeContainer(productRepo: repo);
+      addTearDown(container.dispose);
+
+      await pumpScreen(tester, container, const UpdatePriceScreen());
+
+      await tester.tap(find.text('Rice 5kg'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('update-price-field')), '95');
+      await tester.enterText(
+        find.byKey(const Key('update-price-mrp-field')),
+        '50',
+      );
       await tester.tap(find.byKey(const Key('update-price-save')));
       await tester.pumpAndSettle();
 
@@ -513,20 +602,14 @@ void main() {
         onHistory: (_, _, _) => ProductHistoryResult(
           shopProductId: 11,
           entries: [
-            const ProductHistoryEntry(
-              type: 'movement',
-              quantityChange: 24,
-            ),
+            const ProductHistoryEntry(type: 'movement', quantityChange: 24),
             const ProductHistoryEntry(
               type: 'price_change',
               oldPrice: 80,
               newPrice: 90,
               changeSource: 'MANUAL',
             ),
-            const ProductHistoryEntry(
-              type: 'price_change',
-              newPrice: 80,
-            ),
+            const ProductHistoryEntry(type: 'price_change', newPrice: 80),
           ],
         ),
       );
@@ -546,8 +629,9 @@ void main() {
   });
 
   group('Offer screens', () {
-    testWidgets('active offers lists open offers, expired lists closed ones',
-        (tester) async {
+    testWidgets('active offers lists open offers, expired lists closed ones', (
+      tester,
+    ) async {
       final repo = FakeOffersRepo(
         page: OfferListPage(
           items: [
@@ -584,11 +668,7 @@ void main() {
       final container = makeContainer();
       addTearDown(container.dispose);
 
-      await pumpScreen(
-        tester,
-        container,
-        OfferDetailsScreen(offer: offer),
-      );
+      await pumpScreen(tester, container, OfferDetailsScreen(offer: offer));
 
       expect(find.text('Monsoon Sale'), findsOneWidget);
       expect(find.textContaining('₹50 off'), findsWidgets);
@@ -596,15 +676,18 @@ void main() {
       expect(find.text('Active'), findsOneWidget);
     });
 
-    testWidgets('create offer validates, then assigns with selected products',
-        (tester) async {
+    testWidgets('create offer validates, then assigns with selected products', (
+      tester,
+    ) async {
       final offersRepo = FakeOffersRepo();
       final container = makeContainer(
         offersRepo: offersRepo,
-        productRepo: FakeProductRepo(items: [
-          p(id: 31, name: 'Rice 5kg', price: 90),
-          p(id: 32, name: 'Oil 1L', price: 150),
-        ]),
+        productRepo: FakeProductRepo(
+          items: [
+            p(id: 31, name: 'Rice 5kg', price: 90),
+            p(id: 32, name: 'Oil 1L', price: 150),
+          ],
+        ),
       );
       addTearDown(container.dispose);
 
@@ -618,9 +701,13 @@ void main() {
 
       // Fill the form.
       await tester.enterText(
-          find.byKey(const Key('offer-title-field')), 'Monsoon Sale');
+        find.byKey(const Key('offer-title-field')),
+        'Monsoon Sale',
+      );
       await tester.enterText(
-          find.byKey(const Key('offer-discount-field')), '15');
+        find.byKey(const Key('offer-discount-field')),
+        '15',
+      );
 
       // Start date = today (dialog default).
       await tester.tap(find.byKey(const Key('offer-start-date')));
@@ -680,7 +767,9 @@ void main() {
       await pumpScreen(tester, container, const ImportCenterScreen());
 
       expect(
-          find.byKey(const Key('import-tile-download-sample')), findsOneWidget);
+        find.byKey(const Key('import-tile-download-sample')),
+        findsOneWidget,
+      );
       // Excel path + history entry, keyed by the current hub design.
       expect(find.byKey(const Key('method-excel-csv')), findsOneWidget);
       expect(find.byKey(const Key('summary-last-import')), findsOneWidget);
@@ -751,8 +840,9 @@ void main() {
       );
     }
 
-    testWidgets('pick → upload progress → preview → apply → success',
-        (tester) async {
+    testWidgets('pick → upload progress → preview → apply → success', (
+      tester,
+    ) async {
       final container = makeContainer(
         importRepo: FakeImportRepo(
           onUpload: ImportPreview(
@@ -804,11 +894,15 @@ void main() {
 
       expect(find.byKey(const Key('import-result-success')), findsOneWidget);
       expect(find.text('8 rows processed — all successful.'), findsOneWidget);
-      expect(find.byKey(const Key('import-result-view-results')), findsOneWidget);
+      expect(
+        find.byKey(const Key('import-result-view-results')),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('partial success reports processed and failed counts',
-        (tester) async {
+    testWidgets('partial success reports processed and failed counts', (
+      tester,
+    ) async {
       final container = makeContainer(
         importRepo: FakeImportRepo(
           onUpload: ImportPreview(
@@ -845,8 +939,33 @@ void main() {
         find.byKey(const Key('import-result-view-results')),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('import-result-view-errors')), findsOneWidget);
+      expect(
+        find.byKey(const Key('import-result-view-errors')),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('import-result-done')), findsOneWidget);
+
+      // DESIGN CONTRACT — one primary, no competing CTAs. This is the exact
+      // state that used to stack TWO full-width FilledButtons ("View Results"
+      // directly above "Done"), so the hierarchy is asserted here by widget
+      // type rather than by key: the drill-downs are OUTLINE (nobody competes
+      // with Done) and exactly ONE filled button survives.
+      // The key sits ON each button, so the type is read off the keyed widget.
+      expect(
+        tester.widget(find.byKey(const Key('import-result-done'))),
+        isA<FilledButton>(),
+        reason: 'Done is the single filled primary of this state',
+      );
+      expect(
+        find.byType(FilledButton),
+        findsOneWidget,
+        reason: 'the result state must offer exactly ONE primary action',
+      );
+      expect(
+        tester.widget(find.byKey(const Key('import-result-view-results'))),
+        isA<OutlinedButton>(),
+        reason: 'a drill-down is a secondary, so it is demoted to an outline',
+      );
     });
 
     testWidgets('queued imports point at the history', (tester) async {
@@ -886,8 +1005,9 @@ void main() {
   });
 
   group('ImportHistoryScreen', () {
-    testWidgets('lists past jobs and opens the row-level report',
-        (tester) async {
+    testWidgets('lists past jobs and opens the row-level report', (
+      tester,
+    ) async {
       final container = makeContainer(
         importRepo: FakeImportRepo(
           onList: const [
@@ -941,6 +1061,179 @@ void main() {
 
       expect(find.textContaining('Row 1 · Rice'), findsOneWidget);
       expect(find.textContaining('UNKNOWN_PRODUCT'), findsOneWidget);
+    });
+  });
+
+  group('Offer review (Preview -> Confirm)', () {
+    testWidgets('the review shows the typed draft before anything is sent', (
+      tester,
+    ) async {
+      final repo = FakeProductRepo(
+        items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
+      );
+      final container = makeContainer(productRepo: repo);
+      addTearDown(container.dispose);
+
+      await pumpScreen(
+        tester,
+        container,
+        Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(
+                key: const Key('open-review'),
+                child: const Text('Open review'),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => OfferReviewSheet(
+                    request: OfferAssignRequest(
+                      title: 'Diwali 10% off',
+                      offerType: ShopkeeperOfferType.percentageDiscount,
+                      discountPercentage: 10,
+                      startDate: DateTime(2026, 11, 1),
+                      endDate: DateTime(2026, 11, 15),
+                      shopProductIds: const [11],
+                    ),
+                    productNames: const {11: 'Rice 5kg'},
+                    activatesImmediately: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('open-review')));
+      await tester.pumpAndSettle();
+
+      // One screen, three facts: exact words, the typed value, and the window.
+      expect(find.byKey(const Key('offer-review-title')), findsOneWidget);
+      expect(find.text('Diwali 10% off'), findsOneWidget);
+      expect(find.textContaining('10.0% off'), findsOneWidget);
+      expect(find.textContaining('1 Nov 2026'), findsOneWidget);
+      expect(find.text('Goes live for customers now'), findsOneWidget);
+      expect(find.text('Applies to: Rice 5kg'), findsOneWidget);
+    });
+
+    testWidgets(
+      'confirm returns true; cancel returns to the form with nothing sent',
+      (tester) async {
+        final offersRepo = FakeOffersRepo();
+        final productRepo = FakeProductRepo(
+          items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
+        );
+        final container = makeContainer(
+          productRepo: productRepo,
+          offersRepo: offersRepo,
+        );
+        addTearDown(container.dispose);
+
+        await pumpScreen(
+          tester,
+          container,
+          Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  key: const Key('open-review'),
+                  child: const Text('Open review'),
+                  onPressed: () async {
+                    final confirmed = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => OfferReviewSheet(
+                        request: OfferAssignRequest(
+                          title: 'Diwali 10% off',
+                          offerType: ShopkeeperOfferType.percentageDiscount,
+                          discountPercentage: 10,
+                          startDate: DateTime(2026, 11, 1),
+                          endDate: DateTime(2026, 11, 15),
+                          shopProductIds: const [11],
+                        ),
+                        productNames: const {11: 'Rice 5kg'},
+                        activatesImmediately: true,
+                      ),
+                    );
+                    // Reports the sheet's own verdict so the tap below lands on
+                    // a real callback boundary rather than a dead button.
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(confirmed == true ? 'yes' : 'no'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // CANCEL: nothing leaves the device, everything stays editable.
+        await tester.tap(find.byKey(const Key('open-review')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('offer-review-cancel')));
+        await tester.pumpAndSettle();
+        expect(find.text('no'), findsOneWidget);
+        expect(offersRepo.assignCalls, 0);
+
+        // Let the SnackBar below expire before opening again: it overlays the
+        // same bottom region the review's Confirm button occupies, so tapping
+        // straight away would land on the bar instead of the button.
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+
+        // CONFIRM: the sheet closes with true, which is the only signal the
+        // create sheet uses to send the already-validated draft.
+        await tester.tap(find.byKey(const Key('open-review')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('offer-review-confirm')));
+        await tester.pumpAndSettle();
+        expect(find.text('yes'), findsOneWidget);
+      },
+    );
+
+    testWidgets('a draft previews its held status instead of a live window', (
+      tester,
+    ) async {
+      final repo = FakeProductRepo(
+        items: [p(id: 11, name: 'Rice 5kg', quantity: 5)],
+      );
+      final container = makeContainer(productRepo: repo);
+      addTearDown(container.dispose);
+
+      // Not `const`: the draft's DateTime values and the sheet's own builder
+      // are fine as constants, but the const-context inference here points at
+      // a non-const corner the analyzer already accepted. A plain (non-const)
+      // MaterialApp is what every other sheet test pumps anyway.
+      await pumpScreen(
+        tester,
+        container,
+        MaterialApp(
+          home: Scaffold(
+            body: OfferReviewSheet(
+              request: OfferAssignRequest(
+                title: 'Draft 10% off',
+                offerType: ShopkeeperOfferType.percentageDiscount,
+                discountPercentage: 10,
+                startDate: DateTime(2026, 11, 1),
+                endDate: DateTime(2026, 11, 15),
+                status: 'DRAFT',
+                shopProductIds: const [11],
+              ),
+              productNames: const {11: 'Rice 5kg'},
+              activatesImmediately: false,
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Saved as draft — customers will not see it'),
+        findsOneWidget,
+      );
     });
   });
 }

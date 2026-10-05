@@ -180,7 +180,7 @@ class _OffersTab extends ConsumerWidget {
           icon: Icons.storefront_outlined,
         ),
       OffersListStatus.error => SystemStateView(
-          spec: SystemStateSpec.resolve(
+          spec: SystemStateSpec.resolve(
             text: appText(context),
             state: SystemState.genericRetry,
             title: state.message ?? 'Could not load offers.',

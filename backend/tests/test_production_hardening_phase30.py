@@ -26,6 +26,13 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+
+# Midday, used to place seeded analytics events unambiguously inside the UTC day
+# the aggregation queries. Aliased away from `time` because this module binds a
+# local variable called `time` (for `time.perf_counter`) that shadows it.
+from datetime import time as _MIDDAY_TIME
+
+_MIDDAY = _MIDDAY_TIME(hour=12)
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch  # noqa: E402
@@ -549,8 +556,21 @@ class TestMassAssignment:
 class TestPerformance:
     @pytest.fixture()
     def perf_db(self, db: Session) -> Session:
-        """Seed a realistic volume of analytics events."""
-        base = datetime.now(timezone.utc) - timedelta(hours=2)
+        """Seed a realistic volume of analytics events.
+
+        The events are placed INSIDE the day the aggregation will be asked
+        about, rather than at "now minus two hours". The old form looked
+        equivalent but was not: `aggregate_daily` is called with today's date,
+        so any run between 00:00 and 02:00 UTC seeded events onto YESTERDAY
+        and asserted `groups >= 2` against an empty range. That made the suite
+        fail on every run in that two-hour window and pass at other times,
+        which is the worst shape a test can have.
+        """
+        day = datetime.now(timezone.utc).date()
+        # Midday on that day: unambiguously inside the queried range whatever
+        # the hour, and independent of the machine's timezone. Aliased because
+        # this test class binds a local `time` that would shadow the module.
+        base = datetime.combine(day, _MIDDAY)
         events: list[AnalyticsEvent] = []
         for i in range(300):
             events.append(

@@ -78,7 +78,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 // startup check; "Sign in instead" abandons it WITHOUT wiping
                 // the stored session.
                 SystemStateView(
-                  spec: SystemStateSpec.resolve(
+                  spec: SystemStateSpec.resolve(
                     text: appText(context),
                     state: auth.systemState,
                     title: appText(context).splashScreenCouldNotCompleteStartup,

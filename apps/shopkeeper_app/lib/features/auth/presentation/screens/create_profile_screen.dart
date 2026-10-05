@@ -4,9 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/app_text.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/network/api_providers.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/ui/app_section_header.dart';
 import '../../../../core/ui/numeric_input.dart';
 import '../../../profile/data/profile_repository.dart';
+import '../../../shops/domain/capability_fields.dart';
+import '../../../shops/domain/shop_models.dart'
+    show kBusinessCategoryFallback,
+         kBusinessTypes,
+         resolveCategoryCapabilities;
+import '../../../shops/presentation/controllers/capability_fields_controller.dart';
+import '../../../shops/presentation/widgets/capability_fields_view.dart';
 import '../../../shops/presentation/controllers/shops_controller.dart';
 import '../controllers/auth_controller.dart';
 
@@ -34,31 +44,20 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   final _tagline = TextEditingController();
   String? _category;
   String? _businessType;
+  /// Capability-driven field values, keyed by [CapabilityFieldSpec.key].
+  ///
+  /// Held here rather than in the shared view so the values survive the
+  /// category changing: picking a different trade must re-render the FIELDS,
+  /// not silently discard what was already typed for the one before.
+  final Map<String, String> _capabilityValues = <String, String>{};
   bool _submitting = false;
   String? _error;
 
-  // Approved business categories (backend-driven codes, no Grocery/Food).
-  static const _categories = <(String code, String label)>[
-    ('PHARMACY_HEALTHCARE', 'Pharmacy & Healthcare'),
-    ('BEAUTY_PERSONAL_CARE', 'Beauty & Personal Care'),
-    ('FURNITURE_HOME_CARE', 'Furniture & Home Care'),
-    ('HOUSEHOLD_GOODS', 'Household Goods'),
-    ('SPORTS_FITNESS_OUTDOOR', 'Sports, Fitness & Outdoor'),
-    ('BOOKS_MEDIA_STATIONERY', 'Books, Media & Stationery'),
-    ('AUTOMOTIVE_PARTS_TOOLS', 'Automotive Parts & Tools'),
-    ('HARDWARE', 'Hardware'),
-    ('RESTAURANTS', 'Restaurants'),
-    ('TRANSPORT', 'Transport'),
-    ('PERSONAL_TRANSPORT_TRAVEL', 'Personal Transport / Personal Travel'),
-  ];
-
-  static const _businessTypes = <String>[
-    'Retail',
-    'Wholesale',
-    'Retail + Wholesale',
-    'Service',
-    'Other',
-  ];
+  // Categories and business types are NOT re-typed here. The central lists live
+  // beside the other category data in `shop_models.dart`, pinned to the backend
+  // registry by `business_category_test` and `business_type_vocabulary_test`;
+  // a private copy is exactly what silently drifted before (it spelled the
+  // combined type `Retail & Wholesale`, a string no narrowing rule matches).
 
   @override
   void initState() {
@@ -121,6 +120,27 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
         return;
       }
 
+      // 1b) Capability-driven fields. These need the shop to exist first (the
+      //     endpoint is keyed by shop id), so they are a SECOND call rather
+      //     than part of the create body.
+      //
+      //     A failure here is reported, not swallowed: the shop exists, and a
+      //     shopkeeper who typed a service area must not be walked to the
+      //     dashboard believing it was stored when the server never saw it.
+      if (_capabilityValues.isNotEmpty) {
+        final saved = await _saveCapabilityFields(shop.summary.id);
+        if (!saved) {
+          if (!mounted) return;
+          setState(() {
+            _submitting = false;
+            _error =
+                'Your shop was created, but its business details could not be '
+                'saved. Please open your shop and try again.';
+          });
+          return;
+        }
+      }
+
       // 2) Update user profile with the full name (best-effort — shop creation
       //    already succeeded, so this must never block onboarding).
       final fullName = _fullName.text.trim();
@@ -156,10 +176,45 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     }
   }
 
+  /// PUTs the capability-field values against the freshly created shop.
+  ///
+  /// Only NON-EMPTY values are sent. The backend validates against the keys
+  /// its registry approves for this category and rejects the whole request on a
+  /// refusal, so sending a key the server does not know fails the entire save
+  /// rather than just that one field.
+  Future<bool> _saveCapabilityFields(int shopId) async {
+    try {
+      final payload = <String, dynamic>{
+        for (final entry in _capabilityValues.entries)
+          if (entry.value.trim().isNotEmpty) entry.key: entry.value.trim(),
+      };
+      if (payload.isEmpty) return true;
+      await ref.read(apiClientProvider).put(
+            ApiEndpoints.shopCapabilityFields(shopId),
+            body: payload,
+          );
+      return true;
+    } catch (e) {
+      debugPrint('[PROFILE] capability fields not saved: $e');
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // The field set for the CURRENT trade, fetched from the backend once a
+    // category exists. The server's list wins over the local table; the
+    // controller falls back to the built-in one and marks the result offline.
+    final capArg = (
+      category: _category ?? '',
+      businessType: _businessType,
+    );
+    final capState = ref.watch(capabilityFieldsProvider(capArg));
+    final capFields =
+        capState.asData?.value.fields ?? const <CapabilityFieldSpec>[];
+    final capSet = resolveCategoryCapabilities(capArg.category, capArg.businessType);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 600;
 
@@ -275,8 +330,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           ),
                           hint: Text(appText(context).commonSelectACategory),
                           items: [
-                            for (final (code, label) in _categories)
-                              DropdownMenuItem(value: code, child: Text(label)),
+                            for (final category in kBusinessCategoryFallback)
+                              DropdownMenuItem(
+                                value: category.code,
+                                child: Text(category.displayLabel),
+                              ),
                           ],
                           onChanged: (v) => setState(() => _category = v),
                           validator: (v) =>
@@ -293,13 +351,42 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           ),
                           hint: Text(appText(context).commonSelectAType),
                           items: [
-                            for (final t in _businessTypes)
+                            for (final t in kBusinessTypes)
                               DropdownMenuItem(value: t, child: Text(t)),
                           ],
                           onChanged: (v) => setState(() => _businessType = v),
                           validator: (v) =>
                               v == null ? 'Please select a business type' : null,
                         ),
+                        const SizedBox(height: 16),
+                        // Capability-driven fields. Nothing renders until a
+                        // trade is chosen, which is the whole point: a hardware
+                        // shop has no "service area" and should never be shown
+                        // one, however the form is scrolled.
+                        if (capFields.isNotEmpty) ...[
+                          CapabilityFieldsView(
+                            set: capSet,
+                            fields: capFields,
+                            values: _capabilityValues,
+                            onChanged: (key, value) => setState(
+                              () => _capabilityValues[key] = value,
+                            ),
+                            title: 'Business details',
+                          ),
+                          if (capState.asData?.value.isOffline ?? false) ...[
+                            const SizedBox(height: 10),
+                            _OfflineFieldsNotice(
+                              onRetry: () => ref.invalidate(
+                                capabilityFieldsProvider(
+                                  (
+                                    category: _category ?? '',
+                                    businessType: _businessType,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _tagline,
@@ -367,6 +454,54 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Says out loud that the field list came from the built-in table, not the
+/// server.
+///
+/// Without this the screen renders a complete-looking form from a fallback and
+/// says nothing: a shopkeeper who fills in a service area and is walked to a
+/// dashboard has no way to know the server never confirmed that category's
+/// field set. The Retry is there because the fallback is a network state, and
+/// networks come back.
+class _OfflineFieldsNotice extends StatelessWidget {
+  const _OfflineFieldsNotice({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const Key('capability-fields-offline-notice'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppSpacing.sm),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Showing the last known fields for this category. These could '
+              'not be confirmed with the server, so they may differ from what '
+              'is actually required.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
       ),
     );
   }

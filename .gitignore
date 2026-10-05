@@ -103,6 +103,17 @@ test_err.txt
 test_out.txt
 temp_file.txt
 
+# Root-level scratch logs (analyzer / pytest / ruff output).
+# These were tracked by accident: 27 files, ~1.5 MB of pure tool output that
+# changed on every local run, so they polluted every diff and added noise to
+# review. They are UNTRACKED (not deleted) and ignored going forward.
+analyze_*.txt
+rq_*.txt
+ruff_fmt*.txt
+docker_install.txt
+pg_install.txt
+fa_done.txt
+
 # ── Repo-root scratch transcripts (added 2026-10) ────────────────────────────
 # These are ad-hoc capture files from running analyze/test/ruff by hand. They
 # are regenerated in seconds and were being committed at the repo root, so every
@@ -128,3 +139,34 @@ temp_file.txt
 /analyze_full.txt
 /analyze_output.txt
 /analyze_after_regen.txt
+
+# -- Credentials and access tokens -------------------------------------------
+# NEVER tracked. Anything matching these was once a real credential on disk;
+# they are ignored from here on. See docs/security/SECRET_ROTATION.md -- if one
+# of these ever held a live key, ignoring it is NOT enough: the key must be
+# rotated, because ignoring only stops the NEXT commit, not the last one.
+_access.txt
+_new_secret.txt
+_refresh.txt
+admin_token.txt
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+
+# -- Tool output written next to the code ------------------------------------
+# A test run or a build must never be able to dirty the tree. This is the rule
+# that stops a scratch log being committed by accident and then appearing in
+# every future diff as noise.
+pytest_*.txt
+pytest_*.log
+scoped_pytest.log
+backend_log.txt
+*_out.txt
+*_err.txt
+alembic_bg.txt
+analyze*.txt
+ruff_fmt*.txt

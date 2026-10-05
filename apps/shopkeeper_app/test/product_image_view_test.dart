@@ -54,6 +54,85 @@ void main() {
       expect(find.byType(Image), findsNothing);
     });
 
+    testWidgets('decodes a NETWORK image at paint size, not source size', (
+      tester,
+    ) async {
+      // §111 "unbounded image caching" / §118 memory. A catalog photo served by
+      // the backend can be 2000px wide; decoding it at source resolution costs
+      // tens of megabytes of bitmap for a box that paints ~120px, and the
+      // decoded bitmap then sits in the image cache for the life of the screen.
+      //
+      // The local-file branch already falls back to [ProductImageView]'s
+      // computed decode width when the caller states no `cacheWidth`. This pins
+      // that the NETWORK branch does the same — otherwise the exact cost the
+      // comment warns about is only avoided for files, not for the far more
+      // common server-hosted case (3 of 6 call sites pass no `cacheWidth`).
+      await tester.pumpWidget(
+        host(
+          const ProductImageView(
+            width: 120,
+            height: 120,
+            imageUrl: 'https://cdn.hyperlocal.in/products/amul-milk.jpg',
+            errorWidget: errorSlot,
+          ),
+        ),
+      );
+
+      final image = tester.widget<Image>(find.byType(Image));
+      // `Image` wraps its provider in a ResizeImage when a decode size is set,
+      // so an unwrapped NetworkImage means "decoded at full resolution".
+      expect(
+        image.image,
+        isA<ResizeImage>(),
+        reason: 'a network image must be decoded at paint size, not source size',
+      );
+      final resized = image.image as ResizeImage;
+      expect(
+        resized.width,
+        isNotNull,
+        reason: 'a bounded decode width must reach the image cache',
+      );
+      expect(resized.width, lessThanOrEqualTo(1024));
+      // A 120dp box at the binding's device pixel ratio — never the source
+      // resolution. Computed rather than hardcoded because the test binding
+      // reports DPR 3.0, so a literal here would encode that detail.
+      final dpr = tester.view.devicePixelRatio;
+      expect(resized.width, (120 * dpr).ceil());
+    });
+
+    testWidgets('keeps the old frame while a ROTATED presigned URL reloads', (
+      tester,
+    ) async {
+      // The backend serves product images as PRESIGNED URLs, so the URL string
+      // changes on every refresh even though the picture is the same. Flutter
+      // treats a changed provider as a brand-new image, so without
+      // `gaplessPlayback` every pull-to-refresh drops the decoded frame and
+      // flashes the loading placeholder across every thumbnail in the product
+      // list — visible flicker on the app's main scrolling screen.
+      //
+      // (The same applies when a shopkeeper replaces a local photo: the path
+      // changes and the preview would blank out.)
+      await tester.pumpWidget(
+        host(
+          const ProductImageView(
+            width: 48,
+            height: 48,
+            imageUrl:
+                'https://cdn.hyperlocal.in/products/amul-milk.jpg'
+                '?X-Amz-Signature=abc123&X-Amz-Expires=900',
+            errorWidget: errorSlot,
+          ),
+        ),
+      );
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(
+        image.gaplessPlayback,
+        isTrue,
+        reason: 'a rotated URL must not blank an already-decoded thumbnail',
+      );
+    });
+
     testWidgets('treats a blank url as "no image", not a failed load', (
       tester,
     ) async {
