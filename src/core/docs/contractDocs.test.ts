@@ -14,7 +14,6 @@ import { join } from 'node:path';
 const ROOT = join(process.cwd(), 'docs');
 
 const REQUIRED_DOCS = [
-  'PHASE_1_CURRENT_STATE_REPORT.md',
   'PHASE_2_ARCHITECTURE_CONTRACT.md',
   'frontend-architecture-contract.md',
   'WORKFLOW.md',

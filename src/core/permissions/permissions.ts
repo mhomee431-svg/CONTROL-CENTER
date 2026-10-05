@@ -43,6 +43,9 @@ export const CAPABILITIES = {
 
   NOTIFICATIONS_SEND: 'notifications.send',
 
+  CONTENT_READ: 'content.read',
+  CONTENT_MANAGE: 'content.manage',
+
   SUPPORT_READ: 'support.read',
   SUPPORT_UPDATE: 'support.update',
 
@@ -165,6 +168,9 @@ export const ROLE_CAPABILITIES: Record<AdminRole, Capability[] | '*'> = {
     CAPABILITIES.TAXONOMY_READ,
     CAPABILITIES.TAXONOMY_MANAGE,
     CAPABILITIES.INVENTORY_READ,
+    CAPABILITIES.CONTENT_READ,
+    CAPABILITIES.CONTENT_MANAGE,
+    CAPABILITIES.NOTIFICATIONS_SEND,
   ],
 
   ANALYST: [

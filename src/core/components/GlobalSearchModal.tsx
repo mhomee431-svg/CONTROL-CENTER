@@ -353,7 +353,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ open, onCl
           // /admin/reports, which returns report rows with none of ImportRow's
           // fields, so import search silently returned nothing.
           safe(
-            apiClient<{ items: ImportRow[] }>(API_ENDPOINTS.INGESTION.IMPORTS, {
+            apiClient<{ items: ImportRow[] }>(API_ENDPOINTS.IMPORTS.LIST, {
               params: { search: term, limit: MAX_PER_TYPE },
             }),
             { items: [] }

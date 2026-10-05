@@ -61,10 +61,15 @@ function findPageSource(route: string): string | null {
 }
 
 describe('query failure surfaces an explicit state', () => {
+  // `useQueryClient` and `useMutation` both contain the substring, so a page
+  // that only writes — no reads, nothing to fail into a false "no data" — was
+  // being flagged for a handler it has no reason to have. Matched on the call
+  // or a generic argument instead.
+  const issuesQuery = (src: string) => /useQuery[<(]/.test(src);
   const pagesWithQueries = PAGES.map((route) => ({
     route,
     src: findPageSource(route),
-  })).filter((p): p is { route: string; src: string } => Boolean(p.src?.includes('useQuery')));
+  })).filter((p): p is { route: string; src: string } => Boolean(p.src && issuesQuery(p.src)));
 
   it('found the page corpus', () => {
     expect(pagesWithQueries.length).toBeGreaterThan(20);

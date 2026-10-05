@@ -27,7 +27,6 @@ import {
   AlertCircle,
   Bell,
   FileText,
-  StickyNote,
   Settings,
   ChevronDown,
   ChevronRight,
@@ -40,6 +39,13 @@ import {
   BarChart2,
   Building2,
   Activity as ActivityIcon,
+  Newspaper,
+  Image as ImageIcon,
+  Megaphone,
+  HelpCircle,
+  BookOpen,
+  Ticket,
+  AlertTriangle,
   LayoutGrid,
 } from 'lucide-react';
 import { usePermissions } from '../permissions/PermissionGuard';
@@ -132,15 +138,26 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Push Notifications', path: ROUTES.NOTIFICATIONS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Campaigns', path: ROUTES.NOTIFICATION_CAMPAIGNS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Audit Logs', path: ROUTES.AUDIT, icon: <FileText size={18} />, capability: CAPABILITIES.AUDIT_READ },
-      { title: 'Admin Notes', path: ROUTES.AUDIT_NOTES, icon: <StickyNote size={18} />, capability: CAPABILITIES.AUDIT_READ },
+    ],
+  },
+  {
+    group: 'CONTENT & ANNOUNCEMENTS',
+    items: [
+      { title: 'Content Overview', path: ROUTES.CONTENT, icon: <Newspaper size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Home Banners', path: ROUTES.CONTENT_BANNERS, icon: <ImageIcon size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Announcements', path: ROUTES.CONTENT_ANNOUNCEMENTS, icon: <Megaphone size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'FAQs', path: ROUTES.CONTENT_FAQS, icon: <HelpCircle size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Help Content', path: ROUTES.CONTENT_HELP, icon: <BookOpen size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Promotional Cards', path: ROUTES.CONTENT_PROMOTIONS, icon: <Ticket size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'System Messages', path: ROUTES.CONTENT_SYSTEM_MESSAGES, icon: <AlertTriangle size={18} />, capability: CAPABILITIES.CONTENT_READ },
     ],
   },
   {
     group: 'ADMINISTRATION',
     items: [
       // Landing page for the whole administration area. It collects the
-      // config, governance, audit and job destinations below it in one
-      // place, so it goes first as the section entry point.
+      // governance, config, audit and job destinations below it in one place,
+      // so it opens the section rather than sitting beside the parts.
       { title: 'Settings Hub', path: ROUTES.SETTINGS, icon: <LayoutGrid size={18} />, capability: CAPABILITIES.SETTINGS_READ },
       { title: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.ADMINS_READ },
       { title: 'System Settings', path: ROUTES.SYSTEM_SETTINGS, icon: <Settings size={18} />, capability: CAPABILITIES.SETTINGS_READ },

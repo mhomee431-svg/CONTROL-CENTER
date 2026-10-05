@@ -12,28 +12,17 @@ import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
-
-interface Campaign {
-  id: number;
-  title?: string;
-  audience?: string;
-  status?: string;
-  sent_at?: string;
-  created_at?: string;
-}
+import { NotificationCampaignItem } from '@/core/types/admin';
 
 export default function NotificationCampaignsPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [search, setSearch] = useState('');
 
-  const { data, isLoading, isError, refetch } = useQuery<{ items: Campaign[]; total: number }>({
-    queryKey: ['admin', 'campaigns', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: NotificationCampaignItem[]; total: number }>({
+    queryKey: ['admin', 'campaigns', paginationModel],
     queryFn: () =>
-      apiClient<{ items: Campaign[]; total: number }>(API_ENDPOINTS.AUDIT.ACTIONS, {
+      apiClient<{ items: NotificationCampaignItem[]; total: number }>(API_ENDPOINTS.NOTIFICATIONS.CAMPAIGNS, {
         params: {
-          entity_type: 'notification',
-          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -48,9 +37,32 @@ export default function NotificationCampaignsPage() {
       headerName: 'Campaign',
       flex: 1.5,
       minWidth: 180,
-      valueGetter: (_, row) => (row as Campaign).title || (row as { action?: string }).action || 'Broadcast',
+      valueGetter: (_, row) => (row as NotificationCampaignItem).title || 'Broadcast',
     },
-    { field: 'audience', headerName: 'Audience', flex: 1, minWidth: 140 },
+    {
+      field: 'audience',
+      headerName: 'Audience',
+      flex: 0.8,
+      minWidth: 120,
+      valueGetter: (_, row) => ((row as NotificationCampaignItem).audience || 'all').toUpperCase(),
+    },
+    {
+      field: 'notification_type',
+      headerName: 'Type',
+      flex: 1,
+      minWidth: 150,
+      valueFormatter: (value) => String(value || '').replace(/_/g, ' '),
+    },
+    {
+      field: 'recipients_sent',
+      headerName: 'Delivered',
+      width: 130,
+      valueGetter: (_, row) => {
+        const c = row as NotificationCampaignItem;
+        if (c.recipients_sent == null && c.recipients_total == null) return 'N/A';
+        return `${c.recipients_sent ?? 0} / ${c.recipients_total ?? 0}`;
+      },
+    },
     {
       field: 'status',
       headerName: 'Status',
@@ -96,11 +108,10 @@ export default function NotificationCampaignsPage() {
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
-        searchPlaceholder="Search campaigns..."
-        searchValue={search}
-        onSearchChange={setSearch}
-        onRefresh={() => refetch()}
         error={isError}
+        errorMessage="Campaigns could not be loaded. The request failed — retry, and escalate if it keeps failing."
+        searchPlaceholder="Search campaigns..."
+        onRefresh={() => refetch()}
         onRowClick={(params) => router.push(ROUTES.NOTIFICATION_DETAIL(params.row.id as number))}
       />
     </Box>

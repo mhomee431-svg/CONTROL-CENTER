@@ -24,13 +24,19 @@ export const API_ENDPOINTS = {
   CUSTOMERS: {
     LIST: '/api/v1/admin/customers',
     DETAIL: (userId: number | string) => `/api/v1/admin/customers/${userId}`,
+    // Each customer drill-down tab is its own route. They stay separate so a
+    // tab that is not deployed yet is a named failure rather than an empty
+    // tab, and so one slow surface does not hold up the rest.
     ACTIVITY: (userId: number | string) => `/api/v1/admin/customers/${userId}/activity`,
     SEARCHES: (userId: number | string) => `/api/v1/admin/customers/${userId}/searches`,
-    VIEWED_PRODUCTS: (userId: number | string) => `/api/v1/admin/customers/${userId}/viewed-products`,
+    VIEWED_PRODUCTS: (userId: number | string) =>
+      `/api/v1/admin/customers/${userId}/viewed-products`,
     VIEWED_SHOPS: (userId: number | string) => `/api/v1/admin/customers/${userId}/viewed-shops`,
-    SAVED_PRODUCTS: (userId: number | string) => `/api/v1/admin/customers/${userId}/saved-products`,
+    SAVED_PRODUCTS: (userId: number | string) =>
+      `/api/v1/admin/customers/${userId}/saved-products`,
     SAVED_SHOPS: (userId: number | string) => `/api/v1/admin/customers/${userId}/saved-shops`,
-    NOTIFICATIONS: (userId: number | string) => `/api/v1/admin/customers/${userId}/notifications`,
+    NOTIFICATIONS: (userId: number | string) =>
+      `/api/v1/admin/customers/${userId}/notifications`,
     SAVED_ITEMS: (userId: number | string) => `/api/v1/admin/customers/${userId}/saved-items`,
     ADDRESSES: (userId: number | string) => `/api/v1/admin/customers/${userId}/addresses`,
     TICKETS: (userId: number | string) => `/api/v1/admin/customers/${userId}/tickets`,
@@ -53,6 +59,9 @@ export const API_ENDPOINTS = {
   SHOPKEEPERS: {
     LIST: '/api/v1/admin/shopkeepers',
     DETAIL: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}`,
+    // Merchant-scoped sub-resources. Each backs one tab on the shopkeeper
+    // drill-down; they are distinct routes so a tab that fails is visible
+    // rather than collapsing the whole merchant record.
     SHOPS: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}/shops`,
     IMPORTS: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}/imports`,
     POS_INTEGRATIONS: (userId: number | string) =>
@@ -124,6 +133,31 @@ export const API_ENDPOINTS = {
   // Notifications
   NOTIFICATIONS: {
     SEND: '/api/v1/admin/notifications/send',
+    CAMPAIGNS: '/api/v1/admin/notifications/campaigns',
+    CAMPAIGN_DETAIL: (id: number | string) => `/api/v1/admin/notifications/campaigns/${id}`,
+    // Optional: force-cancel an in-flight campaign (backend-authoritative).
+    CAMPAIGN_CANCEL: (id: number | string) => `/api/v1/admin/notifications/campaigns/${id}/cancel`,
+  },
+
+  // Content & Announcements (banners, announcements, FAQs, help, promos, system messages)
+  CONTENT: {
+    BANNERS: '/api/v1/admin/content/banners',
+    BANNER_DETAIL: (id: number | string) => `/api/v1/admin/content/banners/${id}`,
+
+    ANNOUNCEMENTS: '/api/v1/admin/content/announcements',
+    ANNOUNCEMENT_DETAIL: (id: number | string) => `/api/v1/admin/content/announcements/${id}`,
+
+    FAQS: '/api/v1/admin/content/faqs',
+    FAQ_DETAIL: (id: number | string) => `/api/v1/admin/content/faqs/${id}`,
+
+    HELP: '/api/v1/admin/content/help',
+    HELP_DETAIL: (id: number | string) => `/api/v1/admin/content/help/${id}`,
+
+    PROMOTIONS: '/api/v1/admin/content/promotions',
+    PROMOTION_DETAIL: (id: number | string) => `/api/v1/admin/content/promotions/${id}`,
+
+    SYSTEM_MESSAGES: '/api/v1/admin/content/system-messages',
+    SYSTEM_MESSAGE_DETAIL: (id: number | string) => `/api/v1/admin/content/system-messages/${id}`,
   },
 
   // Governance & Audit
@@ -134,12 +168,23 @@ export const API_ENDPOINTS = {
     NOTE_DETAIL: (id: number | string) => `/api/v1/admin/notes/${id}`,
   },
 
-  // Geography & Data Ingestion
-  INGESTION: {
-    IMPORTS: '/api/v1/admin/imports',
-    IMPORT_DETAIL: (id: number | string) => `/api/v1/admin/imports/${id}`,
-    POS_INTEGRATIONS: '/api/v1/admin/pos-integrations',
-    POS_INTEGRATION_DETAIL: (id: number | string) => `/api/v1/admin/pos-integrations/${id}`,
+  // POS Integrations (provider-neutral)
+  POS: {
+    LIST: '/api/v1/admin/pos/integrations',
+    DETAIL: (id: number | string) => `/api/v1/admin/pos/integrations/${id}`,
+    SYNC: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/sync`,
+    DISCONNECT: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/disconnect`,
+    RECONNECT: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/reconnect`,
+    SYNC_HISTORY: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/syncs`,
+  },
+
+  // Data Imports / Import Center
+  IMPORTS: {
+    LIST: '/api/v1/admin/imports',
+    DETAIL: (id: number | string) => `/api/v1/admin/imports/${id}`,
+    ERRORS: (id: number | string) => `/api/v1/admin/imports/${id}/errors`,
+    RETRY: (id: number | string) => `/api/v1/admin/imports/${id}/retry`,
+    CANCEL: (id: number | string) => `/api/v1/admin/imports/${id}/cancel`,
   },
 
   // System

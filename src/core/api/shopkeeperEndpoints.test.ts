@@ -12,7 +12,7 @@ describe('shopkeeper detail tab contracts', () => {
   it('covers all eleven spec tabs with a backing endpoint', () => {
     const urls = [
       API_ENDPOINTS.SHOPKEEPERS.SHOPS(5),
-      API_ENDPOINTS.INGESTION.IMPORTS,
+      API_ENDPOINTS.IMPORTS.LIST,
       API_ENDPOINTS.SHOPKEEPERS.IMPORTS(5),
       API_ENDPOINTS.SHOPKEEPERS.POS_INTEGRATIONS(5),
       API_ENDPOINTS.SHOPKEEPERS.NOTIFICATIONS(5),
@@ -35,8 +35,8 @@ describe('shopkeeper detail tab contracts', () => {
   });
 
   it('exposes platform-level ingestion endpoints for the global pages', () => {
-    expect(API_ENDPOINTS.INGESTION.IMPORTS).toBe('/api/v1/admin/imports');
-    expect(API_ENDPOINTS.INGESTION.POS_INTEGRATIONS).toBe('/api/v1/admin/pos-integrations');
+    expect(API_ENDPOINTS.IMPORTS.LIST).toBe('/api/v1/admin/imports');
+    expect(API_ENDPOINTS.POS.LIST).toBe('/api/v1/admin/pos/integrations');
   });
 
   it('keeps the shopkeeper detail and shops endpoints distinct', () => {
