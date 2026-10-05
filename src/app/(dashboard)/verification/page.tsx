@@ -26,6 +26,7 @@ import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CAPABILITIES } from '@/core/permissions/permissions';
+import { ROUTES } from '@/core/routes/routes';
 
 /**
  * Central verification queue.
@@ -248,7 +249,7 @@ export default function VerificationPage() {
               size="small"
               variant="text"
               startIcon={<Eye size={14} />}
-              onClick={() => router.push(`/businesses/${item.id}`)}
+              onClick={() => router.push(ROUTES.VERIFICATION_DETAIL(item.id))}
             >
               Review
             </Button>
