@@ -17,7 +17,9 @@ Key finding: The workspace `HYPERLOCAL_CONTROL_CENTER` is a greenfield frontend 
 - **Default Shell & Node.js:** Windows PowerShell, Node.js `v16.20.2` (in default path) and `v24.14.0` (installed via NVM at `C:\Users\akash\AppData\Local\nvm\v24.14.0`).
 - **NPM Package Manager:** `npm 11.9.0` under Node `v24.14.0`.
 - **Target Framework:** Next.js 15 (App Router), React 19, TypeScript strict mode.
-- **Git State:** Repository initialized; active development branch: `feature/admin/frontend-0-to-100` (strict adherence to Section 234: no direct work on `main`).
+- **Git State:** Trunk-based: work is committed and pushed to `main`, and CI (`.github/workflows/ci.yml`) is the gate rather than a human reviewer. Short-lived branches are still welcome for larger changes, but a solo maintainer is not required to open a pull request for every commit. Releases are marked with tags.
+
+> Historical note: earlier revisions of this report recorded a `feature/admin/frontend-0-to-100` branch and a "no direct work on `main`" rule (Section 234). That branch no longer exists and the rule is no longer followed — see the line above for the current practice.
 
 ---
 
