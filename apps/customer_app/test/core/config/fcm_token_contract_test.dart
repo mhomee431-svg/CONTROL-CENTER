@@ -20,7 +20,7 @@ void main() {
   final backendRoot = Directory(r'..\..\backend');
   final backendPresent = backendRoot.existsSync();
 
-  String? _findIn(String dir, String name) {
+  String? findIn(String dir, String name) {
     final root = Directory(dir);
     if (!root.existsSync()) return null;
     for (final f in root.listSync(recursive: true).whereType<File>()) {
@@ -30,11 +30,11 @@ void main() {
   }
 
   /// Source of a client file, or null when it has been renamed away.
-  String? client(String name) => _findIn('lib', name);
+  String? client(String name) => findIn('lib', name);
 
   /// The backend notifications router, or null when unavailable.
   String? backendRouter() =>
-      backendPresent ? _findIn(r'..\..\backend', 'notifications.py') : null;
+      backendPresent ? findIn(r'..\..\backend', 'notifications.py') : null;
 
   group('the client can reach a device-token endpoint', () {
     test('ApiEndpoints declares the register path', () {

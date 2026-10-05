@@ -126,7 +126,7 @@ void main() {
     test('a value that has been through arithmetic still renders cleanly', () {
       // The bug this replaces: `'${shop.distanceInKm} km away'` printed
       // 0.30000000000000004 for exactly this kind of value.
-      final accumulated = 0.1 + 0.2; // 0.30000000000000004
+      const accumulated = 0.1 + 0.2; // 0.30000000000000004
       final rendered = formatKilometers(accumulated);
       // Under 1 km the rule is metres, so 0.3 km reads "300 m".
       expect(rendered, '300 m');

@@ -42,7 +42,7 @@ void main() {
     });
 
     test('platform errors become advice, not SDK vocabulary', () {
-      final socket = SocketException('Connection failed', osError: null);
+      const socket = SocketException('Connection failed', osError: null);
       final mapped = ErrorMessageMapper.message(socket);
       expect(mapped, contains('No internet connection'));
       expect(mapped, isNot(contains('Connection failed')));

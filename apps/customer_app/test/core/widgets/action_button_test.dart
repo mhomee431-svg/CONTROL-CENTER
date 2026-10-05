@@ -182,7 +182,7 @@ void main() {
 
     // NOT COVERED HERE: that the guard also releases when the action THROWS.
     // The `finally` in `_ActionButtonState` handles it, and the code is
-    // correct — but an escaping async rejection from `onPressed` escapes both
+    // correct Ã¢â‚¬â€ but an escaping async rejection from `onPressed` escapes both
     // `tester.takeException()` and a `FlutterError.onError` override, because
     // it is reported through the zone rather than the framework error handler.
     // Two harnesses were tried (capturing FlutterError, and discrete pumps
@@ -215,7 +215,7 @@ void main() {
         find.byType(CircularProgressIndicator),
         findsNothing,
         reason:
-            'a control disabled for a business reason is not busy — showing '
+            'a control disabled for a business reason is not busy Ã¢â‚¬â€ showing '
             'a spinner would claim work is happening when none is',
       );
     });
@@ -263,7 +263,7 @@ void main() {
     });
 
     testWidgets('it is usable again on a later tap', (tester) async {
-      // The guard must not leave the control permanently dead — it holds for one
+      // The guard must not leave the control permanently dead Ã¢â‚¬â€ it holds for one
       // frame precisely so ordinary repeated use keeps working.
       var calls = 0;
 

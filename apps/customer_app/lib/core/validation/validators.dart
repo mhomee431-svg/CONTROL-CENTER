@@ -52,8 +52,8 @@ abstract final class PhoneValidator {
   /// 10 digits, first digit 6-9. See the class docs for why.
   static final RegExp _pattern = RegExp(r'^[6-9]\d{9}$');
 
-  static final String requiredMessage = 'Phone number is required.';
-  static final String formatMessage = 'Enter a valid 10-digit mobile number.';
+  static const String requiredMessage = 'Phone number is required.';
+  static const String formatMessage = 'Enter a valid 10-digit mobile number.';
 
   /// Digits only, no `+`/spaces, length 10, starts 6-9.
   ///
@@ -95,8 +95,8 @@ abstract final class EmailValidator {
     r'\.[A-Za-z]{2,63}$',
   );
 
-  static final String requiredMessage = 'Email address is required.';
-  static final String formatMessage = 'Please enter a valid email address.';
+  static const String requiredMessage = 'Email address is required.';
+  static const String formatMessage = 'Please enter a valid email address.';
 
   static bool isValid(String? value) {
     if (value == null) return false;
@@ -128,7 +128,7 @@ abstract final class EmailValidator {
 /// Free-text search queries.
 abstract final class SearchValidator {
   static const int maxLength = 100;
-  static final String tooLongMessage =
+  static const String tooLongMessage =
       'Search query is too long (max $maxLength characters).';
 
   /// Empty is VALID. A search box may legitimately be empty; whether that is
@@ -153,8 +153,8 @@ abstract final class PincodeValidator {
   /// 6 digits. No leading zero: PIN codes are 100000-999999.
   static final RegExp _pattern = RegExp(r'^[1-9]\d{5}$');
 
-  static final String requiredMessage = 'PIN code is required.';
-  static final String formatMessage = 'Enter a valid 6-digit PIN code.';
+  static const String requiredMessage = 'PIN code is required.';
+  static const String formatMessage = 'Enter a valid 6-digit PIN code.';
 
   static bool isValid(String? value) {
     if (value == null) return false;
@@ -181,12 +181,12 @@ abstract final class NameValidator {
   static const int minLength = 2;
   static const int maxLength = 50;
 
-  static final String requiredMessage = 'Name is required.';
-  static final String tooShortMessage =
+  static const String requiredMessage = 'Name is required.';
+  static const String tooShortMessage =
       'Name must be at least $minLength characters.';
-  static final String tooLongMessage =
+  static const String tooLongMessage =
       'Name must be at most $maxLength characters.';
-  static final String formatMessage =
+  static const String formatMessage =
       'Use letters, spaces, hyphens and apostrophes only.';
 
   static bool isValid(String? value) {
@@ -214,10 +214,10 @@ abstract final class AddressValidator {
   static const int minLength = 10;
   static const int maxLength = 200;
 
-  static final String requiredMessage = 'Address is required.';
-  static final String tooShortMessage =
+  static const String requiredMessage = 'Address is required.';
+  static const String tooShortMessage =
       'Please enter a more complete address (at least $minLength characters).';
-  static final String tooLongMessage =
+  static const String tooLongMessage =
       'Address must be at most $maxLength characters.';
 
   static bool isValid(String? value) {

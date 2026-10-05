@@ -127,7 +127,7 @@ class ShopHeader extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
-                    '${formatKilometers(shop.distanceInKm, style: DistanceStyle.withUnitSuffix)}',
+                    formatKilometers(shop.distanceInKm, style: DistanceStyle.withUnitSuffix),
                     style: const TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 13,

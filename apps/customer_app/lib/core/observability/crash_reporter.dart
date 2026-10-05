@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io' show ProcessInfo;
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
@@ -46,7 +45,7 @@ class CrashReport {
 /// ## What changed from the previous behaviour
 /// ------------------------------------------
 /// The old handlers called `SafeLogger.error`, which prints to the console and
-/// — for the exception body and stack — only in debug. In a release build that
+/// â€” for the exception body and stack â€” only in debug. In a release build that
 /// meant a crash left **no trace on the device at all**: the app died and
 /// nothing recorded why. This captures into memory so a report survives to be
 /// uploaded or shown, and only then hands off to the existing logger.

@@ -36,17 +36,35 @@ class NotFoundError(AppError):
 
 
 class UnauthorizedError(AppError):
-    def __init__(self, message: str = "Unauthorized"):
-        super().__init__(message, "UNAUTHORIZED", 401)
+    def __init__(
+        self,
+        message: str = "Unauthorized",
+        code: str = "UNAUTHORIZED",
+        data: dict[str, Any] | None = None,
+    ):
+        # `code` is overridable so a caller that knows WHY the request was
+        # rejected can say so â€” e.g. Firebase's "token-expired" vs
+        # "user-not-found". Both stay 401; only the machine-readable reason
+        # differs, which is what a client needs to decide between "sign in
+        # again" and "this account no longer exists".
+        super().__init__(message, code, 401, data)
 
 
 class ForbiddenError(AppError):
-    def __init__(self, message: str = "Forbidden"):
-        super().__init__(message, "FORBIDDEN", 403)
+    def __init__(
+        self,
+        message: str = "Forbidden",
+        code: str = "FORBIDDEN",
+        data: dict[str, Any] | None = None,
+    ):
+        # `code` optional so a caller can name the specific reason without
+        # changing the status. See UnauthorizedError for why the distinction
+        # matters.
+        super().__init__(message, code, 403, data)
 
 
 class ValidationError(AppError):
-    def __init__(self, message: str = "Validation error", data: dict | None = None):
+    def __init__(self, message: str = "Validation error", data: dict[str, Any] | None = None):
         super().__init__(message, "VALIDATION_ERROR", 422, data)
 
 
@@ -65,7 +83,7 @@ class ServiceUnavailableError(AppError):
         super().__init__(message, "SERVICE_UNAVAILABLE", 503)
 
 
-def _request_context(request: Request) -> dict:
+def _request_context(request: Request) -> dict[str, Any]:
     """Extract request metadata for logging."""
     return {
         "path": request.url.path,

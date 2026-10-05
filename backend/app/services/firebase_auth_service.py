@@ -1,4 +1,4 @@
-"""Firebase Authentication service — user provisioning and session management.
+"""Firebase Authentication service ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â user provisioning and session management.
 
 This service handles the full Firebase authentication flow:
 1. Verify Firebase ID token (via Firebase Admin SDK)
@@ -126,6 +126,46 @@ def _update_user_login_metadata(user: User, ip_address: Optional[str] = None) ->
     user.last_login_ip = ip_address
 
 
+# ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Self-service roles a client may request at sign-up ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+#
+# Anything NOT in this set is downgraded to "customer". Notably absent:
+# "admin", "superadmin", "super_admin", "staff" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â those are granted by an
+# authenticated admin action, never by a signup payload.
+SELF_SERVICE_ROLES: frozenset[str] = frozenset(
+    {
+        "customer",
+        "shopkeeper",
+        "shop_owner",
+        "shop_manager",
+    }
+)
+
+DEFAULT_ROLE = "customer"
+
+
+def sanitise_requested_role(requested_role: Optional[str]) -> str:
+    """Reduce an untrusted client-supplied role to a permitted self-service tier.
+
+    Returns [DEFAULT_ROLE] for anything unrecognised rather than raising: a bad
+    or hostile value should not be able to *break* sign-up, only fail to
+    escalate. Logging the attempt is deliberate ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a client repeatedly asking for
+    "admin" is a signal worth having.
+    """
+    if not requested_role:
+        return DEFAULT_ROLE
+
+    candidate = str(requested_role).strip().lower()
+    if candidate in SELF_SERVICE_ROLES:
+        return candidate
+
+    logger.warning(
+        "Rejected client-requested role %r at sign-up; downgraded to %r",
+        requested_role,
+        DEFAULT_ROLE,
+    )
+    return DEFAULT_ROLE
+
+
 def authenticate_with_firebase(
     db: Session,
     firebase_id_token: str,
@@ -162,7 +202,7 @@ def authenticate_with_firebase(
     except FirebaseVerificationError as exc:
         raise UnauthorizedError(
             message=exc.message,
-            error_code=exc.error_code,
+            code=exc.error_code,
         ) from exc
 
     # Step 2: Find existing user by firebase_uid
@@ -171,7 +211,7 @@ def authenticate_with_firebase(
     is_new_user = False
 
     if user is None:
-        # Step 3a: Migration path — try to find by phone number
+        # Step 3a: Migration path ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â try to find by phone number
         # This handles existing users who authenticated before firebase_uid was added
         if phone_number:
             user = _find_user_by_phone(db, phone_number)
@@ -185,9 +225,21 @@ def authenticate_with_firebase(
                     user.id,
                 )
 
-        # Step 3b: Still no user — create a new one
+        # Step 3b: Still no user ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â create a new one
         if user is None:
-            role_name = requested_role or "customer"
+            # SECURITY: `requested_role` arrives in the request body, i.e. from
+            # the client, and is therefore UNTRUSTED INPUT. It is NOT a
+            # request for elevated access ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it only lets the client say which
+            # self-service tier it wants (a shopkeeper signing up for their own
+            # shop is legitimate). Any role outside the self-service set is
+            # silently downgraded to "customer".
+            #
+            # Without this allowlist, anyone could POST
+            # {"firebase_id_token": "<valid token>", "requested_role": "admin"}
+            # and be handed a fresh admin account: full privilege escalation
+            # from an unauthenticated sign-up. Elevated roles are granted by an
+            # admin action, never by a field in a request body.
+            role_name = sanitise_requested_role(requested_role)
             user = _create_user(
                 db=db,
                 firebase_uid=firebase_uid,
@@ -205,7 +257,7 @@ def authenticate_with_firebase(
     ):
         raise ForbiddenError(
             message="Account is not active",
-            error_code="ACCOUNT_NOT_ACTIVE",
+            code="ACCOUNT_NOT_ACTIVE",
         )
 
     # Step 5: Update login metadata

@@ -1,3 +1,4 @@
+import '../utils/money.dart';
 import '../router/deep_link.dart';
 import 'share_safety.dart';
 
@@ -193,9 +194,9 @@ ShareContent buildProductShareContent({
     buffer.write(' (${variant.trim()})');
   }
   if (price != null) {
-    buffer.write(' â€” â‚¹${price.toStringAsFixed(0)}');
+    buffer.write(' â€” â‚¹${formatInr(price)}');
     if (mrp != null && mrp > price) {
-      buffer.write(' (MRP â‚¹${mrp.toStringAsFixed(0)})');
+      buffer.write(' (MRP â‚¹${formatInr(mrp)})');
     }
     if (discountPercent != null && discountPercent > 0) {
       buffer.write(' Â· $discountPercent% OFF');

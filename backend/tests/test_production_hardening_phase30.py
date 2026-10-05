@@ -204,14 +204,18 @@ class TestStartupSecurityGate:
         assert run_startup_security_checks(_prod_settings()) == []
 
     def test_default_jwt_secret_blocks_production(self):
-        # Building production Settings around the PUBLISHED default is exactly
-        # what the config model warns about — assert the warning here (instead
-        # of letting it escape as an unexplained pytest warning), then prove
-        # the startup gate turns it into a hard failure.
-        with pytest.warns(RuntimeWarning, match="insecure default"):
-            weak = _prod_settings(JWT_SECRET_KEY="change-me-in-production")
-        with pytest.raises(ProductionSecurityError, match="JWT_SECRET_KEY"):
-            run_startup_security_checks(weak)
+        # The config model now refuses to BUILD with the published default, not
+        # merely warn about it. A warning is not a control: it scrolls past in a
+        # log and the process starts. Construction failing is the stronger
+        # guarantee, so this test asserts the refusal itself.
+        #
+        # (`run_startup_security_checks` remains as a second, independent gate for
+        # weaker secrets that are not on the literal-default list — see
+        # test_short_jwt_secret_blocks_production below.)
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="JWT_SECRET_KEY"):
+            _prod_settings(JWT_SECRET_KEY="change-me-in-production")
 
     def test_short_jwt_secret_blocks_production(self):
         with pytest.raises(ProductionSecurityError, match="brute force"):

@@ -346,18 +346,51 @@ class Settings(BaseSettings):
     def _normalize_environment(cls, v):
         return str(v).lower()
 
-    @model_validator(mode="after")
-    def _warn_insecure_production(self):
-        if (
-            self.is_production
-            and self.JWT_SECRET_KEY
-            in ("change-me-in-production", "changeme", "secret")
-        ):
-            import warnings
+    # Values that must never reach production. A literal default that merely
+    # *warns* is not a control: the process starts, serves traffic, and the
+    # warning scrolls past in a log nobody reads. These now raise.
+    _INSECURE_DEFAULTS = frozenset(
+        {
+            "change-me-in-production",
+            "changeme",
+            "secret",
+            "secret-key",
+            "your-secret-key",
+        }
+    )
 
-            warnings.warn(
-                "JWT_SECRET_KEY is set to an insecure default in production!",
-                RuntimeWarning,
+    _DEV_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/hyperlocal"
+
+    @model_validator(mode="after")
+    def _fail_closed_in_production(self):
+        """Refuse to boot production with a default credential.
+
+        Previously this only emitted a RuntimeWarning for one JWT default, which
+        meant a production deploy could start with `postgres:postgres` as its
+        database password and nothing would stop it. Failing closed is the only
+        version of this check that actually prevents the deployment.
+        """
+        if not self.is_production:
+            return self
+
+        problems: List[str] = []
+
+        if self.JWT_SECRET_KEY in self._INSECURE_DEFAULTS:
+            problems.append("JWT_SECRET_KEY is still a default value")
+
+        # A hardcoded DSN carries a password. If production is still pointing at
+        # the local development default, it is using `postgres:postgres`.
+        if self.DATABASE_URL == self._DEV_DATABASE_URL:
+            problems.append(
+                "DATABASE_URL is the local development default "
+                "(hardcoded postgres:postgres password)"
+            )
+
+        if problems:
+            raise ValueError(
+                "Refusing to start in production with insecure configuration: "
+                + "; ".join(problems)
+                + ". Set these via environment variables / your secret manager."
             )
         return self
 

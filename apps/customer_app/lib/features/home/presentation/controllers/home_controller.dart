@@ -1,3 +1,5 @@
+import '../../../../core/utils/money.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
@@ -106,9 +108,7 @@ Product savedProductToCard(SavedProductItem item) => Product(
   name: item.name,
   brand: item.brand,
   imageUrl: item.imageUrl,
-  priceRange: item.lowestPrice > 0
-      ? '₹${item.lowestPrice.toStringAsFixed(0)}'
-      : '',
+  priceRange: item.lowestPrice > 0 ? '₹${formatInr(item.lowestPrice)}' : '',
 );
 
 /// Maps a backend recently-viewed record onto the shared [Product] card model.

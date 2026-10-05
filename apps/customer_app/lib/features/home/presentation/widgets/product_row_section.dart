@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/layout/responsive.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/product_card.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../domain/models/home_data.dart';
