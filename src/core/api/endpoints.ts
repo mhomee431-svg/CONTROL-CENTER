@@ -51,6 +51,14 @@ export const API_ENDPOINTS = {
     DETAIL: (shopId: number | string) => `/api/v1/admin/shops/${shopId}`,
     /** Audited partial update of shop master fields. */
     UPDATE: (shopId: number | string) => `/api/v1/admin/shops/${shopId}`,
+    /**
+     * Shop-scoped sub-resources. Not published on every deployment — the
+     * surfaces that read these go through `fetchList`, which reports a 404 as
+     * "route not published" rather than an empty result.
+     */
+    DOCUMENTS: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/documents`,
+    PRICING: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/pricing`,
+    HOURS: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/hours`,
     VERIFICATION: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/verification`,
     BULK: '/api/v1/admin/shops/bulk',
   },

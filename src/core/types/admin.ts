@@ -71,6 +71,9 @@ export interface ShopItem {
   owner_id: number;
   owner_name?: string;
   category: string;
+  /** Taxonomy ids/names as reported by the backend, when it reports them. */
+  category_id?: number | null;
+  subcategory?: string | null;
   business_type?: BusinessType | null;
   city: string;
   state: string;
@@ -83,6 +86,59 @@ export interface ShopItem {
   last_inventory_update?: string | null;
   created_at: string;
   updated_at: string;
+
+  // Location
+  address?: string | null;
+  locality?: string | null;
+  pincode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+
+  // Contact
+  phone?: string | null;
+  alt_phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+
+  // Presentation
+  logo_url?: string | null;
+  description?: string | null;
+  registration_number?: string | null;
+  gst_number?: string | null;
+
+  // Verification
+  verified_at?: string | null;
+  verified_by?: string | null;
+  rejection_reason?: string | null;
+
+  // Operating hours. Sent either as a weekly map keyed by weekday or as a
+  // pre-rendered list; both shapes are tolerated by the hours tab.
+  operating_hours?: Record<string, string | null> | string | null;
+}
+
+/** A compliance document attached to a shop. */
+export interface ShopDocumentItem {
+  id: number | string;
+  doc_type?: string | null;
+  title?: string | null;
+  file_name?: string | null;
+  file_url?: string | null;
+  status?: string | null;
+  uploaded_at?: string | null;
+  expires_at?: string | null;
+  verified_at?: string | null;
+}
+
+/** A shop-scoped price record. */
+export interface ShopPricingItem {
+  id: number | string;
+  product_name?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  price?: number | null;
+  mrp?: number | null;
+  currency?: string | null;
+  updated_at?: string | null;
 }
 
 export type ProductStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'ARCHIVED' | 'ACTIVE';

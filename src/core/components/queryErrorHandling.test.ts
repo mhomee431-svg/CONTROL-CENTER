@@ -91,13 +91,18 @@ describe('query failure surfaces an explicit state', () => {
   it('grid-based pages surface query failures explicitly', () => {
     // Two acceptable patterns: pass `error` to AdminDataGrid, or render the
     // page's own error Alert above it. What must never happen is neither.
+    //
+    // Both checks tolerate formatting: JSX line-wraps `severity="error"` across
+    // lines, and a page may name its flag `isError`, `invError` or anything
+    // else depending on how many queries it owns. Matching a literal string
+    // only caught the one shape the original page happened to use, so a page
+    // that handles failures correctly got reported as one that did not.
+    const surfacesError = (src: string) =>
+      /\berror=\{[^}]*\}/.test(src) || /<Alert[^>]*severity="error"/s.test(src);
+
     const offenders = pagesWithQueries
       .filter((p) => p.src.includes('<AdminDataGrid'))
-      .filter(
-        (p) =>
-          !p.src.includes('error={isError}') &&
-          !/<Alert severity="error"/.test(p.src)
-      )
+      .filter((p) => !surfacesError(p.src))
       .map((p) => p.route);
     expect(offenders).toEqual([]);
   });
