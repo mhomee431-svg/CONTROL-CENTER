@@ -47,7 +47,14 @@ export interface AdminUserItem {
 }
 
 export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'REJECTED';
-export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+export type VerificationStatus =
+  | 'UNVERIFIED'
+  | 'PENDING'
+  | 'UNDER_REVIEW'
+  | 'VERIFIED'
+  | 'NEEDS_CORRECTION'
+  | 'REJECTED'
+  | 'SUSPENDED';
 
 /**
  * Business type classification for a merchant storefront.

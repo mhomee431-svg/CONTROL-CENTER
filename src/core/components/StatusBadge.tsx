@@ -36,6 +36,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
     case 'IN_PROGRESS':
     case 'PROCESSING':
     case 'QUEUED':
+    // Verification Center: the merchant was asked to fix the submission, so
+    // the case is still open but waiting on them rather than on an operator.
+    case 'NEEDS_CORRECTION':
     // Import Center in-flight phases (data ingestion pipeline).
     case 'UPLOADED':
     case 'VALIDATING':
