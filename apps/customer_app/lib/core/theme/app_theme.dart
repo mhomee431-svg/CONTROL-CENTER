@@ -76,7 +76,57 @@ class AppColors {
   static const textDark = Color(0xFFF8FAFC);
 
   /// Muted slate for secondary metadata (timestamps, captions, helper text).
+  ///
+  /// 4.76:1 on white and 4.55:1 on [backgroundLight] — just over the 4.5:1
+  /// WCAG AA threshold for normal text, which is what this is: small secondary
+  /// copy. It is the *tightest* token in the light palette, so any change to it
+  /// should be re-measured rather than eyeballed.
   static const textMuted = Color(0xFF64748B);
+
+  /// Muted slate for DARK surfaces.
+  ///
+  /// [textMuted] scores only 3.07:1 on [surfaceDark] — it fails AA in dark mode,
+  /// because a mid-tone grey that reads as "quiet but present" on white
+  /// disappears against a dark background. Dark mode therefore needs its own
+  /// muted token rather than reusing the light one.
+  static const textMutedDark = Color(0xFF94A3B8); // 5.71:1 on surfaceDark
+
+  // ── Accessible status TEXT ────────────────────────────────────────────────
+  //
+  // WHY THESE EXIST, WITH NUMBERS
+  // ------------------------------
+  // [success], [warning] and [error] are *vivid* so they read as fills, borders
+  // and icons. Measured as TEXT on a light surface they fail WCAG AA badly:
+  //
+  //   success #10B981 on white ....... 2.54:1   (needs 4.5)
+  //   warning #F59E0B on white ....... 2.15:1
+  //   error   #EF4444 on white ....... 3.76:1
+  //
+  // So "Low Stock" and "In Stock" were, quite literally, the least readable
+  // text on the card — a status the customer most needs to read. The very same
+  // hues score 5.3-8.8:1 on DARK surfaces, which is why one colour could never
+  // serve both: it is not that the hue is wrong, it is that a saturated mid-tone
+  // needs a different lightness per background.
+  //
+  // Rule: vivid tokens for FILLS, BORDERS and ICONS; the `*Text` tokens below
+  // for anything a customer has to READ.
+  static const successText = Color(0xFF047857); // 5.48:1 white, 5.24:1 bg
+  static const warningText = Color(0xFFB45309); // 5.02:1 white, 4.80:1 bg
+  static const errorText = Color(0xFFDC2626); // 4.83:1 white, 4.62:1 bg
+
+  /// Primary as READABLE text, for links and inline emphasis.
+  ///
+  /// [primary] (5.17:1) passes on white but [primaryLight] — used for gradient
+  /// highlights — is only 3.68:1, so it must never carry text.
+  static const primaryText = Color(0xFF1D4ED8); // 6.70:1 white, 6.41:1 bg
+
+  // ── Accessible status text on DARK surfaces ───────────────────────────────
+  // Lightened variants; the vivid light-mode hues already pass on dark, but
+  // these keep a single pair to reason about in ThemeData.
+  static const successTextDark = Color(0xFF34D399); // 7.61:1 on surfaceDark
+  static const warningTextDark = Color(0xFFFBBF24); // 8.76:1 on surfaceDark
+  static const errorTextDark = Color(0xFFF87171); // 5.29:1 on surfaceDark
+  static const primaryTextDark = Color(0xFF93C5FD);
 
   /// Hairline and outline colour.
   static const border = Color(0xFFE2E8F0);
@@ -188,58 +238,57 @@ class AppTypography {
   /// inherit the same scale as hand-styled text instead of drifting to the
   /// platform default.
   static TextTheme textTheme(TextTheme base) {
-    return base
-        .copyWith(
-          displaySmall: base.displaySmall?.copyWith(
-            fontSize: display,
-            fontWeight: bold,
-            height: tightLineHeight,
-          ),
-          headlineSmall: base.headlineSmall?.copyWith(
-            fontSize: titleLarge,
-            fontWeight: semiBold,
-            height: tightLineHeight,
-          ),
-          titleLarge: base.titleLarge?.copyWith(
-            fontSize: titleLarge,
-            fontWeight: semiBold,
-            height: tightLineHeight,
-          ),
-          titleMedium: base.titleMedium?.copyWith(
-            fontSize: title,
-            fontWeight: semiBold,
-            height: tightLineHeight,
-          ),
-          titleSmall: base.titleSmall?.copyWith(
-            fontSize: bodyLarge,
-            fontWeight: medium,
-            height: tightLineHeight,
-          ),
-          bodyLarge: base.bodyLarge?.copyWith(
-            fontSize: bodyLarge,
-            height: bodyLineHeight,
-          ),
-          bodyMedium: base.bodyMedium?.copyWith(
-            fontSize: body,
-            height: bodyLineHeight,
-          ),
-          bodySmall: base.bodySmall?.copyWith(
-            fontSize: caption,
-            height: bodyLineHeight,
-          ),
-          labelLarge: base.labelLarge?.copyWith(
-            fontSize: button,
-            fontWeight: medium,
-          ),
-          labelMedium: base.labelMedium?.copyWith(
-            fontSize: body,
-            fontWeight: medium,
-          ),
-          labelSmall: base.labelSmall?.copyWith(
-            fontSize: caption,
-            fontWeight: medium,
-          ),
-        );
+    return base.copyWith(
+      displaySmall: base.displaySmall?.copyWith(
+        fontSize: display,
+        fontWeight: bold,
+        height: tightLineHeight,
+      ),
+      headlineSmall: base.headlineSmall?.copyWith(
+        fontSize: titleLarge,
+        fontWeight: semiBold,
+        height: tightLineHeight,
+      ),
+      titleLarge: base.titleLarge?.copyWith(
+        fontSize: titleLarge,
+        fontWeight: semiBold,
+        height: tightLineHeight,
+      ),
+      titleMedium: base.titleMedium?.copyWith(
+        fontSize: title,
+        fontWeight: semiBold,
+        height: tightLineHeight,
+      ),
+      titleSmall: base.titleSmall?.copyWith(
+        fontSize: bodyLarge,
+        fontWeight: medium,
+        height: tightLineHeight,
+      ),
+      bodyLarge: base.bodyLarge?.copyWith(
+        fontSize: bodyLarge,
+        height: bodyLineHeight,
+      ),
+      bodyMedium: base.bodyMedium?.copyWith(
+        fontSize: body,
+        height: bodyLineHeight,
+      ),
+      bodySmall: base.bodySmall?.copyWith(
+        fontSize: caption,
+        height: bodyLineHeight,
+      ),
+      labelLarge: base.labelLarge?.copyWith(
+        fontSize: button,
+        fontWeight: medium,
+      ),
+      labelMedium: base.labelMedium?.copyWith(
+        fontSize: body,
+        fontWeight: medium,
+      ),
+      labelSmall: base.labelSmall?.copyWith(
+        fontSize: caption,
+        fontWeight: medium,
+      ),
+    );
   }
 }
 
@@ -258,7 +307,10 @@ class AppButtons {
   static const Size fullWidth = Size(double.infinity, 48);
 
   /// A square button sized to the touch floor — the FAB and icon-only actions.
-  static const Size square = Size(AppTouchTarget.minSize, AppTouchTarget.minSize);
+  static const Size square = Size(
+    AppTouchTarget.minSize,
+    AppTouchTarget.minSize,
+  );
 
   /// A button that must not resize when its label changes length ("Add" →
   /// "Add to cart"), so a spinner swap cannot shift the layout under the thumb.
@@ -341,30 +393,14 @@ class AppShadows {
   /// box-shadow at a large blur looks like a blur; the pair is what reads as a
   /// surface lifted a millimetre off the page.
   static const List<BoxShadow> soft = [
-    BoxShadow(
-      color: Color(0x0D0F172A),
-      blurRadius: 2,
-      offset: Offset(0, 1),
-    ),
-    BoxShadow(
-      color: Color(0x0F0F172A),
-      blurRadius: 12,
-      offset: Offset(0, 4),
-    ),
+    BoxShadow(color: Color(0x0D0F172A), blurRadius: 2, offset: Offset(0, 1)),
+    BoxShadow(color: Color(0x0F0F172A), blurRadius: 12, offset: Offset(0, 4)),
   ];
 
   /// Raised above other cards — a menu, a floating action control.
   static const List<BoxShadow> raised = [
-    BoxShadow(
-      color: Color(0x140F172A),
-      blurRadius: 4,
-      offset: Offset(0, 2),
-    ),
-    BoxShadow(
-      color: Color(0x1A0F172A),
-      blurRadius: 24,
-      offset: Offset(0, 12),
-    ),
+    BoxShadow(color: Color(0x140F172A), blurRadius: 4, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x1A0F172A), blurRadius: 24, offset: Offset(0, 12)),
   ];
 }
 
@@ -383,10 +419,7 @@ class AppTouchTarget {
   /// up to a 48dp target without the icon itself being drawn larger.
   static Widget atLeast(Widget child) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(
-        minWidth: minSize,
-        minHeight: minSize,
-      ),
+      constraints: const BoxConstraints(minWidth: minSize, minHeight: minSize),
       child: child,
     );
   }
@@ -440,9 +473,7 @@ ThemeData _buildComponents({
       backgroundColor: scheme.surfaceContainerLow,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
     ),
     cardTheme: CardThemeData(
@@ -564,59 +595,60 @@ class AppTheme {
   /// Every role is DERIVED from the existing brand palette, so the app keeps the
   /// colours it shipped with and only gains the missing members.
   static ThemeData get lightTheme {
-  const scheme = ColorScheme(
-    brightness: Brightness.light,
-    primary: AppColors.primary,
-    onPrimary: Colors.white,
-    primaryContainer: AppColors.primarySurface,
-    onPrimaryContainer: Color(0xFF1E3A8A),
-    // Electric blue is the lighter companion in the approved primary pair. M3
-    // has no second primary slot, and `secondary` is already spoken for by
-    // GREEN success, so electric blue takes the `tertiary` role — the one slot
-    // free to carry "a second brand colour" without stealing a semantic.
-    secondary: AppColors.success,
-    onSecondary: Colors.white,
-    secondaryContainer: AppColors.successSurface,
-    onSecondaryContainer: Color(0xFF065F46),
-    tertiary: AppColors.primaryLight,
-    onTertiary: Color(0xFF0B1220),
-    error: AppColors.error,
-    onError: Colors.white,
-    errorContainer: AppColors.errorSurface,
-    onErrorContainer: Color(0xFF7F1D1D),
-    surface: AppColors.surfaceLight,
-    onSurface: AppColors.textLight,
-    // The M3 surface tint ladder the components actually read for cards,
-    // sheets and menus. `surface`/`onSurface` above are unchanged.
-    surfaceContainerLowest: Colors.white,
-    surfaceContainerLow: Color(0xFFFBFDFF),
-    surfaceContainer: Color(0xFFF1F5F9),
-    surfaceContainerHigh: Color(0xFFEAEFF5),
-    surfaceContainerHighest: Color(0xFFE2E8F0),
-    onSurfaceVariant: AppColors.textMuted,
-    outline: Color(0xFFCBD5E1),
-    outlineVariant: Color(0xFFE2E8F0),
-    inverseSurface: Color(0xFF1E293B),
-    onInverseSurface: Color(0xFFF8FAFC),
-    inversePrimary: Color(0xFF93C5FD),
-    shadow: Color(0xFF000000),
-    scrim: Color(0xFF000000),
-  );
+    const scheme = ColorScheme(
+      brightness: Brightness.light,
+      primary: AppColors.primary,
+      onPrimary: Colors.white,
+      primaryContainer: AppColors.primarySurface,
+      onPrimaryContainer: Color(0xFF1E3A8A),
+      // Electric blue is the lighter companion in the approved primary pair. M3
+      // has no second primary slot, and `secondary` is already spoken for by
+      // GREEN success, so electric blue takes the `tertiary` role — the one slot
+      // free to carry "a second brand colour" without stealing a semantic.
+      secondary: AppColors.success,
+      onSecondary: Colors.white,
+      secondaryContainer: AppColors.successSurface,
+      onSecondaryContainer: Color(0xFF065F46),
+      tertiary: AppColors.primaryLight,
+      onTertiary: Color(0xFF0B1220),
+      error: AppColors.error,
+      onError: Colors.white,
+      errorContainer: AppColors.errorSurface,
+      onErrorContainer: Color(0xFF7F1D1D),
+      surface: AppColors.surfaceLight,
+      onSurface: AppColors.textLight,
+      // The M3 surface tint ladder the components actually read for cards,
+      // sheets and menus. `surface`/`onSurface` above are unchanged.
+      surfaceContainerLowest: Colors.white,
+      surfaceContainerLow: Color(0xFFFBFDFF),
+      surfaceContainer: Color(0xFFF1F5F9),
+      surfaceContainerHigh: Color(0xFFEAEFF5),
+      surfaceContainerHighest: Color(0xFFE2E8F0),
+      onSurfaceVariant: AppColors.textMuted,
+      outline: Color(0xFFCBD5E1),
+      outlineVariant: Color(0xFFE2E8F0),
+      inverseSurface: Color(0xFF1E293B),
+      onInverseSurface: Color(0xFFF8FAFC),
+      inversePrimary: Color(0xFF93C5FD),
+      shadow: Color(0xFF000000),
+      scrim: Color(0xFF000000),
+    );
 
-  return _buildComponents(
-    scheme: scheme,
-    scaffoldBackground: AppColors.backgroundLight,
-    // The scale is applied HERE, once per brightness, rather than at each call
-    // site. Material widgets (ListTile, Dialog, AppBar) read `textTheme`, so
-    // this single mapping is what stops them drifting back to the platform
-    // default while hand-styled text uses the scale.
-    textTheme: AppTypography.textTheme(
-      GoogleFonts.interTextTheme(
-        ThemeData.light().textTheme,
-      ).apply(bodyColor: AppColors.textLight, displayColor: AppColors.textLight),
-    ),
-  );
-}
+    return _buildComponents(
+      scheme: scheme,
+      scaffoldBackground: AppColors.backgroundLight,
+      // The scale is applied HERE, once per brightness, rather than at each call
+      // site. Material widgets (ListTile, Dialog, AppBar) read `textTheme`, so
+      // this single mapping is what stops them drifting back to the platform
+      // default while hand-styled text uses the scale.
+      textTheme: AppTypography.textTheme(
+        GoogleFonts.interTextTheme(ThemeData.light().textTheme).apply(
+          bodyColor: AppColors.textLight,
+          displayColor: AppColors.textLight,
+        ),
+      ),
+    );
+  }
 
   /// The Material 3 dark scheme — the light scheme with inverted roles.
   ///
@@ -625,50 +657,51 @@ class AppTheme {
   /// rendering a light-only colour on a dark surface, so both schemes declare
   /// the same complete role set.
   static ThemeData get darkTheme {
-  const scheme = ColorScheme(
-    brightness: Brightness.dark,
-    // A saturated brand blue fails contrast as text on a dark surface, so dark
-    // uses the light tint of the same hue — same brand, readable on dark.
-    primary: Color(0xFF93C5FD),
-    onPrimary: Color(0xFF1E3A8A),
-    primaryContainer: Color(0xFF1E3A8A),
-    onPrimaryContainer: AppColors.primarySurface,
-    secondary: Color(0xFF6EE7B7),
-    onSecondary: Color(0xFF065F46),
-    secondaryContainer: Color(0xFF065F46),
-    onSecondaryContainer: AppColors.successSurface,
-    // Same mapping as light: electric blue holds `tertiary` in both.
-    tertiary: AppColors.primary,
-    onTertiary: Colors.white,
-    error: Color(0xFFFCA5A5),
-    onError: Color(0xFF7F1D1D),
-    errorContainer: Color(0xFF7F1D1D),
-    onErrorContainer: AppColors.errorSurface,
-    surface: AppColors.surfaceDark,
-    onSurface: AppColors.textDark,
-    surfaceContainerLowest: Color(0xFF0B1220),
-    surfaceContainerLow: Color(0xFF172033),
-    surfaceContainer: Color(0xFF1E293B),
-    surfaceContainerHigh: Color(0xFF263449),
-    surfaceContainerHighest: Color(0xFF334155),
-    onSurfaceVariant: Color(0xFF94A3B8),
-    outline: Color(0xFF475569),
-    outlineVariant: Color(0xFF334155),
-    inverseSurface: Color(0xFFE2E8F0),
-    onInverseSurface: Color(0xFF1E293B),
-    inversePrimary: AppColors.primary,
-    shadow: Color(0xFF000000),
-    scrim: Color(0xFF000000),
-  );
+    const scheme = ColorScheme(
+      brightness: Brightness.dark,
+      // A saturated brand blue fails contrast as text on a dark surface, so dark
+      // uses the light tint of the same hue — same brand, readable on dark.
+      primary: Color(0xFF93C5FD),
+      onPrimary: Color(0xFF1E3A8A),
+      primaryContainer: Color(0xFF1E3A8A),
+      onPrimaryContainer: AppColors.primarySurface,
+      secondary: Color(0xFF6EE7B7),
+      onSecondary: Color(0xFF065F46),
+      secondaryContainer: Color(0xFF065F46),
+      onSecondaryContainer: AppColors.successSurface,
+      // Same mapping as light: electric blue holds `tertiary` in both.
+      tertiary: AppColors.primary,
+      onTertiary: Colors.white,
+      error: Color(0xFFFCA5A5),
+      onError: Color(0xFF7F1D1D),
+      errorContainer: Color(0xFF7F1D1D),
+      onErrorContainer: AppColors.errorSurface,
+      surface: AppColors.surfaceDark,
+      onSurface: AppColors.textDark,
+      surfaceContainerLowest: Color(0xFF0B1220),
+      surfaceContainerLow: Color(0xFF172033),
+      surfaceContainer: Color(0xFF1E293B),
+      surfaceContainerHigh: Color(0xFF263449),
+      surfaceContainerHighest: Color(0xFF334155),
+      onSurfaceVariant: Color(0xFF94A3B8),
+      outline: Color(0xFF475569),
+      outlineVariant: Color(0xFF334155),
+      inverseSurface: Color(0xFFE2E8F0),
+      onInverseSurface: Color(0xFF1E293B),
+      inversePrimary: AppColors.primary,
+      shadow: Color(0xFF000000),
+      scrim: Color(0xFF000000),
+    );
 
-  return _buildComponents(
-    scheme: scheme,
-    scaffoldBackground: AppColors.backgroundDark,
-    textTheme: AppTypography.textTheme(
-      GoogleFonts.interTextTheme(
-        ThemeData.dark().textTheme,
-      ).apply(bodyColor: AppColors.textDark, displayColor: AppColors.textDark),
-    ),
-  );
-}
+    return _buildComponents(
+      scheme: scheme,
+      scaffoldBackground: AppColors.backgroundDark,
+      textTheme: AppTypography.textTheme(
+        GoogleFonts.interTextTheme(ThemeData.dark().textTheme).apply(
+          bodyColor: AppColors.textDark,
+          displayColor: AppColors.textDark,
+        ),
+      ),
+    );
+  }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/network/api_client.dart';
+import 'core/layout/text_scaling.dart';
 import 'core/router/app_router.dart';
 import 'core/router/os_deep_link_service.dart';
 import 'core/theme/app_theme.dart';
@@ -127,10 +128,29 @@ class HyperlocalApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       // Foreground notifications are hosted ABOVE the router rather than in
       // any screen, so a push that lands while the customer is on the map,
-      // mid-search, or in a half-typed field still surfaces — and still
+      // mid-search, or in a half-typed field still surfaces -- and still
       // never forces navigation.
-      builder: (context, child) =>
-          InAppNotificationHost(child: child ?? const SizedBox.shrink()),
+      //
+      // Text scaling: honour the customer's system font size up to
+      // [TextScaling.maxSupportedScale], then hold.
+      //
+      // WHY A CLAMP AND NOT THE RAW SYSTEM VALUE
+      // Android goes to 2.0x (large accessibility) and iOS to roughly 3.2x,
+      // and past ~2.5x a fixed-height row, a two-column card or a sheet with a
+      // title cannot lay out at all -- the content simply does not fit, and the
+      // result is a screen where buttons are pushed off the bottom and cannot
+      // be reached. Clamping trades a little legibility beyond the cap for a
+      // layout that stays usable, which is the trade every major platform makes
+      // and the one Flutter's own Material guidance recommends.
+      //
+      // Note what this does NOT do: it does not cap text at the default size,
+      // and it does not ignore the system setting. At 1.5x or 2.0x -- where
+      // people actually live -- text renders at full size and every layout must
+      // cope. `text_scaling_test.dart` holds that line.
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: TextScaling.maxSupportedScale,
+        child: InAppNotificationHost(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

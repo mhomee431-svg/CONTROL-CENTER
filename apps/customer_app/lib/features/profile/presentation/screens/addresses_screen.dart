@@ -3,6 +3,7 @@ import '../../../../core/widgets/skeletons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/layout/form_keyboard.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/list_loading_view.dart';
 import '../../../location/domain/models/saved_address.dart';
@@ -459,6 +460,12 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
             controller: _labelController,
             textCapitalization: TextCapitalization.words,
             maxLength: 40,
+            // Single-field form, so `done`. It closes the keyboard without
+            // saving — an address is written to the server, so that stays an
+            // explicit press of Save.
+            textInputAction: TextInputAction.done,
+            onEditingComplete: () => FormKeyboard.dismiss(null),
+            scrollPadding: FormKeyboard.scrollPaddingFor(context),
             decoration: InputDecoration(
               labelText: 'Label (e.g. Home, Work)',
               errorText: _labelError,

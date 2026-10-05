@@ -254,7 +254,11 @@ class ShopProductCard extends StatelessWidget {
                           const SizedBox(width: AppSpacing.sm),
                         ],
                         if (result.isRated) ...[
-                          const Icon(Icons.star, size: 14, color: AppColors.warning),
+                          const Icon(
+                            Icons.star,
+                            size: 14,
+                            color: AppColors.warning,
+                          ),
                           const SizedBox(width: 2),
                           Text(
                             result.shopRating.toStringAsFixed(1),
@@ -409,7 +413,7 @@ class _AvailabilityBadge extends StatelessWidget {
           SizedBox(width: 2),
           Text(
             'Out of Stock',
-            style: TextStyle(fontSize: 11, color: AppColors.error),
+            style: TextStyle(fontSize: 11, color: AppColors.errorText),
           ),
         ],
       );
@@ -423,7 +427,7 @@ class _AvailabilityBadge extends StatelessWidget {
           SizedBox(width: 2),
           Text(
             'Low Stock',
-            style: TextStyle(fontSize: 11, color: AppColors.warning),
+            style: TextStyle(fontSize: 11, color: AppColors.warningText),
           ),
         ],
       );
@@ -448,7 +452,7 @@ class _AvailabilityBadge extends StatelessWidget {
         SizedBox(width: 2),
         Text(
           'In Stock',
-          style: TextStyle(fontSize: 11, color: AppColors.secondary),
+          style: TextStyle(fontSize: 11, color: AppColors.successText),
         ),
       ],
     );
@@ -492,7 +496,7 @@ class _FreshnessRow extends StatelessWidget {
               '— stock info may be outdated',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: AppColors.error),
+              style: TextStyle(fontSize: 10, color: AppColors.errorText),
             ),
           ),
         ],

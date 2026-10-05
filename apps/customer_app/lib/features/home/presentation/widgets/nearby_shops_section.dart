@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/shop_card.dart';
 import '../controllers/home_radius_controller.dart';
@@ -57,23 +57,38 @@ class NearbyShopsSection extends ConsumerWidget {
           actionLabel: 'View All',
           onActionTap: () => context.push('/search'),
         ),
-        SizedBox(
-          // Taller than the plain card row: the shared card carries an optional
-          // context line, and a fixed height that is too short overflows rather
-          // than scrolling.
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            itemCount: shops.length,
-            itemBuilder: (context, index) {
-              final shop = shops[index];
-              return ShopCard(
-                shop: shop,
-                onTap: () => context.push('/shop/${shop.id}'),
-              );
-            },
-          ),
+        // Responsive: the rail's height is derived from the text scale, not
+        // hard-coded.
+        //
+        // This was `SizedBox(height: 200)`. A fixed height is correct only at
+        // the default system font size: ShopCard grows with its content, so a
+        // customer running a large accessibility font got a taller card inside
+        // an unchanged box and a RenderFlex overflow. Scaling the box with the
+        // text makes the two move together.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final textScale = MediaQuery.textScalerOf(context);
+            return SizedBox(
+              height: Responsive.carouselHeight(
+                baseHeight: 200,
+                textScale: textScale,
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.gutterFor(constraints.maxWidth),
+                ),
+                itemCount: shops.length,
+                itemBuilder: (context, index) {
+                  final shop = shops[index];
+                  return ShopCard(
+                    shop: shop,
+                    onTap: () => context.push('/shop/${shop.id}'),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );

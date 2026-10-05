@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/error_message_mapper.dart';
 import '../../../../core/permissions/data/permission_service.dart';
 import '../../../../core/permissions/permission_models.dart';
 import '../../../../core/view/view_model.dart';
@@ -179,7 +180,9 @@ class BarcodeScannerViewModel extends ViewModel<BarcodeScannerState> {
       state = state.copyWith(
         permissionStatus: BarcodeCameraPermissionStatus.error,
         isBusy: false,
-        errorMessage: e.toString(),
+        // Was `e.toString()`, which showed the customer
+        // "PlatformException(CAMERA_ACCESS_DENIED...)" verbatim.
+        errorMessage: ErrorMessageMapper.message(e),
       );
     }
   }
@@ -209,7 +212,7 @@ class BarcodeScannerViewModel extends ViewModel<BarcodeScannerState> {
       state = state.copyWith(
         permissionStatus: BarcodeCameraPermissionStatus.error,
         isBusy: false,
-        errorMessage: e.toString(),
+        errorMessage: ErrorMessageMapper.message(e),
       );
     }
   }
@@ -239,7 +242,7 @@ class BarcodeScannerViewModel extends ViewModel<BarcodeScannerState> {
       state = state.copyWith(
         permissionStatus: BarcodeCameraPermissionStatus.error,
         isBusy: false,
-        errorMessage: e.toString(),
+        errorMessage: ErrorMessageMapper.message(e),
       );
     }
   }

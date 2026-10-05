@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/layout/form_keyboard.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/widgets/auth_gate_sheet.dart';
 import '../../domain/models/business_profile_models.dart';
@@ -52,6 +53,15 @@ class _RequestQuoteSheetState extends ConsumerState<RequestQuoteSheet> {
   final _pickupController = TextEditingController();
   final _destinationController = TextEditingController();
   final _notesController = TextEditingController();
+
+  /// Focus nodes for the three IME text fields, in visual order: pickup,
+  /// destination, notes.
+  ///
+  /// The dropdown, the date field and the steppers are deliberately NOT in this
+  /// list. They are not text entry, so they have no IME action to advance from;
+  /// including them would make `next` walk into a date picker.
+  final _fields = <FocusNode>[FocusNode(), FocusNode(), FocusNode()];
+
   String _purpose = 'LOCAL_TRAVEL';
   DateTime _tripDate = DateTime.now().add(const Duration(days: 1));
   int _tripDays = 1;
@@ -62,6 +72,9 @@ class _RequestQuoteSheetState extends ConsumerState<RequestQuoteSheet> {
     _pickupController.dispose();
     _destinationController.dispose();
     _notesController.dispose();
+    for (final node in _fields) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -114,124 +127,148 @@ class _RequestQuoteSheetState extends ConsumerState<RequestQuoteSheet> {
         top: AppSpacing.md,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
-      child: SingleChildScrollView(
-        child: quote.isSubmitted
-            ? _QuoteSuccess(receipt: quote.receipt!)
-            : Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Request a quote',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'The provider replies with a price. Nothing is booked '
-                      'or charged here.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _PurposeField(
-                      purpose: _purpose,
-                      onChanged: (value) =>
-                          setState(() => _purpose = value ?? _purpose),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _AddressField(
-                      controller: _pickupController,
-                      label: 'Pickup',
-                      hint: 'Where should the trip start?',
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _AddressField(
-                      controller: _destinationController,
-                      label: 'Destination',
-                      hint: 'Where are you going?',
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
+      child: FormKeyboard.dismissOnBackgroundTap(
+        child: FormKeyboard.ordered(
+          child: SingleChildScrollView(
+            child: quote.isSubmitted
+                ? _QuoteSuccess(receipt: quote.receipt!)
+                : Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _DateField(
-                            tripDate: _tripDate,
-                            onTap: _pickDate,
+                        const Text(
+                          'Request a quote',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: _CounterField(
-                            label: 'Days',
-                            value: _tripDays,
-                            min: 1,
-                            onChanged: (value) =>
-                                setState(() => _tripDays = value),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'The provider replies with a price. Nothing is booked '
+                          'or charged here.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: _CounterField(
-                            label: 'Seats',
-                            value: _passengers,
-                            min: 1,
-                            onChanged: (value) =>
-                                setState(() => _passengers = value),
+                        const SizedBox(height: AppSpacing.md),
+                        _PurposeField(
+                          purpose: _purpose,
+                          onChanged: (value) =>
+                              setState(() => _purpose = value ?? _purpose),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _AddressField(
+                          controller: _pickupController,
+                          focusNode: _fields[0],
+                          index: 0,
+                          total: _fields.length,
+                          nodes: _fields,
+                          label: 'Pickup',
+                          hint: 'Where should the trip start?',
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _AddressField(
+                          controller: _destinationController,
+                          focusNode: _fields[1],
+                          index: 1,
+                          total: _fields.length,
+                          nodes: _fields,
+                          label: 'Destination',
+                          hint: 'Where are you going?',
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _DateField(
+                                tripDate: _tripDate,
+                                onTap: _pickDate,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: _CounterField(
+                                label: 'Days',
+                                value: _tripDays,
+                                min: 1,
+                                onChanged: (value) =>
+                                    setState(() => _tripDays = value),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: _CounterField(
+                                label: 'Seats',
+                                value: _passengers,
+                                min: 1,
+                                onChanged: (value) =>
+                                    setState(() => _passengers = value),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          controller: _notesController,
+                          focusNode: _fields[2],
+                          maxLines: 2,
+                          // Last text field: `done` closes the keyboard and does
+                          // NOT submit. A quote request has a real cost and a real
+                          // consequence, so it stays behind the explicit button —
+                          // a stray done must never send one.
+                          textInputAction: FormKeyboard.actionFor(
+                            2,
+                            _fields.length,
+                          ),
+                          onEditingComplete: () =>
+                              FormKeyboard.advance(nodes: _fields, from: 2),
+                          scrollPadding: FormKeyboard.scrollPaddingFor(context),
+                          decoration: const InputDecoration(
+                            labelText: 'Notes (optional)',
+                            hintText: 'Anything the driver should know',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        if (quote.errorMessage != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            quote.errorMessage!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: submitting ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: submitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Send request'),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextFormField(
-                      controller: _notesController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes (optional)',
-                        hintText: 'Anything the driver should know',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    if (quote.errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        quote.errorMessage!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: submitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: submitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Send request'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -269,16 +306,35 @@ class _AddressField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hint;
+
+  /// Position of this field in the sheet's IME chain, so `next` moves to the
+  /// field the customer actually sees next rather than a hard-coded index.
+  final int index;
+  final int total;
+  final List<FocusNode> nodes;
+  final FocusNode focusNode;
+
   const _AddressField({
     required this.controller,
     required this.label,
     required this.hint,
+    required this.index,
+    required this.total,
+    required this.nodes,
+    required this.focusNode,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
+      // `next` on every field but the last. Never `submit`: submitting from the
+      // pickup field would validate a form whose destination is still empty and
+      // fail for a reason the customer cannot see.
+      textInputAction: FormKeyboard.actionFor(index, total),
+      onEditingComplete: () => FormKeyboard.advance(nodes: nodes, from: index),
+      scrollPadding: FormKeyboard.scrollPaddingFor(context),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

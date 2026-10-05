@@ -181,7 +181,15 @@ void main() {
       expect(state.permissionStatus, BarcodeCameraPermissionStatus.error);
       expect(state.isError, isTrue);
       expect(state.isBusy, isFalse);
-      expect(state.errorMessage, contains('Platform status channel failure'));
+      // Was `contains('Platform status channel failure')`, which asserted the
+      // leak this mapper exists to stop. The view model no longer renders
+      // `e.toString()`, so the internal platform text must NOT appear.
+      expect(state.errorMessage, isNotNull);
+      expect(state.errorMessage, isNotEmpty);
+      expect(
+        state.errorMessage,
+        isNot(contains('Platform status channel failure')),
+      );
     });
 
     test('transitions to error when request throws', () async {
@@ -198,7 +206,12 @@ void main() {
       expect(state.permissionStatus, BarcodeCameraPermissionStatus.error);
       expect(state.isError, isTrue);
       expect(state.isBusy, isFalse);
-      expect(state.errorMessage, contains('Platform request channel failure'));
+      // See the sibling test: the raw platform text must not surface.
+      expect(state.errorMessage, isNotEmpty);
+      expect(
+        state.errorMessage,
+        isNot(contains('Platform request channel failure')),
+      );
     });
 
     test('recovers from error state on retry', () async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/product_card.dart';
 import '../../../../core/widgets/section_header.dart';
@@ -34,20 +35,36 @@ class ProductRowSection extends StatelessWidget {
           actionLabel: actionLabel,
           onActionTap: onActionTap,
         ),
-        SizedBox(
-          height: 240,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return ProductCard(
-                product: product,
-                onTap: () => context.push('/product/${product.id}'),
-              );
-            },
-          ),
+        // Responsive: the rail grows with the customer's font size.
+        //
+        // `ProductCard` carries a product name, a price and a shop name, all of
+        // which scale with the system text size. A fixed 240 meant the card grew
+        // while the rail did not, and the row overflowed for anyone running a
+        // large accessibility font -- the same failure as
+        // `nearby_shops_section`, which is why both use the same helper.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              height: Responsive.carouselHeight(
+                baseHeight: 240,
+                textScale: MediaQuery.textScalerOf(context),
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.gutterFor(constraints.maxWidth),
+                ),
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  final product = products[index];
+                  return ProductCard(
+                    product: product,
+                    onTap: () => context.push('/product/${product.id}'),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );

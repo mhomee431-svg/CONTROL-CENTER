@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/shop_card.dart';
@@ -38,23 +39,37 @@ class SavedShopsSection extends StatelessWidget {
           actionLabel: 'View All',
           onActionTap: () => context.push('/my-favorites'),
         ),
-        SizedBox(
-          // Taller than the plain row because the shared card carries an optional
-          // context line; a fixed height that is too short overflows instead of
-          // scrolling.
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            itemCount: shops.length,
-            itemBuilder: (context, index) {
-              final shop = shops[index];
-              return ShopCard(
-                shop: shop.toDiscoveryShop(),
-                onTap: () => context.push('/shop/${shop.shopId}'),
-              );
-            },
-          ),
+        // Responsive: the rail grows with the customer's font size.
+        //
+        // `ShopCard` carries a shop name, a rating and an open/closed badge,
+        // all of which scale with the system text size. The fixed 200 meant the
+        // card grew while the rail did not, and the row overflowed for anyone
+        // running a large accessibility font. The old comment here blamed the
+        // height for being "too short", but the real fault was that it could not
+        // change at all.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              height: Responsive.carouselHeight(
+                baseHeight: 200,
+                textScale: MediaQuery.textScalerOf(context),
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.gutterFor(constraints.maxWidth),
+                ),
+                itemCount: shops.length,
+                itemBuilder: (context, index) {
+                  final shop = shops[index];
+                  return ShopCard(
+                    shop: shop.toDiscoveryShop(),
+                    onTap: () => context.push('/shop/${shop.shopId}'),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );

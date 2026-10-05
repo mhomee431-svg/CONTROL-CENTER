@@ -1,3 +1,4 @@
+import 'package:hyperlocal_app/core/utils/distance_format.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -259,7 +260,7 @@ class _ShopInventoryCard extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            '${offer.distanceInKm} km away • ⭐ ${offer.rating}',
+                            '${formatKilometers(offer.distanceInKm, style: DistanceStyle.withUnitSuffix)} • ⭐ ${offer.rating}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/storage/local_storage_driver.dart';
+import '../../../../core/layout/form_keyboard.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/domain/auth_repository.dart'
     show phoneAuthServiceProvider;
@@ -176,6 +177,12 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           controller: _confirmController,
           textCapitalization: TextCapitalization.characters,
           autocorrect: false,
+          // Single-field form, so the key is `done`. It deliberately only puts
+          // the keyboard away: deletion is irreversible, so it stays behind the
+          // explicit Delete button rather than being one stray keypress away.
+          textInputAction: TextInputAction.done,
+          onEditingComplete: () => FormKeyboard.dismiss(null),
+          scrollPadding: FormKeyboard.scrollPaddingFor(context),
           decoration: const InputDecoration(
             hintText: 'DELETE',
             border: OutlineInputBorder(),

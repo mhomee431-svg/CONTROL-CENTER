@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:hyperlocal_app/core/utils/app_datetime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -234,7 +235,7 @@ class _StatusHeader extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Placed ${DateFormat('d MMM yyyy, h:mm a').format(placed.toLocal())}',
+              'Placed ${AppDateTime.formatDateTime(placed)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textMuted,
               ),
@@ -415,7 +416,7 @@ class _TrackerStep extends StatelessWidget {
                   ),
                   if (timestamp != null)
                     Text(
-                      DateFormat('d MMM, h:mm a').format(timestamp!.toLocal()),
+                      AppDateTime.formatDateTimeShort(timestamp),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                       ),
@@ -469,8 +470,7 @@ class _TerminalBanner extends StatelessWidget {
                   if (order.cancelledAt != null) ...[
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      DateFormat('d MMM yyyy, h:mm a')
-                          .format(order.cancelledAt!.toLocal()),
+                      AppDateTime.formatDateTime(order.cancelledAt),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                       ),

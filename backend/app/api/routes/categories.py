@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.cache import cache
+from app.core.cached_read import cached_read
 from app.core.config import settings
 from app.core.responses import error_response, success_response
 from app.database.session import get_db
@@ -21,16 +22,21 @@ CACHE_DOMAIN = "category"
 async def list_categories(db: Session = Depends(get_db)):
     """Return all product categories.
 
-    Served from the Redis cache when warm. A Redis outage degrades to a live
-    PostgreSQL query (correct, just slower) — never an error.
-    """
-    cached = await cache.get_json(CACHE_DOMAIN, "list")
-    if cached is not None:
-        return success_response(data=cached)
+    Read-heavy and rarely-changing, so it goes through `cached_read` rather
+    than a bare get/set. At 500 concurrent customers every app launch asks for
+    this list, and a plain get/set means every one of them runs the same query
+    the instant the TTL lapses. `cached_read` collapses that into one query
+    while the rest read from cache.
 
-    categories = db.query(Category).all()
-    data = [CategoryResponse.model_validate(c).model_dump() for c in categories]
-    await cache.set_json(CACHE_DOMAIN, "list", data, ttl=settings.CACHE_DEFAULT_TTL)
+    A Redis outage degrades to a live PostgreSQL query (correct, just slower)
+    -- never an error, and never a queue on a lock nobody holds.
+    """
+
+    async def _load():
+        categories = db.query(Category).all()
+        return [CategoryResponse.model_validate(c).model_dump() for c in categories]
+
+    data = await cached_read(CACHE_DOMAIN, "list", _load)
     return success_response(data=data)
 
 

@@ -71,7 +71,15 @@ class DeviceLocationService implements LocationService {
           'Invalid coordinates received from GPS',
         );
       }
-      return Coordinates(position.latitude, position.longitude);
+      // Accuracy travels WITH the fix. Dropping it here is what forces every future
+      // caller to re-fetch just to learn how good the reading was, which is how
+      // two screens end up disagreeing about whether a location is precise
+      // enough to act on. `null` is preserved when the platform did not say.
+      return Coordinates(
+        position.latitude,
+        position.longitude,
+        accuracyMeters: position.accuracy,
+      );
     }
 
     if (!_mockGpsEnabled) {

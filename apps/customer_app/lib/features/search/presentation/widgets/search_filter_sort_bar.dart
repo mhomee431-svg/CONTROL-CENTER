@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/layout/text_scaling.dart';
 import '../../domain/models/search_models.dart';
 import '../controllers/search_controller.dart';
 import '../../../../core/catalog/approved_categories.dart';
@@ -20,7 +21,14 @@ class FilterSortBar extends ConsumerWidget {
     final state = ref.watch(searchResultsProvider(query));
 
     return SizedBox(
-      height: 50,
+      // Text scaling: the bar grows with the customer's font size.
+      //
+      // This was a fixed `height: 50`, which silently clipped the "Filter" and
+      // "Sort" labels at 1.8x and above -- the two controls that let a customer
+      // narrow their results. A fixed height here is worse than an overflow
+      // stripe: the control still LOOKS tappable, and the label is cut in half,
+      // so the action is hard to identify as well as hard to hit.
+      height: TextScaling.chipBarHeight(MediaQuery.textScalerOf(context)),
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
