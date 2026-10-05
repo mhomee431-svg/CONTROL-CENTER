@@ -40,6 +40,10 @@ export const ROUTE_CAPABILITIES: Record<string, Capability> = {
   // Engagement & governance
   '/support': CAPABILITIES.SUPPORT_READ,
   '/audit': CAPABILITIES.AUDIT_READ,
+  '/notifications': CAPABILITIES.NOTIFICATIONS_SEND,
+
+  // Discovery search surfaces (mirrors the sidebar capability filter)
+  '/search': CAPABILITIES.ANALYTICS_READ,
 
   // Analytics
   '/analytics': CAPABILITIES.ANALYTICS_READ,

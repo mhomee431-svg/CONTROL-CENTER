@@ -3,6 +3,19 @@
 import { createTheme } from '@mui/material/styles';
 
 /**
+ * Module augmentation so `MuiDataGrid` is accepted in the theme's `components`
+ * map. @mui/x-data-grid ships DataGrid styleOverrides, but the key is not part
+ * of Material UI's own Components type, so it must be declared here.
+ */
+declare module '@mui/material/styles' {
+  interface Components {
+    MuiDataGrid?: {
+      styleOverrides?: Record<string, unknown>;
+    };
+  }
+}
+
+/**
  * Section 129: Centralized Admin Design System
  * Visual Direction: Deep blue, electric blue, white, light gray, green, orange, red for destructive errors.
  */
@@ -118,6 +131,20 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
+        },
+      },
+    },
+    MuiDataGrid: {
+      styleOverrides: {
+        // Drill-down highlight: /shopkeepers?highlight=123 marks the row via
+        // cellClassName. Without this rule the class was emitted but inert,
+        // so drilling from a shop/inventory record silently did nothing.
+        '.highlighted-row': {
+          backgroundColor: '#DBEAFE',
+          fontWeight: 700,
+          '&:hover': {
+            backgroundColor: '#BFDBFE',
+          },
         },
       },
     },

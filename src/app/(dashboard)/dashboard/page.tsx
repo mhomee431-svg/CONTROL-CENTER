@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Typography,
@@ -11,35 +11,120 @@ import {
   CardContent,
   CardActionArea,
   Button,
-  ButtonGroup,
   Alert,
   CircularProgress,
   Chip,
+  Divider,
+  Stack,
+  Tooltip,
 } from '@mui/material';
 import {
   Users,
   Store,
   Package,
   Warehouse,
-  AlertTriangle,
-  Clock,
-  HelpCircle,
-  TrendingUp,
   RefreshCw,
+  WifiOff,
+  Radio,
 } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
-import { DashboardMetrics } from '@/core/types/admin';
+import { DashboardMetrics, CategoryItem } from '@/core/types/admin';
 import { BarChart } from '@mui/x-charts/BarChart';
+import { DashboardFilters } from '@/core/components/DashboardFilters';
+import {
+  DashboardFilterState,
+  SelectOption,
+  toFilterParams,
+} from '@/core/filters/dashboardFilters';
+import { useDateRange } from '@/core/filters/DateRangeContext';
+import { useRealtimeEvents } from '@/core/realtime/useRealtimeEvents';
+import { affectsDashboard, getOperationalEventMeta } from '@/core/realtime/eventTaxonomy';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
+  const queryClient = useQueryClient();
 
-  const { data: metrics, isLoading, isError, error, refetch, isFetching } = useQuery<DashboardMetrics>({
-    queryKey: ['admin', 'dashboard', 'metrics'],
-    queryFn: () => apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS),
+  // Reporting window comes from the shared date-range context, so the range
+  // chosen here applies to every other analytics surface too.
+  const { params: dateParams } = useDateRange();
+
+  // Filter state holds only the non-date filters; the window is merged in below.
+  const [filters, setFilters] = React.useState<DashboardFilterState>({});
+
+  const filterParams = React.useMemo(
+    () => ({ ...dateParams, ...toFilterParams(filters) }),
+    [dateParams, filters]
+  );
+
+  // Taxonomy/geography options are backend-derived, never hardcoded.
+  const { data: categoryOptions = [] } = useQuery<CategoryItem[]>({
+    queryKey: ['admin', 'categories', 'filter-options'],
+    queryFn: () => apiClient<CategoryItem[]>(API_ENDPOINTS.CATEGORIES.LIST),
+    staleTime: 5 * 60 * 1000,
   });
+
+  const { data: shopGeoOptions } = useQuery<{ city?: string; state?: string }[]>({
+    queryKey: ['admin', 'shops', 'filter-options'],
+    queryFn: () =>
+      apiClient<{ city?: string; state?: string }[]>(API_ENDPOINTS.SHOPS.LIST, {
+        params: { limit: 500 },
+      }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const distinct = (values: (string | undefined)[]): SelectOption[] => {
+    const seen = new Set<string>();
+    values.forEach((v) => {
+      if (v) seen.add(v);
+    });
+    return Array.from(seen)
+      .sort((a, b) => a.localeCompare(b))
+      .map((v) => ({ value: v, label: v }));
+  };
+
+  const dynamicOptions = React.useMemo<Record<string, SelectOption[]>>(
+    () => ({
+      category: categoryOptions
+        .filter((c) => c.is_active)
+        .map((c) => ({ value: String(c.id), label: c.name })),
+      city: distinct((shopGeoOptions ?? []).map((s) => s.city)),
+      state: distinct((shopGeoOptions ?? []).map((s) => s.state)),
+    }),
+    [categoryOptions, shopGeoOptions]
+  );
+
+  // Live dashboard feed (WebSocket primary, SSE fallback).
+  const { events, transport, connected, reconnect } = useRealtimeEvents();
+
+  const { data: metrics, isLoading, isError, error, refetch, isFetching } =
+    useQuery<DashboardMetrics>({
+      queryKey: ['admin', 'dashboard', 'metrics', filterParams],
+      queryFn: () =>
+        apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS, { params: filterParams }),
+    });
+
+  // Real-time → dashboard. The transport already dropped non-operational
+  // events; this additionally limits refetches to event types that can
+  // actually move a KPI, and debounces bursts into a single request.
+  const latestEventIdRef = useRef<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const latest = events[0];
+    if (!latest || latest.id === latestEventIdRef.current) return;
+    if (!affectsDashboard(latest.type)) return;
+
+    latestEventIdRef.current = latest.id;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'metrics'] });
+    }, 1500);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [events, queryClient]);
 
   return (
     <Box>
@@ -63,29 +148,23 @@ export default function DashboardPage() {
           </Typography>
         </Box>
 
-        {/* Date Filter & Refresh */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <ButtonGroup size="small" variant="outlined">
-            <Button
-              variant={dateRange === '7' ? 'contained' : 'outlined'}
-              onClick={() => setDateRange('7')}
-            >
-              7D
-            </Button>
-            <Button
-              variant={dateRange === '30' ? 'contained' : 'outlined'}
-              onClick={() => setDateRange('30')}
-            >
-              30D
-            </Button>
-            <Button
-              variant={dateRange === '90' ? 'contained' : 'outlined'}
-              onClick={() => setDateRange('90')}
-            >
-              90D
-            </Button>
-          </ButtonGroup>
-
+        {/* Live Transport Status & Refresh */}
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Tooltip
+            title={
+              connected
+                ? `Live feed active over ${transport}. New operational events refresh automatically.`
+                : 'Realtime feed unavailable — metrics still load from the backend on demand.'
+            }
+          >
+            <Chip
+              size="small"
+              variant="outlined"
+              color={connected ? 'success' : 'default'}
+              icon={connected ? <Radio size={14} /> : <WifiOff size={14} />}
+              label={connected ? `Live · ${transport}` : 'Live feed offline'}
+            />
+          </Tooltip>
           <Button
             size="small"
             variant="outlined"
@@ -95,8 +174,16 @@ export default function DashboardPage() {
           >
             Refresh
           </Button>
-        </Box>
+        </Stack>
       </Box>
+
+      {/* Only backend-supported filters are rendered (see dashboardFilters registry). */}
+      <DashboardFilters
+        filters={filters}
+        onChange={setFilters}
+        dynamicOptions={dynamicOptions}
+        dynamicOptionsLoading={false}
+      />
 
       {/* Error State */}
       {isError && (
@@ -352,6 +439,70 @@ export default function DashboardPage() {
             <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
               No category demand data available yet.
             </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Live Operational Event Feed — WebSocket / SSE driven */}
+      <Card>
+        <CardContent sx={{ p: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 0.5,
+            }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Live Operational Feed
+            </Typography>
+            <Button size="small" onClick={reconnect} startIcon={<RefreshCw size={14} />}>
+              Reconnect
+            </Button>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Real-time platform events pushed by the backend. KPI tiles refresh automatically as
+            relevant events arrive.
+          </Typography>
+          <Divider sx={{ mb: 1.5 }} />
+          {events.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+              {connected
+                ? 'Connected. Waiting for platform events…'
+                : 'No realtime events. The feed reconnects automatically, or the backend does not expose an event stream yet.'}
+            </Typography>
+          ) : (
+            <Box
+              component="ul"
+              sx={{ listStyle: 'none', m: 0, p: 0, maxHeight: 320, overflowY: 'auto' }}
+              aria-live="polite"
+            >
+              {events.slice(0, 12).map((evt) => (
+                <Box
+                  component="li"
+                  key={evt.id}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 2,
+                    py: 1,
+                    borderBottom: '1px solid #F1F5F9',
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {evt.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(evt.timestamp).toLocaleString()}
+                    </Typography>
+                  </Box>
+                  <Chip size="small" variant="outlined" label={getOperationalEventMeta(evt.type)?.label ?? evt.type} />
+                </Box>
+              ))}
+            </Box>
           )}
         </CardContent>
       </Card>

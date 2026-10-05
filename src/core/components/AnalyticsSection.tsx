@@ -7,8 +7,11 @@ import { BarChart } from '@mui/x-charts/BarChart';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { AnalyticsSummary } from '@/core/types/analytics';
+import { DashboardMetrics } from '@/core/types/admin';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
+import { useDateRange } from '@/core/filters/DateRangeContext';
+import { DateRangePicker } from '@/core/filters/DateRangePicker';
 
 export interface AnalyticsKpi {
   label: string;
@@ -16,10 +19,21 @@ export interface AnalyticsKpi {
   color: string;
 }
 
-interface Props {
+export interface AnalyticsKpiContext {
+  summary?: AnalyticsSummary;
+  metrics?: DashboardMetrics;
+  isLoading: boolean;
+}
+
+export interface AnalyticsSectionProps {
   title: string;
   description: string;
-  kpis: AnalyticsKpi[];
+  /**
+   * Static KPI list, or a resolver that receives the live summary/metrics
+   * context so each section can surface real backend values instead of
+   * permanent placeholders.
+   */
+  kpis: AnalyticsKpi[] | ((ctx: AnalyticsKpiContext) => AnalyticsKpi[]);
   chartTitle?: string;
   chartData?: Array<{ label: string; value: number }>;
 }
@@ -27,13 +41,35 @@ interface Props {
 /**
  * Shared analytics section renderer. Keeps the six analytics routes thin and
  * guarantees consistent presentation + drill-down breadcrumbs.
+ *
+ * Fetches the two shared read-only admin aggregates (analytics summary and
+ * dashboard metrics) under centralized query keys so results are cached and
+ * reused across the dashboard and every analytics route.
  */
-export function AnalyticsSection({ title, description, kpis, chartTitle, chartData }: Props) {
-  const { data: summary, isLoading, isError } = useQuery<AnalyticsSummary>({
-    queryKey: ['admin', 'analytics', 'summary'],
-    queryFn: () => apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY),
+export function AnalyticsSection({ title, description, kpis, chartTitle, chartData }: AnalyticsSectionProps) {
+  // Reporting window is owned by the shared date-range context, so every
+  // analytics surface honours the same range with no local configuration.
+  const { params: dateParams, label: rangeLabel } = useDateRange();
+
+  const { data: summary, isLoading: summaryLoading, isError } = useQuery<AnalyticsSummary>({
+    queryKey: ['admin', 'analytics', 'summary', dateParams],
+    queryFn: () =>
+      apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY, {
+        params: dateParams,
+      }),
     retry: false,
   });
+
+  const { data: metrics, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
+    queryKey: ['admin', 'dashboard', 'metrics', dateParams],
+    queryFn: () =>
+      apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS, {
+        params: dateParams,
+      }),
+  });
+
+  const isLoading = summaryLoading || metricsLoading;
+  const resolvedKpis = typeof kpis === 'function' ? kpis({ summary, metrics, isLoading }) : kpis;
 
   const series = chartData ?? summary?.searches_by_day?.map((d) => ({ label: d.date, value: d.count })) ?? [];
 
@@ -54,7 +90,14 @@ export function AnalyticsSection({ title, description, kpis, chartTitle, chartDa
         <Typography variant="body2" color="text.secondary">
           {description}
         </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          Reporting window: {rangeLabel}
+        </Typography>
       </Box>
+
+      {/* The centralized date-range control (presets + custom range) so the
+          window can be changed without leaving the analytics surface. */}
+      <DateRangePicker />
 
       {isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -63,7 +106,7 @@ export function AnalyticsSection({ title, description, kpis, chartTitle, chartDa
       )}
 
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {kpis.map((kpi) => (
+        {resolvedKpis.map((kpi) => (
           <Grid item xs={12} sm={6} md={3} key={kpi.label}>
             <Card sx={{ borderLeft: `4px solid ${kpi.color}` }}>
               <CardContent sx={{ p: 2.5 }}>

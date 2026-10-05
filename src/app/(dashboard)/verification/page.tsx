@@ -24,7 +24,7 @@ export default function VerificationPage() {
 
   const [selectedCase, setSelectedCase] = useState<{ id: number; name: string; decision: 'VERIFY' | 'REJECT' } | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: ShopItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: ShopItem[]; total: number }>({
     queryKey: ['admin', 'verification-queue', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
       apiClient<{ items: ShopItem[]; total: number }>(API_ENDPOINTS.SHOPS.LIST, {
@@ -162,6 +162,7 @@ export default function VerificationPage() {
         searchValue={search}
         onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {selectedCase && (

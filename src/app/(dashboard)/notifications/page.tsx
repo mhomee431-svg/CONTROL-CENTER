@@ -97,7 +97,10 @@ export default function NotificationsPage() {
               fullWidth
               required
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setSuccessMsg(null);
+              }}
               sx={{ mb: 2 }}
             />
 
@@ -109,7 +112,10 @@ export default function NotificationsPage() {
               multiline
               rows={4}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => {
+                setBody(e.target.value);
+                setSuccessMsg(null);
+              }}
               sx={{ mb: 3 }}
             />
 

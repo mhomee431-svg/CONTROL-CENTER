@@ -16,12 +16,14 @@ import { ROUTES } from '@/core/routes/routes';
 export default function LocationsPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: ShopItem[]; total: number }>({
-    queryKey: ['admin', 'locations', paginationModel],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: ShopItem[]; total: number }>({
+    queryKey: ['admin', 'locations', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
       apiClient<{ items: ShopItem[]; total: number }>(API_ENDPOINTS.SHOPS.LIST, {
         params: {
+          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -66,7 +68,10 @@ export default function LocationsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search locations..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
         onRowClick={(params) => router.push(ROUTES.BUSINESS_DETAIL(params.row.id as number))}
       />
     </Box>

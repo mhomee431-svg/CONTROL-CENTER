@@ -36,7 +36,7 @@ export default function SupportPage() {
   const [newStatus, setNewStatus] = useState<'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'>('RESOLVED');
   const [resolutionNotes, setResolutionNotes] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: ComplaintItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: ComplaintItem[]; total: number }>({
     queryKey: ['admin', 'complaints', { page: paginationModel.page, pageSize: paginationModel.pageSize, status: statusFilter }],
     queryFn: () =>
       apiClient<{ items: ComplaintItem[]; total: number }>(API_ENDPOINTS.COMPLAINTS.LIST, {
@@ -166,6 +166,7 @@ export default function SupportPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {triageTarget && (

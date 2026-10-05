@@ -49,12 +49,29 @@ export interface AdminUserItem {
 export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'REJECTED';
 export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
 
+/**
+ * Business type classification for a merchant storefront.
+ *
+ * Optional by design: the admin backend does not publish a `business_type`
+ * enum contract, so the field is surfaced only when the backend supplies it.
+ * The UI renders "Not reported" rather than inventing a classification.
+ */
+export type BusinessType =
+  | 'RETAIL'
+  | 'WHOLESALE'
+  | 'DISTRIBUTOR'
+  | 'MANUFACTURER'
+  | 'SERVICE'
+  | 'MIXED'
+  | string;
+
 export interface ShopItem {
   id: number;
   name: string;
   owner_id: number;
   owner_name?: string;
   category: string;
+  business_type?: BusinessType | null;
   city: string;
   state: string;
   status: ShopStatus;
@@ -62,6 +79,8 @@ export interface ShopItem {
   product_count: number;
   inventory_count?: number;
   inventory_freshness?: string;
+  /** Most recent inventory sync across this shop, when reported. */
+  last_inventory_update?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -224,6 +243,188 @@ export interface ShopkeeperDetail {
   status: string;
   created_at: string;
   last_login?: string | null;
+  /** Account completeness — drives the "Incomplete" quick-filter. */
+  is_profile_complete?: boolean;
   shop_ids?: number[];
   shop_names?: string[];
+  /** Optional backend-disclosed fields; absent values render as "Not reported". */
+  business_type?: BusinessType | null;
+  verification_status?: VerificationStatus | null;
+  city?: string | null;
+  state?: string | null;
+}
+
+/**
+ * Customer detail models.
+ *
+ * Every field here is optional because the backend progressively discloses more
+ * as policy allows; the UI must degrade honestly rather than assume a shape.
+ * No credential field exists by design — see core/privacy/masking.ts.
+ */
+export interface CustomerDetail extends AdminUserItem {
+  auth_status?: 'VERIFIED' | 'PENDING' | 'UNVERIFIED' | string;
+  last_active?: string | null;
+  city?: string | null;
+  state?: string | null;
+  search_count?: number;
+  viewed_product_count?: number;
+  viewed_shop_count?: number;
+  saved_product_count?: number;
+  saved_shop_count?: number;
+  is_restricted?: boolean;
+}
+
+export interface CustomerActivityItem {
+  id: number;
+  activity_type: string;
+  description?: string | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  created_at: string;
+}
+
+/**
+ * The six activity surfaces named in the spec. Each is a distinct backend
+ * contract, so each gets its own row shape rather than one overloaded type.
+ */
+export interface CustomerSearchItem {
+  id: number;
+  query: string;
+  result_count?: number | null;
+  location?: string | null;
+  searched_at?: string | null;
+}
+
+export interface CustomerViewedItem {
+  id: number;
+  entity_type: 'PRODUCT' | 'SHOP' | string;
+  entity_name: string;
+  category?: string | null;
+  city?: string | null;
+  viewed_at?: string | null;
+}
+
+export interface CustomerSavedEntityItem {
+  id: number;
+  name: string;
+  category?: string | null;
+  brand_name?: string | null;
+  city?: string | null;
+  shop_name?: string | null;
+  price?: number | null;
+  saved_at?: string | null;
+}
+
+export interface CustomerNotificationItem {
+  id: number;
+  title: string;
+  notification_type?: string | null;
+  status?: string | null;
+  is_read?: boolean;
+  sent_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface CustomerReportItem {
+  id: number;
+  report_type: string;
+  reason?: string | null;
+  status: string;
+  resolution?: string | null;
+  created_at: string;
+}
+
+export interface CustomerSavedItem {
+  id: number;
+  item_type: 'PRODUCT' | 'SHOP' | string;
+  name: string;
+  shop_name?: string | null;
+  city?: string | null;
+  saved_at?: string | null;
+}
+
+export interface CustomerAddressItem {
+  id: number;
+  label?: string | null;
+  area?: string | null;
+  city?: string | null;
+  state?: string | null;
+  is_default?: boolean;
+}
+
+export interface CustomerTicketItem {
+  id: number;
+  ticket_number?: string;
+  complaint_type: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  description: string;
+  created_at: string;
+}
+
+/** Shop-scoped import job, used by the shopkeeper Imports tab. */
+export interface ImportJob {
+  id: number;
+  shop_id?: number | null;
+  shop_name?: string | null;
+  source?: string;
+  status?: string;
+  rows_total?: number;
+  rows_processed?: number;
+  created_at?: string;
+}
+
+/** Shop-scoped POS connection, used by the shopkeeper POS tab. */
+export interface PosIntegration {
+  id: number;
+  shop_id?: number | null;
+  shop_name?: string | null;
+  provider?: string;
+  status?: string;
+  last_sync?: string | null;
+}
+
+export interface ShopkeeperBusinessSummary {
+  shops: ShopItem[];
+  total_shops: number;
+  total_products: number;
+  total_inventory: number;
+  last_inventory_update: string | null;
+}
+
+/** Shop-scoped ingestion, POS, notification and support row shapes. */
+export interface ShopkeeperImportItem {
+  id: number;
+  source?: string | null;
+  status?: string | null;
+  rows_total?: number | null;
+  rows_processed?: number | null;
+  created_at?: string | null;
+}
+
+export interface ShopkeeperPosItem {
+  id: number;
+  shop_name?: string | null;
+  provider?: string | null;
+  status?: string | null;
+  last_sync?: string | null;
+}
+
+export interface ShopkeeperNotificationItem {
+  id: number;
+  title: string;
+  notification_type?: string | null;
+  status?: string | null;
+  is_read?: boolean;
+  sent_at?: string | null;
+}
+
+export interface ShopkeeperTicketItem {
+  id: number;
+  ticket_number?: string | null;
+  complaint_type: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | string;
+  status: string;
+  description?: string | null;
+  created_at: string;
 }

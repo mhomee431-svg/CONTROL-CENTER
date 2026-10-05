@@ -35,22 +35,24 @@ function InventoryRecordContent({ params }: { params: Promise<{ id: string }> })
     page: 0,
     pageSize: 25,
   });
+  const [historySearch, setHistorySearch] = React.useState('');
 
   const { data: record, isLoading, isError, error } = useQuery<InventoryRecordDetail>({
     queryKey: ['admin', 'inventory', 'record', recordId],
     queryFn: () => apiClient<InventoryRecordDetail>(API_ENDPOINTS.INVENTORY.RECORD_DETAIL(recordId)),
   });
 
-  const { data: history, isLoading: historyLoading } = useQuery<{
+  const { data: history, isLoading: historyLoading, refetch: refetchHistory } = useQuery<{
     items: InventoryHistoryEntry[];
     total: number;
   }>({
-    queryKey: ['admin', 'inventory', 'history', recordId, paginationModel],
+    queryKey: ['admin', 'inventory', 'history', recordId, paginationModel, historySearch],
     queryFn: () =>
       apiClient<{ items: InventoryHistoryEntry[]; total: number }>(
         API_ENDPOINTS.INVENTORY.RECORD_HISTORY(recordId),
         {
           params: {
+            search: historySearch || undefined,
             limit: paginationModel.pageSize,
             offset: paginationModel.page * paginationModel.pageSize,
           },
@@ -226,7 +228,9 @@ function InventoryRecordContent({ params }: { params: Promise<{ id: string }> })
           onPaginationModelChange={setPaginationModel}
           loading={historyLoading}
           searchPlaceholder="Search history entries..."
-          onRefresh={() => void history}
+          searchValue={historySearch}
+          onSearchChange={setHistorySearch}
+          onRefresh={() => refetchHistory()}
         />
       )}
     </Box>

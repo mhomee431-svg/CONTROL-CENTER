@@ -33,7 +33,7 @@ function ProductsPage() {
   // Bulk action modal state
   const [bulkAction, setBulkAction] = useState<'APPROVE' | 'REJECT' | 'ARCHIVE' | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: ProductItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: ProductItem[]; total: number }>({
     queryKey: ['admin', 'products', { page: paginationModel.page, pageSize: paginationModel.pageSize, search, status: statusFilter }],
     queryFn: () =>
       apiClient<{ items: ProductItem[]; total: number }>(API_ENDPOINTS.PRODUCTS.LIST, {
@@ -154,6 +154,7 @@ function ProductsPage() {
         searchValue={search}
         onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
         checkboxSelection
         rowSelectionModel={rowSelectionModel}
         onRowSelectionModelChange={setRowSelectionModel}

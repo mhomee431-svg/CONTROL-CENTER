@@ -14,7 +14,7 @@ export default function AuditLogsPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [entityFilter, setEntityFilter] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: AuditLogItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: AuditLogItem[]; total: number }>({
     queryKey: ['admin', 'audit-logs', { page: paginationModel.page, pageSize: paginationModel.pageSize, entityFilter }],
     queryFn: () =>
       apiClient<{ items: AuditLogItem[]; total: number }>(API_ENDPOINTS.AUDIT.LOGS, {
@@ -98,6 +98,7 @@ export default function AuditLogsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
     </Box>
   );

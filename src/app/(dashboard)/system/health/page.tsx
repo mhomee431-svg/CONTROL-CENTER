@@ -8,6 +8,7 @@ import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { DashboardMetrics } from '@/core/types/admin';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
+import { useRealtimeEvents } from '@/core/realtime/useRealtimeEvents';
 import { ROUTES } from '@/core/routes/routes';
 
 export default function SystemHealthPage() {
@@ -16,10 +17,15 @@ export default function SystemHealthPage() {
     queryFn: () => apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS),
   });
 
+  // Realtime Stream status is derived from the shared live transport rather than
+  // being asserted as always operational.
+  const { transport } = useRealtimeEvents();
+  const realtimeStatus = transport === 'offline' ? 'UNKNOWN' : 'OPERATIONAL';
+
   const services = [
     { name: 'Admin API', icon: <Server size={18} />, status: isError ? 'DOWN' : 'OPERATIONAL' },
     { name: 'Database Layer', icon: <Database size={18} />, status: isError ? 'UNKNOWN' : 'OPERATIONAL' },
-    { name: 'Realtime Stream', icon: <Zap size={18} />, status: 'OPERATIONAL' },
+    { name: 'Realtime Stream', icon: <Zap size={18} />, status: realtimeStatus },
     { name: 'Search Index', icon: <Activity size={18} />, status: isError ? 'UNKNOWN' : 'OPERATIONAL' },
   ];
 

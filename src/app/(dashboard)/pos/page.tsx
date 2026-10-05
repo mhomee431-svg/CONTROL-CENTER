@@ -7,7 +7,6 @@ import { Box, Typography, Alert } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
-import { ShopItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
@@ -24,12 +23,17 @@ interface PosIntegration {
 export default function PosPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: PosIntegration[]; total: number }>({
-    queryKey: ['admin', 'pos', paginationModel],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: PosIntegration[]; total: number }>({
+    queryKey: ['admin', 'pos', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
-      apiClient<{ items: PosIntegration[]; total: number }>(API_ENDPOINTS.SHOPS.LIST, {
+      // Dedicated POS integration endpoint. This previously called
+      // /admin/shops, whose payload has no provider/status/last_sync fields,
+      // so every column rendered blank for every row.
+      apiClient<{ items: PosIntegration[]; total: number }>(API_ENDPOINTS.INGESTION.POS_INTEGRATIONS, {
         params: {
+          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -44,14 +48,14 @@ export default function PosPage() {
       headerName: 'Shop',
       flex: 1.5,
       minWidth: 180,
-      valueGetter: (_, row) => (row as ShopItem).name || (row as PosIntegration).shop_name || 'Merchant',
+      valueGetter: (_, row) => (row as PosIntegration).shop_name || 'Merchant',
     },
     { field: 'provider', headerName: 'POS Provider', flex: 1, minWidth: 150 },
     {
       field: 'status',
       headerName: 'Sync Status',
       width: 140,
-      renderCell: (params) => <StatusBadge status={(params.value as string) || 'QUEUED'} />,
+      renderCell: (params) => <StatusBadge status={(params.value as string) || 'UNKNOWN'} />,
     },
     {
       field: 'last_sync',
@@ -83,6 +87,13 @@ export default function PosPage() {
         POS provider mappings are returned by the backend integration endpoint; the registry lists connected shops.
       </Alert>
 
+      {isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          POS integration telemetry is unavailable. The backend has not published the POS endpoint, so
+          no rows are shown rather than substituting unrelated shop data.
+        </Alert>
+      )}
+
       <AdminDataGrid
         rows={(data?.items || []) as unknown as Record<string, unknown>[]}
         columns={columns}
@@ -91,6 +102,8 @@ export default function PosPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search POS integrations..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
         onRowClick={(params) => router.push(ROUTES.POS_DETAIL(params.row.id as number))}
       />
