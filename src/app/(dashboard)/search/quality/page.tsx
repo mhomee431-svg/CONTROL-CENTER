@@ -10,6 +10,7 @@ import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { AnalyticsSummary } from '@/core/types/analytics';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
+import { useDateRange } from '@/core/filters/DateRangeContext';
 
 interface QualityRow {
   id: number;
@@ -20,19 +21,29 @@ interface QualityRow {
 
 export default function SearchQualityPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<AnalyticsSummary>({
-    queryKey: ['admin', 'analytics', 'summary'],
-    queryFn: () => apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY),
+  const { params: dateParams } = useDateRange();
+
+  const { data, isLoading, isError, refetch } = useQuery<AnalyticsSummary>({
+    queryKey: ['admin', 'analytics', 'summary', dateParams],
+    queryFn: () =>
+      apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY, {
+        params: dateParams,
+      }),
     retry: false,
   });
 
-  const rows: QualityRow[] = (data?.zero_result_queries || []).map((q, idx) => ({
-    id: idx + 1,
-    term: q.query,
-    count: q.count,
-    location: q.location,
-  }));
+  // The summary payload is a single aggregate list, so filtering happens
+  // client-side here (unlike the server-paginated registries).
+  const rows: QualityRow[] = (data?.zero_result_queries || [])
+    .map((q, idx) => ({
+      id: idx + 1,
+      term: q.query,
+      count: q.count,
+      location: q.location,
+    }))
+    .filter((row) => row.term.toLowerCase().includes(search.trim().toLowerCase()));
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'Rank', width: 80 },
@@ -67,7 +78,10 @@ export default function SearchQualityPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search unmatched queries..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
       />
     </Box>
   );

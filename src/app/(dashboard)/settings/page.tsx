@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box, Typography, Grid, Card, CardContent, CardActionArea } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { Settings, Sliders, Users, ShieldCheck, Activity, Layers } from 'lucide-react';
+import { Settings, Sliders, Users, ShieldCheck, Activity, Layers, CreditCard, StickyNote } from 'lucide-react';
 import { ROUTES } from '@/core/routes/routes';
 
 const LINKS = [
@@ -11,6 +11,8 @@ const LINKS = [
   { title: 'Feature Flags', path: ROUTES.SYSTEM_FLAGS, icon: <Sliders size={22} />, color: '#10B981', bg: '#ECFDF5', desc: 'Dynamic platform feature toggles' },
   { title: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: <Users size={22} />, color: '#6366F1', bg: '#EEF2FF', desc: 'RBAC administrators & roles' },
   { title: 'Audit Logs', path: ROUTES.AUDIT, icon: <ShieldCheck size={22} />, color: '#F59E0B', bg: '#FFFBEB', desc: 'Immutable administrative trail' },
+  { title: 'Admin Notes', path: ROUTES.AUDIT_NOTES, icon: <StickyNote size={22} />, color: '#8B5CF6', bg: '#F5F3FF', desc: 'Operator annotations on entities' },
+  { title: 'Payments', path: ROUTES.SUBSCRIPTIONS_PAYMENTS, icon: <CreditCard size={22} />, color: '#0EA5E9', bg: '#F0F9FF', desc: 'Merchant payment ledger' },
   { title: 'System Health', path: ROUTES.SYSTEM_HEALTH, icon: <Activity size={22} />, color: '#EF4444', bg: '#FEF2F2', desc: 'Service & dependency status' },
   { title: 'Background Jobs', path: ROUTES.SYSTEM_JOBS, icon: <Layers size={22} />, color: '#EC4899', bg: '#FDF2F8', desc: 'Scheduled & async job monitor' },
 ];

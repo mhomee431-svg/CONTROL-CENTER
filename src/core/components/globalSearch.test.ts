@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { matchPaletteCommands } from './GlobalSearchModal';
 
 /**
  * Global search entity resolution.
  * Mirrors the classification logic used by GlobalSearchModal so the entity-type
- * contract (Customer, Shopkeeper, Business, Product, Barcode, Import, Support,
- * Audit) is verified without rendering the dialog.
+ * contract (Customer, Shopkeeper, Business, Product, Barcode, Inventory, Price
+ * History, Verification, Import, Support, Audit) is verified without rendering
+ * the dialog.
  */
 type EntityType =
   | 'CUSTOMER'
@@ -13,6 +15,8 @@ type EntityType =
   | 'PRODUCT'
   | 'BARCODE'
   | 'INVENTORY'
+  | 'PRICE'
+  | 'VERIFICATION'
   | 'IMPORT'
   | 'SUPPORT'
   | 'AUDIT';
@@ -20,6 +24,71 @@ type EntityType =
 function looksLikeBarcode(term: string): boolean {
   return /^\d{6,14}$/.test(term.trim());
 }
+
+describe('Command palette — direct record open (open <entity> <id>)', () => {
+  it('routes "open customer 42" straight to the customer record', () => {
+    const [cmd] = matchPaletteCommands('open customer 42');
+    expect(cmd.label).toBe('Open Customer #42');
+    expect(cmd.url).toBe('/customers/42');
+    expect(cmd.exact).toBe(true);
+  });
+
+  it('routes "open shop 7" straight to the business record', () => {
+    const [cmd] = matchPaletteCommands('open shop 7');
+    expect(cmd.label).toBe('Open Shop #7');
+    expect(cmd.url).toBe('/businesses/7');
+    expect(cmd.exact).toBe(true);
+  });
+
+  it('routes "open product 123" straight to the product record', () => {
+    const [cmd] = matchPaletteCommands('open product 123');
+    expect(cmd.url).toBe('/products/123');
+    expect(cmd.exact).toBe(true);
+  });
+
+  it('routes "open ticket 9" straight to the support ticket', () => {
+    const [cmd] = matchPaletteCommands('open ticket 9');
+    expect(cmd.url).toBe('/support/9');
+    expect(cmd.exact).toBe(true);
+  });
+
+  it('returns no command for a bare entity word without an id', () => {
+    expect(matchPaletteCommands('open product')).toHaveLength(0);
+  });
+});
+
+describe('Command palette — destination navigation (go <destination>)', () => {
+  it('routes "go to verification" to the verification center', () => {
+    const [cmd] = matchPaletteCommands('go to verification');
+    expect(cmd.label).toBe('Go to Verification');
+    expect(cmd.url).toBe('/verification');
+    expect(cmd.exact).toBe(true);
+  });
+
+  it('routes "go imports" to the imports registry', () => {
+    const [cmd] = matchPaletteCommands('go imports');
+    expect(cmd.url).toBe('/imports');
+    expect(cmd.exact).toBe(true);
+  });
+
+  it('routes "go system health" to the health monitor', () => {
+    const cmds = matchPaletteCommands('go system health');
+    expect(cmds.some((c) => c.url === '/system/health')).toBe(true);
+    expect(cmds.every((c) => c.exact)).toBe(true);
+  });
+
+  it('shows advisory matches for a bare keyword without suppressing entity search', () => {
+    const cmds = matchPaletteCommands('verification');
+    expect(cmds.length).toBeGreaterThan(0);
+    expect(cmds.every((c) => c.exact)).toBe(false);
+  });
+
+  it('returns no command for ordinary entity search terms', () => {
+    expect(matchPaletteCommands('Sharma Medical Store')).toHaveLength(0);
+    expect(matchPaletteCommands('901030893456')).toHaveLength(0);
+    expect(matchPaletteCommands('')).toHaveLength(0);
+  });
+});
 
 function classifyUser(role: string): EntityType {
   return (role || '').toLowerCase().includes('shopkeeper') ? 'SHOPKEEPER' : 'CUSTOMER';
@@ -66,10 +135,12 @@ describe('Global search entity resolution', () => {
       'PRODUCT',
       'BARCODE',
       'INVENTORY',
+      'PRICE',
+      'VERIFICATION',
       'IMPORT',
       'SUPPORT',
       'AUDIT',
     ];
-    expect(new Set(covered).size).toBe(9);
+    expect(new Set(covered).size).toBe(11);
   });
 });

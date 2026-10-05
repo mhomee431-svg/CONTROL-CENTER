@@ -25,13 +25,15 @@ interface Campaign {
 export default function NotificationCampaignsPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: Campaign[]; total: number }>({
-    queryKey: ['admin', 'campaigns', paginationModel],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: Campaign[]; total: number }>({
+    queryKey: ['admin', 'campaigns', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
       apiClient<{ items: Campaign[]; total: number }>(API_ENDPOINTS.AUDIT.ACTIONS, {
         params: {
           entity_type: 'notification',
+          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -95,7 +97,10 @@ export default function NotificationCampaignsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search campaigns..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
         onRowClick={(params) => router.push(ROUTES.NOTIFICATION_DETAIL(params.row.id as number))}
       />
     </Box>

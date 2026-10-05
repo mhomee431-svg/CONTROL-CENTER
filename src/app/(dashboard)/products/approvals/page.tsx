@@ -28,7 +28,7 @@ export default function ProductApprovalsPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [selectedListing, setSelectedListing] = useState<{ id: number; name: string; decision: 'APPROVE' | 'REJECT' | 'NEEDS_INFO' } | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: ApprovalItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: ApprovalItem[]; total: number }>({
     queryKey: ['admin', 'product-approvals', { page: paginationModel.page, pageSize: paginationModel.pageSize }],
     queryFn: () =>
       apiClient<{ items: ApprovalItem[]; total: number }>(API_ENDPOINTS.PRODUCTS.APPROVALS, {
@@ -43,7 +43,9 @@ export default function ProductApprovalsPage() {
     mutationFn: ({ listingId, decision, reason }: { listingId: number; decision: string; reason: string }) =>
       apiClient(API_ENDPOINTS.PRODUCTS.REVIEW_LISTING(listingId), {
         method: 'POST',
-        params: { decision, review_notes: reason },
+        // Reason travels in the body: operator notes are free text and are
+        // routinely lost or truncated when sent as query parameters.
+        body: JSON.stringify({ decision, review_notes: reason }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'product-approvals'] });
@@ -159,6 +161,7 @@ export default function ProductApprovalsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {selectedListing && (

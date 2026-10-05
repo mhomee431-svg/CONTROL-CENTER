@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { isOperationalEventType } from './eventTaxonomy';
 
 /**
  * Section 80: Real-time operational event stream.
@@ -14,7 +15,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface RealtimeEvent {
   id: string;
-  type: 'SEARCH' | 'SHOP_UPDATE' | 'REGISTRATION' | 'VERIFICATION' | string;
+  /** Always a declared operational event type — see eventTaxonomy.ts. */
+  type: string;
   title: string;
   timestamp: string;
 }
@@ -36,9 +38,16 @@ function parseMessage(raw: string): RealtimeEvent | null {
     // Backend envelope: { success, message, data: { type, title, ... } } OR flat event object
     const payload = parsed?.data ?? parsed;
     if (!payload || (!payload.type && !payload.title)) return null;
+
+    // Allowlist enforcement at the transport boundary. Raw DB/ORM noise and
+    // heartbeats are dropped here so they never reach the UI or trigger a
+    // dashboard refresh — only meaningful operational events pass through.
+    const type = String(payload.type ?? '');
+    if (type && !isOperationalEventType(type)) return null;
+
     return {
       id: String(payload.id ?? `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
-      type: payload.type ?? 'EVENT',
+      type: type || 'OPERATIONAL',
       title: payload.title ?? payload.message ?? 'Operational event',
       timestamp: payload.timestamp ?? new Date().toISOString(),
     };

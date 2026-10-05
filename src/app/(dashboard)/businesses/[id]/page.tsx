@@ -35,6 +35,8 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
   const [tabIndex, setTabIndex] = useState(0);
   const [invPagination, setInvPagination] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [logPagination, setLogPagination] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [invSearch, setInvSearch] = useState('');
+  const [logSearch, setLogSearch] = useState('');
 
   const { data: shop, isLoading, isError } = useQuery<ShopItem>({
     queryKey: ['admin', 'shops', shopId],
@@ -42,13 +44,17 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
   });
 
   // Drill-down: this shop's inventory records
-  const { data: shopInventory, isLoading: invLoading } = useQuery<{ items: ShopInventoryItem[]; total: number }>({
-    queryKey: ['admin', 'shops', shopId, 'inventory', invPagination],
+  const { data: shopInventory, isLoading: invLoading, refetch: refetchInventory } = useQuery<{
+    items: ShopInventoryItem[];
+    total: number;
+  }>({
+    queryKey: ['admin', 'shops', shopId, 'inventory', invPagination, invSearch],
     queryFn: () =>
       apiClient<{ items: ShopInventoryItem[]; total: number }>(
         API_ENDPOINTS.INVENTORY.SHOP_INVENTORY(shopId),
         {
           params: {
+            search: invSearch || undefined,
             limit: invPagination.pageSize,
             offset: invPagination.page * invPagination.pageSize,
           },
@@ -58,13 +64,17 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
   });
 
   // Drill-down: this shop's audit trail
-  const { data: auditLogs, isLoading: logsLoading } = useQuery<{ items: AuditLogItem[]; total: number }>({
-    queryKey: ['admin', 'shops', shopId, 'audit-logs', logPagination],
+  const { data: auditLogs, isLoading: logsLoading, refetch: refetchLogs } = useQuery<{
+    items: AuditLogItem[];
+    total: number;
+  }>({
+    queryKey: ['admin', 'shops', shopId, 'audit-logs', logPagination, logSearch],
     queryFn: () =>
       apiClient<{ items: AuditLogItem[]; total: number }>(API_ENDPOINTS.AUDIT.LOGS, {
         params: {
           entity_type: 'shop',
           entity_id: shopId,
+          search: logSearch || undefined,
           limit: logPagination.pageSize,
           offset: logPagination.page * logPagination.pageSize,
         },
@@ -293,7 +303,9 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 onPaginationModelChange={setInvPagination}
                 loading={invLoading}
                 searchPlaceholder="Search shop inventory..."
-                onRefresh={() => void shopInventory}
+                searchValue={invSearch}
+                onSearchChange={setInvSearch}
+                onRefresh={() => refetchInventory()}
                 onRowClick={(params) =>
                   router.push(`/inventory/${params.row.shop_product_id ?? params.id}?from=shop`)
                 }
@@ -317,7 +329,9 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 onPaginationModelChange={setLogPagination}
                 loading={logsLoading}
                 searchPlaceholder="Search audit entries..."
-                onRefresh={() => void auditLogs}
+                searchValue={logSearch}
+                onSearchChange={setLogSearch}
+                onRefresh={() => refetchLogs()}
               />
             </Box>
           )}

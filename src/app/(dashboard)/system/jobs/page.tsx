@@ -22,12 +22,14 @@ interface JobRow {
 
 export default function SystemJobsPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: AuditLogItem[]; total: number }>({
-    queryKey: ['admin', 'system-jobs', paginationModel],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: AuditLogItem[]; total: number }>({
+    queryKey: ['admin', 'system-jobs', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
       apiClient<{ items: AuditLogItem[]; total: number }>(API_ENDPOINTS.AUDIT.ACTIONS, {
         params: {
+          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -39,7 +41,10 @@ export default function SystemJobsPage() {
     id: item.id,
     action: item.action,
     entity_type: item.entity_type,
-    status: 'COMPLETED',
+    // Only fall back to a neutral label when the backend omits status
+    // entirely. Defaulting to 'COMPLETED' would report failed and running
+    // jobs as successful.
+    status: (item.details?.status as string | undefined) || (item as JobRow).status || 'UNKNOWN',
     created_at: item.created_at,
   }));
 
@@ -51,7 +56,7 @@ export default function SystemJobsPage() {
       field: 'status',
       headerName: 'Status',
       width: 130,
-      renderCell: (params) => <StatusBadge status={(params.value as string) || 'QUEUED'} />,
+      renderCell: (params) => <StatusBadge status={(params.value as string) || 'UNKNOWN'} />,
     },
     {
       field: 'created_at',
@@ -84,6 +89,12 @@ export default function SystemJobsPage() {
         Job telemetry is sourced from the backend actions endpoint; scheduled queue state is backend-authoritative.
       </Alert>
 
+      {isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Could not load job telemetry.
+        </Alert>
+      )}
+
       <AdminDataGrid
         rows={rows as unknown as Record<string, unknown>[]}
         columns={columns}
@@ -92,6 +103,8 @@ export default function SystemJobsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search jobs..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
       />
     </Box>

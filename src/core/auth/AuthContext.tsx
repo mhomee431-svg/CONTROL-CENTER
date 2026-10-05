@@ -50,12 +50,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const data = await apiClient<AdminRoleInfo>(API_ENDPOINTS.AUTH.ME);
       setAdminRole(data);
-      const flags = await apiClient<{ items?: Array<{ name: string; is_enabled: boolean }> }>(
-        API_ENDPOINTS.SYSTEM.FEATURE_FLAGS
-      );
-      setFeatureFlags(
-        Object.fromEntries((flags.items || []).map((flag) => [flag.name, flag.is_enabled]))
-      );
+      // Feature flags are optional profile context. A flags failure (a role
+      // without settings access, or an older backend) must never terminate an
+      // otherwise valid admin session.
+      try {
+        const flags = await apiClient<{ items?: Array<{ name: string; is_enabled: boolean }> }>(
+          API_ENDPOINTS.SYSTEM.FEATURE_FLAGS
+        );
+        setFeatureFlags(
+          Object.fromEntries((flags.items || []).map((flag) => [flag.name, flag.is_enabled]))
+        );
+      } catch {
+        setFeatureFlags({});
+      }
       setStatus('authenticated');
       return data;
     } catch {

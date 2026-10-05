@@ -6,6 +6,7 @@ import { TopBar } from '@/core/components/TopBar';
 import { Sidebar } from '@/core/components/Sidebar';
 import { GlobalSearchModal } from '@/core/components/GlobalSearchModal';
 import { RouteGuard } from '@/core/permissions/RouteGuard';
+import { DateRangeProvider } from '@/core/filters/DateRangeContext';
 import { useAuth } from '@/core/auth/AuthContext';
 import { CircularProgress } from '@mui/material';
 
@@ -51,7 +52,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             boxSizing: 'border-box',
           }}
         >
-          <RouteGuard>{children}</RouteGuard>
+          {/* Date-range state is shared by every analytics surface, so the
+              window chosen on one screen is the window used everywhere. */}
+          <DateRangeProvider>
+            <RouteGuard>{children}</RouteGuard>
+          </DateRangeProvider>
         </Box>
       </Box>
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />    </Box>

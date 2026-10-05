@@ -19,7 +19,7 @@ export default function FeatureFlagsPage() {
 
   const [toggleTarget, setToggleTarget] = useState<{ flag: FeatureFlagItem; nextState: boolean } | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: FeatureFlagItem[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: FeatureFlagItem[] }>({
     queryKey: ['admin', 'feature-flags'],
     queryFn: () => apiClient<{ items: FeatureFlagItem[] }>(API_ENDPOINTS.SYSTEM.FEATURE_FLAGS),
   });
@@ -98,6 +98,7 @@ export default function FeatureFlagsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {toggleTarget && (

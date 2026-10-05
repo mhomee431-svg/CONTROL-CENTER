@@ -4,16 +4,57 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel } from '@mui/x-data-grid';
-import { Box, Typography, Button, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
+import { Box, Typography, Button, MenuItem, Select, FormControl, InputLabel, Alert, Tabs, Tab } from '@mui/material';
 import { UserX, CheckCircle, Eye } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
-import { AdminUserItem } from '@/core/types/admin';
+import { CustomerDetail } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
-import { CAPABILITIES } from '@/core/permissions/permissions';
+import { CAPABILITIES, hasPermission } from '@/core/permissions/permissions';
+import { useAuth } from '@/core/auth/AuthContext';
+import { maskIdentifier, stripForbiddenFields, describeRecency } from '@/core/privacy/masking';
+import { ROUTES } from '@/core/routes/routes';
+import { resolvePreset, spanDays, toIsoDate } from '@/core/filters/dateRange';
+
+/** Day windows for the recency quick-filters, derived from the shared
+ *  date-range module so these numbers cannot drift from the analytics presets. */
+const RECENT_DAYS = {
+  week: spanDays(
+    resolvePreset('7d').start,
+    resolvePreset('7d').end
+  ),
+  month: spanDays(
+    resolvePreset('30d').start,
+    resolvePreset('30d').end
+  ),
+};
+
+/**
+ * Quick-filter views required by the spec. Each maps to a server-side flag so
+ * pagination stays correct — filtering client-side over a single page would
+ * silently under-report counts.
+ *
+ * Each filter declares which param it drives. `RECENT_ACTIVE` is about sign-in
+ * recency, not registration, so it must NOT reuse the registration window.
+ */
+type QuickFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'RECENT_REGISTERED' | 'RECENT_ACTIVE';
+
+const QUICK_FILTERS: Array<{
+  value: QuickFilter;
+  label: string;
+  status?: string;
+  params?: Record<string, number>;
+}> = [
+  { value: 'ALL', label: 'All' },
+  { value: 'ACTIVE', label: 'Active', status: 'ACTIVE' },
+  { value: 'INACTIVE', label: 'Inactive', status: 'INACTIVE' },
+  { value: 'SUSPENDED', label: 'Suspended', status: 'SUSPENDED' },
+  { value: 'RECENT_REGISTERED', label: 'Recently Registered', params: { registered_within_days: RECENT_DAYS.week } },
+  { value: 'RECENT_ACTIVE', label: 'Recently Active', params: { active_within_days: RECENT_DAYS.week } },
+];
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -22,23 +63,35 @@ export default function CustomersPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('ALL');
+  const { adminRole } = useAuth();
+  const canViewPII = hasPermission(adminRole, CAPABILITIES.CUSTOMERS_READ);
+
+  const quick = QUICK_FILTERS.find((q) => q.value === quickFilter);
 
   // Confirmation modal state
   const [actionTarget, setActionTarget] = useState<{ id: number; name: string; action: 'SUSPEND' | 'ACTIVATE' | 'BAN' } | null>(null);
 
   // TanStack Query for Customers
-  const { data, isLoading, refetch } = useQuery<{ items: AdminUserItem[]; total: number }>({
-    queryKey: ['admin', 'customers', { page: paginationModel.page, pageSize: paginationModel.pageSize, search, status: statusFilter }],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: CustomerDetail[]; total: number }>({
+    queryKey: [
+      'admin',
+      'customers',
+      { page: paginationModel.page, pageSize: paginationModel.pageSize, search, status: statusFilter, quickFilter },
+    ],
     queryFn: () =>
-      apiClient<{ items: AdminUserItem[]; total: number }>(API_ENDPOINTS.CUSTOMERS.LIST, {
+      apiClient<{ items: CustomerDetail[]; total: number }>(API_ENDPOINTS.CUSTOMERS.LIST, {
         params: {
           role: 'customer',
-          status: statusFilter || undefined,
+          status: (quick?.status ?? statusFilter) || undefined,
           search: search || undefined,
+          // Recency filters are applied server-side so counts stay truthful,
+          // and each one drives its own backend param.
+          ...(quick?.params ?? {}),
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
-      }),
+      }).then((res) => ({ ...res, items: stripForbiddenFields(res.items || []) })),
   });
 
   // Status Change Mutation
@@ -46,7 +99,9 @@ export default function CustomersPage() {
     mutationFn: ({ userId, action, reason }: { userId: number; action: string; reason: string }) =>
       apiClient(API_ENDPOINTS.CUSTOMERS.STATUS(userId), {
         method: 'POST',
-        params: { action, reason },
+        // The reason is the audit record for a sanctions action, so it travels
+        // in the request body where it cannot be truncated or dropped.
+        body: JSON.stringify({ action, reason }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'customers'] });
@@ -67,16 +122,36 @@ export default function CustomersPage() {
     { field: 'id', headerName: 'ID', width: 80 },
     {
       field: 'name',
-      headerName: 'Customer Name',
+      headerName: 'Name',
       flex: 1.2,
       minWidth: 160,
       renderCell: (params) => (
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {params.value || 'Anonymous Customer'}
+          {maskIdentifier(params.value as string, 'name', canViewPII) || 'Anonymous Customer'}
         </Typography>
       ),
     },
-    { field: 'phone', headerName: 'Phone Number', flex: 1, minWidth: 140 },
+    {
+      field: 'contact',
+      headerName: 'Phone / Email',
+      flex: 1.2,
+      minWidth: 170,
+      // "as permitted" — masked unless the operator holds the read capability.
+      valueGetter: (_v, row) => {
+        const c = row as unknown as CustomerDetail;
+        return maskIdentifier(c.phone, 'phone', canViewPII);
+      },
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2">{String(params.value)}</Typography>
+          {(params.row as unknown as CustomerDetail).email && (
+            <Typography variant="caption" color="text.secondary">
+              {maskIdentifier((params.row as unknown as CustomerDetail).email, 'email', canViewPII)}
+            </Typography>
+          )}
+        </Box>
+      ),
+    },
     {
       field: 'status',
       headerName: 'Status',
@@ -86,9 +161,47 @@ export default function CustomersPage() {
     {
       field: 'created_at',
       headerName: 'Registered At',
-      flex: 1,
-      minWidth: 160,
-      valueFormatter: (value) => (value ? new Date(value as string).toLocaleDateString() : 'N/A'),
+      width: 150,
+      valueFormatter: (value) => (value ? describeRecency(value as string) : 'N/A'),
+    },
+    {
+      field: 'last_active',
+      headerName: 'Last Active',
+      width: 140,
+      valueFormatter: (value) => (value ? describeRecency(value as string) : 'Never'),
+    },
+    {
+      field: 'location',
+      headerName: 'Location',
+      width: 160,
+      // Coarse summary only, and only where the backend/policy discloses it.
+      valueGetter: (_v, row) => {
+        const c = row as unknown as CustomerDetail;
+        return [c.city, c.state].filter(Boolean).join(', ') || '—';
+      },
+    },
+    {
+      field: 'saved',
+      headerName: 'Saved Items',
+      width: 130,
+      align: 'right',
+      headerAlign: 'right',
+      valueGetter: (_v, row) => {
+        const c = row as unknown as CustomerDetail;
+        const total = (c.saved_product_count ?? 0) + (c.saved_shop_count ?? 0);
+        return total > 0 ? total.toLocaleString() : '—';
+      },
+    },
+    {
+      field: 'search_count',
+      headerName: 'Searches',
+      width: 110,
+      align: 'right',
+      headerAlign: 'right',
+      valueGetter: (_v, row) => {
+        const c = row as unknown as CustomerDetail;
+        return c.search_count != null ? c.search_count.toLocaleString() : '—';
+      },
     },
     {
       field: 'actions',
@@ -96,7 +209,7 @@ export default function CustomersPage() {
       width: 220,
       sortable: false,
       renderCell: (params) => {
-        const item = params.row as AdminUserItem;
+        const item = params.row as unknown as CustomerDetail;
         const isSuspended = item.status === 'SUSPENDED';
 
         return (
@@ -105,7 +218,7 @@ export default function CustomersPage() {
               size="small"
               variant="text"
               startIcon={<Eye size={14} />}
-              onClick={() => router.push(`/customers/${item.id}`)}
+              onClick={() => router.push(ROUTES.CUSTOMER_DETAIL(item.id))}
             >
               View
             </Button>
@@ -149,6 +262,20 @@ export default function CustomersPage() {
         </Typography>
       </Box>
 
+      <Tabs
+        value={quickFilter}
+        onChange={(_, v) => {
+          setQuickFilter(v);
+          setPaginationModel((p) => ({ ...p, page: 0 }));
+        }}
+        sx={{ mb: 2, borderBottom: '1px solid #E2E8F0' }}
+        variant="scrollable"
+      >
+        {QUICK_FILTERS.map((q) => (
+          <Tab key={q.value} value={q.value} label={q.label} sx={{ textTransform: 'none' }} />
+        ))}
+      </Tabs>
+
       {/* Filter Bar */}
       <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
@@ -157,14 +284,22 @@ export default function CustomersPage() {
             value={statusFilter}
             label="Status"
             onChange={(e) => setStatusFilter(e.target.value)}
+            disabled={Boolean(quick?.status)}
           >
             <MenuItem value="">All Statuses</MenuItem>
             <MenuItem value="ACTIVE">Active</MenuItem>
             <MenuItem value="SUSPENDED">Suspended</MenuItem>
             <MenuItem value="INACTIVE">Inactive</MenuItem>
+            <MenuItem value="BANNED">Banned</MenuItem>
           </Select>
         </FormControl>
       </Box>
+
+      {isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Could not load customers.
+        </Alert>
+      )}
 
       <AdminDataGrid
         rows={(data?.items || []) as unknown as Record<string, unknown>[]}
@@ -184,7 +319,7 @@ export default function CustomersPage() {
         <ConfirmationDialog
           open={Boolean(actionTarget)}
           title={`${actionTarget.action === 'ACTIVATE' ? 'Reactivate' : 'Suspend'} Customer Account`}
-          affectedItem={actionTarget.name}
+          affectedItem={maskIdentifier(actionTarget.name, 'name', canViewPII)}
           consequence={
             actionTarget.action === 'SUSPEND'
               ? 'Suspended customers cannot log in, search for nearby inventory, or interact with businesses.'

@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Bell,
   FileText,
+  StickyNote,
   Settings,
   ChevronDown,
   ChevronRight,
@@ -130,6 +131,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Push Notifications', path: ROUTES.NOTIFICATIONS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Campaigns', path: ROUTES.NOTIFICATION_CAMPAIGNS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Audit Logs', path: ROUTES.AUDIT, icon: <FileText size={18} />, capability: CAPABILITIES.AUDIT_READ },
+      { title: 'Admin Notes', path: ROUTES.AUDIT_NOTES, icon: <StickyNote size={18} />, capability: CAPABILITIES.AUDIT_READ },
     ],
   },
   {

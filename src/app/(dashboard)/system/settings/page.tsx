@@ -31,7 +31,7 @@ export default function SystemSettingsPage() {
   const [newValue, setNewValue] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery<{ items: SystemSettingItem[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: SystemSettingItem[] }>({
     queryKey: ['admin', 'system-settings'],
     queryFn: () => apiClient<{ items: SystemSettingItem[] }>(API_ENDPOINTS.SYSTEM.SETTINGS),
   });
@@ -118,6 +118,7 @@ export default function SystemSettingsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {/* Edit Dialog */}

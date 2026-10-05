@@ -23,6 +23,19 @@ export const API_ENDPOINTS = {
   // Users & Customers
   CUSTOMERS: {
     LIST: '/api/v1/admin/customers',
+    DETAIL: (userId: number | string) => `/api/v1/admin/customers/${userId}`,
+    ACTIVITY: (userId: number | string) => `/api/v1/admin/customers/${userId}/activity`,
+    SEARCHES: (userId: number | string) => `/api/v1/admin/customers/${userId}/searches`,
+    VIEWED_PRODUCTS: (userId: number | string) => `/api/v1/admin/customers/${userId}/viewed-products`,
+    VIEWED_SHOPS: (userId: number | string) => `/api/v1/admin/customers/${userId}/viewed-shops`,
+    SAVED_PRODUCTS: (userId: number | string) => `/api/v1/admin/customers/${userId}/saved-products`,
+    SAVED_SHOPS: (userId: number | string) => `/api/v1/admin/customers/${userId}/saved-shops`,
+    NOTIFICATIONS: (userId: number | string) => `/api/v1/admin/customers/${userId}/notifications`,
+    SAVED_ITEMS: (userId: number | string) => `/api/v1/admin/customers/${userId}/saved-items`,
+    ADDRESSES: (userId: number | string) => `/api/v1/admin/customers/${userId}/addresses`,
+    TICKETS: (userId: number | string) => `/api/v1/admin/customers/${userId}/tickets`,
+    REPORTS: (userId: number | string) => `/api/v1/admin/customers/${userId}/reports`,
+    RESTRICT: (userId: number | string) => `/api/v1/admin/customers/${userId}/restrict`,
     STATUS: (userId: number | string) => `/api/v1/admin/users/${userId}/status`,
   },
 
@@ -30,6 +43,8 @@ export const API_ENDPOINTS = {
    SHOPS: {
     LIST: '/api/v1/admin/shops',
     DETAIL: (shopId: number | string) => `/api/v1/admin/shops/${shopId}`,
+    /** Audited partial update of shop master fields. */
+    UPDATE: (shopId: number | string) => `/api/v1/admin/shops/${shopId}`,
     VERIFICATION: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/verification`,
     BULK: '/api/v1/admin/shops/bulk',
   },
@@ -38,6 +53,13 @@ export const API_ENDPOINTS = {
   SHOPKEEPERS: {
     LIST: '/api/v1/admin/shopkeepers',
     DETAIL: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}`,
+    SHOPS: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}/shops`,
+    IMPORTS: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}/imports`,
+    POS_INTEGRATIONS: (userId: number | string) =>
+      `/api/v1/admin/shopkeepers/${userId}/pos-integrations`,
+    NOTIFICATIONS: (userId: number | string) =>
+      `/api/v1/admin/shopkeepers/${userId}/notifications`,
+    TICKETS: (userId: number | string) => `/api/v1/admin/shopkeepers/${userId}/tickets`,
   },
 
   // Products & Catalog
@@ -110,6 +132,14 @@ export const API_ENDPOINTS = {
     ACTIONS: '/api/v1/admin/actions',
     NOTES: '/api/v1/admin/notes',
     NOTE_DETAIL: (id: number | string) => `/api/v1/admin/notes/${id}`,
+  },
+
+  // Geography & Data Ingestion
+  INGESTION: {
+    IMPORTS: '/api/v1/admin/imports',
+    IMPORT_DETAIL: (id: number | string) => `/api/v1/admin/imports/${id}`,
+    POS_INTEGRATIONS: '/api/v1/admin/pos-integrations',
+    POS_INTEGRATION_DETAIL: (id: number | string) => `/api/v1/admin/pos-integrations/${id}`,
   },
 
   // System

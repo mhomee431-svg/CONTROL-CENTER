@@ -43,6 +43,7 @@ export const ROUTES = {
   OFFERS: '/offers',
   OFFER_DETAIL: (id: number | string) => `/offers/${id}`,
   SUBSCRIPTIONS: '/subscriptions',
+  SUBSCRIPTIONS_PAYMENTS: '/subscriptions/payments',
 
   // Discovery / Search
   SEARCH: '/search',
@@ -65,6 +66,7 @@ export const ROUTES = {
   SUPPORT: '/support',
   SUPPORT_DETAIL: (id: number | string) => `/support/${id}`,
   AUDIT: '/audit',
+  AUDIT_NOTES: '/audit/notes',
 
   // Analytics
   ANALYTICS: '/analytics',
