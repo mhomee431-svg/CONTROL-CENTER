@@ -349,8 +349,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ open, onCl
             }),
             { items: [] }
           ),
+          // Imports come from the ingestion registry. This previously read
+          // /admin/reports, which returns report rows with none of ImportRow's
+          // fields, so import search silently returned nothing.
           safe(
-            apiClient<{ items: ImportRow[] }>(API_ENDPOINTS.SYSTEM.REPORTS, {
+            apiClient<{ items: ImportRow[] }>(API_ENDPOINTS.INGESTION.IMPORTS, {
               params: { search: term, limit: MAX_PER_TYPE },
             }),
             { items: [] }

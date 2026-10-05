@@ -13,7 +13,9 @@ import { ROUTES } from '@/core/routes/routes';
 
 interface PosIntegration {
   id: number;
-  name: string;
+  shop_id?: number | null;
+  shop_name?: string | null;
+  name?: string;
   category?: string;
   city?: string;
   state?: string;
@@ -28,15 +30,26 @@ export default function PosDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const router = useRouter();
 
-  // Integration detail resolved from the same authoritative shop registry that
-  // backs the POS list, so the drill-down shows the real connected shop.
-  const { data, isLoading, isError } = useQuery<{ items: PosIntegration[] }>({
+  // Integration detail from the dedicated POS registry. This previously read
+  // /admin/shops, which has no provider/status/last_sync fields, so every value
+  // on this page rendered blank for every integration.
+  const { data: integration, isLoading, isError, refetch } = useQuery<PosIntegration | null>({
     queryKey: ['admin', 'pos', 'detail', id],
-    queryFn: () =>
-      apiClient<{ items: PosIntegration[] }>(API_ENDPOINTS.SHOPS.LIST, { params: { limit: 250 } }),
+    queryFn: async () => {
+      try {
+        return await apiClient<PosIntegration>(
+          API_ENDPOINTS.INGESTION.POS_INTEGRATION_DETAIL(id)
+        );
+      } catch {
+        const res = await apiClient<{ items: PosIntegration[] }>(
+          API_ENDPOINTS.INGESTION.POS_INTEGRATIONS,
+          { params: { limit: 250 } }
+        );
+        return res.items?.find((s) => String(s.id) === String(id)) ?? null;
+      }
+    },
+    retry: false,
   });
-
-  const integration = data?.items?.find((s) => String(s.id) === String(id));
 
   return (
     <Box>

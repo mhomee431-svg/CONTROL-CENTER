@@ -38,14 +38,25 @@ export default function ImportDetailPage({ params }: { params: Promise<{ id: str
   const router = useRouter();
 
   // Row-level detail is resolved from the ingestion registry so the drill-down
-  // shows the real job instead of an empty shell.
-  const { data, isLoading, isError } = useQuery<{ items: ImportJob[] }>({
+  // shows the real job. This previously called /admin/reports, whose payload
+  // shares no fields with an import job, so the lookup always failed.
+  const { data: job, isLoading, isError, refetch } = useQuery<ImportJob | null>({
     queryKey: ['admin', 'imports', 'detail', id],
-    queryFn: () =>
-      apiClient<{ items: ImportJob[] }>(API_ENDPOINTS.SYSTEM.REPORTS, { params: { limit: 250 } }),
+    queryFn: async () => {
+      // The backend publishes a per-job detail route. Falls back to filtering
+      // the registry list so the drill-down still works where only the list
+      // route is deployed.
+      try {
+        return await apiClient<ImportJob>(API_ENDPOINTS.INGESTION.IMPORT_DETAIL(id));
+      } catch {
+        const res = await apiClient<{ items: ImportJob[] }>(API_ENDPOINTS.INGESTION.IMPORTS, {
+          params: { limit: 250 },
+        });
+        return res.items?.find((j) => String(j.id) === String(id)) ?? null;
+      }
+    },
+    retry: false,
   });
-
-  const job = data?.items?.find((j) => String(j.id) === String(id));
   const totalRows = job?.rows_total ?? 0;
   const processed = job?.rows_processed ?? 0;
   const progress = totalRows > 0 ? Math.min(100, Math.round((processed / totalRows) * 100)) : 0;
@@ -68,7 +79,14 @@ export default function ImportDetailPage({ params }: { params: Promise<{ id: str
           <CircularProgress />
         </Box>
       )}
-      {isError && <Alert severity="error">Could not load import job #{id}.</Alert>}
+      {isError && (
+        <Alert severity="error">
+          Import job #{id} could not be loaded.{' '}
+          <Button size="small" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </Alert>
+      )}
       {!isLoading && !isError && !job && (
         <Alert severity="warning">Import job #{id} was not found in the ingestion registry.</Alert>
       )}
