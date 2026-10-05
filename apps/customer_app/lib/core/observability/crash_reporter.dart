@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show ProcessInfo;
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
@@ -45,7 +46,7 @@ class CrashReport {
 /// ## What changed from the previous behaviour
 /// ------------------------------------------
 /// The old handlers called `SafeLogger.error`, which prints to the console and
-/// â€” for the exception body and stack â€” only in debug. In a release build that
+/// — for the exception body and stack — only in debug. In a release build that
 /// meant a crash left **no trace on the device at all**: the app died and
 /// nothing recorded why. This captures into memory so a report survives to be
 /// uploaded or shown, and only then hands off to the existing logger.
@@ -57,12 +58,11 @@ class CrashReport {
 /// and a stream of customer data leaving the device. [CrashSink] is the
 /// extension point if that trade is ever worth making deliberately.
 class CrashReporter {
-  CrashReporter({PerformanceObserver? observer, CrashSink? sink})
-    : _observer = observer ?? PerformanceObserver.instance,
-      _sink = sink;
+  CrashReporter({PerformanceObserver? observer, this._sink})
+    : _observer = observer ?? PerformanceObserver.instance;
 
   final PerformanceObserver _observer;
-  CrashSink? _sink;
+  final CrashSink? _sink;
 
   /// Most recent crash, or null. Useful for a "something went wrong" report on
   /// the next launch.

@@ -28,7 +28,7 @@ class Money {
   const Money.rupees(int rupees) : paise = rupees * 100;
 
   /// Exact construction from paise.
-  const Money.fromPaise(int paise) : paise = paise;
+  const Money.fromPaise(this.paise);
 
   static const Money zero = Money(0);
 
