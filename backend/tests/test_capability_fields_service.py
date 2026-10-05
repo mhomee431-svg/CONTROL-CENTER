@@ -2,6 +2,7 @@ from app.services.capability_fields_service import (
     has_product_form,
     sanitise_capability_fields,
 )
+import pytest
 
 
 class TestSanitisation:

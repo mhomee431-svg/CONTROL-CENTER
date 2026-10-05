@@ -7,6 +7,60 @@ The repo is a **monorepo**: each app owns its responsibilities independently,
 while genuinely-shared contracts and models live in versioned packages under
 `packages/` (never a dumping ground - see the governance rules below).
 
+---
+
+## Start here
+
+```powershell
+git clone https://github.com/Akasharyan47/hyperlocal_app.git
+cd hyperlocal_app
+
+python scripts/hl.py doctor        # what is installed, what is missing
+pip install -r backend/requirements.txt
+pip install ruff pre-commit pyyaml
+
+python scripts/hl.py hooks install # run once - stops problems before they commit
+```
+
+Then, for any change:
+
+```powershell
+python scripts/hl.py check         # ~40s gate: lint, analyzer, migrations, secrets
+python scripts/hl.py test          # the full suite
+python scripts/hl.py ci            # exactly what GitHub Actions runs
+```
+
+`hl` is the **single entry point**. GitHub Actions calls the same script
+(`ci.yml` has no inline test logic), so a green `hl ci` means a green build.
+That is what removes "works on my machine" as a category of bug.
+
+On Windows you can type `hl check` instead, via `scripts\hl.cmd`.
+
+| Task | Command |
+|---|---|
+| Check the toolchain | `hl doctor` |
+| Fast gate before pushing | `hl check` |
+| Full test suite | `hl test` |
+| Backend only | `hl test --scope be` |
+| Shopkeeper / customer only | `hl test --scope sk` / `--scope cu` |
+| Lint (blocking rules) | `hl lint` |
+| Lint autofix (optional rules) | `hl lint:fix` |
+| Verify the migration chain | `hl migrations` |
+| Scan for secrets | `hl secrets` |
+| Delete generated scratch output | `hl clean` |
+| Exactly what CI runs | `hl ci` |
+
+### Documentation
+
+| Document | Read it when |
+|---|---|
+| [docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) | branching, environments, staging/production, coding standard, releases |
+| [docs/development/RUNBOOK.md](docs/development/RUNBOOK.md) | something is broken and you need the playbook |
+| [docs/security/SECRET_ROTATION.md](docs/security/SECRET_ROTATION.md) | you find a credential that was committed |
+| [docs/deployment/](docs/deployment/) | infrastructure, environments, disaster recovery |
+
+---
+
 ## Repository layout
 
 | Path | Contents |

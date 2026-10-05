@@ -84,10 +84,7 @@ void main() {
   testWidgets('toggling price updates writes through to the controller', (
     tester,
   ) async {
-    final container = await _pump(
-      tester,
-      status: AuthStatus.authenticated,
-    );
+    final container = await _pump(tester, status: AuthStatus.authenticated);
     final before = container
         .read(notificationPreferencesControllerProvider)
         .preferences

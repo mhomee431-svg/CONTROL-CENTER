@@ -180,6 +180,32 @@ def get_restaurant_detail(db: Session, restaurant_id: int) -> Optional[dict]:
         "menu_categories": menu_categories,
     }
 
+def get_restaurant_detail_by_shop(db: Session, shop_id: int) -> Optional[dict]:
+    """Restaurant profile for a SHOP — the lookup a customer shop profile needs.
+
+    A restaurant is a 1:1 discovery profile over a ``shops`` row, so the customer
+    app knows a shop id (from search, a saved shop, or a nearby list) and not a
+    restaurant id. Without this it would have to guess an id, which is exactly
+    how the wrong restaurant's menu gets shown.
+
+    Returns None when the shop has no restaurant profile — the caller then shows
+    no menu rather than an empty one.
+    """
+    restaurant = (
+        db.execute(
+            select(Restaurant).where(
+                Restaurant.shop_id == shop_id,
+                Restaurant.is_deleted == False,  # noqa: E712
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if restaurant is None:
+        return None
+    return get_restaurant_detail(db, restaurant.id)
+
+
 def get_restaurant_menu(db: Session, restaurant_id: int) -> Optional[list[dict]]:
     """Get restaurant menu categories with items."""
     restaurant = db.get(Restaurant, restaurant_id)

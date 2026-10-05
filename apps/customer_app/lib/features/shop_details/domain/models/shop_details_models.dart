@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../../core/catalog/business_capability.dart';
+
 part 'shop_details_models.freezed.dart';
 part 'shop_details_models.g.dart';
 
@@ -39,6 +41,31 @@ abstract class ShopProfile with _$ShopProfile {
     /// Categories the shop belongs to (e.g. "Electronics", "Mobile").
     @Default([]) List<String> categories,
 
+    /// What this business may show a customer, as backend wire names
+    /// (see `BusinessCapability`). Shipped on the shop payload so a restaurant
+    /// or a service provider never inherits product-style price/stock UI —
+    /// and so a category or a capability added later reaches customers without
+    /// an app release.
+    ///
+    /// May be EMPTY when the payload predates capabilities (older backend, or
+    /// served from the offline cache): [effectiveCapabilities] then resolves the
+    /// compiled fallback instead of leaving the profile surface-less.
+    @Default([]) List<String> capabilities,
+
+    /// Canonical merchant-category NAME from the backend (e.g. "Restaurants",
+    /// "Transport", "Personal Transport / Personal Travel"), or '' when absent.
+    /// One input to the compiled fallback in [effectiveCapabilities].
+    @Default('') String businessCategoryName,
+
+    /// Canonical merchant-category CODE from the backend (e.g. "RESTAURANTS"),
+    /// or '' when absent.
+    @Default('') String businessCategoryCode,
+
+    /// Free-form business type ("Retail", "Service", ...), or '' when absent.
+    /// A "Service" type is the only signal a service business without a
+    /// recognised category can give.
+    @Default('') String businessType,
+
     /// Whether the shop is verified by the platform.
     @Default(false) bool isVerified,
 
@@ -59,6 +86,23 @@ abstract class ShopProfile with _$ShopProfile {
 
   factory ShopProfile.fromJson(Map<String, dynamic> json) =>
       _$ShopProfileFromJson(json);
+
+  /// What this business may show a customer — the answer the profile screen
+  /// renders from.
+  ///
+  /// Resolution order is the contract (see [BusinessCapabilitySet.resolve]): the
+  /// backend's wire list wins when present; otherwise `businessType`, then the
+  /// compiled category table, then the product default. The screen therefore
+  /// never has to guess whether this is a product shop, a restaurant or a
+  /// service provider.
+  BusinessCapabilitySet get effectiveCapabilities =>
+      BusinessCapabilitySet.resolve(
+        wire: capabilities,
+        categoryName: businessCategoryName.isNotEmpty
+            ? businessCategoryName
+            : (categories.isNotEmpty ? categories.first : null),
+        businessType: businessType.isNotEmpty ? businessType : null,
+      );
 
   /// Whether the shop has usable coordinates for map/directions.
   bool get hasValidCoordinates =>

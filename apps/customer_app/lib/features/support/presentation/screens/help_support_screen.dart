@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hyperlocal_app/core/validation/validators.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/layout/form_keyboard.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../application/support_form_view_model.dart';
 
@@ -242,6 +245,19 @@ class _ContactTab extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
+        // The READ half of the Report Issue form, next to the way to reach a
+        // human. Without an entry point here the ticket history had a route but
+        // nothing pointing at it, which is the same dead end as not having one:
+        // a customer could only ever file a report, never check it.
+        _ContactCard(
+          key: const Key('myReportsEntry'),
+          icon: Icons.receipt_long_outlined,
+          label: 'My Reports',
+          value: 'Follow the issues you have reported',
+          onTap: () => context.push('/support/issues'),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
         // Legal links
         const Divider(),
         const SizedBox(height: AppSpacing.sm),
@@ -352,10 +368,19 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
   final _descController = TextEditingController();
   final _emailController = TextEditingController();
 
+  /// Focus nodes in visual order: description, then optional email.
+  ///
+  /// One list rather than two loose nodes, because [FormKeyboard] walks this
+  /// list to implement next/done and the order should be declared, not emergent.
+  final _fields = <FocusNode>[FocusNode(), FocusNode()];
+
   @override
   void dispose() {
     _descController.dispose();
     _emailController.dispose();
+    for (final node in _fields) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -433,8 +458,18 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
             TextFormField(
               key: const Key('issueDescriptionField'),
               controller: _descController,
+              focusNode: _fields[0],
               maxLines: 5,
               maxLength: 500,
+              // `next`, not the multiline default of `newline`. The description
+              // really is multiline — Enter must still insert a line break — but
+              // the IME key should say "next" so a customer who has finished
+              // describing the problem can jump to the optional email instead of
+              // hunting for the field with the keyboard up.
+              textInputAction: FormKeyboard.actionFor(0, _fields.length),
+              onEditingComplete: () =>
+                  FormKeyboard.advance(nodes: _fields, from: 0),
+              scrollPadding: FormKeyboard.scrollPaddingFor(context),
               decoration: const InputDecoration(
                 hintText: 'Describe the issue in detail...',
                 border: OutlineInputBorder(),
@@ -458,19 +493,27 @@ class _ReportIssueTabState extends ConsumerState<_ReportIssueTab> {
             TextFormField(
               key: const Key('issueEmailField'),
               controller: _emailController,
+              focusNode: _fields[1],
               keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              // Last field: `done` closes the keyboard and does NOT submit.
+              // Submission stays the explicit Send press, so a stray done can
+              // never post a half-written support ticket.
+              textInputAction: FormKeyboard.actionFor(1, _fields.length),
+              onEditingComplete: () =>
+                  FormKeyboard.advance(nodes: _fields, from: 1),
+              scrollPadding: FormKeyboard.scrollPaddingFor(context),
               decoration: const InputDecoration(
                 hintText: 'so we can follow up with you',
                 border: OutlineInputBorder(),
               ),
               validator: (v) {
-                if (v != null && v.trim().isNotEmpty) {
-                  final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                  if (!emailRegex.hasMatch(v.trim())) {
-                    return 'Enter a valid email or leave empty.';
-                  }
-                }
-                return null;
+                // Was an inline `RegExp(r'^[^@]+@[^@]+\.[^@]+')`. That pattern
+                // accepts `a@b..c` and `@no-local.com`; the shared one does not.
+                return EmailValidator.validateOptional(
+                  v,
+                  message: 'Enter a valid email or leave empty.',
+                );
               },
             ),
             const SizedBox(height: AppSpacing.lg),

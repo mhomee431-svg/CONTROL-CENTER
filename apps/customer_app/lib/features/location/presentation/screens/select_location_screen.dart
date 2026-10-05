@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../domain/location_repository.dart';
 import '../../domain/models/saved_address.dart';
 import '../../domain/models/user_location.dart';
@@ -206,9 +207,13 @@ class _SelectLocationScreenState extends ConsumerState<SelectLocationScreen> {
               ),
             ),
             if (_isSearching)
+              // Results below are `ListTile` rows, so the placeholder is
+              // tile rows — a spinner here sat directly above the very list it
+              // was fetching and matched none of it. It also made the results
+              // list jump: rows appeared where a fixed-height spinner had been.
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Center(child: CircularProgressIndicator.adaptive()),
+                child: SkeletonList(itemCount: 3, shape: SkeletonRowShape.tile),
               )
             else
               ..._results.map(

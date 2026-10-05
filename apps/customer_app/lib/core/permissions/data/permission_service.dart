@@ -69,8 +69,8 @@ class PlatformPermissionService implements PermissionService {
   }
 
   Permission _handler(PermissionKind kind) => switch (kind) {
-        PermissionKind.camera => Permission.camera,
-      };
+    PermissionKind.camera => Permission.camera,
+  };
 
   PermissionOutcome _outcome(PermissionStatus status) {
     if (status.isGranted) return PermissionOutcome.granted;
@@ -93,10 +93,10 @@ class InMemoryPermissionService implements PermissionService {
   InMemoryPermissionService({
     Map<PermissionKind, PermissionOutcome>? statuses,
     Map<PermissionKind, PermissionOutcome>? requestOutcomes,
-  })  : _statuses = {for (final e in (statuses ?? {}).entries) e.key: e.value},
-        _requestOutcomes = {
-          for (final e in (requestOutcomes ?? {}).entries) e.key: e.value,
-        };
+  }) : _statuses = {for (final e in (statuses ?? {}).entries) e.key: e.value},
+       _requestOutcomes = {
+         for (final e in (requestOutcomes ?? {}).entries) e.key: e.value,
+       };
 
   final Map<PermissionKind, PermissionOutcome> _statuses;
   final Map<PermissionKind, PermissionOutcome> _requestOutcomes;

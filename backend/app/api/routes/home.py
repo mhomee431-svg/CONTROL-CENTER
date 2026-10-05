@@ -14,6 +14,7 @@ from app.models.shop import Shop, ShopStatus
 from app.search import engine as search_engine
 from app.services.geo_service import haversine_km, resolve_shop_coordinates
 from app.services.media_service import resolve_media_url
+from app.services.shop_service import is_shop_open as _is_shop_open
 
 router = APIRouter(prefix="/home", tags=["home"])
 
@@ -47,7 +48,22 @@ async def get_home_feed(
     db: Session = Depends(get_db),
 ):
     """Return the home feed: categories, popular products, nearby shops, recent searches."""
-    categories = db.query(Category).all()
+    # Visibility is decided HERE, not in the client.
+    #
+    # This query used to be `db.query(Category).all()`, which returned soft-deleted
+    # and deactivated rows too. The customer app then filtered the result against a
+    # hardcoded allow-list of approved names — meaning an admin publishing a new
+    # category could never surface it without a new app release, and the rule was
+    # duplicated in a place nobody would think to update.
+    #
+    # The backend is the single source of truth for what is browsable: an admin
+    # toggles `is_active` and the change is live immediately.
+    categories = (
+        db.query(Category)
+        .filter(Category.is_active.is_(True), Category.is_deleted.is_(False))
+        .order_by(Category.sort_order, Category.name)
+        .all()
+    )
     category_data = [
         {"id": c.id, "name": c.name, "icon_url": c.icon_url} for c in categories
     ]
@@ -123,6 +139,18 @@ async def get_home_feed(
                 "is_verified": s.is_verified,
                 "latitude": shop_latitude,
                 "longitude": shop_longitude,
+                # Open/closed + order-acceptance, resolved through the SAME
+                # opening-hours helper the shop profile uses. The discovery card
+                # needs this verdict to render its badge — without it the card
+                # either omits the state or, worse, guesses "Open" from the mere
+                # fact that the shop is listed.
+                #
+                # `is_open_now` is a real bool here (not nullable) because the
+                # shop has ALREADY passed the visibility filter above; the
+                # nullable case in the app model exists for payloads that carry no
+                # verdict at all, and the app renders nothing rather than "Open".
+                "is_open_now": bool(_is_shop_open(s)),
+                "is_accepting_orders": bool(s.is_accepting_orders),
             }
         )
     shop_data.sort(key=lambda s: s["distance"])

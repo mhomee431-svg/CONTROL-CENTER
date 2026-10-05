@@ -93,6 +93,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final phoneEnabled =
         ref.watch(isAuthMethodEnabledProvider(AuthMethod.phoneOtp)) &&
             ref.read(authControllerProvider.notifier).isPhoneOtpSupported;
+    final passwordEnabled =
+        ref.watch(isAuthMethodEnabledProvider(AuthMethod.password));
 
     return Scaffold(
       appBar: AppBar(
@@ -122,68 +124,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.colorScheme.outline)),
                 const SizedBox(height: 24),
-                TextFormField(
-                  key: LoginScreen.identifierFieldKey,
-                  controller: _identifierController,
-                  enabled: !isLoading,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.username],
-                  decoration: InputDecoration(
-                    labelText: appText(context).commonPhoneNumberOrEmail,
+                // The password form is gated on the SAME switch as the
+                // Welcome screen's link to this route. The route stays
+                // registered (re-enabling is one line in the SSOT), so a
+                // deep link must not land on a form the MVP does not
+                // offer. Gating the LINK was not enough.
+                if (passwordEnabled) ...[
+                  TextFormField(
+                    key: LoginScreen.identifierFieldKey,
+                    controller: _identifierController,
+                    enabled: !isLoading,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.username],
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonPhoneNumberOrEmail,
+                    ),
+                    validator: _validateIdentifier,
                   ),
-                  validator: _validateIdentifier,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  key: LoginScreen.passwordFieldKey,
-                  controller: _passwordController,
-                  enabled: !isLoading,
-                  obscureText: _obscure,
-                  autofillHints: const [AutofillHints.password],
-                  decoration: InputDecoration(
-                    labelText: appText(context).commonPassword,
-                    suffixIcon: IconButton(
-                      // Accessible name for the visibility toggle; it also
-                      // states what the tap will do.
-                      tooltip: _obscure ? 'Show password' : 'Hide password',
-                      icon: Icon(
-                          _obscure ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: LoginScreen.passwordFieldKey,
+                    controller: _passwordController,
+                    enabled: !isLoading,
+                    obscureText: _obscure,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      labelText: appText(context).commonPassword,
+                      suffixIcon: IconButton(
+                        // Accessible name for the visibility toggle; it also
+                        // states what the tap will do.
+                        tooltip: _obscure ? 'Show password' : 'Hide password',
+                        icon: Icon(
+                            _obscure ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Password is required' : null,
+                    onFieldSubmitted: (_) => _submit(),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 16),
+                    AuthErrorBanner(
+                      key: LoginScreen.errorKey,
+                      message: _error!,
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: LoginScreen.submitKey,
+                    onPressed: isLoading ? null : _submit,
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text(appText(context).commonSignIn3),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      key: LoginScreen.forgotKey,
+                      onPressed: isLoading
+                          ? null
+                          : () => context.push(Routes.forgotPassword),
+                      child: Text(appText(context).commonForgotPassword2),
                     ),
                   ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Password is required' : null,
-                  onFieldSubmitted: (_) => _submit(),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 16),
-                  AuthErrorBanner(
-                    key: LoginScreen.errorKey,
-                    message: _error!,
-                  ),
                 ],
-                const SizedBox(height: 20),
-                FilledButton(
-                  key: LoginScreen.submitKey,
-                  onPressed: isLoading ? null : _submit,
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(appText(context).commonSignIn3),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    key: LoginScreen.forgotKey,
-                    onPressed: isLoading
-                        ? null
-                        : () => context.push(Routes.forgotPassword),
-                    child: Text(appText(context).commonForgotPassword2),
-                  ),
-                ),
                 if (googleEnabled || phoneEnabled) ...[
                   const SizedBox(height: 4),
                   const AuthMethodDivider(),

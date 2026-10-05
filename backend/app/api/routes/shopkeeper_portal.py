@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.core.exceptions import ForbiddenError, ValidationError
-from app.core.responses import success_response
+from app.core.responses import error_response, success_response
 from app.database.session import get_db
 from app.models.user import User
 from app.schemas.shopkeeper import (
@@ -84,7 +84,6 @@ async def register_shop(
 ):
     """Register a new shop; the caller becomes its primary owner."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     data = payload.model_dump(exclude_none=True)
     try:
@@ -106,7 +105,6 @@ async def register_shop(
 
 
 def _validation_error(exc: ValidationError):
-    from app.core.responses import error_response
 
     return error_response(
         message=exc.message, error_code=exc.error_code, status_code=exc.status_code
@@ -181,7 +179,6 @@ async def update_shop_location(
     accuracies and the acting user.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -337,7 +334,6 @@ async def create_product(
     db: Session = Depends(get_db),
 ):
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "create")
@@ -364,7 +360,6 @@ async def update_product(
     db: Session = Depends(get_db),
 ):
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     access.require("product", "update")
@@ -595,7 +590,6 @@ async def add_product_from_master(
     """Add an EXISTING product-master (optionally a variant) to the shop with
     shop-level price / MRP / availability / quantity."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -619,7 +613,6 @@ async def create_stock_adjustment(
     """Apply a delta stock adjustment (restock/damage/correction) with a full
     audit trail; updates propagate to the platform inventory system."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -646,7 +639,6 @@ async def update_low_stock_threshold(
     never has to guess the new status.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -671,7 +663,6 @@ async def list_stock_adjustments(
     """Adjustment-only audit trail for one product (damage / expiry /
     stock count / correction), newest first."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -692,7 +683,6 @@ async def remove_product(
 ):
     """Remove/deactivate a shop product listing (soft delete)."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -715,7 +705,6 @@ async def get_product_history(
     """Inventory history for one product: movements, adjustments and price
     changes, newest first, paginated (`limit` + `offset`)."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -736,7 +725,6 @@ async def bulk_inventory_operation(
 ):
     """Bulk operations foundation: price_update / stock_set / availability."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -758,7 +746,6 @@ async def assign_offer_to_products(
 ):
     """Assign (create + link) an offer to selected shop products."""
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -788,7 +775,6 @@ async def list_shop_offers(
     freshly created offer is visible without a reload.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:
@@ -811,7 +797,6 @@ async def update_shop_offer_status(
     Expired and cancelled offers are terminal and can never be re-activated.
     """
     from app.core.exceptions import AppError
-    from app.core.responses import error_response
 
     access = shopkeeper_service.resolve_shop_access(db, current_user, shop_id)
     try:

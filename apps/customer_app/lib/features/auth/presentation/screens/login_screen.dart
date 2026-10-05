@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hyperlocal_app/core/validation/validators.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/action_button.dart';
 import '../../domain/phone_utils.dart';
 import '../controllers/auth_controller.dart';
 
@@ -98,11 +100,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         counterText: '',
                       ),
                       validator: (value) {
-                        final phone = value?.trim() ?? '';
-                        if (!RegExp(r'^[6-9]\d{9}$').hasMatch(phone)) {
-                          return 'Enter a valid 10-digit Indian mobile number';
-                        }
-                        return null;
+                        // Was an inline `RegExp(r'^[6-9]\d{9}$')` — the same rule
+                        // as the shared validator, but a second copy that could
+                        // drift. The copy also omitted the "required" case, so
+                        // an empty field showed a format error.
+                        return PhoneValidator.validate(value);
                       },
                     ),
                     if (authState.status == AuthStatus.error) ...[
@@ -118,14 +120,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),
-                    ElevatedButton(
+                    ActionButton(
                       key: const Key('continueButton'),
-                      onPressed: authState.status == AuthStatus.loading
-                          ? null
-                          : _handleContinue,
-                      child: authState.status == AuthStatus.loading
-                          ? const CircularProgressIndicator.adaptive()
-                          : const Text('Continue'),
+                      // `disabled` (not just `onPressed: null`) so the control
+                      // reads as unavailable for assistive tech even before the
+                      // first frame after the status flips.
+                      disabled: authState.status == AuthStatus.loading,
+                      onPressed: _handleContinue,
+                      loadingLabel: const Text('Sending code...'),
+                      child: const Text('Continue'),
                     ),
                   ],
                 ),

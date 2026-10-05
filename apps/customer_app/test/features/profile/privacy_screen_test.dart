@@ -39,19 +39,27 @@ GoRouter _router() {
       GoRoute(path: '/privacy-data', builder: (_, _) => const PrivacyScreen()),
       GoRoute(
         path: '/privacy',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('PolicyDocument')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('PolicyDocument')),
       ),
       GoRoute(
         path: '/location-settings',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('LocationSettingsPage')),
+        builder: (_, _) => Scaffold(
+          appBar: AppBar(),
+          body: const Text('LocationSettingsPage'),
+        ),
       ),
       GoRoute(
         path: '/notification-settings',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('NotificationSettingsPage')),
+        builder: (_, _) => Scaffold(
+          appBar: AppBar(),
+          body: const Text('NotificationSettingsPage'),
+        ),
       ),
       GoRoute(
         path: '/delete-account',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('DeleteAccountPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('DeleteAccountPage')),
       ),
     ],
   );

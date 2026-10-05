@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_app/core/network/enum_codec.dart';
 import 'package:hyperlocal_app/core/network/json_map.dart';
 
-/// A status enum for the [EnumCodec] tests.
+/// A status enum for the [enumCodec] tests.
 ///
 /// Declared at library scope because Dart forbids an `enum` declaration inside a
 /// function or closure body — `group(...)` is a closure.
@@ -30,7 +30,13 @@ void main() {
 
     test('a non-object yields an empty map rather than throwing', () {
       // The envelope's `data` can legitimately be a list, a string, or null.
-      for (final input in <Object?>[null, 'text', 42, true, [1, 2]]) {
+      for (final input in <Object?>[
+        null,
+        'text',
+        42,
+        true,
+        [1, 2],
+      ]) {
         final m = JsonMap.tryParse(input);
         expect(m.isEmpty, isTrue, reason: 'input: $input');
         // And every accessor on it is still safe.
@@ -198,7 +204,9 @@ void main() {
     test('list tolerates a bare object where a list was expected', () {
       // A one-element collection collapsed to a bare object is a real
       // API-version change; it must not crash the decoder.
-      final m = map({'items': {'id': 1}});
+      final m = map({
+        'items': {'id': 1},
+      });
       expect(m.list('items').length, 1);
     });
 
@@ -220,7 +228,15 @@ void main() {
     });
 
     test('stringList drops non-scalar entries and blanks', () {
-      final m = map({'tags': ['a', '', 'b', 3, {'x': 1}]});
+      final m = map({
+        'tags': [
+          'a',
+          '',
+          'b',
+          3,
+          {'x': 1},
+        ],
+      });
       expect(m.stringList('tags'), ['a', 'b', '3']);
     });
 
@@ -237,18 +253,24 @@ void main() {
 
     test('nestedJson accepts an already-decoded object', () {
       // A newer API may stop double-encoding it.
-      final m = map({'attrs': {'color': 'red'}});
+      final m = map({
+        'attrs': {'color': 'red'},
+      });
       expect(m.nestedJson('attrs').stringOr('color'), 'red');
     });
 
     test('stringMap skips nested structures', () {
       final m = map({
-        'm': {'a': 'x', 'b': 2, 'c': null, 'd': {'e': 'f'}},
+        'm': {
+          'a': 'x',
+          'b': 2,
+          'c': null,
+          'd': {'e': 'f'},
+        },
       });
       expect(m.stringMap('m'), {'a': 'x', 'b': '2'});
     });
   });
-
 
   group('version tolerance', () {
     test('firstOf prefers the newest key when several are present', () {
@@ -276,7 +298,12 @@ void main() {
       expect(map({'a': '5'}).firstDecimalOf(['b', 'a']), 5.0);
       expect(map({'a': 'yes'}).firstBooleanOf(['b', 'a']), isTrue);
       expect(map({'a': '2026-01-02'}).firstDateTimeOf(['b', 'a'])?.year, 2026);
-      expect(map({'a': {'k': 1}}).firstObjectOf(['b', 'a']).isNotEmpty, isTrue);
+      expect(
+        map({
+          'a': {'k': 1},
+        }).firstObjectOf(['b', 'a']).isNotEmpty,
+        isTrue,
+      );
     });
 
     test('firstBooleanOf reports a genuine false rather than skipping it', () {
@@ -286,17 +313,20 @@ void main() {
       expect(m.firstBooleanOf(['new', 'old']), isFalse);
     });
 
-    test('firstBooleanOf skips an unreadable value and uses the next alias', () {
-      final m = map({'new': 'maybe', 'old': true});
-      expect(m.firstBooleanOf(['new', 'old']), isTrue);
-    });
+    test(
+      'firstBooleanOf skips an unreadable value and uses the next alias',
+      () {
+        final m = map({'new': 'maybe', 'old': true});
+        expect(m.firstBooleanOf(['new', 'old']), isTrue);
+      },
+    );
   });
 
-  group('EnumCodec never throws on an unknown value', () {
+  group('enumCodec never throws on an unknown value', () {
     // A real enum rather than a stand-in, so the test exercises the same
     // `values`/`name` contract the app's enums rely on.
     _Status parse(String? raw) =>
-        EnumCodec<_Status>(raw, _Status.values, _Status.unknown);
+        enumCodec<_Status>(raw, _Status.values, _Status.unknown);
 
     test('a known value is decoded', () {
       expect(parse('IN_STOCK'), _Status.inStock);

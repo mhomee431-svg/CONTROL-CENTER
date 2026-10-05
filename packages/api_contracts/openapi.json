@@ -4972,7 +4972,7 @@
           "search"
         ],
         "summary": "V2 Barcode Lookup",
-        "description": "Look up shops selling the product identified by this barcode.",
+        "description": "Look up shops selling the product identified by this barcode.\n\nBounded like every other search list: ``page``/``limit`` slice the shop\nhits so one widely stocked barcode cannot materialise an unbounded\ncatalogue into a single response.",
         "operationId": "v2_barcode_lookup_api_v1_search_v2_barcodes__barcode__get",
         "parameters": [
           {
@@ -5030,6 +5030,29 @@
               "exclusiveMinimum": 0,
               "default": 10.0,
               "title": "Radius Km"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
             }
           }
         ],

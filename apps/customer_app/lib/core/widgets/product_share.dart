@@ -1,58 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Lightweight, dependency-free product share helper.
+import '../theme/app_theme.dart';
+import '../share/share_content.dart';
+import '../share/share_service.dart';
+
+/// The one place a share is composed and dispatched.
 ///
-/// Composes a rich share text from the search-result data the caller already
-/// has (name, price, shop, discount) and opens the native share sheet
-/// immediately — sharing is never blocked by a network round-trip.
+/// Replaces three independent ad-hoc implementations (a helper in
+/// `core/widgets`, an inline call in the product screen, another in the shop
+/// screen) that each invented their own wording and none of which could attach
+/// a link. Having one owner is what makes "no id in the prose, no credential
+/// anywhere" a property of the codebase rather than a habit of each call site.
+final shareServiceProvider = Provider<ShareService>(
+  (ref) => const PlatformShareService(),
+);
+
+/// Shares a product, optionally with a safe deep link.
 ///
-/// ```dart
-/// onShare: () => shareProduct(
-///   context,
-///   productName: result.productName,
-///   price: result.price,
-///   mrp: result.mrp,
-///   discountPercent: result.discountPercent,
-///   shopName: result.shopName,
-///   distanceInKm: result.distanceInKm,
-/// );
-/// ```
-Future<void> shareProduct(
-  BuildContext context, {
-  required String productName,
-  double? price,
-  double? mrp,
-  int? discountPercent,
-  String? shopName,
-  double? distanceInKm,
-  String? variant,
-  String? brand,
-}) async {
-  final buffer = StringBuffer('Check out $productName');
+/// [productId] enables the link; omitting it shares the text alone, which is
+/// what the search-result card does when it has no shareable id.
+Future<ShareOutcome> shareProductContent(
+  WidgetRef ref,
+  ShareContent content,
+) async {
+  final outcome = await ref.read(shareServiceProvider).share(content);
+  if (outcome == ShareOutcome.unavailable) {
+    _notify(ref, 'Could not open sharing right now.');
+  }
+  return outcome;
+}
 
-  if (variant != null && variant.isNotEmpty) buffer.write(' ($variant)');
-  if (price != null) {
-    buffer.write(' — available at ₹${price.toStringAsFixed(0)}');
-    if (mrp != null && mrp > price) {
-      buffer.write(' (MRP ₹${mrp.toStringAsFixed(0)})');
-    }
-    if (discountPercent != null && discountPercent > 0) {
-      buffer.write(' · $discountPercent% OFF');
-    }
-  }
-  if (shopName != null && shopName.isNotEmpty) {
-    buffer.write(' at $shopName');
-    if (distanceInKm != null) {
-      buffer.write(' (${distanceInKm.toStringAsFixed(1)} km)');
-    }
-  }
-  if (brand != null && brand.isNotEmpty) {
-    buffer.write(' · $brand');
-  }
-  buffer.write(' — find it near you on Hyperlocal!');
-
-  await SharePlus.instance.share(
-    ShareParams(text: buffer.toString(), subject: 'Product: $productName'),
-  );
+/// Shows a short confirmation that a share is on its way.
+///
+/// Only ever shown on success. Telling someone "shared!" after they dismissed
+/// the sheet trains them to ignore the message, and showing one on failure
+/// trains them to ignore that too.
+void _notify(WidgetRef ref, String message) {
+  final context = ref.context;
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.textMuted,
+      ),
+    );
 }

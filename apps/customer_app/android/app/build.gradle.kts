@@ -62,8 +62,16 @@ android {
     }
 
     defaultConfig {
-        // Must match the package name registered in Firebase Console
-        // (android/app/google-services.json registers "com.Hyperlocal.app").
+        // Must match the package name registered in Firebase Console.
+        // `android/app/google-services.json` registers "com.hyperlocal.app"
+        // (all lower-case). A previous revision of this comment said
+        // "com.Hyperlocal.app" with a capital H, which is a DIFFERENT package:
+        // the google-services plugin matches on an exact string, so anyone who
+        // trusted the comment and renamed the applicationId to match it would
+        // have hit "No matching client found for package name" at runtime. The
+        // correct value is asserted by
+        // test/core/config/firebase_config_contract_test.dart, so the two
+        // cannot drift apart again unnoticed.
         applicationId = "com.hyperlocal.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.

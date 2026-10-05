@@ -36,11 +36,16 @@ class MockSearchRepository implements SearchRepository {
     String barcode, {
     double? latitude,
     double? longitude,
+    int page = 1,
+    int limit = 20,
   }) async {
     await Future.delayed(const Duration(milliseconds: 400));
     // Only the known demo barcode resolves; anything else is an honest miss so
     // the "not found" path can be exercised.
     if (barcode.trim() != _knownBarcode) return const [];
+    // The demo payload is a single shop, so any page beyond the first is empty
+    // by construction — same short-page contract as the real endpoint.
+    if (page > 1) return const [];
     return [
       ShopProductResult(
         id: 'sp-barcode-1',

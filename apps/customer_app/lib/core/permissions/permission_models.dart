@@ -58,13 +58,13 @@ enum PermissionOutcome {
 
   /// Human status word for settings rows.
   String get label => switch (this) {
-        PermissionOutcome.granted => 'Allowed',
-        PermissionOutcome.limited => 'Allowed',
-        PermissionOutcome.denied => 'Not allowed',
-        PermissionOutcome.permanentlyDenied => 'Blocked',
-        PermissionOutcome.restricted => 'Blocked',
-        PermissionOutcome.unknown => 'Unknown',
-      };
+    PermissionOutcome.granted => 'Allowed',
+    PermissionOutcome.limited => 'Allowed',
+    PermissionOutcome.denied => 'Not allowed',
+    PermissionOutcome.permanentlyDenied => 'Blocked',
+    PermissionOutcome.restricted => 'Blocked',
+    PermissionOutcome.unknown => 'Unknown',
+  };
 }
 
 /// The status of one permission at one moment.

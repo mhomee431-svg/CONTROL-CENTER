@@ -167,7 +167,28 @@ class AuthService {
   ///
   /// Used after an unrecoverable auth failure (401 + failed refresh): the
   /// server-side session is already gone, so only device state needs clearing.
-  Future<void> clearLocalSession() => _storage.clearAll();
+///
+/// WHY NOT `_storage.clearAll()`
+/// ---------------------------
+/// This used to call `clearAll()`, which wipes EVERY secure-storage key —
+/// including `has_onboarded`. The consequence was invisible and bad: an
+/// ordinary token expiry tripped the router's `onboardingCompleted == null`
+/// gate and sent the customer back through the whole first-launch tour.
+/// Expiring a token is not a reason to make someone re-onboard, and a
+/// returning customer who suddenly sees the welcome carousel concludes the app
+/// lost their account.
+///
+/// Only the SESSION keys are deleted. Everything describing the DEVICE or the
+/// customer's preferences survives an expiry: `has_onboarded`, settings,
+/// cached addresses. The interceptor already removed these three keys by the
+/// time this runs, so repeating it is idempotent — and it makes this method
+/// safe to call on its own.
+  Future<void> clearLocalSession() async {
+  await _storage.deleteToken();
+  await _storage.deleteRefreshToken();
+  await _storage.deleteSessionId();
+  await _storage.setGuestMode(false);
+}
 
   Future<bool> isGuestMode() => _storage.isGuestMode();
 

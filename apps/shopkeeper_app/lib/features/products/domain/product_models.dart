@@ -40,6 +40,8 @@ class ShopProductItem {
     this.freshnessStatus,
     this.lastUpdated,
     this.source,
+    this.priceSource,
+    this.inventorySource,
     this.updatedBy,
     this.lowStockThreshold,
   });
@@ -79,6 +81,17 @@ class ShopProductItem {
   /// POS_INTEGRATION / EXCEL_UPLOAD / SYSTEM). Rendered verbatim-derived —
   /// the server owns the vocabulary, the client only maps display labels.
   final String? source;
+
+  /// Source of the last PRICE change (MANUAL / POS_INTEGRATION / ...).
+  ///
+  /// Separate from [inventorySource] because a POS sync routinely pushes a
+  /// price and leaves stock alone. Reporting one source for both made a POS
+  /// price read as a hand edit. Null on a server that has not split them yet,
+  /// in which case [source] is still the answer.
+  final String? priceSource;
+
+  /// Source of the last STOCK change. Same vocabulary as [priceSource].
+  final String? inventorySource;
 
   /// Display name of whoever last updated the inventory (server-resolved).
   final String? updatedBy;
@@ -166,6 +179,13 @@ class ShopProductItem {
         lastUpdated:
             _parseDate(json['last_updated'] ?? json['last_inventory_update']),
         source: json['source'] as String?,
+        // An older backend sends neither split field; fall back to `source` so
+        // the split views degrade to the single-axis answer rather than to
+        // "unknown".
+        priceSource:
+            json['price_source'] as String? ?? json['source'] as String?,
+        inventorySource:
+            json['inventory_source'] as String? ?? json['source'] as String?,
         updatedBy: json['updated_by'] as String?,
         lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),
       );
@@ -181,6 +201,8 @@ class ShopProductItem {
     String? freshnessStatus,
     DateTime? lastUpdated,
     String? source,
+    String? priceSource,
+    String? inventorySource,
     String? updatedBy,
   }) =>
       ShopProductItem(
@@ -205,6 +227,8 @@ class ShopProductItem {
         freshnessStatus: freshnessStatus ?? this.freshnessStatus,
         lastUpdated: lastUpdated ?? this.lastUpdated,
         source: source ?? this.source,
+        priceSource: priceSource ?? this.priceSource,
+        inventorySource: inventorySource ?? this.inventorySource,
         updatedBy: updatedBy ?? this.updatedBy,
       );
 }

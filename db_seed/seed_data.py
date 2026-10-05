@@ -359,6 +359,24 @@ class Seeder:
                 continue
             bid = next(brand_id_iter)
             brand_rows.append({"id": bid, "name": bname, "slug": f"dummy-{slugify(bname)}",
+                               "description": f"{SEED_TAG} brand", "is_active": True})
+            brand_ids[bname] = bid
+            created_brands.append(bid)
+        while len(brand_rows) < n_brands:    # padded fallback names
+            bname = f"{SEED_TAG} Household {len(brand_rows) + 1}"
+            bid = next(brand_id_iter)
+            brand_rows.append({"id": bid, "name": bname, "slug": f"dummy-brand-h{len(brand_rows):03d}",
+                               "description": f"{SEED_TAG} brand", "is_active": True})
+            brand_ids[bname] = bid
+            created_brands.append(bid)
+        if brand_rows:
+            insert_rows(db, Brand.__table__, brand_rows, chunk=50, label="brands")
+        db.flush()
+
+        self.manifest["categories_created"] = created_cats
+        self.manifest["brands_created"] = created_brands
+        return {"cat_ids": cat_ids, "brand_ids": brand_ids}
+
 # ---- Step 3: product masters + variants + images + attrs + ids ----------
     def seed_products(self, cat_ids: dict, brand_ids: dict) -> dict:
         db = self.db
@@ -440,23 +458,7 @@ class Seeder:
             insert_rows(db, BarcodeRelationship.__table__, brel_rows, chunk=300, label="barcode_relationships")
 
         return {"prod_ids": prod_ids, "var_ids": var_ids, "img_ids": img_ids}
-                               "description": f"{SEED_TAG} brand", "is_active": True})
-            brand_ids[bname] = bid
-            created_brands.append(bid)
-        while len(brand_rows) < n_brands:    # padded fallback names
-            bname = f"{SEED_TAG} Household {len(brand_rows) + 1}"
-            bid = next(brand_id_iter)
-            brand_rows.append({"id": bid, "name": bname, "slug": f"dummy-brand-h{len(brand_rows):03d}",
-                               "description": f"{SEED_TAG} brand", "is_active": True})
-            brand_ids[bname] = bid
-            created_brands.append(bid)
-        if brand_rows:
-            insert_rows(db, Brand.__table__, brand_rows, chunk=50, label="brands")
-        db.flush()
 
-        self.manifest["categories_created"] = created_cats
-        self.manifest["brands_created"] = created_brands
-        return {"cat_ids": cat_ids, "brand_ids": brand_ids}
 # ---- Step 4: users / customers / addresses / prefs / devices / otps ----
     def seed_users(self, role_ids: dict) -> dict:
         db = self.db
@@ -647,7 +649,7 @@ class Seeder:
                 shour_rows.append({"id": next(hour_iter), "shop_id": sid, "day_of_week": dow,
                                    "open_time": dtime(8, 0), "close_time": dtime(21, 30),
                                    "is_closed": dow == 6 and si % 3 == 0})
-if si % 3 == 0:
+            if si % 3 == 0:
                 sholi_rows.append({"id": next(holi_iter), "shop_id": sid,
                                    "holiday_date": date(2026, 1, 26),
                                    "reason": "Republic Day", "is_recurring_yearly": True})
@@ -765,7 +767,7 @@ if si % 3 == 0:
                     "last_updated_source": InventorySource.MANUAL.value,
                     "freshness_status": FreshnessStatus.RECENTLY_UPDATED.value,
                 })
-try:
+                try:
                     m1 = next(mov_iter)
                 except StopIteration:
                     m1 = None

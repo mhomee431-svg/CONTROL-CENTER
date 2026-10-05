@@ -15,7 +15,9 @@ void main() {
         data: MediaQueryData(devicePixelRatio: dpr),
         child: Directionality(
           textDirection: TextDirection.ltr,
-          child: MaterialApp(home: Scaffold(body: Center(child: child))),
+          child: MaterialApp(
+            home: Scaffold(body: Center(child: child)),
+          ),
         ),
       ),
     );
@@ -92,8 +94,9 @@ void main() {
   });
 
   group('NetworkImageView — sizing and fitting', () {
-    testWidgets('reserves exactly the requested box for a missing URL',
-        (tester) async {
+    testWidgets('reserves exactly the requested box for a missing URL', (
+      tester,
+    ) async {
       await pump(
         tester,
         const NetworkImageView(imageUrl: '', width: 64, height: 48),
@@ -108,10 +111,7 @@ void main() {
     testWidgets('absent dimensions do not throw during layout', (tester) async {
       // Infinite width/height must not be fed to the decode-bounding maths as
       // NaN or infinity.
-      await pump(
-        tester,
-        const NetworkImageView(imageUrl: ''),
-      );
+      await pump(tester, const NetworkImageView(imageUrl: ''));
       await tester.pump();
 
       expect(tester.takeException(), isNull);

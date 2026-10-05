@@ -5,10 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../../../core/permissions/data/permission_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../domain/barcode_validation.dart';
+import '../controllers/barcode_scanner_view_model.dart';
 import '../widgets/barcode_camera_gate.dart';
 import '../widgets/barcode_lookup_sheet.dart';
 import '../widgets/barcode_scan_results_view.dart';
@@ -55,28 +55,19 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   /// platform channels that may not exist.
   MobileScannerController? _camera;
 
-  /// The frozen code whose results are on screen. Non-null means the results
-  /// view replaced the viewfinder.
-  String? _scannedBarcode;
-
-  /// A detected code that failed client-side validation. Shown as a dedicated
-  /// notice — NOT as a lookup error — because no network call was made and the
-  /// fix is "hold still and re-scan", not "retry the request".
-  ({String code, BarcodeInvalidReason reason})? _invalidBarcode;
-
   MobileScannerController _createCameraController() => MobileScannerController(
-        // Retail formats only: accepting every symbology (QR, PDF417, data
-        // matrix…) makes a shop floor scan pick up a QR sticker on a nearby
-        // box and look up a nonsense "barcode".
-        formats: const [
-          BarcodeFormat.ean13,
-          BarcodeFormat.ean8,
-          BarcodeFormat.upcA,
-          BarcodeFormat.upcE,
-          BarcodeFormat.code128,
-        ],
-        detectionSpeed: DetectionSpeed.normal,
-      );
+    // Retail formats only: accepting every symbology (QR, PDF417, data
+    // matrix…) makes a shop floor scan pick up a QR sticker on a nearby
+    // box and look up a nonsense "barcode".
+    formats: const [
+      BarcodeFormat.ean13,
+      BarcodeFormat.ean8,
+      BarcodeFormat.upcA,
+      BarcodeFormat.upcE,
+      BarcodeFormat.code128,
+    ],
+    detectionSpeed: DetectionSpeed.normal,
+  );
 
   MobileScannerController _ensureCamera() =>
       _camera ??= _createCameraController();
@@ -96,9 +87,8 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
     final old = _camera;
     setState(() {
       _camera = null;
-      _scannedBarcode = null;
-      _invalidBarcode = null;
     });
+    ref.read(barcodeScannerViewModelProvider.notifier).scanAnother();
     old?.dispose();
   }
 
@@ -134,7 +124,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
     );
     if (!mounted) return;
     if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
-    if (_scannedBarcode != null) return;
+    if (ref.read(barcodeScannerViewModelProvider).hasScannedBarcode) return;
     await _startCameraSafely();
   }
 
@@ -149,20 +139,13 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   /// invalid notice — with the digits echoed back — instead of burning a lookup
   /// that can only fail.
   void _onDetected(String raw) {
-    final code = normalizeBarcode(raw);
-    if (code.isEmpty) return;
-    if (_scannedBarcode != null || _invalidBarcode != null) return;
-    // Physical confirmation that the code is locked in — the customer can put
-    // the phone down without watching for a tick that is easy to miss.
-    unawaited(HapticFeedback.vibrate());
-    final reason = validateBarcode(code);
-    if (reason != null) {
-      setState(() => _invalidBarcode = (code: code, reason: reason));
+    final handled = ref
+        .read(barcodeScannerViewModelProvider.notifier)
+        .onBarcodeDetected(raw);
+    if (handled) {
+      unawaited(HapticFeedback.vibrate());
       unawaited(_stopCameraSafely());
-      return;
     }
-    setState(() => _scannedBarcode = code);
-    unawaited(_stopCameraSafely());
   }
 
   void _onCapture(BarcodeCapture capture) {
@@ -176,20 +159,18 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   }
 
   void _scanAnother() {
-    setState(() {
-      _scannedBarcode = null;
-      _invalidBarcode = null;
-    });
+    ref.read(barcodeScannerViewModelProvider.notifier).scanAnother();
     unawaited(_startCameraSafely());
   }
 
   Future<void> _openSystemSettings() =>
-      ref.read(permissionServiceProvider).openSystemSettings();
+      ref.read(barcodeScannerViewModelProvider.notifier).openSystemSettings();
 
   @override
   Widget build(BuildContext context) {
-    final scanned = _scannedBarcode;
-    final invalid = _invalidBarcode;
+    final scanState = ref.watch(barcodeScannerViewModelProvider);
+    final scanned = scanState.scannedBarcode;
+    final invalid = scanState.invalidBarcode;
     final showingResults = scanned != null || invalid != null;
     return Scaffold(
       backgroundColor: showingResults ? null : Colors.black,
@@ -200,8 +181,8 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           scanned != null
               ? 'Scan results'
               : invalid != null
-                  ? 'Check the barcode'
-                  : 'Scan barcode',
+              ? 'Check the barcode'
+              : 'Scan barcode',
         ),
         actions: [
           IconButton(
@@ -223,15 +204,15 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
               onEnterManually: _openManualEntry,
             )
           : scanned == null
-              ? BarcodeCameraGate(
-                  cameraBuilder: _liveCamera,
-                  onEnterManually: _openManualEntry,
-                )
-              : BarcodeScanResultsView(
-                  barcode: scanned,
-                  onScanAnother: _scanAnother,
-                  onEnterManually: _openManualEntry,
-                ),
+          ? BarcodeCameraGate(
+              cameraBuilder: _liveCamera,
+              onEnterManually: _openManualEntry,
+            )
+          : BarcodeScanResultsView(
+              barcode: scanned,
+              onScanAnother: _scanAnother,
+              onEnterManually: _openManualEntry,
+            ),
     );
   }
 
@@ -380,22 +361,22 @@ class _ScannerFailureView extends StatelessWidget {
     final code = error?.errorCode;
     final (IconData icon, String title, String detail) = switch (code) {
       MobileScannerErrorCode.permissionDenied => (
-          Icons.no_photography_outlined,
-          'Camera permission needed',
-          'Enable the camera for this app in system Settings, then retry. You '
-              'can also type the barcode instead.',
-        ),
+        Icons.no_photography_outlined,
+        'Camera permission needed',
+        'Enable the camera for this app in system Settings, then retry. You '
+            'can also type the barcode instead.',
+      ),
       MobileScannerErrorCode.unsupported => (
-          Icons.videocam_off_outlined,
-          'Camera unavailable',
-          'Barcode scanning is not supported on this device. Type the barcode '
-              'instead.',
-        ),
+        Icons.videocam_off_outlined,
+        'Camera unavailable',
+        'Barcode scanning is not supported on this device. Type the barcode '
+            'instead.',
+      ),
       _ => (
-          Icons.error_outline,
-          'Camera unavailable',
-          'The camera could not start. Retry, or type the barcode instead.',
-        ),
+        Icons.error_outline,
+        'Camera unavailable',
+        'The camera could not start. Retry, or type the barcode instead.',
+      ),
     };
 
     return ColoredBox(
@@ -464,5 +445,3 @@ class _ScannerFailureView extends StatelessWidget {
     );
   }
 }
-
-

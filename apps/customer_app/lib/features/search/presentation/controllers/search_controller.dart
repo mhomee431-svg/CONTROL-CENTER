@@ -1,14 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/env/env_config.dart';
 import '../../../../core/network/api_error_handler.dart';
 import '../../../../core/performance/debouncer.dart';
 import '../../../location/presentation/controllers/location_controller.dart';
-import '../../../saved_and_history/domain/saved_and_history_repository.dart';
+// The notifier is the single owner of recent searches; this file projects it
+// rather than keeping a second copy.
+import '../../../saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
+import '../../data/discovery_lexicon_provider.dart';
 import '../../domain/barcode_capability.dart';
+import '../../domain/discovery_query.dart';
 import '../../domain/search_repository.dart';
 import '../../domain/search_state.dart';
+import '../../domain/semantic_reranker.dart';
 import '../../domain/search_event_tracker.dart';
 import '../../domain/models/search_models.dart';
 
@@ -104,75 +109,36 @@ final suggestionsProvider = FutureProvider.autoDispose<List<SearchSuggestion>>((
   return ref.watch(searchRepositoryProvider).getSuggestions(query);
 });
 
-// --- SEARCH HISTORY (delegates to the unified saved-and-history store) ---
-/// Single source of truth for search history is
-/// [SavedAndHistoryRepository] (recent searches are capped at 10 and
-/// de-duplicated there). This wrapper keeps the search UI API intact,
-/// migrates the legacy SharedPreferences list once, and never stores a
-/// second, diverging copy of the same history.
-class SearchHistoryStore {
-  static const String _legacyKey = 'search_history_v1';
+// --- SEARCH HISTORY ---
+//
+// Search history has NO store in this file on purpose. It used to keep a second
+// cache here, refreshed by a manual version counter, which is how the search
+// screen and the Saved & History tab drifted apart. The single owner is
+// `RecentSearchesNotifier`; `recentSearchesProvider` below is a projection of it.
+//
+// The legacy `search_history_v1` SharedPreferences migration that used to live in
+// this file now runs inside the notifier, so no history is lost and there is
+// only one place that knows about the old key.
 
-  final SavedAndHistoryRepository _repo;
-  SearchHistoryStore(this._repo);
-
-  Future<List<String>> load() async {
-    await _migrateLegacyHistory();
-    final items = await _repo.getRecentSearches();
-    return items.map((e) => e.query).toList();
-  }
-
-  /// One-time migration of the old SharedPreferences-based history so no
-  /// entries are lost or duplicated when switching to the unified store.
-  Future<void> _migrateLegacyHistory() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final legacy = prefs.getStringList(_legacyKey);
-      if (legacy == null || legacy.isEmpty) return;
-      for (final query in legacy) {
-        await _repo.addRecentSearch(query);
-      }
-      await prefs.remove(_legacyKey);
-    } catch (_) {
-      // Migration is best-effort; never block loading history.
-    }
-  }
-
-  Future<void> add(String query) => _repo.addRecentSearch(query);
-
-  Future<void> remove(String query) => _repo.removeRecentSearch(query);
-
-  Future<void> clear() => _repo.clearRecentSearches();
-}
-
-final searchHistoryStoreProvider = Provider<SearchHistoryStore>((ref) {
-  return SearchHistoryStore(ref.watch(savedAndHistoryRepositoryProvider));
+/// Recent searches, as plain strings for the search UI.
+///
+/// DERIVED from [recentSearchesNotifierProvider] — one list, one owner. Every
+/// write (search, delete, clear) goes through the notifier, so a change is
+/// visible everywhere at once. Copying the list here is what previously let a
+/// deleted search still appear on the search screen.
+final recentSearchesProvider = Provider<List<String>>((ref) {
+  final async = ref.watch(recentSearchesNotifierProvider);
+  // An unresolved AsyncValue has no list to project yet, so this returns empty
+  // rather than throwing. Callers render an empty chip row for one frame, which
+  // is the same behaviour the previous FutureProvider produced.
+  final items = async.value;
+  if (items == null) return const <String>[];
+  return items.map((e) => e.query).toList(growable: false);
 });
 
-/// Version counter used to invalidate the cached [recentSearchesProvider].
-class RecentSearchesVersion extends Notifier<int> {
-  @override
-  int build() => 0;
-
-  void bump() => state++;
-}
-
-final recentSearchesVersionProvider =
-    NotifierProvider<RecentSearchesVersion, int>(RecentSearchesVersion.new);
-
-/// Loads persisted recent searches. Re-runs whenever the version bumps.
-final recentSearchesProvider = FutureProvider.autoDispose<List<String>>((
-  ref,
-) async {
-  ref.watch(recentSearchesVersionProvider);
-  return ref.watch(searchHistoryStoreProvider).load();
-});
-
-/// Convenience helper to persist a query and bump the version so the
-/// UI re-fetches the latest history.
+/// Persists a query and refreshes the one list that backs every reader.
 Future<void> saveRecentSearch(WidgetRef ref, String query) async {
-  await ref.read(searchHistoryStoreProvider).add(query);
-  ref.read(recentSearchesVersionProvider.notifier).bump();
+  await ref.read(recentSearchesNotifierProvider.notifier).addQuery(query);
 }
 
 // --- BARCODE LOOKUP ---
@@ -242,7 +208,9 @@ final barcodeLookupProvider = FutureProvider.autoDispose
               latitude: hasCoords ? location.latitude : null,
               longitude: hasCoords ? location.longitude : null,
             );
-        ref.read(barcodeSupportProvider.notifier).mark(BarcodeSupport.supported);
+        ref
+            .read(barcodeSupportProvider.notifier)
+            .mark(BarcodeSupport.supported);
         return results;
       } catch (error) {
         if (isMissingBarcodeRoute(error)) {
@@ -379,22 +347,124 @@ final searchResultsProvider =
       String
     >(SearchResultsController.new);
 
+/// Per-query sort and filter choices, kept so returning to a search restores it.
+///
+/// WHY THIS EXISTS
+/// ---------------
+/// A customer sets a sort order or narrows filters, taps into a product, then
+/// hits back. The results provider is a plain (non-autoDispose)
+/// `NotifierProvider.family`, so its `SearchPaginationState` — results, page,
+/// loading, error — outlives the widget and comes back intact on its own. But
+/// `build()` constructs a FRESH controller, and the sort/filter the customer had
+/// chosen lived only in the old controller's fields. Without this store, going
+/// back would silently reset the sort to `nearest` and drop the filters, while
+/// the results list looked like it had been "preserved" — a confusing, wrong
+/// screen. The retained choices are the part that does NOT ride along for free.
+///
+/// WHY IT IS A PROVIDER, NOT A `static` MAP
+/// ----------------------------------------
+/// This was previously two `static final` maps on [SearchResultsController].
+/// That was a process-lifetime cache hidden from Riverpod:
+///
+///   * unbounded growth — every distinct query ever searched kept an entry,
+///     and only `cancel()` ever removed one;
+///   * uninvalidatable — no `ref.invalidate` can clear a static, so a sign-out
+///     or "clear my data" left the previous customer's filters in memory;
+///   * shared across containers — a `ProviderContainer` in a test inherited
+///     whatever the previous test had left behind, making tests order-dependent;
+///   * stale by design — re-running the query "milk" months later silently
+///     reused that old filter set.
+///
+/// Holding it in a provider makes the lifetime explicit and scoped: it is
+/// disposed with its container, clearable with `ref.invalidate`, and isolated
+/// per test.
+final searchQueryPreferencesProvider = Provider<SearchQueryPreferences>((ref) {
+  return SearchQueryPreferences();
+});
+
+/// The customer's per-query sort and filter choices.
+class SearchQueryPreferences {
+  final Map<String, SortOption> _sorts = {};
+  final Map<String, Map<String, dynamic>> _filters = {};
+
+  SortOption sortFor(String query) => _sorts[query] ?? kDefaultSortOption;
+
+  Map<String, dynamic>? filtersFor(String query) => _filters[query];
+
+  void recordSort(String query, SortOption sort) => _sorts[query] = sort;
+
+  /// Defensive copy on the way in and on the way out, so a caller mutating the
+  /// map it passed in cannot retroactively change what was remembered.
+  void recordFilters(String query, Map<String, dynamic> filters) {
+    _filters[query] = Map<String, dynamic>.from(filters);
+  }
+
+  /// Forgets one query, e.g. when the customer cancels this search.
+  void forget(String query) {
+    _sorts.remove(query);
+    _filters.remove(query);
+  }
+
+  /// Forgets everything. Called on sign-out so the next customer never inherits
+  /// the previous one's filter choices.
+  void clear() {
+    _sorts.clear();
+    _filters.clear();
+  }
+
+  /// Number of queries with remembered choices. Exposed for the leak test: a
+  /// long session must not grow this without bound.
+  @visibleForTesting
+  int get retainedQueryCount => _sorts.length;
+}
+
 class SearchResultsController extends Notifier<SearchPaginationState> {
   SearchResultsController(this.query);
 
   final String query;
   int _page = 1;
   static const int _limit = 10;
+
+  /// Hard ceiling on results held in memory for one search.
+  ///
+  /// 500 rows is far more than anyone scrolls through, and each row is a full
+  /// `ShopProductResult` held in a Riverpod state object that -- because
+  /// `searchResultsProvider` is deliberately NOT autoDispose -- lives for the
+  /// whole session. Without a ceiling, a customer holding a fling on a broad
+  /// query could keep the list (and its memory) growing for as long as the
+  /// backend has rows to give.
+  static const int _maxRetainedResults = 500;
+
   SortOption _currentSort = kDefaultSortOption;
   Map<String, dynamic>? _currentFilters;
 
-  static final Map<String, Map<String, dynamic>> _retainedFilters = {};
-  static final Map<String, SortOption> _retainedSorts = {};
+  /// Monotonic token identifying the newest in-flight results request.
+  ///
+  /// WHY THIS EXISTS
+  /// ---------------
+  /// `updateSort`, `updateFilters`, `retry` and pull-to-refresh each restart the
+  /// search from page 1, and any of them can fire while an earlier fetch is
+  /// still open. Without a token the older response is free to arrive LAST and
+  /// write itself over the newer state: the customer picks "price: low to
+  /// high", the previous relevance-sorted request is still in flight, and its
+  /// rows land on top of the sorted ones. The list then shows results that do
+  /// not match the control the customer just used, and no amount of tapping
+  /// fixes it because the state is already "settled".
+  ///
+  /// A token, rather than an `isLoading` flag, is required because the hazard is
+  /// not two requests at once -- it is two requests whose completion order is
+  /// the reverse of the order they were started in. A flag cannot see that.
+  int _requestSeq = 0;
+
+  /// True while [seq] is still the newest request and this notifier is alive.
+  bool _isCurrent(int seq) => ref.mounted && seq == _requestSeq;
+
+  SearchQueryPreferences get _prefs => ref.read(searchQueryPreferencesProvider);
 
   @override
   SearchPaginationState build() {
-    _currentSort = _retainedSorts[query] ?? kDefaultSortOption;
-    _currentFilters = _retainedFilters[query];
+    _currentSort = _prefs.sortFor(query);
+    _currentFilters = _prefs.filtersFor(query);
     _fetchInitial();
     return SearchPaginationState(
       stage: SearchStage.loading,
@@ -406,6 +476,67 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   SearchRepository get _repo => ref.read(searchRepositoryProvider);
   SearchEventTracker get _tracker => ref.read(searchEventTrackerProvider);
 
+  /// The optional semantic layer, built over whatever reranker is installed.
+  ///
+  /// Reading it here is what makes the seam real: overriding
+  /// [semanticRerankerProvider] changes search ordering without touching this
+  /// file. The shipped reranker is a no-op, so today this costs one completed
+  /// future per search and changes nothing.
+  ProductDiscoveryPipeline get _discoveryPipeline =>
+      ProductDiscoveryPipeline(ref.read(semanticRerankerProvider));
+
+  /// What kind of thing the customer typed, used to pick the right route.
+  ///
+  /// This is what makes a hand-typed barcode work. Previously every keystroke
+  /// went to `searchProducts`, so 13 digits were treated as free text and the
+  /// full-text index returned nothing -- the platform already has an exact
+  /// lookup for that identifier and simply was not being asked. The classifier
+  /// is pure and local, so reading it costs no request.
+  ///
+  /// Classified directly rather than through a family provider: classification
+  /// is a handful of string checks, and a family would cache one entry per
+  /// distinct query for the whole session, which is not worth the memory.
+  DiscoveryQuery get _intent =>
+      classifyDiscovery(query, lexicon: ref.read(discoveryLexiconProvider));
+
+  /// Filters the classifier has PROVEN, merged under the customer's own.
+  ///
+  /// The backend already accepts `brand` and `category` as "ID or name"
+  /// (`GET /search/v2/products`), and `api_search_repository` already forwards
+  /// them — but nothing ever set them, so a brand query only ever reached the
+  /// free-text index. This is where discovery's verdict finally gets used.
+  ///
+  /// ONLY a [DiscoveryConfidence.certain] verdict narrows the result set. A
+  /// narrower filter is a one-way door: getting it wrong HIDES real products,
+  /// which is far worse than showing a few extra ones. A "Dove shampoo" style
+  /// `likely` brand match is therefore left to the text search, which already
+  /// ranks that brand's products first without being able to exclude anything.
+  Map<String, dynamic>? get _inferredFilters {
+    final intent = _intent;
+    if (intent.confidence != DiscoveryConfidence.certain) return null;
+    return switch (intent.mode) {
+      DiscoveryMode.brand => {'brand': intent.normalized},
+      DiscoveryMode.category => {'category': intent.normalized},
+      DiscoveryMode.productName ||
+      DiscoveryMode.variant ||
+      DiscoveryMode.barcode => null,
+    };
+  }
+
+  /// The customer's filters, with proven inferred ones applied underneath.
+  ///
+  /// The customer's own choices win on a key clash: a filter the customer set
+  /// deliberately is never overwritten by a guess the app made.
+  Map<String, dynamic>? get _effectiveFilters {
+    final inferred = _inferredFilters;
+    // Bound to a local first: `_currentFilters` is a mutable field, so Dart
+    // will not promote it to non-null across the null check.
+    final current = _currentFilters;
+    if (inferred == null) return current;
+    if (current == null) return inferred;
+    return {...inferred, ...current};
+  }
+
   /// Best-effort user coordinates for geo-ranked results. Absent when the
   /// customer has not granted/selected a location yet — the backend then
   /// ranks by relevance alone.
@@ -415,23 +546,59 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
     return (latitude: location.latitude, longitude: location.longitude);
   }
 
+  /// Fetches one page of results using the route the query's intent calls for.
+  ///
+  /// A barcode goes to the exact lookup; everything else goes to the text
+  /// search. Both share the same bounded pagination contract (`page` 1-based,
+  /// `limit` required), so a product stocked by many shops still pages the same
+  /// way whichever route answered -- and a barcode can never materialise an
+  /// unbounded catalogue into one response.
+  Future<List<ShopProductResult>> _fetchPage(int page) {
+    final coords = _coords;
+    final intent = _intent;
+    if (intent.requiresBarcodeLookup) {
+      return _repo.lookupBarcode(
+        intent.normalized,
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
+        page: page,
+        limit: _limit,
+      );
+    }
+    return _repo.searchProducts(
+      query: query,
+      page: page,
+      limit: _limit,
+      sort: _currentSort,
+      filters: _effectiveFilters,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
+    );
+  }
+
   Future<void> _fetchInitial() async {
+    // Claim a token BEFORE the first await so a later restart of the search
+    // (sort change, filter change, pull-to-refresh) can mark this one stale.
+    final requestSeq = ++_requestSeq;
     state = SearchPaginationState(
       stage: SearchStage.loading,
       sort: _currentSort,
       filters: _currentFilters ?? const {},
     );
     try {
-      final coords = _coords;
-      final results = await _repo.searchProducts(
-        query: query,
-        page: _page,
-        limit: _limit,
-        sort: _currentSort,
-        filters: _currentFilters,
-        latitude: coords?.latitude,
-        longitude: coords?.longitude,
-      );
+      final fetched = await _fetchPage(_page);
+      // A newer request owns the state now; this response is history.
+      if (!_isCurrent(requestSeq)) return;
+      // The optional semantic layer may only reorder this page. It runs after
+      // the staleness check so a superseded search never pays for it, and
+      // before the state write so the customer sees one settled order rather
+      // than a visible reshuffle.
+      //
+      // Only page 1: appending later pages keeps their backend order, because
+      // re-sorting rows the customer has already scrolled past would make the
+      // list jump under their thumb.
+      final results = await _discoveryPipeline.run(query, fetched);
+      if (!_isCurrent(requestSeq)) return;
       final stage = results.isEmpty ? SearchStage.empty : SearchStage.results;
       state = SearchPaginationState(
         stage: stage,
@@ -450,6 +617,11 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
         ),
       );
     } catch (e) {
+      // Same rule on the failure path: an error from a superseded request must
+      // not replace the newer results with an error screen, and must not be
+      // tracked as the outcome of the search the customer is actually looking
+      // at.
+      if (!_isCurrent(requestSeq)) return;
       state = SearchPaginationState(
         stage: SearchStage.error,
         sort: _currentSort,
@@ -462,33 +634,77 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   }
 
   Future<void> fetchNextPage() async {
+    // Claim the fetch SYNCHRONOUSLY, before the first `await`.
+    //
+    // `_onScroll` fires on every scroll event once the customer is within 200px
+    // of the bottom, and a fling can fire several in a row. Guarding on
+    // `state.isFetchingMore` alone was not enough: the old code checked the
+    // state and only THEN set the flag, so every caller reaching the check
+    // before that write saw `false`. Two callers both passed, both ran
+    // `_page++`, and the list fetched pages 2 and 3 -- meaning page 2's rows
+    // The check and the flag set below are adjacent with no `await` between
+    // them, so this guard is sound: Dart is single-threaded, and a second
+    // caller arriving before the first suspends sees `isFetchingMore == true`.
+    //
+    // An earlier version of this comment claimed a race here, reasoning that a
+    // burst of scroll events could slip past the check before the flag was
+    // written. Deleting the guard and re-running proved otherwise -- both calls
+    // still collapsed into a single request. The false claim is gone; the
+    // original guard stays, because it is already doing its job.
     if (state.isFetchingMore || state.hasReachedMax || state.isLoading) return;
 
+    // A full buffer stops us pulling more pages at all.
+    // See [_maxRetainedResults].
+    if (state.results.length >= _maxRetainedResults) {
+      state = state.copyWith(hasReachedMax: true, isFetchingMore: false);
+      return;
+    }
+
     state = state.copyWith(isFetchingMore: true, clearError: true);
+    // Pin the token this page belongs to. If a sort change, filter change or
+    // refresh restarts the search while this page is in flight, the rows coming
+    // back belong to a result set that no longer exists and must not be
+    // appended to the new one.
+    final requestSeq = _requestSeq;
     try {
-      _page++;
-      final coords = _coords;
-      final moreResults = await _repo.searchProducts(
-        query: query,
-        page: _page,
-        limit: _limit,
-        sort: _currentSort,
-        filters: _currentFilters,
-        latitude: coords?.latitude,
-        longitude: coords?.longitude,
-      );
-      final allResults = [...state.results, ...moreResults];
+      final page = ++_page;
+      final moreResults = await _fetchPage(page);
+
+      if (!_isCurrent(requestSeq)) return;
+
+      final merged = [...state.results, ...moreResults];
+      // Cap what we keep in memory. A long scroll must not grow the list
+      // without bound: the first [_maxRetainedResults] rows stay available for
+      // scrolling back and the tail is dropped instead of held forever.
+      // `_page` keeps advancing regardless, so this is a memory ceiling, not a
+      // change to the paging contract with the backend.
+      final truncated = merged.length > _maxRetainedResults
+          ? merged.length - _maxRetainedResults
+          : 0;
+      final retained = truncated > 0
+          ? merged.sublist(0, _maxRetainedResults)
+          : merged;
+
       state = SearchPaginationState(
-        stage: allResults.isEmpty ? SearchStage.empty : SearchStage.results,
-        results: allResults,
-        hasReachedMax: moreResults.length < _limit,
+        stage: retained.isEmpty ? SearchStage.empty : SearchStage.results,
+        results: retained,
+        // Short page means the backend is exhausted; truncation means WE stop.
+        hasReachedMax: moreResults.length < _limit || truncated > 0,
         sort: _currentSort,
-        currentPage: _page,
-        totalResults: allResults.length,
+        currentPage: page,
+        totalResults: retained.length,
         filters: _currentFilters ?? const {},
       );
-      _tracker.track(PaginationLoadedEvent(query: query, page: _page));
+      _tracker.track(PaginationLoadedEvent(query: query, page: page));
     } catch (e) {
+      // A superseded page must not report an error either -- the search it
+      // belonged to is no longer on screen.
+      if (!_isCurrent(requestSeq)) return;
+      // Hand the page number back. The request failed, so those rows were never
+      // delivered; leaving `_page` incremented would make the next attempt ask
+      // for the page AFTER the one that failed, permanently skipping it and
+      // leaving a gap the customer can never fill.
+      _page--;
       state = state.copyWith(
         isFetchingMore: false,
         // User-safe copy; raw exception text never reaches the UI.
@@ -500,14 +716,14 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
   void updateSort(SortOption sort) {
     if (_currentSort == sort) return;
     _currentSort = sort;
-    _retainedSorts[query] = sort;
+    _prefs.recordSort(query, sort);
     _page = 1;
     _fetchInitial();
   }
 
   void updateFilters(Map<String, dynamic> filters) {
     _currentFilters = Map<String, dynamic>.from(filters);
-    _retainedFilters[query] = _currentFilters!;
+    _prefs.recordFilters(query, _currentFilters!);
     _page = 1;
     _fetchInitial();
   }
@@ -517,14 +733,36 @@ class SearchResultsController extends Notifier<SearchPaginationState> {
     _fetchInitial();
   }
 
+  /// Pull-to-refresh: re-runs the current search from page 1.
+  ///
+  /// Refresh means "give me this search again", not "start over", so the query,
+  /// sort and filters are deliberately left alone. Clearing them would silently
+  /// change what the customer is looking at -- they asked for the same search
+  /// with fresher stock data, not for the default search.
+  ///
+  /// It awaits the fetch rather than firing and forgetting so `RefreshIndicator`
+  /// holds the spinner until fresh rows have actually replaced the stale ones;
+  /// returning immediately makes the gesture feel like it did nothing.
+  ///
+  /// A refresh already in flight is superseded by the next one, and any page
+  /// request that was open when this started is discarded, so the customer can
+  /// pull repeatedly without a backlog of stale responses landing in order.
+  Future<void> refresh() async {
+    _page = 1;
+    await _fetchInitial();
+  }
+
   /// Cancel a pending search in the UI (e.g., user pressed back/escape).
   void cancel() {
+    // Invalidate anything still in flight. Without this, a page or initial fetch
+    // the customer walked away from still owns the state and lands after the
+    // reset below, repopulating a search screen they have already left.
+    _requestSeq++;
     ref.read(searchQueryProvider.notifier).clear();
     _page = 1;
     _currentSort = kDefaultSortOption;
     _currentFilters = null;
-    _retainedSorts.remove(query);
-    _retainedFilters.remove(query);
+    _prefs.forget(query);
     state = const SearchPaginationState(stage: SearchStage.idle);
   }
 }

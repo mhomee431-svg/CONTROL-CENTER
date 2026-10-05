@@ -34,6 +34,8 @@ ShopProductItem product({
   bool isActive = true,
   bool isAvailable = true,
   String? source,
+  String? priceSource,
+  String? inventorySource,
   String? updatedBy,
   DateTime? lastUpdated,
   String? freshnessStatus,
@@ -56,6 +58,8 @@ ShopProductItem product({
       freshnessStatus: freshnessStatus,
       lastUpdated: lastUpdated,
       source: source,
+      priceSource: priceSource ?? source,
+      inventorySource: inventorySource ?? source,
       updatedBy: updatedBy,
     );
 
@@ -134,6 +138,42 @@ void main() {
       expect(find.text('Dairy'), findsOneWidget);
       // The one write this view performs directly.
       expect(find.text('Available to customers'), findsOneWidget);
+    });
+
+    testWidgets('says who set the PRICE and who set the STOCK, separately',
+        (tester) async {
+      // A POS sync pushes a price and leaves stock alone. One 'Source' row for
+      // the listing forced one of those two facts to be wrong on screen.
+      final harness = makeHarness();
+      await pumpSheet(
+        tester,
+        harness.container,
+        product(
+          priceSource: 'POS_INTEGRATION',
+          inventorySource: 'MANUAL',
+        ),
+      );
+
+      expect(find.text('Price updated via'), findsOneWidget);
+      expect(find.text('Stock updated via'), findsOneWidget);
+      expect(find.text('Updated via POS'), findsOneWidget);
+      expect(find.text('Updated manually'), findsOneWidget);
+    });
+
+    testWidgets('one provenance row is enough when both axes agree',
+        (tester) async {
+      // Two rows reading the same sentence one under the other says nothing
+      // the single row did not.
+      final harness = makeHarness();
+      await pumpSheet(
+        tester,
+        harness.container,
+        product(source: 'BARCODE_SCAN'),
+      );
+
+      expect(find.text('Stock updated via'), findsOneWidget);
+      expect(find.text('Updated via barcode'), findsOneWidget);
+      expect(find.text('Price updated via'), findsNothing);
     });
 
     testWidgets('shows an explicit placeholder when the master has no image',

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/router/deep_link_launcher.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../onboarding/presentation/controllers/onboarding_controller.dart';
 import 'notifications_controller.dart';
@@ -98,7 +98,20 @@ Future<void> _drain(Ref ref) async {
   }
 
   try {
-    GoRouter.of(context).go(link.path);
+    // THROUGH THE LAUNCHER, not straight to `GoRouter.go`.
+    //
+    // This used to navigate to `link.path` unconditionally, which meant the
+    // entire `deep_link_guard` / `deep_link_launcher` subsystem was dead code
+    // in production: no existence check, no auth check, no graceful fallback.
+    // A notification for a deleted product opened a detail screen whose only
+    // possible state was an error-and-retry the customer could never escape.
+    //
+    // The launcher runs the guard and, on refusal, lands the customer on a real
+    // screen with an explanation instead of a dead end. It defaults to `go`,
+    // which is the behaviour documented above.
+    await ref
+        .read(deepLinkLauncherProvider)
+        .open(context, link.path);
   } catch (error, stackTrace) {
     debugPrint('Pending deep link navigation failed: $error\n$stackTrace');
   }

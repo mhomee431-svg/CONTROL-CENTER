@@ -56,10 +56,12 @@ void main() {
     final container = await _pumpHost(tester);
     expect(find.text('HomeScreen'), findsOneWidget);
 
-    container.read(inAppNotificationControllerProvider.notifier).enqueue(
-      _notification(id: 'n1'),
-      presentation: InAppPresentation.banner,
-    );
+    container
+        .read(inAppNotificationControllerProvider.notifier)
+        .enqueue(
+          _notification(id: 'n1'),
+          presentation: InAppPresentation.banner,
+        );
     await tester.pump();
 
     // The banner is visible...
@@ -72,10 +74,12 @@ void main() {
     tester,
   ) async {
     final container = await _pumpHost(tester);
-    container.read(inAppNotificationControllerProvider.notifier).enqueue(
-      _notification(id: 'n1'),
-      presentation: InAppPresentation.banner,
-    );
+    container
+        .read(inAppNotificationControllerProvider.notifier)
+        .enqueue(
+          _notification(id: 'n1'),
+          presentation: InAppPresentation.banner,
+        );
     await tester.pump();
     expect(find.text('Price drop on Paracetamol'), findsOneWidget);
 
@@ -89,10 +93,12 @@ void main() {
     tester,
   ) async {
     final container = await _pumpHost(tester);
-    container.read(inAppNotificationControllerProvider.notifier).enqueue(
-      _notification(id: 'n1', targetId: 'prod_77'),
-      presentation: InAppPresentation.banner,
-    );
+    container
+        .read(inAppNotificationControllerProvider.notifier)
+        .enqueue(
+          _notification(id: 'n1', targetId: 'prod_77'),
+          presentation: InAppPresentation.banner,
+        );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('inAppNotification_n1')));
@@ -110,10 +116,12 @@ void main() {
     tester,
   ) async {
     final container = await _pumpHost(tester);
-    container.read(inAppNotificationControllerProvider.notifier).enqueue(
-      _notification(id: 'n1'),
-      presentation: InAppPresentation.banner,
-    );
+    container
+        .read(inAppNotificationControllerProvider.notifier)
+        .enqueue(
+          _notification(id: 'n1'),
+          presentation: InAppPresentation.banner,
+        );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('inAppNotificationDismiss')));
@@ -152,21 +160,23 @@ void main() {
     tester,
   ) async {
     final container = await _pumpHost(tester);
-    container.read(inAppNotificationControllerProvider.notifier).enqueue(
-      AppNotification(
-        id: 'n2',
-        title: 'Flat 20% off',
-        body: 'This offer has ended',
-        timestamp: DateTime.now(),
-        type: NotificationType.offer,
-        deepLink: NotificationDeepLink(
-          targetType: DeepLinkTargetType.offer,
-          targetId: 'offer_9',
-          expiresAt: DateTime.now().subtract(const Duration(hours: 1)),
-        ),
-      ),
-      presentation: InAppPresentation.banner,
-    );
+    container
+        .read(inAppNotificationControllerProvider.notifier)
+        .enqueue(
+          AppNotification(
+            id: 'n2',
+            title: 'Flat 20% off',
+            body: 'This offer has ended',
+            timestamp: DateTime.now(),
+            type: NotificationType.offer,
+            deepLink: NotificationDeepLink(
+              targetType: DeepLinkTargetType.offer,
+              targetId: 'offer_9',
+              expiresAt: DateTime.now().subtract(const Duration(hours: 1)),
+            ),
+          ),
+          presentation: InAppPresentation.banner,
+        );
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('inAppNotification_n2')));

@@ -150,6 +150,5 @@ class EnvConfig {
   );
 }
 
-
 /// The environment the app is built for.
 enum AppEnv { development, staging, production }

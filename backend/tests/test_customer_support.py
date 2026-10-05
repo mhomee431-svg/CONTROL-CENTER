@@ -49,38 +49,40 @@ from tests.test_shopkeeper_support import (  # noqa: E402,F401
 ISSUES_PATH = f"{settings.API_PREFIX}/support/issues"
 
 
+# ── Taxonomy ──────────────────────────────────────────────────────────────
+#
+# Module level, NOT a class attribute: `@pytest.mark.parametrize` is a
+# decorator, and decorators are evaluated in the class body — where neither
+# `self` nor the class name is bound yet, so a class attribute is invisible
+# there. Only module globals resolve at that point. The class keeps an alias
+# below so `self.CUSTOMER_CODES` still reads naturally inside the test methods.
+#
 # The exact codes the Flutter `SupportIssueCategory` enum sends. Pinned so a
 # rename on either side fails a test instead of silently storing free text.
-#
-# MODULE level, not a class attribute: neither `self` nor the class name is
-# bound while a class body is being evaluated, so a `@parametrize` decorator
-# inside the class could not read it. As a class attribute the file raised
-# NameError at import and broke collection for the entire backend suite.
-CUSTOMER_CODES = frozenset(
-    {
-        "CUST_WRONG_PRICE",
-        "CUST_AVAILABILITY",
-        "CUST_WRONG_PRODUCT",
-        "CUST_SHOP_ISSUE",
-        "CUST_APP_BUG",
-        "CUST_ACCOUNT",
-        "CUST_PRIVACY",
-        "CUST_OTHER",
-    }
-)
+CUSTOMER_CODES = {
+    "CUST_WRONG_PRICE",
+    "CUST_AVAILABILITY",
+    "CUST_WRONG_PRODUCT",
+    "CUST_SHOP_ISSUE",
+    "CUST_APP_BUG",
+    "CUST_ACCOUNT",
+    "CUST_PRIVACY",
+    "CUST_OTHER",
+}
 
 
-# ── Taxonomy ──────────────────────────────────────────────────────────────
 class TestCustomerTaxonomy:
     """A shopper's ticket must land in a queue the support team can filter."""
+
+    CUSTOMER_CODES = CUSTOMER_CODES
 
     def test_customer_codes_match_the_client_contract(self):
         assert set(support_service.CUSTOMER_CATEGORIES) == set(CUSTOMER_CODES)
 
     # `self` does not exist while the class BODY is being evaluated — it is
-    # only bound inside methods — so the decorator must name the class. Using
-    # `self.CUSTOMER_CODES` here raised NameError at import time and broke
-    # collection for the whole backend suite.
+    # only bound inside methods — so the decorator below must name the module
+    # global. Using `self.CUSTOMER_CODES` there raised NameError at import time
+    # and broke collection for the whole backend suite.
     @pytest.mark.parametrize("code", sorted(CUSTOMER_CODES))
     def test_every_customer_code_is_accepted(self, code):
         assert (

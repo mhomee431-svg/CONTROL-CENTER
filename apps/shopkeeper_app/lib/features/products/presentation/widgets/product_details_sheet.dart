@@ -78,6 +78,14 @@ class ProductDetailsSheet extends ConsumerWidget {
                   if (current.mrp != null && current.mrp! > 0)
                     ('MRP', 'Rs ${current.mrp!.toStringAsFixed(2)}'),
                   if (discount != null) ('Discount', '$discount% off MRP'),
+                  // Only when the two axes DISAGREE. Two rows reading
+                  // "Updated via barcode" one under the other says nothing the
+                  // single row did not, and reads as a rendering fault. The
+                  // stock row below always shows, so no provenance is lost.
+                  if ((current.priceSource ?? current.source) !=
+                      (current.inventorySource ?? current.source))
+                    ('Price updated via',
+                        _sourceLabel(current.priceSource ?? current.source)),
                 ],
               ),
               _DetailSection(
@@ -87,7 +95,8 @@ class ProductDetailsSheet extends ConsumerWidget {
                   ('Stock status', current.stockState.label),
                   ('Last updated', _lastUpdatedLabel(current.lastUpdated)),
                   ('Updated by', current.updatedBy ?? 'Not recorded'),
-                  ('Source', _sourceLabel(current.source)),
+                  ('Stock updated via',
+                      _sourceLabel(current.inventorySource ?? current.source)),
                   if (current.hasFreshness)
                     (
                       'Data freshness',

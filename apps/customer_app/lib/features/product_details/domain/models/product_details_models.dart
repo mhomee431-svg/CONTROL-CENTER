@@ -270,8 +270,6 @@ abstract class ProductDetails with _$ProductDetails {
   ShopInventoryOffer? get nearestInStockOffer {
     final live = comparableOffers;
     if (live.isEmpty) return null;
-    return live.reduce(
-      (a, b) => a.distanceInKm <= b.distanceInKm ? a : b,
-    );
+    return live.reduce((a, b) => a.distanceInKm <= b.distanceInKm ? a : b);
   }
 }

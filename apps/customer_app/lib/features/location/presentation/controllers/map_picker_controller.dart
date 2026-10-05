@@ -130,6 +130,20 @@ class MapPickerController extends Notifier<MapPickerState> {
   int _geocodeRequestSeq = 0;
   UserLocation? _origin;
 
+  /// Monotonic token for driving-route requests.
+  ///
+  /// The reverse geocode above already guards itself this way; the route did
+  /// not, and it is the more dangerous of the two. A route request costs a
+  /// Directions API call, so the customer can easily start one, move the pin,
+  /// and start another. Without a token the first (older) response can land
+  /// last and draw a polyline to a pin the customer has already moved away
+  /// from -- a map that confidently shows the wrong route.
+  int _routeRequestSeq = 0;
+
+  /// Identity of the route currently drawn or in flight, used to skip a
+  /// duplicate request for a destination the customer already asked for.
+  String? _activeRouteKey;
+
   @override
   MapPickerState build() {
     ref.onDispose(() => _geocodeDebounce?.cancel());
@@ -192,6 +206,11 @@ class MapPickerController extends Notifier<MapPickerState> {
   void onPinMoved(MapLatLng point) {
     _geocodeDebounce?.cancel();
     _geocodeRequestSeq++;
+    // The pin the in-flight route was heading for no longer exists. Bumping the
+    // token makes that response a no-op when it arrives, so the customer can
+    // never end up looking at a route to where the pin used to be.
+    _routeRequestSeq++;
+    _activeRouteKey = null;
     state = state.copyWith(
       pinned: point,
       pinnedAddress: null,
@@ -235,6 +254,18 @@ class MapPickerController extends Notifier<MapPickerState> {
       );
       return;
     }
+
+    // Tapping "route" twice for the same destination is one request, not two.
+    // This is the cheap case the sequence token cannot catch on its own: the
+    // second call would supersede the first, and the first response would then
+    // be thrown away, wasting a paid Directions call to draw the same line.
+    final routeKey =
+        '${origin.latitude},${origin.longitude}'
+        '->${pinned.latitude},${pinned.longitude}';
+    if (routeKey == _activeRouteKey && !state.isRouteLoading) return;
+    final requestSeq = ++_routeRequestSeq;
+    _activeRouteKey = routeKey;
+
     state = state.copyWith(
       isRouteLoading: true,
       route: null,
@@ -247,13 +278,15 @@ class MapPickerController extends Notifier<MapPickerState> {
             origin: MapLatLng(origin.latitude, origin.longitude),
             destination: pinned,
           );
-      if (!ref.mounted) return;
+      if (!ref.mounted || requestSeq != _routeRequestSeq) return;
       state = state.copyWith(isRouteLoading: false, route: route);
     } on LocationException catch (e) {
-      if (!ref.mounted) return;
+      if (!ref.mounted || requestSeq != _routeRequestSeq) return;
+      _activeRouteKey = null;
       state = state.copyWith(isRouteLoading: false, errorMessage: e.message);
     } catch (_) {
-      if (!ref.mounted) return;
+      if (!ref.mounted || requestSeq != _routeRequestSeq) return;
+      _activeRouteKey = null;
       state = state.copyWith(
         isRouteLoading: false,
         errorMessage: 'Could not fetch the route.',
@@ -263,6 +296,9 @@ class MapPickerController extends Notifier<MapPickerState> {
 
   /// Removes the drawn route polyline.
   void clearRoute() {
+    // Forget the key too, otherwise asking for this exact route again is
+    // treated as a duplicate of a route the customer just dismissed.
+    _activeRouteKey = null;
     state = state.copyWith(route: null, errorMessage: null);
   }
 

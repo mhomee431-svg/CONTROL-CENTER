@@ -2,11 +2,42 @@ import '../domain/product_details_repository.dart';
 import '../domain/models/product_details_models.dart';
 
 class MockProductDetailsRepository implements ProductDetailsRepository {
+  /// Artificial latency, standing in for a network round trip.
+  ///
+  /// WHY IT IS INJECTABLE
+  /// --------------------
+  /// A widget test runs under Flutter's fake async, where `Future.delayed`
+  /// only completes when the test explicitly advances the clock. A mock that
+  /// hard-codes its latency therefore cannot reach a TERMINAL state in
+  /// `pumpAndSettle`: the test pumps, the pending timer never fires, and the
+  /// screen is still showing its loading skeleton when the assertions run.
+  /// The result is a test that fails against correct code — it asserts on a
+  /// frame that was never the product's real resting state.
+  ///
+  /// Passing [Duration.zero] removes the timer entirely, so the future
+  /// completes in the same microtask and the screen settles on the first
+  /// pump. Tests that specifically want to inspect the LOADING state pass a
+  /// non-zero value and pump a bounded amount.
+  ///
+  /// This mirrors [MockProfileRepository.delay], which already worked this way.
+  final Duration latency;
+
+  MockProductDetailsRepository({
+    this.latency = const Duration(milliseconds: 600),
+  });
+
+  /// Simulated latency, skipped entirely when zero so no timer is left
+  /// pending for the test binding to trip over.
+  Future<void> _simulateNetwork() async {
+    if (latency > Duration.zero) await Future<void>.delayed(latency);
+  }
+
   @override
-  Future<ProductDetails> getProductDetails(String productId) async {
-    await Future.delayed(
-      const Duration(milliseconds: 600),
-    ); // Simulate network latency
+  Future<ProductDetails> getProductDetails(
+    String productId, {
+    double? radiusKm,
+  }) async {
+    await _simulateNetwork();
 
     // Simulate server error for testing resilience
     if (productId.toLowerCase() == 'error') {

@@ -2,17 +2,46 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/location/discovery_radius.dart';
 import '../../domain/models/product_details_models.dart';
 import '../../domain/product_details_repository.dart';
 import '../../../saved_and_history/domain/models/storage_models.dart';
 import '../../../saved_and_history/domain/saved_and_history_repository.dart';
 import '../../../saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
 
+/// The discovery radius for one product's nearby shop offers.
+///
+/// Starts at null so the backend default (`radius_km=25` — the same boundary
+/// the search results use) rules the first load. A customer who taps the widen
+/// action in the product's empty state steps the shared ladder up one notch at
+/// a time and every LIVE `productDetailsProvider` instance re-reads, because
+/// that provider watches this. Same rules as the home feed: widening only,
+/// never narrowing, and never a request above the server's 100 km cap.
+final productSearchRadiusProvider =
+    NotifierProvider<ProductSearchRadiusController, double?>(
+      ProductSearchRadiusController.new,
+    );
+
+class ProductSearchRadiusController extends Notifier<double?> {
+  @override
+  double? build() => null;
+
+  /// Widening takes effect through [productDetailsProvider] watching this —
+  /// no explicit invalidate, so a value cannot be dropped without being
+  /// re-read in the same frame.
+  void widen() {
+    final next = nextDiscoveryRadius(state);
+    if (next == null) return;
+    state = next;
+  }
+}
+
 final productDetailsProvider = FutureProvider.autoDispose
     .family<ProductDetails, String>((ref, productId) async {
+      final radiusKm = ref.watch(productSearchRadiusProvider);
       final productDetails = await ref
           .watch(productDetailsRepositoryProvider)
-          .getProductDetails(productId);
+          .getProductDetails(productId, radiusKm: radiusKm);
       // Keep the saved state in sync
       ref
           .read(productIsSavedProvider(productId).notifier)

@@ -29,6 +29,9 @@ _Shop _$ShopFromJson(Map<String, dynamic> json) => _Shop(
   distance: (json['distance'] as num).toDouble(),
   rating: (json['rating'] as num).toDouble(),
   isVerified: json['isVerified'] as bool,
+  isOpenNow: json['isOpenNow'] as bool?,
+  isAcceptingOrders: json['isAcceptingOrders'] as bool?,
+  contextLabel: json['contextLabel'] as String?,
 );
 
 Map<String, dynamic> _$ShopToJson(_Shop instance) => <String, dynamic>{
@@ -38,6 +41,9 @@ Map<String, dynamic> _$ShopToJson(_Shop instance) => <String, dynamic>{
   'distance': instance.distance,
   'rating': instance.rating,
   'isVerified': instance.isVerified,
+  'isOpenNow': instance.isOpenNow,
+  'isAcceptingOrders': instance.isAcceptingOrders,
+  'contextLabel': instance.contextLabel,
 };
 
 _Category _$CategoryFromJson(Map<String, dynamic> json) => _Category(

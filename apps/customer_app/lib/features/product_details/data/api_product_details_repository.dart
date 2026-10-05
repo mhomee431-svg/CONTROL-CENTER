@@ -1,4 +1,3 @@
-
 import '../../../core/cache/local_cache_service.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -30,7 +29,10 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
   });
 
   @override
-  Future<ProductDetails> getProductDetails(String productId) async {
+  Future<ProductDetails> getProductDetails(
+    String productId, {
+    double? radiusKm,
+  }) async {
     try {
       // Fetch product master + shop inventory in one call.
       final data = await _apiClient.get(
@@ -40,7 +42,7 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
           if (longitude != null) 'longitude': longitude,
           // Keep the radius explicit so the product page and search page use
           // the same local-discovery boundary.
-          'radius_km': 25.0,
+          'radius_km': radiusKm ?? 25.0,
         },
         requiresAuth: false,
       );
@@ -99,10 +101,7 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
     // The master has lived at the top level, then under `product`, then under
     // `product_details` across API versions. `firstObjectOf` walks the aliases
     // newest-first, so a move costs an entry here rather than a crash.
-    final productJson = root.firstObjectOf([
-      'product',
-      'product_details',
-    ]);
+    final productJson = root.firstObjectOf(['product', 'product_details']);
     // Falling back to the root means a flat response (the master fields sent
     // alongside everything else) still decodes.
     final master = productJson.isNotEmpty ? productJson : root;
@@ -174,34 +173,42 @@ class ApiProductDetailsRepository implements ProductDetailsRepository {
     final list = master.list('variants').isNotEmpty
         ? master.list('variants')
         : root.list('variants');
-    return list.whereType<Map<dynamic, dynamic>>().map(JsonMap.tryParse).toList();
+    return list
+        .whereType<Map<dynamic, dynamic>>()
+        .map(JsonMap.tryParse)
+        .toList();
   }
 
   static List<JsonMap> _attributeList(JsonMap master, JsonMap root) {
     final list = master.list('attributes').isNotEmpty
         ? master.list('attributes')
         : root.list('attributes');
-    return list.whereType<Map<dynamic, dynamic>>().map(JsonMap.tryParse).toList();
+    return list
+        .whereType<Map<dynamic, dynamic>>()
+        .map(JsonMap.tryParse)
+        .toList();
   }
 
   static List<JsonMap> _identifierList(JsonMap master, JsonMap root) {
     final list = master.list('identifiers').isNotEmpty
         ? master.list('identifiers')
         : root.list('identifiers');
-    return list.whereType<Map<dynamic, dynamic>>().map(JsonMap.tryParse).toList();
+    return list
+        .whereType<Map<dynamic, dynamic>>()
+        .map(JsonMap.tryParse)
+        .toList();
   }
 
   /// Shop offers, newest key first.
   static List<JsonMap> _offerList(JsonMap root) {
-    const aliases = [
-      'shop_offers',
-      'nearby_shops_offers',
-      'shop_inventories',
-    ];
+    const aliases = ['shop_offers', 'nearby_shops_offers', 'shop_inventories'];
     for (final key in aliases) {
       final list = root.list(key);
       if (list.isNotEmpty) {
-        return list.whereType<Map<dynamic, dynamic>>().map(JsonMap.tryParse).toList();
+        return list
+            .whereType<Map<dynamic, dynamic>>()
+            .map(JsonMap.tryParse)
+            .toList();
       }
     }
     return const [];

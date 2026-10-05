@@ -2,11 +2,55 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyperlocal_app/core/router/deep_link.dart';
+import 'package:hyperlocal_app/core/router/deep_link_guard.dart';
+import 'package:hyperlocal_app/core/router/deep_link_launcher.dart';
+import 'package:hyperlocal_app/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:hyperlocal_app/features/notifications/domain/models/app_notification.dart';
 import 'package:hyperlocal_app/features/notifications/domain/models/notification_preferences.dart';
 import 'package:hyperlocal_app/features/notifications/domain/notification_repository.dart';
 import 'package:hyperlocal_app/features/notifications/presentation/controllers/notifications_controller.dart';
 import 'package:hyperlocal_app/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:hyperlocal_app/features/onboarding/presentation/controllers/onboarding_controller.dart';
+
+/// An auth controller pinned to one status, without touching secure storage.
+///
+/// The real controller reads `flutter_secure_storage` on `build()`, which no
+/// widget test should depend on. The deep-link guard reads auth state to decide
+/// whether the app is ready to navigate, so the status has to be
+/// controllable — but nothing else about auth does.
+class _StubAuthController extends AuthController {
+  _StubAuthController(this._status);
+
+  final AuthStatus _status;
+
+  @override
+  AuthState build() => AuthState(status: _status);
+}
+
+/// A probe that answers "it exists" without touching the network.
+///
+/// `DeepLinkLauncher` verifies that a link's target still exists before
+/// navigating. In production that is a real request to the product/shop
+/// repositories; in a widget test with a stubbed HTTP client the same request
+/// returns 400 and the guard correctly concludes the product is gone — so the
+/// screen would never open and the test would be asserting the wrong thing.
+class _AlwaysPresentProbe implements DeepLinkTargetProbe {
+  @override
+  Future<DeepLinkTargetState> probe(DeepLinkIntent intent) async =>
+      DeepLinkTargetState.available;
+}
+
+/// Onboarding pinned to "finished".
+///
+/// The real controller reads storage asynchronously on `build()`, which leaves
+/// the flag `null` — the "still deciding" state — for the first frame. The
+/// deep-link guard treats `null` as not-ready, so without this stub every tap
+/// would be refused. A customer who can see the inbox has finished onboarding.
+class _StubOnboardingController extends OnboardingCompletedController {
+  @override
+  bool? build() => true;
+}
 
 /// Deterministic repository used by the screen tests.
 class _FakeNotificationRepository implements NotificationRepository {
@@ -122,18 +166,71 @@ List<AppNotification> _seed() {
 void main() {
   Future<void> pumpAndSettleScreen(
     WidgetTester tester,
-    _FakeNotificationRepository repository,
-  ) async {
+    _FakeNotificationRepository repository, {
+    // Whether the app has finished its launch gates.
+    //
+    // A notification tap now goes through `DeepLinkLauncher`, which runs the
+    // SAME guard an OS deep link does — and that guard refuses while the app is
+    // not ready. Leaving these at their defaults (`onboardingCompleted == null`,
+    // auth still `initial`) would make the guard refuse every tap, so the test
+    // would assert on a fallback screen rather than on the navigation it is
+    // named for. Defaults to ready: a customer looking at the inbox has, by
+    // definition, already passed onboarding.
+    AuthStatus authStatus = AuthStatus.authenticated,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           notificationsRepositoryProvider.overrideWithValue(repository),
+          onboardingCompletedProvider.overrideWith(
+            () => _StubOnboardingController(),
+          ),
+          authControllerProvider.overrideWith(
+            () => _StubAuthController(authStatus),
+          ),
+          deepLinkTargetProbeProvider.overrideWithValue(
+            _AlwaysPresentProbe(),
+          ),
         ],
         child: MaterialApp.router(routerConfig: _router()),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('a tap before the app is ready falls back, never half-navigates', (
+    tester,
+  ) async {
+    // The counterpart to the guard's readiness rule. While the launch gates are
+    // still resolving, a tap must NOT navigate: the router's own redirect would
+    // immediately undo it, so the guard sends the customer to its fallback
+    // instead. This is the behaviour that stops a tap from being silently lost.
+    await pumpAndSettleScreen(
+      tester,
+      _FakeNotificationRepository(_seed()),
+      authStatus: AuthStatus.initial,
+    );
+
+    await tester.tap(find.byKey(const Key('notification_n1')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('ProductPage prod_1'),
+      findsNothing,
+      reason: 'the router is still gated, so the detail page must not open',
+    );
+  });
+
+  testWidgets('an empty inbox offers a next action, not just an apology', (
+    tester,
+  ) async {
+    // Spec: every major list's empty state must give the customer something
+    // useful to do. An empty inbox with no action is a dead end.
+    await pumpAndSettleScreen(tester, _FakeNotificationRepository([]));
+
+    expect(find.text('No notifications yet'), findsOneWidget);
+    expect(find.text('Explore shops'), findsOneWidget);
+  });
 
   testWidgets('renders notifications with unread badge and read styling', (
     tester,
@@ -216,7 +313,10 @@ void main() {
     await container.read(notificationsControllerProvider.notifier).refresh();
     await tester.pumpAndSettle();
 
-    expect(find.text("Couldn't load notifications"), findsOneWidget);
+    // Headline is screen-specific copy now ("Unable to load notifications"),
+    // matching the shared ErrorState contract rather than one hand-rolled
+    // string per screen.
+    expect(find.text('Unable to load notifications'), findsOneWidget);
     expect(find.text('Price drop alert'), findsNothing);
 
     // Backend recovers — the retry button reloads the list.
@@ -225,6 +325,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Price drop alert'), findsOneWidget);
-    expect(find.text("Couldn't load notifications"), findsNothing);
+    expect(find.text('Unable to load notifications'), findsNothing);
   });
 }

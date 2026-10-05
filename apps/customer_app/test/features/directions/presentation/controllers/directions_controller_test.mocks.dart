@@ -3,16 +3,18 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
+import 'dart:async' as _i6;
 
 import 'package:hyperlocal_app/features/directions/domain/location_service.dart'
-    as _i4;
+    as _i5;
 import 'package:hyperlocal_app/features/directions/domain/models/location_models.dart'
     as _i2;
+import 'package:hyperlocal_app/features/shop_details/domain/models/business_profile_models.dart'
+    as _i4;
 import 'package:hyperlocal_app/features/shop_details/domain/models/shop_details_models.dart'
     as _i3;
 import 'package:hyperlocal_app/features/shop_details/domain/shop_details_repository.dart'
-    as _i6;
+    as _i7;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -41,43 +43,61 @@ class _FakeShopProfile_1 extends _i1.SmartFake implements _i3.ShopProfile {
     : super(parent, parentInvocation);
 }
 
+class _FakeTransportQuoteReceipt_2 extends _i1.SmartFake
+    implements _i4.TransportQuoteReceipt {
+  _FakeTransportQuoteReceipt_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeTransportTrips_3 extends _i1.SmartFake
+    implements _i4.TransportTrips {
+  _FakeTransportTrips_3(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeTransportBooking_4 extends _i1.SmartFake
+    implements _i4.TransportBooking {
+  _FakeTransportBooking_4(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [LocationService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockLocationService extends _i1.Mock implements _i4.LocationService {
+class MockLocationService extends _i1.Mock implements _i5.LocationService {
   MockLocationService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<bool> isGpsEnabled() => (super.noSuchMethod(
+  _i6.Future<bool> isGpsEnabled() => (super.noSuchMethod(
     Invocation.method(#isGpsEnabled, []),
-    returnValue: _i5.Future<bool>.value(false),
-  ) as _i5.Future<bool>);
+    returnValue: _i6.Future<bool>.value(false),
+  ) as _i6.Future<bool>);
 
   @override
-  _i5.Future<bool> requestPermission() => (super.noSuchMethod(
+  _i6.Future<bool> requestPermission() => (super.noSuchMethod(
     Invocation.method(#requestPermission, []),
-    returnValue: _i5.Future<bool>.value(false),
-  ) as _i5.Future<bool>);
+    returnValue: _i6.Future<bool>.value(false),
+  ) as _i6.Future<bool>);
 
   @override
-  _i5.Future<_i2.Coordinates> getCurrentLocation() => (super.noSuchMethod(
+  _i6.Future<_i2.Coordinates> getCurrentLocation() => (super.noSuchMethod(
     Invocation.method(#getCurrentLocation, []),
-    returnValue: _i5.Future<_i2.Coordinates>.value(
+    returnValue: _i6.Future<_i2.Coordinates>.value(
       _FakeCoordinates_0(this, Invocation.method(#getCurrentLocation, [])),
     ),
-  ) as _i5.Future<_i2.Coordinates>);
+  ) as _i6.Future<_i2.Coordinates>);
 
   @override
-  _i5.Future<void> openExternalNavigation(
+  _i6.Future<void> openExternalNavigation(
     _i2.Coordinates? destination,
     String? label,
   ) => (super.noSuchMethod(
     Invocation.method(#openExternalNavigation, [destination, label]),
-    returnValue: _i5.Future<void>.value(),
-    returnValueForMissingStub: _i5.Future<void>.value(),
-  ) as _i5.Future<void>);
+    returnValue: _i6.Future<void>.value(),
+    returnValueForMissingStub: _i6.Future<void>.value(),
+  ) as _i6.Future<void>);
 
   @override
   double calculateDistance(_i2.Coordinates? start, _i2.Coordinates? end) =>
@@ -91,28 +111,94 @@ class MockLocationService extends _i1.Mock implements _i4.LocationService {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockShopDetailsRepository extends _i1.Mock
-    implements _i6.ShopDetailsRepository {
+    implements _i7.ShopDetailsRepository {
   MockShopDetailsRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<_i3.ShopProfile> getShopProfile(String? shopId) =>
+  _i6.Future<_i3.ShopProfile> getShopProfile(String? shopId) =>
       (super.noSuchMethod(
         Invocation.method(#getShopProfile, [shopId]),
-        returnValue: _i5.Future<_i3.ShopProfile>.value(
+        returnValue: _i6.Future<_i3.ShopProfile>.value(
           _FakeShopProfile_1(
             this,
             Invocation.method(#getShopProfile, [shopId]),
           ),
         ),
-      ) as _i5.Future<_i3.ShopProfile>);
+      ) as _i6.Future<_i3.ShopProfile>);
 
   @override
-  _i5.Future<void> toggleSaveShop(String? shopId, bool? save) =>
+  _i6.Future<void> toggleSaveShop(String? shopId, bool? save) =>
       (super.noSuchMethod(
         Invocation.method(#toggleSaveShop, [shopId, save]),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
+
+  @override
+  _i6.Future<_i4.RestaurantProfile?> getRestaurantProfile(String? shopId) =>
+      (super.noSuchMethod(
+        Invocation.method(#getRestaurantProfile, [shopId]),
+        returnValue: _i6.Future<_i4.RestaurantProfile?>.value(),
+      ) as _i6.Future<_i4.RestaurantProfile?>);
+
+  @override
+  _i6.Future<_i4.TransportServiceProfile?> getTransportServiceProfile(
+    String? shopId,
+  ) => (super.noSuchMethod(
+    Invocation.method(#getTransportServiceProfile, [shopId]),
+    returnValue: _i6.Future<_i4.TransportServiceProfile?>.value(),
+  ) as _i6.Future<_i4.TransportServiceProfile?>);
+
+  @override
+  _i6.Future<_i4.TransportQuoteReceipt> requestTransportQuote(
+    _i4.TransportQuoteRequest? request,
+  ) => (super.noSuchMethod(
+    Invocation.method(#requestTransportQuote, [request]),
+    returnValue: _i6.Future<_i4.TransportQuoteReceipt>.value(
+      _FakeTransportQuoteReceipt_2(
+        this,
+        Invocation.method(#requestTransportQuote, [request]),
+      ),
+    ),
+  ) as _i6.Future<_i4.TransportQuoteReceipt>);
+
+  @override
+  _i6.Future<_i4.TransportTrips> getMyTransportTrips() => (super.noSuchMethod(
+    Invocation.method(#getMyTransportTrips, []),
+    returnValue: _i6.Future<_i4.TransportTrips>.value(
+      _FakeTransportTrips_3(this, Invocation.method(#getMyTransportTrips, [])),
+    ),
+  ) as _i6.Future<_i4.TransportTrips>);
+
+  @override
+  _i6.Future<_i4.TransportBooking> acceptTransportQuote(String? quoteId) =>
+      (super.noSuchMethod(
+        Invocation.method(#acceptTransportQuote, [quoteId]),
+        returnValue: _i6.Future<_i4.TransportBooking>.value(
+          _FakeTransportBooking_4(
+            this,
+            Invocation.method(#acceptTransportQuote, [quoteId]),
+          ),
+        ),
+      ) as _i6.Future<_i4.TransportBooking>);
+
+  @override
+  _i6.Future<_i4.TransportBooking> cancelTransportBooking(
+    String? bookingId, {
+    String? reason,
+  }) => (super.noSuchMethod(
+    Invocation.method(#cancelTransportBooking, [bookingId], {#reason: reason}),
+    returnValue: _i6.Future<_i4.TransportBooking>.value(
+      _FakeTransportBooking_4(
+        this,
+        Invocation.method(
+          #cancelTransportBooking,
+          [bookingId],
+          {#reason: reason},
+        ),
+      ),
+    ),
+  ) as _i6.Future<_i4.TransportBooking>);
 }

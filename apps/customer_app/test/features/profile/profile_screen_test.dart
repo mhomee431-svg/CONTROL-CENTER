@@ -36,27 +36,33 @@ GoRouter _router() {
       ),
       GoRoute(
         path: '/profile/addresses',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
       ),
       GoRoute(
         path: '/help',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('HelpPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('HelpPage')),
       ),
       GoRoute(
         path: '/privacy',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('PrivacyPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('PrivacyPage')),
       ),
       GoRoute(
         path: '/terms',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('TermsPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('TermsPage')),
       ),
       GoRoute(
         path: '/account',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('AccountHubPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('AccountHubPage')),
       ),
       GoRoute(
         path: '/delete-account',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('DeleteAccountPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('DeleteAccountPage')),
       ),
       GoRoute(
         path: '/settings',
@@ -111,7 +117,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -132,7 +138,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           authControllerProvider.overrideWith(() => auth),
-          profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+          profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
         ],
       );
       addTearDown(container.dispose);
@@ -179,7 +185,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -206,7 +212,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -229,7 +235,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -247,7 +253,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -266,7 +272,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),
-        profileRepositoryProvider.overrideWithValue(MockProfileRepository()),
+        profileRepositoryProvider.overrideWithValue(MockProfileRepository(delay: Duration.zero)),
       ],
     );
     addTearDown(container.dispose);
@@ -278,9 +284,7 @@ void main() {
     expect(find.text('SettingsPage:notifications'), findsOneWidget);
   });
 
-  testWidgets('delete account hands off to the dedicated flow', (
-    tester,
-  ) async {
+  testWidgets('delete account hands off to the dedicated flow', (tester) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
     final repository = MockProfileRepository(delay: Duration.zero);
     final container = ProviderContainer(
@@ -349,7 +353,7 @@ void main() {
     tester,
   ) async {
     final auth = _StubAuthController(AuthStatus.authenticated);
-    final repository = MockProfileRepository();
+    final repository = MockProfileRepository(delay: Duration.zero);
     final container = ProviderContainer(
       overrides: [
         authControllerProvider.overrideWith(() => auth),

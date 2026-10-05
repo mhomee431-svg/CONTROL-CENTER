@@ -1,10 +1,13 @@
 """Inventory and Pricing Engine service — business logic for inventory, price history, offers, and freshness."""
 
+import asyncio
+import contextlib
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.product import (
     CustomerStockStatus,
@@ -133,14 +136,68 @@ def _notify_back_in_stock(db: Session, shop_product: ShopProduct) -> None:
 
 
 def _enqueue_search_index_update(shop_product_id: int) -> None:
-    """Fire-and-forget trigger to update the search index for a shop product.
+    """Invalidate cached search results, then fire the index update.
 
-    Published through ``publish_task_nonblocking`` (1s budget) so a Redis outage
-    — broker *or* result backend — can never block the request thread; the
-    Redis result backend otherwise retries 20 times before giving up. If the
-    enqueue is abandoned, the change is still converged by the periodic
-    incremental search-index sync (Celery beat). Never raises.
+    Two jobs, one call site, because every mutation in this module already
+    funnels through here: create/update/remove inventory, movements,
+    adjustments, price changes and offers all change what a search WOULD
+    return, so they all have to invalidate it.
+
+    WHY INVALIDATION IS NOT OPTIONAL
+    ---------------------------------
+    ``GET /search/v2/products`` caches its result set for ``CACHE_DEFAULT_TTL``.
+    A shopkeeper marking an item out of stock or changing its price does NOT
+    change any cached key — the cache key is built from the QUERY
+    parameters, not from the data. So without this line the customer keeps
+    seeing the old price and "In Stock" for the whole TTL: they drive to the
+    shop for something that is no longer there. The index update alone does not
+    help, because it refreshes the INDEX, not the cached HTTP response.
+
+    WHY IT IS BEST-EFFORT AND INSIDE A TRY
+    --------------------------------------
+    A cache outage must never fail a write. If invalidation fails the entry
+    simply ages out on its TTL — degraded freshness for at most one TTL, not a
+    lost inventory update. Read paths are never allowed to become a dependency
+    of write paths.
     """
+    # Best-effort: never let a cache problem fail a business write.
+    #
+    # `invalidate_domain` is async, but this hook is called from SYNC service
+    # functions (a sync SQLAlchemy Session), which usually run in a threadpool
+    # with no running event loop — so `asyncio.run` is the correct way to drive
+    # it here. Where a loop IS already running (an async caller), we skip rather
+    # than nest loops; the TTL then bounds the staleness.
+    try:
+        from app.api.routes.search import SEARCH_CACHE_DOMAIN
+        from app.core.cache import cache
+
+        # The invalidation is bounded end to end, not just per Redis command.
+        # A down cache costs a socket connect timeout (and, with
+        # REDIS_RETRY_ON_TIMEOUT, a retry), which adds seconds to EVERY
+        # inventory write: a caller would wait on a cache the write does not
+        # need. This ceiling is what keeps write latency independent of a cache
+        # outage, which is the whole reason the invalidation is best-effort.
+        async def _invalidate() -> None:
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(
+                    cache.invalidate_domain(SEARCH_CACHE_DOMAIN),
+                    settings.REDIS_WRITE_PATH_BUDGET_SECONDS,
+                )
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop on this thread: safe to drive the coroutine to completion.
+            asyncio.run(_invalidate())
+        else:
+            pass  # Loop already running; the TTL will expire it instead.
+    except Exception as exc:  # noqa: BLE001 - correctness must not depend on cache
+        logger.warning(
+            "Search cache invalidation failed; results may be stale for up to "
+            "one TTL: %s",
+            exc,
+        )
+
     from app.core.celery_app import celery_app, publish_task_nonblocking
 
     publish_task_nonblocking(

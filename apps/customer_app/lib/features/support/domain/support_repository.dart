@@ -17,6 +17,8 @@
 /// stays free of IO and Dio.
 library;
 
+import 'models/support_issue.dart';
+
 /// Issue categories the customer can choose when filing a support ticket.
 enum SupportIssueCategory {
   wrongInformation('Wrong product/shop information'),
@@ -63,6 +65,21 @@ abstract class SupportRepository {
     required String description,
     String? contactEmail,
   });
+
+  /// The tickets THIS customer has filed, newest first (`GET /support/issues`).
+  ///
+  /// The READ half of the same resource `submitIssue` writes to. It exists
+  /// because a report the customer cannot look up again is not really filed
+  /// from their point of view: without this, "we have your report" was the last
+  /// word the app ever had on the subject.
+  ///
+  /// Scoping is the BACKEND's: the route filters on the authenticated reporter,
+  /// so no query parameter here can widen it to another customer's tickets.
+  ///
+  /// Unlike [submitIssue] this MAY throw — a failed read is surfaced so the
+  /// screen can offer a retry, rather than being silently reported as "you have
+  /// no reports", which would be a lie the customer would act on.
+  Future<List<SupportIssue>> listMyIssues();
 }
 
 /// User-safe copy for each outcome.

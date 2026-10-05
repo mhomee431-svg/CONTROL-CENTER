@@ -100,11 +100,13 @@ GoRouter _router() {
       ),
       GoRoute(
         path: '/profile/addresses',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('AddressesPage')),
       ),
       GoRoute(
         path: '/map-picker',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('MapPickerPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('MapPickerPage')),
       ),
     ],
   );
@@ -159,7 +161,10 @@ void main() {
 
     // The two "provide" actions from the specification.
     expect(find.byKey(const Key('locationUseCurrentButton')), findsOneWidget);
-    expect(find.byKey(const Key('locationManageAddressesTile')), findsOneWidget);
+    expect(
+      find.byKey(const Key('locationManageAddressesTile')),
+      findsOneWidget,
+    );
     expect(find.text('Pick on map'), findsOneWidget);
   });
 
@@ -204,10 +209,7 @@ void main() {
     // Permanently denied is a dead end for in-app prompts: the OS will not
     // show a dialog again. Offering "Allow" here would be a button that lies.
     final container = await _pump(tester);
-    _setPermission(
-      container,
-      LocationPermissionStatus.permanentlyDenied,
-    );
+    _setPermission(container, LocationPermissionStatus.permanentlyDenied);
     await tester.pumpAndSettle();
 
     expect(find.text('Blocked'), findsOneWidget);
@@ -259,9 +261,7 @@ void main() {
     expect(find.textContaining('Accurate to ~20 m'), findsOneWidget);
   });
 
-  testWidgets('manage addresses navigates to the address book', (
-    tester,
-  ) async {
+  testWidgets('manage addresses navigates to the address book', (tester) async {
     await _pump(tester);
 
     await tester.tap(find.byKey(const Key('locationManageAddressesTile')));

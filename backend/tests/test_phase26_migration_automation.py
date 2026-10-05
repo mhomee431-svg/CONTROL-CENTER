@@ -32,9 +32,12 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 
+from typing import Any
+
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -163,8 +166,15 @@ def _collect_ops(fn: ast.FunctionDef) -> dict[str, set[str]]:
                 dropped_indexes.add(arg0)
             elif isinstance(func, ast.Name) and func.id == "execute" or (
                     isinstance(func, ast.Attribute) and func.attr == "execute"):
-                src = (node.args[0].value
-                       if node.args and isinstance(node.args[0], ast.Constant) else "")
+                # `ast.Constant.value` is `_ConstantValue`: it can be an int,
+                # None, or Ellipsis just as easily as a str. Without the
+                # `isinstance(..., str)` guard below, a migration containing
+                # `op.execute(0)` would hand a non-str to `re.findall` and
+                # raise TypeError while merely *scanning* the revision.
+                arg = node.args[0] if node.args else None
+                src = arg.value if (
+                    isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                ) else ""
                 raw_indexes.update(_CREATE_INDEX_SQL.findall(src))
     return {
         "create_table": created_tables,
@@ -235,7 +245,11 @@ def test_drift_checker_self_consistent():
     identical whether the Geography columns are stripped to Text or not.
     """
     drift = _load_script_module("check_migration_drift", DRIFT)
-    import app.models  # noqa: F401
+    # `importlib.import_module` rather than a bare `import app.models`: the
+    # import exists purely for its side effect of registering every table on
+    # `Base.metadata`, so a plain import reads as an unused import to a type
+    # checker (and `# noqa` is a linter hint, not a type-checker one).
+    importlib.import_module("app.models")
     from app.database.session import Base
 
     orm = drift.build_orm_schema(Base.metadata)
@@ -254,8 +268,14 @@ _POSTGIS_EXTENSION_SQL = re.compile(
 
 
 @lru_cache(maxsize=1)
-def _chain_artifacts() -> dict[str, object]:
-    """Names the revision sources create, via Alembic ops or raw SQL."""
+def _chain_artifacts() -> dict[str, Any]:
+    """Names the revision sources create, via Alembic ops or raw SQL.
+
+    `Any` rather than `object` because callers do `set(artifacts["indexes"])`,
+    and `set(object)` is rejected by a precise type checker. The bundle is
+    deliberately heterogeneous (frozensets plus bools), so a TypedDict would be
+    ceremony without a payoff here.
+    """
     indexes: set[str] = set()
     tables: set[str] = set()
     sources: list[str] = []
@@ -285,7 +305,8 @@ def _local_engine():
     """Materialise the ORM metadata on SQLite (PostGIS Geography -> Text)."""
     from sqlalchemy.pool import StaticPool
 
-    import app.models  # noqa: F401
+    # Same reasoning as above: side-effect import to register tables.
+    importlib.import_module("app.models")
     from app.database.session import Base
     from tests.geo_compat import make_timestamp_defaults_portable, strip_geo_columns
 
@@ -313,7 +334,7 @@ def scratch_engine():
         engine.dispose()
 
 
-def test_forward_migration_at_head(scratch_engine):
+def test_forward_migration_at_head(scratch_engine: Engine):
     """Guarantee 1 — the schema is stamped at the single computed head.
 
     Live: ``alembic_version`` on the real database. Local: the same reader
@@ -350,7 +371,7 @@ def test_forward_migration_at_head(scratch_engine):
     assert rehearsal.read_version(scratch_engine) == head
 
 
-def test_indexes_fks_and_postgis_surface(scratch_engine):
+def test_indexes_fks_and_postgis_surface(scratch_engine: Engine):
     """Guarantees 4-6 — indexes, enforced foreign keys and the PostGIS surface.
 
     Live: ``rehearsal.check_schema_surface`` (pg_indexes / pg_constraint /

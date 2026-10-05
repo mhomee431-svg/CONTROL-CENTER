@@ -25,6 +25,10 @@ void main() {
     '/product/:id',
     'shops',
     '/shop/:id',
+    // Deep-link target for offers. Registered so an offer link resolves to a
+    // real screen instead of a 404; the screen itself degrades to the shared
+    // "unavailable" state because there is no offer detail screen yet.
+    '/offer/:id',
     '/directions',
     '/profile/edit',
     '/profile/addresses',
@@ -39,8 +43,14 @@ void main() {
     '/delete-account',
     '/privacy-data',
     '/help',
+    // The READ half of the report form at /help: the customer's own support
+    // tickets, with the status the backend actually reports.
+    '/support/issues',
     '/orders',
     '/order/:id',
+    // My Trips (transport quotes + bookings). Reached from the quote sheet's
+    // "View my trips" confirmation.
+    '/trips',
     '/login',
     '/otp',
     '/register',
@@ -67,6 +77,7 @@ void main() {
     '/product/:id',
     '/product/:id/shops',
     '/shop/:id',
+    '/offer/:id',
     '/directions',
     '/profile/edit',
     '/profile/addresses',
@@ -81,8 +92,10 @@ void main() {
     '/delete-account',
     '/privacy-data',
     '/help',
+    '/support/issues',
     '/orders',
     '/order/:id',
+    '/trips',
     '/login',
     '/otp',
     '/register',

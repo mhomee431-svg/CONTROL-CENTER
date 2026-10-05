@@ -28,11 +28,7 @@ class FreshnessDisclaimer extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.info_outline,
-            size: 14,
-            color: AppColors.textMuted,
-          ),
+          const Icon(Icons.info_outline, size: 14, color: AppColors.textMuted),
           const SizedBox(width: 6),
           Expanded(
             child: Text(

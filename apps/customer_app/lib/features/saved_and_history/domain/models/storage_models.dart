@@ -29,6 +29,18 @@ abstract class SavedShopItem with _$SavedShopItem {
     required double rating,
     required DateTime savedAt,
     @Default(false) bool isSynced,
+
+    /// Distance from the customer, when the backend could compute it. Null means
+    /// "not known" — the discovery card omits the distance rather than claiming
+    /// the shop is 0.0 km away.
+    double? distanceKm,
+
+    /// Whether the shop is verified / open / taking orders. Same three verdicts
+    /// the Nearby and Category rows carry, so all three discovery surfaces render
+    /// the identical card from the identical facts.
+    @Default(false) bool isVerified,
+    bool? isOpenNow,
+    bool? isAcceptingOrders,
   }) = _SavedShopItem;
 
   factory SavedShopItem.fromJson(Map<String, dynamic> json) =>

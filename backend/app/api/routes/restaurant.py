@@ -46,6 +46,23 @@ async def get_nearby_restaurants(
         return error_response(message=str(exc), error_code="NEARBY_RESTAURANTS_FAILED", status_code=400)
 
 
+@router.get("/by-shop/{shop_id}")
+async def get_restaurant_detail_by_shop(
+    shop_id: int,
+    db: Session = Depends(get_db),
+):
+    """Restaurant profile (with menu) for a SHOP, for the customer shop profile.
+
+    Declared BEFORE ``/{restaurant_id}`` so ``by-shop`` is never parsed as an id.
+    A 404 here is a normal answer — it means the shop has no restaurant profile,
+    and the customer app then shows no menu rather than an empty one.
+    """
+    restaurant = restaurant_service.get_restaurant_detail_by_shop(db, shop_id)
+    if restaurant is None:
+        return error_response(message="Restaurant not found", error_code="RESTAURANT_NOT_FOUND", status_code=404)
+    return success_response(data=restaurant)
+
+
 @router.get("/{restaurant_id}")
 async def get_restaurant_detail(
     restaurant_id: int,

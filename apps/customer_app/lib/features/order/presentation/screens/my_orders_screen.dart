@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hyperlocal_app/core/utils/app_datetime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/skeletons.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
 import '../../domain/models/order_models.dart';
 import '../controllers/order_controller.dart';
 import '../order_status_ui.dart';
@@ -58,8 +60,25 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
             ),
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
+        // Matches the rows that are arriving: the layout does not jump when
+        // the list lands, and a still-hung load past the threshold explains
+        // itself with a retry instead of spinning unexplained.
+        // ORDER cards, not product cards — no image, and a status pill where the
+        // product row's third line would be.
+        loading: () => Column(
+          children: [
+            const Expanded(
+              child: SkeletonList(
+                itemCount: 4,
+                shape: SkeletonRowShape.order,
+              ),
+            ),
+            SlowLoadNotice(
+              message: 'Your orders are taking longer to load.',
+              onRetry: _refresh,
+            ),
+          ],
+        ),
         error: (err, st) => EmptyStateView(
           icon: Icons.error_outline,
           title: 'Could not load orders',
@@ -107,7 +126,7 @@ class _OrderCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                DateFormat('d MMM yyyy, h:mm a').format(placed.toLocal()),
+                AppDateTime.formatDateTime(placed),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textMuted,
                 ),

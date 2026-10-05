@@ -163,7 +163,7 @@ void main() {
 
     test('a favourite whose nested item is malformed does not throw', () {
       expect(
-        () => CustomerFavorite.fromJson(const{
+        () => CustomerFavorite.fromJson(const {
           'id': 1,
           'item': {'name': 42},
         }),
@@ -174,7 +174,7 @@ void main() {
     test('an unknown item_type is kept verbatim, not rejected', () {
       // `item_type` is an open vocabulary the backend keeps extending;
       // mapping it to a closed enum would need a release per new type.
-      final favourite = CustomerFavorite.fromJson(const{
+      final favourite = CustomerFavorite.fromJson(const {
         'id': 1,
         'item_type': 'SOME_FUTURE_KIND',
       });
@@ -183,7 +183,7 @@ void main() {
 
     test('a share payload without a price range keeps null', () {
       // Null means "no live offers"; 0-to-0 would read as "free".
-      final payload = ProductSharePayload.fromJson(const{
+      final payload = ProductSharePayload.fromJson(const {
         'product_master_id': 7,
         'name': 'Shampoo',
       });
@@ -192,7 +192,7 @@ void main() {
     });
 
     test('a price range sent as formatted strings still decodes', () {
-      final payload = ProductSharePayload.fromJson(const{
+      final payload = ProductSharePayload.fromJson(const {
         'price_range': {'min': '40.50', 'max': '1,299.00'},
       });
       expect(payload.priceRange?.min, 40.5);

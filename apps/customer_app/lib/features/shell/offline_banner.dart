@@ -54,7 +54,9 @@ class OfflineBanner extends StatelessWidget {
     // Reconnecting is progress, not failure: a neutral surface avoids the
     // alarming error-red that would make a recovering network look like a
     // broken app.
-    final background = isReconnecting ? colors.secondaryContainer : colors.errorContainer;
+    final background = isReconnecting
+        ? colors.secondaryContainer
+        : colors.errorContainer;
     final foreground = isReconnecting
         ? colors.onSecondaryContainer
         : colors.onErrorContainer;

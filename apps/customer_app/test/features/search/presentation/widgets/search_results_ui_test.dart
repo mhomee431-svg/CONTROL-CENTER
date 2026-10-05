@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hyperlocal_app/core/storage/local_storage_driver.dart';
+import 'package:hyperlocal_app/features/saved_and_history/presentation/controllers/saved_and_history_controllers.dart';
 import 'package:hyperlocal_app/features/search/data/mock_search_repository.dart';
 import 'package:hyperlocal_app/features/search/domain/models/search_models.dart';
 import 'package:hyperlocal_app/features/search/domain/search_repository.dart';
@@ -16,6 +17,9 @@ ShopProductResult _result({
   String? offerText,
   bool? isOpenNow,
   bool? isAcceptingOrders,
+  // 0 is the wire value for "unknown", so tests can exercise the absent cases.
+  double distanceInKm = 1.2,
+  double shopRating = 4.5,
 }) {
   return ShopProductResult(
     id: 'r1',
@@ -26,8 +30,8 @@ ShopProductResult _result({
     shopName: 'Gupta Electronics',
     price: 240,
     isAvailable: true,
-    distanceInKm: 1.2,
-    shopRating: 4.5,
+    distanceInKm: distanceInKm,
+    shopRating: shopRating,
     lastUpdated: DateTime(2026, 1, 1),
     offerText: offerText,
     isOpenNow: isOpenNow,
@@ -38,6 +42,60 @@ ShopProductResult _result({
 }
 
 void main() {
+  group('the model rules behind distance and rating', () {
+    test('a zero distance is unknown, not "you are standing in it"', () {
+      expect(_result(distanceInKm: 0).hasKnownDistance, isFalse);
+      expect(_result(distanceInKm: 1.2).hasKnownDistance, isTrue);
+    });
+
+    test('a zero rating means never reviewed, not rated-terrible', () {
+      expect(_result(shopRating: 0).isRated, isFalse);
+      expect(_result(shopRating: 4.5).isRated, isTrue);
+    });
+  });
+
+  group('the card only states facts the data contains', () {
+    Future<void> pumpCard(WidgetTester tester, ShopProductResult result) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ShopProductCard(result: result)),
+        ),
+      );
+    }
+
+    testWidgets('shows distance when it is known', (tester) async {
+      await pumpCard(tester, _result(distanceInKm: 1.2));
+      expect(find.text('1.2 km'), findsOneWidget);
+    });
+
+    testWidgets('prints no distance at all when it is unknown', (tester) async {
+      // Regression: a confident "0.0 km" tells the customer they are standing in
+      // the shop when the truth is that coordinates could not be resolved.
+      await pumpCard(tester, _result(distanceInKm: 0));
+      expect(find.textContaining('km'), findsNothing);
+    });
+
+    testWidgets('shows the rating when the shop has one', (tester) async {
+      await pumpCard(tester, _result(shopRating: 4.5));
+      expect(find.text('4.5'), findsOneWidget);
+    });
+
+    testWidgets('shows no star or 0.0 for an unrated shop', (tester) async {
+      // A star beside "0.0" claims the shop was rated and scored zero. It has not
+      // been rated at all.
+      await pumpCard(tester, _result(shopRating: 0));
+      expect(find.text('0.0'), findsNothing);
+      expect(find.byIcon(Icons.star), findsNothing);
+    });
+
+    testWidgets('availability survives both being unknown', (tester) async {
+      // The point of making the signals conditional: stripping distance and
+      // rating must not strip the row the customer most needs.
+      await pumpCard(tester, _result(distanceInKm: 0, shopRating: 0));
+      expect(find.text('In Stock'), findsOneWidget);
+    });
+  });
+
   group('result card', () {
     testWidgets('View Shop is primary and does not also fire product tap', (
       tester,
@@ -142,7 +200,9 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: ShopProductCard(result: _result()))),
+        MaterialApp(
+          home: Scaffold(body: ShopProductCard(result: _result())),
+        ),
       );
       // isOpenNow == null must render neither label — unknown is not "Open".
       expect(find.text('Open'), findsNothing);
@@ -215,22 +275,21 @@ void main() {
 
     // Recents are local (no debounce, no network), so they surface instantly
     // — even while the backend suggestion request is still in flight.
-    testWidgets('shows matching recent searches while typing', (
-      tester,
-    ) async {
+    testWidgets('shows matching recent searches while typing', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final container = ProviderContainer(
         overrides: [
           searchRepositoryProvider.overrideWithValue(_StubSearchRepository()),
-          localStorageDriverProvider.overrideWithValue(
-            InMemoryStorageDriver(),
-          ),
+          localStorageDriverProvider.overrideWithValue(InMemoryStorageDriver()),
         ],
       );
       addTearDown(container.dispose);
-      await container.read(searchHistoryStoreProvider).add('Dove Body Wash');
-      await container.read(searchHistoryStoreProvider).add('Colgate');
-      container.read(recentSearchesVersionProvider.notifier).bump();
+      await container
+          .read(recentSearchesNotifierProvider.notifier)
+          .addQuery('Dove Body Wash');
+      await container
+          .read(recentSearchesNotifierProvider.notifier)
+          .addQuery('Colgate');
       container.read(searchQueryProvider.notifier).debouncedTextChanged('dove');
 
       await tester.pumpWidget(
@@ -245,7 +304,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Recent Searches'), findsOneWidget);
-      expect(find.byKey(const Key('recentSuggestion:Dove Body Wash')), findsOneWidget);
+      expect(
+        find.byKey(const Key('recentSuggestion:Dove Body Wash')),
+        findsOneWidget,
+      );
       // Non-matching history stays hidden.
       expect(find.byKey(const Key('recentSuggestion:Colgate')), findsNothing);
     });
@@ -257,18 +319,15 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           searchRepositoryProvider.overrideWithValue(_StubSearchRepository()),
-          localStorageDriverProvider.overrideWithValue(
-            InMemoryStorageDriver(),
-          ),
+          localStorageDriverProvider.overrideWithValue(InMemoryStorageDriver()),
         ],
       );
       addTearDown(container.dispose);
       // The stub backend returns 'Dove Shampoo 650ml' as a product suggestion;
       // the same text in history must not render twice.
       await container
-          .read(searchHistoryStoreProvider)
-          .add('Dove Shampoo 650ml');
-      container.read(recentSearchesVersionProvider.notifier).bump();
+          .read(recentSearchesNotifierProvider.notifier)
+          .addQuery('Dove Shampoo 650ml');
       container.read(searchQueryProvider.notifier).debouncedTextChanged('dove');
 
       await tester.pumpWidget(
@@ -304,9 +363,10 @@ void main() {
       );
       addTearDown(container.dispose);
       for (final q in ['Dove Shampoo', 'Colgate']) {
-        await container.read(searchHistoryStoreProvider).add(q);
+        await container
+            .read(recentSearchesNotifierProvider.notifier)
+            .addQuery(q);
       }
-      container.read(recentSearchesVersionProvider.notifier).bump();
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -334,6 +394,91 @@ void main() {
 
       expect(find.text('Dove Shampoo'), findsNothing);
       expect(find.text('Colgate'), findsOneWidget);
+    });
+  });
+
+  // Regression guard for a real, user-visible bug: search history used to be
+  // held in TWO in-memory copies (the search feature's own cached list and the
+  // saved-and-history notifier) tied together by a manual version counter that
+  // each writer had to remember to bump. Writers refreshed only one copy, so a
+  // search could be deleted in one place and still appear in the other.
+  group('recent searches single source of truth', () {
+    testWidgets(
+      'a write through the notifier is seen by the search projection',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        final container = ProviderContainer(
+          overrides: [
+            searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+            localStorageDriverProvider.overrideWithValue(
+              InMemoryStorageDriver(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // The search feature's provider is a projection of the notifier, so it
+        // must reflect a write made through the notifier with no manual
+        // invalidation step of any kind.
+        await container
+            .read(recentSearchesNotifierProvider.notifier)
+            .addQuery('Colgate');
+
+        expect(container.read(recentSearchesProvider), ['Colgate']);
+
+        // And a removal through the notifier must disappear from the projection
+        // too. Previously this only worked if the caller remembered to bump the
+        // version counter, which is exactly how the two copies drifted apart.
+        await container
+            .read(recentSearchesNotifierProvider.notifier)
+            .removeQuery('Colgate');
+
+        expect(container.read(recentSearchesProvider), isEmpty);
+      },
+    );
+
+    testWidgets('the search screen drops an entry deleted in the history tab', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(MockSearchRepository()),
+          localStorageDriverProvider.overrideWithValue(InMemoryStorageDriver()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(recentSearchesNotifierProvider.notifier)
+          .addQuery('Dove Shampoo');
+      await container
+          .read(recentSearchesNotifierProvider.notifier)
+          .addQuery('Colgate');
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: SearchHistoryView())),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Colgate'), findsOneWidget);
+
+      // Delete 'Colgate' exactly as the history tab does.
+      await tester.tap(find.byKey(const Key('removeRecentSearch:Colgate')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The search screen must not still be offering it.
+      expect(find.text('Colgate'), findsNothing);
+
+      // The projection used by the suggestions row agrees with what is on screen.
+      expect(
+        container.read(recentSearchesProvider),
+        isNot(contains('Colgate')),
+      );
     });
   });
 }
@@ -377,5 +522,7 @@ class _StubSearchRepository implements SearchRepository {
     String barcode, {
     double? latitude,
     double? longitude,
+    int page = 1,
+    int limit = 20,
   }) async => const [];
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../domain/models/home_data.dart';
@@ -47,20 +48,37 @@ class _PromotionBannerState extends State<PromotionBanner> {
             ),
           ),
         ),
-        SizedBox(
-          height: 160,
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: widget.promotions.length,
-            onPageChanged: (index) => setState(() => _currentPage = index),
-            itemBuilder: (context, index) {
-              final promo = widget.promotions[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: _PromotionCard(promotion: promo),
-              );
-            },
-          ),
+        // Responsive: the carousel grows with the customer's font size.
+        //
+        // `_PromotionCard` renders a headline plus body copy, both of which
+        // scale with the system text size. The fixed 160 meant the promo text
+        // grew while the page did not, and the card overflowed — or silently
+        // clipped its offer — for anyone using a large accessibility font. A
+        // promotion a customer cannot read is worse than no promotion, because
+        // the price they acted on may be the one that was cut off.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              height: Responsive.carouselHeight(
+                baseHeight: 160,
+                textScale: MediaQuery.textScalerOf(context),
+              ),
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: widget.promotions.length,
+                onPageChanged: (index) => setState(() => _currentPage = index),
+                itemBuilder: (context, index) {
+                  final promo = widget.promotions[index];
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.gutterFor(constraints.maxWidth),
+                    ),
+                    child: _PromotionCard(promotion: promo),
+                  );
+                },
+              ),
+            );
+          },
         ),
         if (widget.promotions.length > 1) ...[
           const SizedBox(height: AppSpacing.sm),

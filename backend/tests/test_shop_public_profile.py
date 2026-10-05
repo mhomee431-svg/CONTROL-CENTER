@@ -128,3 +128,42 @@ def test_shop_model_stores_alternate_phone_column():
     from app.models.shop import Shop
 
     assert "alternate_phone" in Shop.__table__.columns
+
+
+# ── The authorization boundary on GET /shops/{id} ───────────────────────────
+#
+# `GET /shops/{id}` is reachable WITHOUT a token — a customer browsing a shop
+# must be able to open it. That is only safe because the response carries NO
+# private shopkeeper data. These tests exist so nobody re-adds `owners`,
+# `managers`, `verifications` or `documents` to that payload: the moment they
+# come back, every shop's owner roster is public to anyone who guesses an id.
+#
+# The legitimate consumer for those fields is `GET /shops/my/shops/{id}`, which
+# requires a token AND checks ownership via `has_shop_access`.
+
+_PRIVATE_SHOP_FIELDS = ("owners", "managers", "verifications", "documents")
+
+
+def test_public_shop_route_never_serializes_private_shopkeeper_data():
+    """The no-token shop route must not emit the shopkeeper's private data."""
+    data = _profile_payload(_make_shop(None))
+
+    for field in _PRIVATE_SHOP_FIELDS:
+        assert field not in data, (
+            f"'{field}' is shopkeeper-private and must not be served by the "
+            f"unauthenticated /shops/{{id}} route"
+        )
+
+
+def test_public_shop_route_still_serves_the_customer_contact_surface():
+    """Removing the private fields must not empty the customer-facing payload.
+
+    Guards against "fix the leak by deleting everything": the shop's name, phone
+    and rating are what a customer came for and must still be present.
+    """
+    data = _profile_payload(_make_shop("+919876543219"))
+
+    assert data["name"] == "Gupta Mobile"
+    assert data["phone"] == "+919876543210"
+    assert data["secondary_phone"] == "+919876543219"
+    assert data["rating"] == 4.6

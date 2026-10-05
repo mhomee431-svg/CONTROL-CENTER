@@ -42,14 +42,78 @@ class ApiEndpoints {
   // --- Categories ---
   static const String categories = '/categories';
 
+  // --- Catalog (admin-managed master data) ---
+  //
+  // Public read, admin-only write. This is the SOURCE OF TRUTH for the brand
+  // vocabulary used by product discovery: a hardcoded brand list in the app
+  // would silently misclassify every brand added after it was written.
+  static const String catalogBrands = '/catalog/brands';
+
   // --- Products ---
   static String product(String id) => '/products/$id';
-  static String productShops(String id) => '/products/$id/shops';
+
+  /// Price/availability comparison for ONE product across nearby shops
+  /// (`GET /products/{identifier}/offers`). Returns the same
+  /// `shop_inventories` rows that the detail payload nests, without the
+  /// product-master section — for a "compare prices" view that needs only the
+  /// offers. Kept as its own constant because the detail route's identifier is
+  /// a PATH segment: an endpoint that took the id as a query parameter would
+  /// be a different contract, not a variant of this one.
+  static String productOffers(String id) => '/products/$id/offers';
 
   // --- Shops ---
   static const String nearbyShops = '/shops/nearby';
-  static String shop(String id) => '/shops/$id';
+
+  /// The CUSTOMER-facing shop profile.
+  ///
+  /// WHY `/shops/public/...` AND NOT `/shops/...`
+  /// -------------------------------------------
+  /// The backend offers two shop routes, and they are NOT interchangeable:
+  ///
+  ///  * `/shops/public/{id}` returns `ShopPublicResponse` — a deliberate
+  ///    allowlist, and it 404s unless the shop is ACTIVE/VERIFIED, so an
+  ///    unverified or deleted shop is invisible to customers.
+  ///  * `/shops/{id}` returns `ShopDetailResponse`, which extends the shop row
+  ///    with `owners`, `managers`, `verifications` and `documents` — the
+  ///    shopkeeper's private roster, verification paperwork and internal
+  ///    workflow state. It is unauthenticated and has no visibility gate.
+  ///
+  /// The customer app previously called the second one. Nothing displayed those
+  /// fields — but "the UI ignores it" is not a security control: the data
+  /// reached the device and sat in the JSON, one DevTools tab or proxy away.
+  /// Hiding a field on the client is not the same as never sending it, so the
+  /// fix belongs in the endpoint the app asks for, not in a parser.
+  static String shop(String id) => '/shops/public/$id';
+
   static String shopProducts(String id) => '/shops/$id/products';
+
+  // --- Restaurants (Master Spec §27: discovery-only) ---
+  //
+  // Display-only profiles + menus. There is deliberately NO cart / checkout /
+  // delivery endpoint behind them, so the app cannot grow one by accident.
+  static String restaurantByShop(String shopId) =>
+      '/restaurants/by-shop/$shopId';
+
+  // --- Transport (Master Spec §28-§29: a SERVICE domain) ---
+  //
+  // Vehicles are NOT shop products and bookings are NOT product orders, so these
+  // live here rather than under products/orders. `transportQuotes` is the only
+  // customer write: a quote REQUEST, whose price comes back FROM the provider.
+  static String transportProviderByShop(String shopId) =>
+      '/transport/providers/by-shop/$shopId';
+
+  /// The customer's OWN quotes — the list that carries the provider's price, so
+  /// a requested quote can actually be read and then accepted.
+  static const String transportQuotes = '/transport/quotes';
+  static String transportQuote(String id) => '/transport/quotes/$id';
+  static String transportAcceptQuote(String id) =>
+      '/transport/quotes/$id/accept';
+
+  /// The customer's own bookings, which are NOT product orders (Rule 6).
+  static const String transportBookings = '/transport/bookings';
+  static String transportBooking(String id) => '/transport/bookings/$id';
+  static String transportCancelBooking(String id) =>
+      '/transport/bookings/$id/cancel';
 
   // --- Inventory ---
   static String inventoryByProduct(String id) => '/inventory/product/$id';
@@ -97,16 +161,18 @@ class ApiEndpoints {
       '/customer/products/$productId/share';
 
   // --- Support ---
+  //
+  // ONE path for both the customer's intake (POST) and their own report
+  // history (GET). The backend deliberately serves both on `/support/issues`
+  // because a ticket a customer files and the list they later read back are
+  // the same resource — two constants for one path would be two places to
+  // update when the route moves.
   static const String supportIssue = '/support/issues';
-  static const String supportFaq = '/support/faq';
 
   // --- Orders (API_CONTRACT SS 30-32) ---
   static const String orders = '/orders';
   static String orderById(String id) => '/orders/$id';
   static String cancelOrder(String id) => '/orders/$id/cancel';
   static String updateOrderStatus(String id) => '/orders/$id/status';
-  static String orderItems(String id) => '/orders/$id/items';
-  static String trackOrder(String id) => '/orders/$id/track';
-  static const String myOrders = '/orders/user';
   static String shopOrders(String shopId) => '/orders/shop/$shopId';
 }

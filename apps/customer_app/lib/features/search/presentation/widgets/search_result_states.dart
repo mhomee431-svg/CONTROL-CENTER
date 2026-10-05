@@ -1,27 +1,73 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/skeletons.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
 
 /// Reusable search state views for loading / empty / error.
 /// Keeps state visuals consistent across the search journey.
 
+/// The search loading state.
+///
+/// SKELETON, not a bare spinner. Search results are a list of offer cards, so
+/// the skeleton is that list — the customer can see what is arriving and the
+/// layout does not jump when it lands. The spinner is deliberately NOT kept
+/// alongside it: two loading visuals at once is how a screen ends up looking
+/// busier than the content it is waiting for.
+///
+/// [onRetry] is optional and only passed by callers who can actually re-issue
+/// the request. When it is null the [SlowLoadNotice] still explains the wait
+/// but offers no button, because a Retry that cannot retry is a dead control.
 class SearchLoadingView extends StatelessWidget {
   final String? message;
-  const SearchLoadingView({super.key, this.message});
+  final VoidCallback? onRetry;
+
+  /// How many placeholder rows to draw. Three roughly fills a phone viewport
+  /// without inviting the customer to scroll placeholders.
+  final int skeletonRows;
+
+  const SearchLoadingView({
+    super.key,
+    this.message,
+    this.onRetry,
+    this.skeletonRows = 3,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator.adaptive(),
-          if (message != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(message!, style: const TextStyle(color: AppColors.textMuted)),
-          ],
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (message != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: Text(
+              message!,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            ),
+          ),
+        // Shrink-wrapped so the notice sits UNDER the skeleton rather than
+        // pushing it off-screen: the placeholder is the main content.
+        Flexible(
+          child: SkeletonList(
+            itemCount: skeletonRows,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            // Results are offer cards — a photo, name, price and freshness. The
+            // default already is this shape; naming it keeps the search journey
+            // honest if the default ever changes.
+            shape: SkeletonRowShape.product,
+          ),
+        ),
+        SlowLoadNotice(
+          message: 'This is taking longer than usual.',
+          onRetry: onRetry,
+        ),
+      ],
     );
   }
 }

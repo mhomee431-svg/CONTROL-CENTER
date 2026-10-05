@@ -94,7 +94,8 @@ GoRouter _router() {
           // An AppBar gives the pushed page a real back button, so the tests
           // that return via `tester.pageBack()` exercise a real pop instead of
           // failing to find a widget.
-          builder: (_, _) => Scaffold(appBar: AppBar(), body: Text('Page$path')),
+          builder: (_, _) =>
+              Scaffold(appBar: AppBar(), body: Text('Page$path')),
         ),
     ],
   );

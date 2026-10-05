@@ -226,33 +226,49 @@ class ShopProductCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    // Trust signals row: distance, rating, availability
+                    // Trust signals row: distance, rating, availability.
+                    //
+                    // Distance and rating are CONDITIONAL on being real values
+                    // (`hasKnownDistance` / `isRated`), not printed unconditionally:
+                    // the backend sends 0.0 for an unresolvable distance and for a
+                    // shop nobody has reviewed yet, and a confident "0.0 km" or a
+                    // star beside "0.0" states a fact the data does not contain. The
+                    // rules live on the model so this card and the shop card cannot
+                    // drift apart.
                     Row(
                       children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          size: 14,
-                          color: AppColors.textMuted,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${result.distanceInKm.toStringAsFixed(1)} km',
-                          style: const TextStyle(
-                            fontSize: 11,
+                        if (result.hasKnownDistance) ...[
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
                             color: AppColors.textMuted,
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        const Icon(Icons.star, size: 14, color: Colors.amber),
-                        const SizedBox(width: 2),
-                        Text(
-                          result.shopRating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
+                          const SizedBox(width: 2),
+                          Text(
+                            '${result.distanceInKm.toStringAsFixed(1)} km',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
+                          const SizedBox(width: AppSpacing.sm),
+                        ],
+                        if (result.isRated) ...[
+                          const Icon(
+                            Icons.star,
+                            size: 14,
+                            color: AppColors.warning,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            result.shopRating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                        ],
                         _AvailabilityBadge(result: result),
                       ],
                     ),
@@ -397,7 +413,7 @@ class _AvailabilityBadge extends StatelessWidget {
           SizedBox(width: 2),
           Text(
             'Out of Stock',
-            style: TextStyle(fontSize: 11, color: AppColors.error),
+            style: TextStyle(fontSize: 11, color: AppColors.errorText),
           ),
         ],
       );
@@ -407,11 +423,11 @@ class _AvailabilityBadge extends StatelessWidget {
     if (result.availability == InventoryAvailability.lowStock) {
       return const Row(
         children: [
-          Icon(Icons.inventory_2, size: 14, color: Colors.orange),
+          Icon(Icons.inventory_2, size: 14, color: AppColors.warning),
           SizedBox(width: 2),
           Text(
             'Low Stock',
-            style: TextStyle(fontSize: 11, color: Colors.orange),
+            style: TextStyle(fontSize: 11, color: AppColors.warningText),
           ),
         ],
       );
@@ -436,7 +452,7 @@ class _AvailabilityBadge extends StatelessWidget {
         SizedBox(width: 2),
         Text(
           'In Stock',
-          style: TextStyle(fontSize: 11, color: AppColors.secondary),
+          style: TextStyle(fontSize: 11, color: AppColors.successText),
         ),
       ],
     );
@@ -480,7 +496,7 @@ class _FreshnessRow extends StatelessWidget {
               '— stock info may be outdated',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: AppColors.error),
+              style: TextStyle(fontSize: 10, color: AppColors.errorText),
             ),
           ),
         ],

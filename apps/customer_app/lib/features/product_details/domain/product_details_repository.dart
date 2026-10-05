@@ -19,6 +19,13 @@ final productDetailsRepositoryProvider = Provider<ProductDetailsRepository>((
 });
 
 abstract class ProductDetailsRepository {
-  Future<ProductDetails> getProductDetails(String productId);
+  /// Shop offers come back inside the same `radius_km` the search page uses
+  /// (default 25). The recovery action "look further" passes a wider value;
+  /// everything else leaves the default, so the product page and the results
+  /// list never silently disagree about how far "nearby" reaches.
+  Future<ProductDetails> getProductDetails(
+    String productId, {
+    double? radiusKm,
+  });
   Future<void> toggleSaveProduct(String productId, bool save);
 }

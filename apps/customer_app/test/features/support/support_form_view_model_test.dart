@@ -29,6 +29,12 @@ class _RecordingSupportRepository implements SupportRepository {
     lastEmail = contactEmail;
     return result;
   }
+
+  /// Unused by these tests, but part of the contract: a fake must satisfy the
+  /// interface it claims to implement, or every test that injects it fails to
+  /// compile.
+  @override
+  Future<List<SupportIssue>> listMyIssues() async => const [];
 }
 
 /// Violates its own contract by throwing. The ViewModel must still leave the
@@ -42,6 +48,9 @@ class _ThrowingSupportRepository implements SupportRepository {
   }) async {
     throw StateError('boom');
   }
+
+  @override
+  Future<List<SupportIssue>> listMyIssues() async => const [];
 }
 
 /// Does not complete until the test says so, so an in-flight window can be
@@ -61,6 +70,9 @@ class _SlowSupportRepository implements SupportRepository {
     onCall();
     return completer.future;
   }
+
+  @override
+  Future<List<SupportIssue>> listMyIssues() async => const [];
 }
 
 ProviderContainer _containerWith(SupportRepository repo) {

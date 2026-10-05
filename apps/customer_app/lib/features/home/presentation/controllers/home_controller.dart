@@ -8,18 +8,28 @@ import '../../../saved_and_history/domain/saved_and_history_repository.dart';
 import '../../../location/presentation/controllers/location_controller.dart';
 import '../../domain/home_repository.dart';
 import '../../domain/models/home_data.dart';
+import 'home_radius_controller.dart';
 
+/// The home feed: categories, popular products, nearby shops, recent searches.
+///
+/// The recovery action for "no nearby shops" widens [homeSearchRadiusProvider]
+/// and invalidates THIS provider, so the widening re-reads through exactly one
+/// code path — the same repository call, the same coordinates, only a wider
+/// `radius_km`. The first load passes null, which is what leaves the backend's
+/// own default in charge.
 final homeControllerProvider = FutureProvider.autoDispose<HomeData>((
   ref,
 ) async {
+  final radiusKm = ref.watch(homeSearchRadiusProvider);
   final repo = ref.watch(homeRepositoryProvider);
   // Best-effort coordinates: when the customer granted location access or
   // picked a manual location, the backend ranks nearby content by distance.
   final location = ref.watch(locationControllerProvider).location;
   final hasCoords = location != null && location.hasValidCoordinates;
-  return await repo.fetchHomeFeed(
+  return repo.fetchHomeFeed(
     latitude: hasCoords ? location.latitude : null,
     longitude: hasCoords ? location.longitude : null,
+    radiusKm: radiusKm,
   );
 });
 

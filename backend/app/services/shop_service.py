@@ -7,9 +7,15 @@ from typing import Any, Optional
 
 from geoalchemy2 import WKTElement
 from sqlalchemy import exists as sa_exists, or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.logging import get_logger
+from app.models.merchant_category import (
+    MERCHANT_CATEGORY_NAMES,
+    resolve_customer_capabilities,
+)
+from app.models.merchant_onboarding import MerchantOnboarding
 from app.models.shop import (
     LocationIntegrityStatus,
     LocationSource,
@@ -903,29 +909,122 @@ def nearby_shops(
     ).all()
 
     results = []
+    # Resolved once for every candidate rather than per row appended: the
+    # customer-facing capability block is what tells the app whether this is a
+    # product shop, a restaurant or a service provider.
+    business_blocks = customer_facing_business_batch(db, shops)
     for shop in shops:
         shop_longitude, shop_latitude = resolve_shop_coordinates(shop)
         if shop_longitude is None or shop_latitude is None:
             continue
         dist = haversine_km(latitude, longitude, shop_latitude, shop_longitude)
         if dist <= radius_km:
-            results.append(
-                {
-                    "id": shop.id,
-                    "name": shop.name,
-                    "image_url": shop.image_url,
-                    "latitude": shop_latitude,
-                    "longitude": shop_longitude,
-                    "distance_km": round(dist, 2),
-                    "rating": shop.rating,
-                    "is_verified": shop.is_verified,
-                    "category": shop.category.value if shop.category else None,
-                    "is_open_now": is_shop_open(shop),
-                }
-            )
+            entry = {
+                "id": shop.id,
+                "name": shop.name,
+                "image_url": shop.image_url,
+                "latitude": shop_latitude,
+                "longitude": shop_longitude,
+                "distance_km": round(dist, 2),
+                "rating": shop.rating,
+                "is_verified": shop.is_verified,
+                "category": shop.category.value if shop.category else None,
+                "is_open_now": is_shop_open(shop),
+            }
+            entry.update(business_blocks.get(shop.id, {}))
+            results.append(entry)
 
     results.sort(key=lambda s: s["distance_km"])
     return results[:limit]
+
+
+# ── Customer-facing business identity & capabilities ────────────────────────
+# The customer app renders a business profile from the CAPABILITIES the backend
+# returns, rather than branching on category names itself. Two consequences that
+# are the whole reason this exists:
+#
+#  * a restaurant never inherits a price/stock grid, and a transport provider
+#    never inherits one either — enforced server-side, so an app build cannot
+#    drift from the policy;
+#  * a category (or a capability on it) added later reaches customers without an
+#    app release, because the client is rendering data it was given.
+def _merchant_category_codes(db: Session, shop_ids: list[int]) -> dict[int, str]:
+    """Authoritative merchant-category code per shop, in ONE query.
+
+    Batch rather than per-shop on purpose: this feeds list endpoints
+    (``/shops/nearby``), where a query per row would turn one request into N+1.
+
+    The query loads the onboarding RECORDS (a single model argument) and
+    projects the two columns in Python, rather than asking the session for two
+    columns at once: the two-column form needs a chained mock for every unit
+    test double, while this form rides the same ``db.query(Model)`` path every
+    service function already uses.
+    """
+    if not shop_ids:
+        return {}
+    try:
+        records = (
+            db.query(MerchantOnboarding)
+            .filter(MerchantOnboarding.shop_id.in_(shop_ids))
+            .all()
+        )
+    except SQLAlchemyError:
+        # The onboarding table is a later addition, and a deployment can be
+        # missing it (a stale migration, a partially applied schema, a test
+        # fixture that creates only the tables it needs). A shop profile is a
+        # customer-facing read that must not start failing over an optional
+        # enrichment, so this degrades to the legacy category / business type
+        # signals rather than returning a 500.
+        #
+        # Deliberately narrow: SQLAlchemy wraps BOTH "no such table" and a real
+        # connection failure in the same class, and a connection failure must
+        # still surface rather than be swallowed here.
+        logger.warning(
+            "merchant_onboardings unavailable; falling back to legacy category "
+            "signals for %d shop(s)",
+            len(shop_ids),
+        )
+        return {}
+
+    codes: dict[int, str] = {}
+    for record in records:
+        shop_id = getattr(record, "shop_id", None)
+        code = getattr(record, "category_code", None)
+        if code:
+            codes[shop_id] = code
+    return codes
+
+
+def _business_block(shop: Shop, merchant_category_code: Optional[str]) -> dict:
+    """The capability block for one shop, resolved from every available signal."""
+    legacy_category = getattr(shop.category, "value", None) if shop.category else None
+    business_type = getattr(shop, "business_type", None)
+    capabilities = resolve_customer_capabilities(
+        merchant_category_code=merchant_category_code,
+        legacy_shop_category=legacy_category,
+        business_type=business_type,
+    )
+    return {
+        "business_category_code": merchant_category_code,
+        "business_category_name": MERCHANT_CATEGORY_NAMES.get(
+            merchant_category_code or ""
+        ),
+        "business_type": business_type,
+        "capabilities": list(capabilities),
+    }
+
+
+def customer_facing_business(db: Session, shop: Shop) -> dict:
+    """Business identity + capabilities for a single shop."""
+    codes = _merchant_category_codes(db, [shop.id])
+    return _business_block(shop, codes.get(shop.id))
+
+
+def customer_facing_business_batch(db: Session, shops: list[Shop]) -> dict[int, dict]:
+    """Business identity + capabilities for many shops, in a constant number of
+    queries. Keyed by shop id so a caller never has to align two lists."""
+    codes = _merchant_category_codes(db, [shop.id for shop in shops])
+    return {shop.id: _business_block(shop, codes.get(shop.id)) for shop in shops}
 
 
 def parse_subcategories(value: Optional[str]) -> Optional[list]:

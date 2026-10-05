@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/post_login_destination.dart';
 
 /// Reusable guest auth gate for protected actions.
 ///
@@ -30,12 +31,27 @@ Future<bool> requireAuthentication(
     return true;
   }
 
+  // Read the location BEFORE awaiting the sheet. Reading it afterwards would
+  // touch a BuildContext across an async gap — which the linter flags, and
+  // rightly: if the customer dismissed the sheet by navigating away, that
+  // context may be defunct. Captured up front it cannot go stale, and it is
+  // the page the customer actually left, not wherever they ended up.
+  final returnTo = GoRouterState.of(context).uri.path;
+
   final signedIn = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => _AuthGateSheet(actionLabel: actionLabel),
   );
+
+  // Recorded only AFTER the sheet reports success, so a dismissed gate leaves
+  // no stale destination behind: a customer who backs out and signs in later,
+  // from somewhere else, must not be returned to a page they already left.
+  if (signedIn ?? false) {
+    rememberPostLoginDestination(ref, returnTo);
+  }
+
   return signedIn ?? false;
 }
 

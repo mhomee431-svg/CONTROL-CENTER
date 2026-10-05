@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../providers/product_details_providers.dart';
 import '../../../../features/customer/presentation/controllers/customer_controller.dart';
 import '../../domain/models/product_details_models.dart';
 import '../../../../core/network/api_error_handler.dart';
+import '../../../../core/share/share_content.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/product_share.dart';
+import '../../../../core/widgets/slow_load_notice.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../../../core/widgets/stale_data_notice.dart';
 import '../widgets/product_image_gallery.dart';
 import '../widgets/product_master_section.dart';
@@ -63,11 +66,23 @@ class ProductDetailsScreen extends ConsumerWidget {
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Share product',
             onPressed: () {
-              final name = productAsync.value?.product.name ?? 'this product';
-              SharePlus.instance.share(
-                ShareParams(
-                  text: 'Check out $name on Hyperlocal!',
-                  subject: 'Product: $name',
+              final details = productAsync.value;
+              if (details == null) return;
+              final master = details.product;
+              // The EAN/UPC is preferred for the link over the internal
+              // product id: it is printed on the box, so sharing it reveals
+              // nothing a customer was not already holding.
+              final identifiers = [
+                for (final id in master.identifiers)
+                  (type: id.type, value: id.value),
+              ];
+              shareProductContent(
+                ref,
+                buildProductShareContent(
+                  productName: master.name,
+                  brand: master.brand,
+                  productId: master.id,
+                  identifiers: identifiers,
                 ),
               );
             },
@@ -76,7 +91,9 @@ class ProductDetailsScreen extends ConsumerWidget {
       ),
       body: productAsync.when(
         data: (details) => _buildBody(context, ref, details),
-        loading: () => const _ProductLoadingView(),
+        loading: () => _ProductLoadingView(
+          onRetry: () => ref.refresh(productDetailsProvider(productId)),
+        ),
         error: (err, stack) => _ProductErrorView(
           error: err,
           onRetry: () => ref.refresh(productDetailsProvider(productId)),
@@ -130,9 +147,7 @@ class ProductDetailsScreen extends ConsumerWidget {
             ),
 
             // ── SECTION: PRICE COMPARISON ────────────────────────────────
-            if (details.liveOffers.length > 1) ...const [
-              Divider(height: 1),
-            ],
+            if (details.liveOffers.length > 1) ...const [Divider(height: 1)],
             PriceComparisonSection(
               details: details,
               onShopTap: (offer) => context.push('/shop/${offer.shopId}'),
@@ -156,20 +171,27 @@ class ProductDetailsScreen extends ConsumerWidget {
 }
 
 /// Loading state with skeleton-style placeholders.
+///
+/// The image placeholder still shows a spinner while the rest of the page
+/// shimmers, because a photograph is a single thing waiting to arrive and a
+/// block of grey is exactly its shape. [onRetry] bounds the wait: past the
+/// threshold the customer is told it is slow and offered a real re-read rather
+/// than an indefinite spinner over a grey rectangle.
 class _ProductLoadingView extends StatelessWidget {
-  const _ProductLoadingView();
+  final VoidCallback? onRetry;
+
+  const _ProductLoadingView({this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        // Image placeholder
-        Container(
-          height: 240,
-          color: Colors.grey.shade200,
-          child: const Center(child: CircularProgressIndicator.adaptive()),
-        ),
+        // Image placeholder. A SHIMMERING BLOCK, not a spinner on a grey rectangle:
+        // the spinner said "fetching" while sitting inside a box that already
+        // looked like the photo's final position, so the two layers fought each
+        // other. A shimmer block is one honest shape for one arriving photo.
+        const SkeletonBox(height: 240, radius: 0),
         Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
@@ -221,6 +243,10 @@ class _ProductLoadingView extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        SlowLoadNotice(
+          message: 'This product is taking longer to load.',
+          onRetry: onRetry,
         ),
       ],
     );

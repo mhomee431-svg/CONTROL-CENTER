@@ -1435,7 +1435,20 @@ def serialize_product(
     sp: ShopProduct,
     inv: Inventory | None,
     attributes: dict[str, str] | None = None,
+    price_source: InventorySource | str | None = None,
 ) -> dict[str, Any]:
+    """Serialise one listing, with provenance split by FIELD.
+
+    ``price_source`` is the source of the last PRICE change and ``inv``'s
+    ``last_updated_source`` is the source of the last STOCK change. They are
+    different facts: a POS sync routinely pushes a new price and leaves stock
+    alone, and a barcode scan does the reverse. Collapsing them into one
+    ``source`` is what made a POS price change render as a manual edit.
+
+    ``price_source`` is optional because resolving it needs a PriceHistory
+    lookup, and a caller that has none (an untouched price) still has an
+    honest answer: the listing source.
+    """
     qty = int(inv.quantity) if inv is not None else 0
     threshold = (
         int(inv.low_stock_threshold) if inv is not None and inv.low_stock_threshold else 5
@@ -1480,7 +1493,17 @@ def serialize_product(
         # in app" for EVERY listing, so a price pushed by POS reads as a manual
         # edit -- an indicator that is confidently wrong beats no indicator only
         # because it is louder.
-        "source": _enum_value(getattr(sp, "source", None)),
+        # `source` is the STOCK axis, falling back to the listing source when
+        # there is no inventory row. `list_inventory` resolves it the same way,
+        # so the list and the detail screen cannot disagree about it.
+        "source": _enum_value(getattr(inv, "last_updated_source", None))
+        or _enum_value(getattr(sp, "source", None)),
+        "inventory_source": _enum_value(
+            getattr(inv, "last_updated_source", None)
+        )
+        or _enum_value(getattr(sp, "source", None)),
+        "price_source": _enum_value(price_source)
+        or _enum_value(getattr(sp, "source", None)),
         "last_inventory_update": _iso(sp.last_inventory_update),
         "last_price_update": _iso(sp.last_price_update),
         "created_at": _iso(getattr(sp, "created_at", None)),
@@ -2611,6 +2634,37 @@ def list_inventory(
         updater = getattr(inv, "last_updated_by", None) if inv is not None else None
         if updater:
             updater_ids.add(int(updater))
+    # Field-level price provenance: the latest OPEN PriceHistory row per
+    # product, resolved in ONE query. Queried per product this would be an
+    # N+1 on the inventory list, which is the exact shape that gets slow at
+    # the page sizes this screen is used at. Open rows are few by
+    # construction: writing a price CLOSES the previous one.
+    latest_price_source: dict[int, InventorySource] = {}
+    if products:
+        open_price_rows = (
+            db.query(PriceHistory)
+            .filter(
+                PriceHistory.shop_product_id.in_([sp.id for sp in products]),
+                PriceHistory.effective_to.is_(None),
+            )
+            .all()
+        )
+        newest: dict[int, Any] = {}
+        for row in open_price_rows:
+            sp_id = getattr(row, "shop_product_id", None)
+            if sp_id is None:
+                continue
+            change_source = getattr(row, "change_source", None)
+            effective_from = getattr(row, "effective_from", None)
+            previous = newest.get(sp_id)
+            if previous is None or (
+                effective_from is not None and effective_from > previous[1]
+            ):
+                newest[sp_id] = (change_source, effective_from)
+        latest_price_source = {
+            sp_id: src for sp_id, (src, _) in newest.items() if src is not None
+        }
+
     updater_names: dict[int, str] = {}
     if updater_ids:
         from app.models.user import User
@@ -2621,7 +2675,7 @@ def list_inventory(
     entries: list[tuple[datetime, dict[str, Any]]] = []
     for sp in products:
         inv = per_product_inv[sp.id]
-        item = serialize_product(sp, inv)
+        item = serialize_product(sp, inv, price_source=latest_price_source.get(sp.id))
         last_updated_raw = (
             sp.last_inventory_update
             or sp.last_price_update
@@ -2637,11 +2691,25 @@ def list_inventory(
             if updater_id
             else None
         )
-        item["source"] = (
+        inventory_source = (
             inv.last_updated_source.value
             if inv is not None and getattr(inv, "last_updated_source", None) is not None
             else getattr(sp.source, "value", str(sp.source))
         )
+        item["inventory_source"] = inventory_source
+        # Price provenance falls back to the listing source when no price was
+        # ever changed through a source-tracking path: an untouched price has
+        # no history row to speak for it, and the listing source is the only
+        # honest answer then.
+        price_source = latest_price_source.get(sp.id)
+        item["price_source"] = (
+            _enum_value(price_source) if price_source is not None else inventory_source
+        )
+        # The single-axis answer is kept for clients that have not moved to the
+        # split fields yet. It is the INVENTORY axis on purpose: stock is what
+        # a shopkeeper changes most often, and reporting the price axis here
+        # would relabel every untouched product.
+        item["source"] = inventory_source
         freshness = (
             getattr(inv, "freshness_status", None)
             if inv is not None

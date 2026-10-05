@@ -20,16 +20,23 @@ import 'package:hyperlocal_app/features/saved_and_history/domain/models/storage_
 /// section is rendered without backing data.
 class _EmptyHomeRepository implements HomeRepository {
   @override
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async =>
-      const HomeData(
-        categories: [],
-        popularProducts: [],
-        nearbyShops: [],
-        recentSearches: [],
-      );
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async => const HomeData(
+    categories: [],
+    popularProducts: [],
+    nearbyShops: [],
+    recentSearches: [],
+  );
 
   @override
-  Future<List<Shop>> fetchShopsByPincode(String pincode) async => const [];
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async => ShopsByPinPage.empty;
 }
 
 void main() {
@@ -149,15 +156,44 @@ void main() {
 
     // No discovery section may be shown when there is no data behind it.
     expect(find.text('Popular Categories'), findsNothing);
-    expect(find.text('Nearby Shops'), findsNothing);
+    // Nearby Shops is the ONE exception, and deliberately so: when the backend
+    // returns an empty nearby list, the section keeps its header and swaps its
+    // body for the recovery actions, rather than vanishing and leaving the
+    // customer with no explanation for the missing shops. So the section's
+    // CONTENT is absent even though its header is present.
+    expect(find.text('No nearby shops found'), findsOneWidget);
+    // The "View All" affordance only exists on the POPULATED header, so its
+    // absence is the real proof the section has no shops behind the actions.
+    expect(find.text('View All'), findsNothing);
     expect(find.text('Recent Searches'), findsNothing);
     expect(find.text('Popular Products'), findsNothing);
     expect(find.text('Latest Offers'), findsNothing);
     expect(find.text('Recently Viewed'), findsNothing);
     expect(find.text('Recommended For You'), findsNothing);
-    expect(find.byType(PromotionBanner), findsNothing);
+    // PromotionBanner is CONSTRUCTED unconditionally and collapses itself to
+    // `SizedBox.shrink()` when the feed carried no promotions, so asserting the
+    // widget is absent would assert an implementation detail. What matters is
+    // that nothing promotion-shaped reaches the screen.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is PromotionBanner &&
+            w.promotions.isNotEmpty,
+      ),
+      findsNothing,
+      reason: 'an empty feed must render no promotion content',
+    );
+    // Sections are CONSTRUCTED for every slot and collapse themselves when their
+    // data is empty, so asserting the widget is absent would assert an
+    // implementation detail. What matters is that no section CONTENT renders.
     expect(find.byType(CategorySection), findsNothing);
-    expect(find.byType(RecentSearchesSection), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RecentSearchesSection && w.recentSearches.isNotEmpty,
+      ),
+      findsNothing,
+      reason: 'an empty feed must render no recent-search content',
+    );
   });
 
   testWidgets('header exposes both the location and the profile entry', (
@@ -298,34 +334,86 @@ void main() {
     expect(find.byType(SearchScreen), findsOneWidget);
   });
 
-  testWidgets('HomeScreen shows coming-soon state when no nearby shops', (
+  testWidgets(
+    'an empty nearby_shops offers all three recoveries without hiding the rest of the feed',
+    (tester) async {
+      // The bug this locks: an empty `nearby_shops` used to short-circuit the
+      // WHOLE feed to ComingSoonScreen, which both hid every other section the
+      // backend had returned and left NearbyShopsSection's three recovery
+      // actions unreachable dead code.
+      final emptyRepo = _EmptyNearbyShopsRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [homeRepositoryProvider.overrideWithValue(emptyRepo)],
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      // The three recoveries the backend actually answers.
+      expect(find.byKey(const Key('nearbySearchWider')), findsOneWidget);
+      expect(find.byKey(const Key('nearbyChangeLocation')), findsOneWidget);
+      expect(find.byKey(const Key('nearbySearchAnotherArea')), findsOneWidget);
+
+      // The widen label names a radius WIDER than the 10 km the backend just
+      // used, so the button cannot be a repeat of the query that came back
+      // empty.
+      expect(find.text('Search within 25 km'), findsOneWidget);
+
+      // The empty state is a SECTION, not the whole screen: the feed header
+      // and search bar must still be there.
+      expect(find.byType(HomeSearchBar), findsOneWidget);
+      expect(find.text('Coming Soon!'), findsNothing);
+    },
+  );
+
+  testWidgets('the widen action re-reads the feed at a wider radius', (
     tester,
   ) async {
-    // Create a repository that returns empty nearby shops
-    final emptyRepo = _EmptyNearbyShopsRepository();
+    final recordingRepo = _RecordingRadiusHomeRepository();
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [homeRepositoryProvider.overrideWithValue(emptyRepo)],
+        overrides: [homeRepositoryProvider.overrideWithValue(recordingRepo)],
         child: const MaterialApp(home: HomeScreen()),
       ),
     );
 
-    // Wait for data to load
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
 
-    // The HomeScreen renders the ComingSoonScreen (pin-code entry) when the
-    // customer's location has no registered shops yet.
-    expect(find.text('Coming Soon!'), findsOneWidget);
-    expect(find.text('Manually write your area pin'), findsOneWidget);
+    // First load sends no radius at all, so the backend's own default rules.
+    expect(recordingRepo.requestedRadii, isNotEmpty);
+    expect(recordingRepo.requestedRadii.first, isNull);
+
+    await tester.tap(find.byKey(const Key('nearbySearchWider')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // A genuinely wider radius was sent — the same repository call, the same
+    // coordinates, only a larger `radius_km`.
+    expect(recordingRepo.requestedRadii.last, 25);
+
+    // And the button now advertises the NEXT step, not the one just taken.
+    expect(find.text('Search within 50 km'), findsOneWidget);
   });
 }
 
-/// Repository that returns home data with no nearby shops to test empty states.
-class _EmptyNearbyShopsRepository implements HomeRepository {
+/// Records the radius of every feed request so a test can prove the widen
+/// action produced a real, wider backend query.
+class _RecordingRadiusHomeRepository implements HomeRepository {
+  final List<double?> requestedRadii = [];
+
   @override
-  Future<HomeData> fetchHomeFeed({double? latitude, double? longitude}) async {
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
+    requestedRadii.add(radiusKm);
     await Future.delayed(const Duration(milliseconds: 100));
     return const HomeData(
       categories: [],
@@ -336,5 +424,34 @@ class _EmptyNearbyShopsRepository implements HomeRepository {
   }
 
   @override
-  Future<List<Shop>> fetchShopsByPincode(String pincode) async => const [];
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async => ShopsByPinPage.empty;
+}
+
+/// Repository that returns home data with no nearby shops to test empty states.
+class _EmptyNearbyShopsRepository implements HomeRepository {
+  @override
+  Future<HomeData> fetchHomeFeed({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return const HomeData(
+      categories: [],
+      popularProducts: [],
+      nearbyShops: [],
+      recentSearches: [],
+    );
+  }
+
+  @override
+  Future<ShopsByPinPage> fetchShopsByPincode(
+    String pincode, {
+    int page = 1,
+    required int limit,
+  }) async => ShopsByPinPage.empty;
 }

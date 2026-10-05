@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/list_loading_view.dart';
+import '../../../../core/widgets/skeletons.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../settings/presentation/controllers/settings_controller.dart';
@@ -65,7 +67,14 @@ class NotificationSettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          // The switches arrive as a fixed, known list — so the placeholder is
+          // that list, not a lone spinner in an empty page. A full-screen
+          // spinner here would imply the shape of this screen was unknowable
+          // when it is hard-coded directly below.
+          ? const ListLoadingView(
+              message: 'Loading your preferences…',
+              shape: SkeletonRowShape.tile,
+            )
           : ListView(
               children: [
                 // ── Delivery on this device ────────────────────────────

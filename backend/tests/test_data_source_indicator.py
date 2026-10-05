@@ -93,3 +93,64 @@ class TestEveryListSerializerCarriesIt:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+# -- FIELD-LEVEL provenance ---------------------------------------------------
+# `source` above answers "who last wrote this LISTING". That is one answer for
+# two facts. A POS sync pushes a new price and leaves stock alone; a barcode
+# scan does the reverse. Reporting the single listing source made a POS price
+# read as a manual edit, which is the same confidently-wrong indicator the
+# missing-`source` bug was, one level up.
+class TestPriceAndStockProvenanceAreSeparateFacts:
+    def test_a_pos_price_and_a_manual_stock_are_both_reported(self):
+        """The exact case: price pushed by POS, stock typed by hand."""
+        sp = _listing(source=InventorySource.MANUAL)
+        inv = SimpleNamespace(
+            quantity=7,
+            low_stock_threshold=5,
+            stock_status=None,
+            last_updated_source=InventorySource.MANUAL,
+        )
+
+        row = svc.serialize_product(
+            sp,
+            inv,
+            price_source=InventorySource.POS_INTEGRATION,
+        )
+
+        assert row["price_source"] == "POS_INTEGRATION"
+        assert row["inventory_source"] == "MANUAL"
+
+    def test_an_untouched_price_falls_back_to_the_listing_source(self):
+        """No PriceHistory row means no price writer to name.
+
+        Falling back keeps the field populated; leaving it null would make the
+        app hide the price provenance it has for every other product.
+        """
+        row = svc.serialize_product(
+            _listing(source=InventorySource.EXCEL_UPLOAD), inv=None
+        )
+        assert row["price_source"] == "EXCEL_UPLOAD"
+
+    def test_the_legacy_single_axis_is_the_STOCK_axis(self):
+        """`source` stays for clients on the old field, and must not start
+        reporting the price axis: relabelling every untouched product is worse
+        than a stale field."""
+        inv = SimpleNamespace(
+            quantity=1,
+            low_stock_threshold=5,
+            stock_status=None,
+            last_updated_source=InventorySource.BARCODE_SCAN,
+        )
+        row = svc.serialize_product(
+            _listing(source=InventorySource.MANUAL),
+            inv,
+            price_source=InventorySource.POS_INTEGRATION,
+        )
+        assert row["source"] == "BARCODE_SCAN"
+
+    def test_a_string_source_is_accepted_as_well_as_the_enum(self):
+        row = svc.serialize_product(
+            _listing(), inv=None, price_source="POS_INTEGRATION"
+        )
+        assert row["price_source"] == "POS_INTEGRATION"

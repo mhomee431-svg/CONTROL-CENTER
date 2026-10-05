@@ -1,0 +1,150 @@
+# HyperLocal — pre-commit hooks.
+#
+# WHY THIS FILE IS THE MOST IMPORTANT ONE HERE
+# ---------------------------------------------
+# CI catches a problem AFTER it is pushed. A pre-commit hook catches it while
+# you still have the keyboard in your hand and the change is not shared yet.
+# For a solo maintainer that is the entire difference between a two-minute fix
+# and a broken main branch.
+#
+# These hooks are deliberately FAST and NON-DESTRUCTIVE. There is no
+# auto-formatter here, because a hook that rewrites your files on `git commit`
+# is a hook you will eventually disable. Every hook below either passes or
+# tells you what is wrong.
+#
+# Install once:
+#     scripts/hl hooks install
+#
+# Verify it is actually running:
+#     scripts/hl hooks verify
+#
+# To bypass once (a genuine emergency, and it is logged in the shell history):
+#     git commit --no-verify
+
+default_language_version:
+  python: python3
+
+repos:
+  # ── 1. Your own secrets scanner ────────────────────────────────────────────
+  # Runs FIRST on purpose. It is the fastest and the only hook that can stop a
+  # credential from entering the history at all. Every other hook below is
+  # worthless for that particular failure, because a committed secret stays
+  # committed.
+  - repo: local
+    hooks:
+      - id: hl-secrets
+        name: hl: scan for secrets
+        entry: python scripts/security/scan_secrets.py --staged
+        language: system
+        pass_filenames: false
+        files: '^(backend|apps|packages|infrastructure|scripts)/'
+        # The scanner is fast; never skip it.
+        always_run: false
+
+  # ── 2. Private keys ───────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: hl-private-key
+        name: hl: block private keys
+        entry: python scripts/hl/hooks_no_private_keys.py
+        language: system
+        pass_filenames: true
+        files: '\.(pem|key|p12|pfx|asc)$'
+        always_run: false
+
+  # ── 3. Conflict markers ────────────────────────────────────────────────────
+  # A stray `<<<<<<<` that reaches main is the single most confusing thing you
+  # can ship, because Python usually still parses around it and the failure
+  # shows up much later as a syntax error somewhere unrelated.
+  - repo: local
+    hooks:
+      - id: hl-conflict-markers
+        name: hl: block conflict markers
+        entry: python scripts/hl/hooks_no_conflict_markers.py
+        language: system
+        pass_filenames: true
+        files: '.*\.(py|dart|ts|js|ya?ml|json|md|sh|ps1)$'
+        always_run: false
+
+  # ── 4. Trailing whitespace / missing newline ──────────────────────────────
+  - repo: local
+    hooks:
+      - id: hl-whitespace
+        name: hl: trailing whitespace + final newline
+        entry: python scripts/hl/hooks_whitespace.py
+        language: system
+        pass_filenames: true
+        files: '.*\.(py|dart|ts|js|ya?ml|json|md|sh|ps1|sql|gradle|kts)$'
+        # Fixes rather than blocks: this one is unambiguous and safe to repair.
+        always_run: false
+
+  # ── 5. Backend: the blocking lint gate ────────────────────────────────────
+  # The SAME rule set CI uses (see backend/pyproject.toml). If this passes
+  # locally, CI's lint step cannot surprise you.
+  - repo: local
+    hooks:
+      - id: hl-ruff
+        name: backend: ruff (gate rules)
+        entry: python -m ruff check --no-fix
+        language: system
+        pass_filenames: true
+        files: '^backend/(app|tests|scripts)/.*\.py$'
+        # Ruff must only ever see backend paths; run it from backend/ via the
+        # wrapper below so it finds the right pyproject.toml.
+        require_serial: true
+        always_run: false
+
+  # ── 6. Backend: fast test smoke ───────────────────────────────────────────
+  # NOT the full suite. The full backend suite is ~3 minutes, which is too slow
+  # to run on every commit and therefore gets skipped — which is the same as not
+  # having it. This is a ~5 second subset chosen to catch an import error or a
+  # broken fixture, which is what an interrupted commit almost always is.
+  - repo: local
+    hooks:
+      - id: hl-backend-smoke
+        name: backend: import smoke test
+        entry: python -m pytest --collect-only -q
+        language: system
+        pass_filenames: false
+        files: '^backend/(app|tests)/.*\.py$'
+        # Collection is what matters here: it imports every test module, so a
+        # bad import fails without running a single test.
+        require_serial: true
+        always_run: false
+
+  # ── 7. Flutter: analyze only the touched apps ─────────────────────────────
+  - repo: local
+    hooks:
+      - id: hl-flutter-analyze
+        name: flutter: analyze
+        entry: bash scripts/hl/hooks_flutter_analyze.sh
+        language: system
+        pass_filenames: true
+        files: '^apps/(customer_app|shopkeeper_app)/lib/.*\.dart$'
+        require_serial: true
+        always_run: false
+
+  # ── 8. Block scratch logs from re-entering the repo ────────────────────────
+  # The repository already had 27 committed pytest/analyzer scratch files, each
+  # one of which was committed by accident and then carried as noise forever.
+  # This hook is the structural fix: the ignore rules stop them being ADDED,
+  # and this stops them being added with `--force`.
+  - repo: local
+    hooks:
+      - id: hl-no-scratch-files
+        name: hl: block scratch output files
+        entry: python scripts/hl/hooks_no_scratch_files.py
+        language: system
+        pass_filenames: true
+        files: '(pytest_.*\.(txt|log)|.*_(out|err)\.(txt|log)|analyze.*\.txt|ruff_fmt.*\.txt|backend_log\.txt|admin_token\.txt|_new_secret\.txt|_access\.txt)$'
+        always_run: false
+
+# Files CI and this config must never lint, matching backend/pyproject.toml.
+exclude: |
+  (?x)^(
+    backend/alembic/versions/.*|
+    infrastructure/lambda_staging/.*|
+    .*/node_modules/.*|
+    .*/\.dart_tool/.*|
+    .*/build/.*
+  )$

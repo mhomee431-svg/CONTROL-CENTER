@@ -277,10 +277,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const _SectionHeader('Danger zone'),
             ListTile(
               key: const Key('deleteAccountTile'),
-              leading: const Icon(
-                Icons.delete_forever,
-                color: AppColors.error,
-              ),
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
               title: const Text(
                 'Delete account',
                 style: TextStyle(color: AppColors.error),
@@ -288,10 +285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: const Text(
                 'Permanently remove your account and synced data',
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: AppColors.error,
-              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.error),
               // The full flow lives on its own screen: impact, confirmation,
               // the real backend call, then session teardown.
               onTap: () => context.push('/delete-account'),
@@ -481,7 +475,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetRef ref,
     bool isGuest,
   ) async {
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

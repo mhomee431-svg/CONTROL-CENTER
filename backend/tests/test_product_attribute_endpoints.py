@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.api.routes import merchant_onboarding as route_module
 from app.main import app
 from app.models import merchant_category, product_attributes
+import pytest
 
 _PREFIX = "/api/v1/shopkeeper/businesses"
 

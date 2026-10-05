@@ -1,0 +1,122 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# THE SINGLE QUALITY GATE
+#
+# This is the one workflow to configure as a REQUIRED status check in branch
+# protection. Everything else in .github/workflows/ is either a specialised
+# check or a deployment pipeline; this one is the "may this be merged at all"
+# answer, and it answers it by calling `scripts/hl.py` — the SAME script a
+# developer runs locally.
+#
+# WHY THIS EXISTS RATHER THAN ONE MORE INLINE PIPELINE
+# ---------------------------------------------------
+# The repository already had backend-ci.yml, platform-ci.yml and three
+# flutter-*.yml workflows, each with its own inline `flutter test` / `pytest`
+# invocation. Every one of those is a place where the local command and the CI
+# command can drift apart, and "it passed on my machine" is exactly the bug
+# that drift produces. There is no inline logic here: one call, one script, one
+# source of truth.
+#
+#     Local:   python scripts/hl.py check
+#     CI:      python scripts/hl.py check      <- same code path
+#
+# Configure branch protection on `develop` and `main` with "ci / gate" as a
+# required check. See docs/development/WORKFLOW.md.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+# Cancel superseded runs on the same branch. For a solo maintainer pushing
+# several times in a row this is the difference between waiting on the run you
+# just superseded and waiting on the one you care about.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    # Never let a hung run hold a merge hostage. Flutter test and pytest both
+    # get a hard ceiling: a hang is not a result, and a result you cannot get
+    # is worse than a fast failure.
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the secret scanner's `--history` mode and
+          # `direct-push-audit` both need it, and a shallow clone silently
+          # makes a history scan vacuously clean.
+          fetch-depth: 0
+
+      # ── toolchain ─────────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache Flutter package resolution
+        # `pub get` still runs (it must, to compile), but the SDK-level
+        # artifacts are restored, which is the expensive part.
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ runner.temp }}/flutter
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff pre-commit pyyaml
+
+      - name: Resolve Flutter packages
+        run: |
+          cd apps/shopkeeper_app && flutter pub get
+          cd ../customer_app && flutter pub get
+
+      # ── fast gates: lint, analyzer, migrations, conflicts, secrets ─────────
+      # These run first and fail fast. A lint error should not cost you a
+      # 6-minute test run before telling you about it.
+      - name: hl check
+        run: python scripts/hl.py check
+
+      # ── the full suite ────────────────────────────────────────────────────
+      - name: hl test
+        run: python scripts/hl.py test
+
+      # ── machine-readable summary ──────────────────────────────────────────
+      # `hl` writes every suite's full output under `build/logs/` (see
+      # run_logged in scripts/hl.py). Uploading it means a CI failure is
+      # diagnosable from the run page, not only from a 4000-line log that
+      # GitHub has already truncated.
+      - name: Archive suite logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-gate-logs
+          path: build/logs/
+          if-no-files-found: ignore
+          retention-days: 7

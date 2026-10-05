@@ -1,3 +1,4 @@
+import 'package:hyperlocal_app/core/utils/distance_format.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/models/shop_details_models.dart';
@@ -126,7 +127,7 @@ class ShopHeader extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
-                    '${shop.distanceInKm} km away',
+                    formatKilometers(shop.distanceInKm, style: DistanceStyle.withUnitSuffix),
                     style: const TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 13,

@@ -85,6 +85,82 @@ The boolean-cluster check is deliberately **narrow**: it only inspects feature
 `*_state.dart` files outside `presentation/`, because a widget owning one or two
 booleans is fine and flagging that would be ceremony rather than safety.
 
+# Single source of truth rule
+
+**One logical source of truth per domain.** Two providers must never hold
+independent copies of the same list.
+
+## Avoid
+
+```dart
+final searchResultsA = ...;  // its own cached list
+final searchResultsB = ...;  // its own cached list
+final productCache1 = ...;
+final shopListCopy = ...;
+```
+
+## Instead
+
+Derive. A second reader of the same data must be a **projection** of the
+owner, never a second cache:
+
+```dart
+// The owner: the only place that holds and mutates the list.
+final recentSearchesNotifierProvider = AsyncNotifierProvider<...>(...);
+
+// Readers project it. No cache, no copy, nothing to invalidate.
+final recentSearchesProvider = Provider<List<String>>((ref) {
+  final items = ref.watch(recentSearchesNotifierProvider).value;
+  if (items == null) return const <String>[];
+  return items.map((e) => e.query).toList(growable: false);
+});
+```
+
+## Why this is a bug, not a style preference
+
+The audit found a **live, user-visible divergence** in search history. Recent
+searches were cached twice in memory — once in the search feature, once in the
+saved-and-history notifier — and tied together by a manual version counter that
+every writer had to remember to bump:
+
+| Writer | Refreshed the search copy | Refreshed the notifier copy |
+| --- | --- | --- |
+| `saveRecentSearch` (search screen) | yes | **no** |
+| `RecentSearchesNotifier.addQuery` (history tab) | **no** | yes |
+| Settings "clear all history" | **no** | yes |
+
+So a customer could search *colgate*, open the history tab, delete it, and the
+search screen would still offer it. "Clear all history" in Settings emptied the
+tab but left the search screen unchanged.
+
+**A manual invalidation bridge is the smell, not the fix.** The counter existed
+only to keep two copies in step, and every new write path had to remember to
+operate it. Deleting the counter and deleting the copy removes the entire class
+of bug: with one owner and derived readers, there is nothing to forget.
+
+## What is allowed
+
+A repository/cache layer is a deliberate second layer, not a violation, when it
+is a *different* concern: an HTTP cache in front of a network source, a
+`CachedResourceController` holding stale-while-revalidate entries, or a
+`LocalCacheService` persisting across launches. The test is:
+
+- Does the second holder own data, or **derive** it? Deriving is always safe.
+- Do both holders accept writes? If yes, it is two sources of truth — consolidate.
+- Is there a manual counter/`invalidate` call keeping them aligned? That is the
+  proof they are duplicates. Remove one side.
+
+Legacy-key migrations are not caches. A one-time copy from an old store into the
+one current store is fine, and belongs next to the owner — `search_history_v1`
+now migrates inside `RecentSearchesNotifier`, not in a second feature.
+
+## Regression guard
+
+`test/features/search/presentation/widgets/search_results_ui_test.dart`,
+group `recent searches single source of truth`, pins the behaviour: a write
+through the notifier is visible to the projection, and a deletion in the history
+tab removes the entry from the search screen with no manual invalidation.
+
 # Repository rule
 
 **Repositories own:** cached application data, API data, retry, refresh, mapping,
@@ -259,21 +335,21 @@ anywhere under `lib/core/view/`.
 
 ### Current violations (tracked, not ignored)
 
-Six views still reach into `data/`. They are listed in `_knownViolations` in the
-guard test with a reason each, and the test **fails if a listed file stops
-violating** — so the baseline cannot quietly rot:
+Zero views reach into `data/`. `_knownViolations` in the guard test is empty,
+and the test **fails if any view starts importing `data/`** — so the baseline
+cannot quietly rot:
 
-- `help_support_screen.dart` — calls `supportRepository.submitIssue` from the
-  view and tracks `_isSubmitting` / `_error` as `setState` fields. This is the
-  clearest violation: it is a mutation state machine living in a widget. It
-  should be a `MutationState` in a support ViewModel.
-- `delete_account_screen.dart` — calls `phoneAuthService` directly.
-- `barcode_scan_screen.dart`, `barcode_camera_gate.dart` — read permission
-  status directly.
-- `login_screen.dart`, `register_screen.dart` — import `data/phone_utils.dart`.
-  This one is a naming problem rather than a layering problem: phone
-  normalisation is a pure function and belongs in `domain/`. Moving the file
-  fixes it with no logic change.
+- `help_support_screen.dart` — [RESOLVED] now renders through
+  `SupportFormViewModel` (`support/application/support_form_view_model.dart`),
+  which owns the `MutationState` submission lifecycle.
+- `delete_account_screen.dart` — [RESOLVED] depends on `auth/domain/` and the
+  storage driver, not a data layer.
+- `barcode_scan_screen.dart`, `barcode_camera_gate.dart` — [RESOLVED] migrated to
+  `BarcodeScannerViewModel` (`presentation/controllers/barcode_scanner_view_model.dart`),
+  removing direct `data/` imports and consolidating camera permission flow state.
+- `login_screen.dart`, `register_screen.dart` — [RESOLVED] import
+  `auth/domain/phone_utils.dart` (pure string function, moved out of `data/`
+  with no logic change).
 
 Each is removed as its feature is migrated. New violations are not accepted.
 
@@ -390,6 +466,174 @@ class CartNotifier extends HotNotifier<Cart> {
 
 A permanent `keepAlive` is deliberately not offered: it grows for the whole
 session and has to be invalidated on sign-out anyway.
+
+## Search state: what must survive leaving the screen
+
+A search must not lose the customer's work when they tap into a product and come
+back. The full set to preserve is **query, suggestions, results, filters, sort,
+pagination, loading, error**.
+
+| Piece | Where it lives | Survives a push? |
+| --- | --- | --- |
+| `query` | the `searchResultsProvider(query)` family key | yes — it *is* the key |
+| `results`, `currentPage`, `totalResults` | `SearchPaginationState` | yes |
+| `loading`, `error`, `stage` | `SearchPaginationState` | yes |
+| `filters`, `sort` | `SearchQueryPreferences` | yes |
+| `suggestions` | `suggestionsProvider` (`autoDispose`) | content yes, cache **no** |
+
+Most of this is free, and it is worth knowing why. `searchResultsProvider` is a
+plain `NotifierProvider.family` — **not** `autoDispose`. Its state therefore lives
+in the `ProviderContainer`, not in the widget, so pushing `/product/:id` cannot
+dispose it. Making it `autoDispose` would silently reset scroll position, page
+number and the whole result set on every product tap. That is a regression to
+avoid, not a leak to fix.
+
+`filters` and `sort` are the exception. `build()` constructs a **fresh**
+controller on re-entry, so those two values have to be remembered somewhere. That
+is `searchQueryPreferencesProvider` — and it is a provider rather than a
+`static` map on purpose:
+
+### `suggestions`: correct on return, but re-fetched
+
+Worth stating precisely, because "does suggestions survive?" has two answers and
+only one of them matters.
+
+The **query** is preserved (`searchQueryProvider` is not `autoDispose`).
+`suggestionsProvider` is `autoDispose` and watches the preserved
+`debouncedQuery`, so on return the suggestions are **correct** — they are simply
+fetched again rather than served from a cache. That is one wasted round trip, not
+a lost state, so it is left as-is rather than promoted to a hot provider.
+
+Measuring this is easy to get wrong. `container.read(suggestionsProvider)` twice
+in a row reports **one** repository call, because `read` leaves no lasting
+listener and nothing triggers disposal in between — which would make a broken
+test look like a passing one. The honest test uses `container.listen(...)` to
+stand in for the widget and `.close()` to stand in for leaving the screen;
+`search_state_contract_test.dart` does exactly that and asserts the refetch.
+
+- A `static` map outlives every container, so no `ref.invalidate` can clear it.
+  Sign-out could not reset it, meaning the next customer inherited the previous
+  one's filter choices — the same privacy failure as a cart surviving logout.
+- Every query ever searched kept an entry forever.
+- Tests shared one process-wide map, so a new `ProviderContainer` inherited the
+  previous test's state and results depended on execution order.
+
+`cancel()` calls `forget(query)` because "cancel" means start over, and the
+logout listener in `app.dart` calls `clear()`.
+
+**Regression guards** live in
+`test/features/search/presentation/screens/search_results_screen_test.dart`:
+the round-trip through a torn-down screen, no cross-query leakage, cancel, the
+container-scoped lifetime, and `clear()`.
+
+One trap when writing these: `MockSearchRepository` sleeps **800ms** to simulate
+network latency. Pumping 100ms asserts against a still-loading screen and every
+result list reads as empty. Elapse past the latency, don't just add pumps.
+
+## Result pagination
+
+Search results can be large, so pagination is **backend-driven**. The client
+never asks for "everything" and never accumulates without bound.
+
+- `limit: 10` per request; `page` and `limit` are sent on every call.
+- The list is a `ListView.builder`, so rows are built lazily regardless of
+  length.
+- A 200px-from-the-bottom scroll listener triggers the next page, and
+  `hasReachedMax` stops the requests once the backend returns a short page.
+
+### Cursor vs offset
+
+The backend contract is `page`/`limit` offset pagination. There is no cursor or
+keyset support anywhere in the client today, so there is nothing to prefer yet.
+Offset paging has two costs worth remembering when that contract changes:
+
+- Deep pages get progressively slower server-side, because the backend must
+  count past every skipped row.
+- If the catalogue changes mid-scroll, rows can shift between pages, so an
+  offset client can show a duplicate or skip an item. A `(sort_key, id)` keyset
+  makes that impossible.
+
+Adopting cursors means `SearchPaginationState.currentPage` becomes a token and
+`hasReachedMax` becomes "the server sent no cursor". That is a deliberate
+backend+client change, not a client-only refactor.
+
+### Two invariants the tests pin
+
+`test/features/search/presentation/controllers/search_pagination_test.dart`
+holds both, because each was a real defect:
+
+1. **A failed page is retried, not skipped.** `fetchNextPage` increments `_page`
+   before awaiting. Without a rollback on the error path, a page-3 failure left
+   `_page` at 3, so the retry asked for page 4 and page 3 was never delivered —
+   a permanent gap in the list. The catch block hands the number back.
+2. **The in-memory buffer is capped** at `_maxRetainedResults` (500). Because
+   `searchResultsProvider` is deliberately not `autoDispose`, the list outlives
+   the screen; without a ceiling, a long scroll keeps growing session-long
+   state. Truncation also sets `hasReachedMax`, so the client stops asking.
+
+### A guard that needed no fix
+
+`fetchNextPage` opens with:
+
+```dart
+if (state.isFetchingMore || state.hasReachedMax || state.isLoading) return;
+state = state.copyWith(isFetchingMore: true, ...);
+```
+
+It is tempting to read a race into that — a burst of scroll events arriving
+before the flag is written. There is none: the check and the write are adjacent
+with no `await` between them, and Dart is single-threaded, so the second caller
+always observes the flag. A test that fired two concurrent `fetchNextPage()`
+calls against a gated repository confirmed only one request goes out. The guard
+was left exactly as it was.
+
+### Shops by pin code
+
+`fetchShopsByPincode` was the one list endpoint with **no bound at all**. It took
+only a pincode and returned every match, so a dense area meant one request could
+materialise an entire catalogue into a list. It now takes `page` and `limit` and
+returns a `ShopsByPinPage { shops, hasMore }`; the screen requests the next page
+as the customer scrolls.
+
+`hasMore` is derived from a short page (`shops.length < limit`) because the
+response carries no total count. That is the only end-of-list signal available
+until the endpoint reports one.
+
+`autoDispose` is kept here deliberately. The search results list is hot because a
+customer is likely to bounce back into it; a pin-code browse is a bounded,
+one-way trip, so re-fetching on return is cheaper than retaining a growing list.
+
+`test/features/home/data/api_home_repository_pagination_test.dart` pins the
+contract: every request carries a `limit`, pages do not overlap, the pages
+together cover every shop exactly once, and a short page ends the list.
+
+### Barcode lookup: bounded too, and ordered in SQL
+
+`lookupBarcode(barcode)` was the last search list with no bound at all. One GS1
+code can be stocked by an arbitrary number of shops, so `GET
+/search/v2/barcodes/{barcode}` now takes `page` (1-based) and `limit` (default
+20, max 50), and the client interface mirrors it:
+`lookupBarcode(barcode, {latitude, longitude, page = 1, limit = 20})`. The
+defaults preserve the old one-shot shape for the common scan, where a code
+resolves to a handful of nearby shops.
+
+Ordering moved into SQL *before* the slice — distance, then `shop_product_id` as
+the tiebreak, or `shop_product_id` alone when there are no coordinates. Sorting
+in Python after `limit` is only nearest-first *within that page*, so page 2 could
+repeat a shop page 1 already showed, or skip one, depending on whatever the
+database happened to return first. `test_search_geo.py` drives two pages through a
+fake query and asserts the requested `offset`/`limit` actually reach the database,
+because a pagination parameter that is silently ignored still returns a plausible
+looking list.
+
+What is still open: the scan results sheet has no load-more affordance, so a
+barcode stocked by more nearby shops than `limit` shows the first page. There is
+no total count in the response, so the end-of-list signal is the same short-page
+heuristic as `ShopsByPinPage` (`results.length < limit`), and wiring it into
+`barcodeLookupProvider` is the remaining step. Truncating client-side is not the
+answer — hiding matches the server did send is worse for a scan flow than a long
+list, which is exactly why this endpoint stayed unbounded until it grew real
+paging.
 
 ## UI: cut rebuilds, then cut paints
 

@@ -15,12 +15,17 @@
 /// enum, including one this file has never heard of. A backend that switches
 /// from `IN_STOCK` to `available` is a rename, not a new state, and the
 /// mapping belongs with the model that owns the vocabulary — not here.
-// PascalCase on purpose: this reads as a constructor-style decoder at the call
-// site — `EnumCodec(raw, OrderStatus.values, OrderStatus.unknown)` — and it is
-// already the established name across the model layer. Renaming to satisfy the
-// lowerCamelCase lint would churn every call site for no behavioural gain.
-// ignore: non_constant_identifier_names
-T EnumCodec<T extends Enum>(String? raw, List<T> values, T fallback, {String Function(String)? normalize}) {
+/// Named for what it decodes, not for how it is spelled.
+///
+/// Lower camel case because this is a FUNCTION, not a type — it returns a value
+/// rather than constructing an object, and Dart's convention reserves PascalCase
+/// for types. Every call site uses this spelling.
+T enumCodec<T extends Enum>(
+  String? raw,
+  List<T> values,
+  T fallback, {
+  String Function(String)? normalize,
+}) {
   if (raw == null) return fallback;
   final cleaned = raw.trim();
   if (cleaned.isEmpty) return fallback;

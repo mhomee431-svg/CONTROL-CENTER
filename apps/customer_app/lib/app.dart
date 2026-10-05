@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/network/api_client.dart';
+import 'core/layout/text_scaling.dart';
 import 'core/router/app_router.dart';
+import 'core/router/os_deep_link_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/notifications/data/device_token_coordinator.dart';
@@ -14,6 +16,7 @@ import 'features/notifications/presentation/controllers/pending_deep_link_drain.
 import 'features/notifications/presentation/widgets/in_app_notification_host.dart';
 import 'features/saved_and_history/data/local_saved_and_history_repository.dart';
 import 'features/saved_and_history/domain/saved_and_history_repository.dart';
+import 'features/search/presentation/controllers/search_controller.dart';
 import 'features/settings/presentation/controllers/settings_controller.dart';
 import 'core/storage/local_storage_driver.dart';
 
@@ -42,6 +45,17 @@ class HyperlocalApp extends ConsumerWidget {
     // Replays a notification tap (background or terminated state) once the
     // router's splash/onboarding/auth gates have cleared.
     ref.watch(pendingDeepLinkDrainProvider);
+    // Subscribes to OPERATING-SYSTEM deep links — a shared product URL or a
+    // marketing link opened from a browser. This is what makes
+    // `deep_link_guard` + `DeepLinkLauncher` reachable at all: they were built
+    // and tested for exactly this, but until something handed them a platform
+    // URL the whole subsystem sat unused.
+    //
+    // Order matters. The service subscribes and queues links; the drain above
+    // replays them. Both must be watched, and neither navigates directly — the
+    // service only feeds the queue, and the queue only replays once the gates
+    // are clear.
+    ref.watch(osDeepLinkServiceProvider);
 
     // ── Phase 9: personalization sync across auth transitions ──────────
     // ── Phase 10: device-token registration across auth transitions ────
@@ -75,6 +89,33 @@ class HyperlocalApp extends ConsumerWidget {
         // belonging to the signed-out account can never surface in the next
         // one's session.
         ref.read(inAppNotificationControllerProvider.notifier).clear();
+        // Forget the sort/filter choices remembered for each search. They are
+        // session UI state, not device history, so they must not carry over to
+        // whoever signs in next.
+        ref.read(searchQueryPreferencesProvider).clear();
+      } else if (next.status == AuthStatus.sessionExpired) {
+        // ── Expiry, not logout ──────────────────────────────────────────
+        // The branch above is keyed on `previous == authenticated`, which is
+        // the wrong trigger for an expiry and left the account's cached data on
+        // the device. Two realistic paths never reach it:
+        //
+        //  * The app was backgrounded while signed in and a request 401s
+        //    before any rebuild restores the visible authenticated state, so
+        //    `previous` is whatever the last frame showed (often `guest`).
+        //  * The customer is already on a public screen (still
+        //    `sessionExpired` → no transition) and expiry fires again.
+        //
+        // In both cases the favourites cache, push registration and queued
+        // alerts from the dead account survived. A different customer signing
+        // in on the same device would then see them. So expiry purges the same
+        // private state as logout, independent of the previous status.
+        unawaited(
+          LocalSavedAndHistoryRepository(ref.read(localStorageDriverProvider))
+              .purgeSyncedEntries(),
+        );
+        unawaited(ref.read(deviceTokenCoordinatorProvider).handleLogout());
+        ref.read(inAppNotificationControllerProvider.notifier).clear();
+        ref.read(searchQueryPreferencesProvider).clear();
       }
     });
 
@@ -87,10 +128,28 @@ class HyperlocalApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       // Foreground notifications are hosted ABOVE the router rather than in
       // any screen, so a push that lands while the customer is on the map,
-      // mid-search, or in a half-typed field still surfaces — and still
+      // mid-search, or in a half-typed field still surfaces -- and still
       // never forces navigation.
-      builder: (context, child) => InAppNotificationHost(
-        child: child ?? const SizedBox.shrink(),
+      //
+      // Text scaling: honour the customer's system font size up to
+      // [TextScaling.maxSupportedScale], then hold.
+      //
+      // WHY A CLAMP AND NOT THE RAW SYSTEM VALUE
+      // Android goes to 2.0x (large accessibility) and iOS to roughly 3.2x,
+      // and past ~2.5x a fixed-height row, a two-column card or a sheet with a
+      // title cannot lay out at all -- the content simply does not fit, and the
+      // result is a screen where buttons are pushed off the bottom and cannot
+      // be reached. Clamping trades a little legibility beyond the cap for a
+      // layout that stays usable, which is the trade every major platform makes
+      // and the one Flutter's own Material guidance recommends.
+      //
+      // Note what this does NOT do: it does not cap text at the default size,
+      // and it does not ignore the system setting. At 1.5x or 2.0x -- where
+      // people actually live -- text renders at full size and every layout must
+      // cope. `text_scaling_test.dart` holds that line.
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: TextScaling.maxSupportedScale,
+        child: InAppNotificationHost(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

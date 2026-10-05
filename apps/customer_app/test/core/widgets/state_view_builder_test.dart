@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyperlocal_app/core/network/api_error_handler.dart';
 import 'package:hyperlocal_app/core/widgets/state_view_builder.dart';
+import 'package:hyperlocal_app/core/widgets/skeletons.dart';
 
 void main() {
   Widget buildTestWidget({
@@ -27,12 +28,17 @@ void main() {
     );
   }
 
-  testWidgets('shows loading spinner when isLoading is true', (tester) async {
+  testWidgets('shows list row placeholders when isLoading is true', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       buildTestWidget(isLoading: true, error: null, data: null),
     );
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Loading details...'), findsOneWidget);
+    // A list of [T] is arriving, so the placeholder is a list of rows. This
+    // used to assert a centred CircularProgressIndicator plus the text
+    // "Loading details...", which said nothing about what was coming.
+    expect(find.byType(SkeletonList), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets('shows error view when error is present', (tester) async {

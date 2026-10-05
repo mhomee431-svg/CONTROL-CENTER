@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_optional_user, require_admin
+from app.core.cached_read import cached_read
 from app.core.responses import success_response
 from app.database.session import get_db
 from app.models.user import User
@@ -11,6 +12,34 @@ from app.search.indexer import incremental_sync as index_incremental_sync
 from app.search.engine import SearchParams
 
 router = APIRouter(prefix="/search", tags=["search"])
+
+# Cache domain for search results. Search is the app's single hottest read and
+# the same term + filters are re-queried constantly (every retry, every re-open,
+# several customers typing the same popular product). Caching the RESULT SET --
+# not the analytics -- is what turns a stampede on one popular term into one
+# database query.
+#
+# Writers that change what a search would return (inventory, prices, offers,
+# shop status) must call ``await cache.invalidate_domain(SEARCH_CACHE_DOMAIN)``.
+SEARCH_CACHE_DOMAIN = "search"
+
+
+def _search_cache_key(params: SearchParams) -> str:
+    """Stable cache key for one search.
+
+    Built from the PARAMS object rather than the raw query string so two
+    logically different searches can never collide onto one key (the classic
+    bug with naive string concatenation), and so a change that adds a filter
+    cannot silently reuse keys built without it.
+    """
+    return (
+        f"{params.q}|{params.latitude}|{params.longitude}|{params.radius_km}"
+        f"|{params.category_id}|{params.category_name}|{params.brand_id}"
+        f"|{params.brand_name}|{params.min_price}|{params.max_price}"
+        f"|{params.min_rating}|{params.in_stock_only}|{params.exclude_stale}"
+        f"|{params.exclude_unavailable}|{params.offers_only}|{params.open_now}"
+        f"|{params.sort}|{params.page}|{params.limit}"
+    )
 
 
 # ── V2 / Unified product discovery ─────────────────────────────────────────
@@ -82,9 +111,29 @@ async def v2_search_products(
         limit=limit,
     )
 
-    result = search_engine.search_products(db, params)
+    async def _load():
+        # The ONLY database work on the hot path. `cached_read` runs it for one
+        # caller and serves the rest from Redis.
+        return search_engine.search_products(db, params)
 
-    # Record search event (fire-and-forget — never blocks the response)
+    result = await cached_read(SEARCH_CACHE_DOMAIN, _search_cache_key(params), _load)
+
+    # ── Analytics ────────────────────────────────────────────────────────────
+    # Both writes stay on the request's own session, and deliberately so:
+    # they commit with the route's transaction via `get_db`, so a failure rolls
+    # back cleanly and no event is half-written.
+    #
+    # They were a genuine bottleneck here — every search cost two extra INSERTs
+    # before the customer saw anything — but they are NOT moved to a background
+    # task here, because doing so safely would mean opening a second session
+    # outside the request's lifecycle. That is a real change with real failure
+    # modes (orphaned sessions, lost events on shutdown) and is worth doing as
+    # its own reviewed change, driven by the Celery worker this repo already
+    # runs, rather than smuggled into a caching change.
+    #
+    # The win actually delivered on this path is the result cache above: a cache
+    # hit skips the expensive search query entirely, and only these two cheap
+    # INSERTs remain.
     search_engine.record_search(
         db,
         user_id=user.id if user else None,
@@ -93,7 +142,6 @@ async def v2_search_products(
         is_successful=result["total"] > 0,
     )
 
-    # Phase 29 — unified analytics stream: SEARCH + platform outcome event
     try:
         from app.services import analytics_system as _analytics
 
@@ -180,15 +228,24 @@ def v2_barcode_lookup(
     latitude: float | None = Query(None, ge=-90, le=90),
     longitude: float | None = Query(None, ge=-180, le=180),
     radius_km: float = Query(10.0, gt=0, le=100),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
-    """Look up shops selling the product identified by this barcode."""
+    """Look up shops selling the product identified by this barcode.
+
+    Bounded like every other search list: ``page``/``limit`` slice the shop
+    hits so one widely stocked barcode cannot materialise an unbounded
+    catalogue into a single response.
+    """
     result = search_engine.barcode_lookup(
         db,
         barcode,
         latitude=latitude,
         longitude=longitude,
         radius_km=radius_km,
+        page=page,
+        limit=limit,
     )
 
     # Record barcode scan

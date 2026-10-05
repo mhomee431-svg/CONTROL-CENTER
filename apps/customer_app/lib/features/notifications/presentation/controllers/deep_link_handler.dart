@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../domain/models/app_notification.dart';
+import '../../../../core/router/deep_link_launcher.dart';
 import 'notifications_controller.dart';
 
 /// Outcome of resolving a notification's deep link.
@@ -47,6 +47,12 @@ class DeepLinkResolution {
 /// Kept free of BuildContext so it is fully unit-testable. Unknown or
 /// expired targets never produce a route — they degrade to
 /// [DeepLinkAction.unavailable] so the UI can respond safely.
+///
+/// This maps a *payload* to a path. It performs no entity, availability or
+/// auth checks: those live in `core/router/deep_link_guard.dart`, which is the
+/// single place that decides whether a link may be opened. Keeping the two
+/// apart means the notification path and an externally-opened URL are judged
+/// by identical rules instead of drifting apart.
 DeepLinkResolution resolveNotificationDeepLink(AppNotification notification) {
   final link = notification.deepLink;
   if (link.targetType == DeepLinkTargetType.none) {
@@ -64,10 +70,10 @@ DeepLinkResolution resolveNotificationDeepLink(AppNotification notification) {
     case DeepLinkTargetType.shop:
       return DeepLinkResolution.navigate('/shop/${link.targetId}');
     case DeepLinkTargetType.offer:
-      // No offer detail screen exists yet — never crash, explain instead.
-      return const DeepLinkResolution.unavailable(
-        'Offers are coming soon. This one can\'t be opened yet.',
-      );
+      // The route is registered so a link can never 404, but there is no offer
+      // screen in this build: navigate to the graceful "unavailable" state
+      // rather than pretending the offer opened.
+      return const DeepLinkResolution.navigate('/offer/unavailable');
     case DeepLinkTargetType.none:
       return DeepLinkResolution.none;
   }
@@ -92,21 +98,32 @@ class NotificationTapHandler {
         .read(notificationsControllerProvider.notifier)
         .markAsRead(notification.id);
 
+    // `markAsRead` awaits, so the notification screen may already be gone. Every
+    // use of `context` below is a navigation attempt that would throw against a
+    // defunct element; stopping here leaves the customer where they are, which
+    // is the correct outcome for a tap on a screen that has since closed.
+    if (!context.mounted) return;
+
     final resolution = resolveNotificationDeepLink(notification);
     switch (resolution.action) {
       case DeepLinkAction.none:
         break;
       case DeepLinkAction.navigate:
-        try {
-          if (!context.mounted) return;
-          await GoRouter.of(context).push(resolution.path!);
-        } catch (_) {
-          if (context.mounted) _showUnavailable(context, resolution.message);
-        }
-        break;
+        // THROUGH THE LAUNCHER, so the tap obeys the same guard as a cold-start
+        // link. See the note in `pending_deep_link_drain.dart`: without this the
+        // guard was bypassed entirely for taps made from a live notification.
+        //
+        // The launcher defaults to `go`, but this tap is a navigation from
+        // inside the app — the customer is already somewhere and expects Back
+        // to return there, not to be teleported. So `usePush` keeps the screen
+        // underneath reachable.
+        await _ref
+            .read(deepLinkLauncherProvider)
+            .open(context, resolution.path, usePush: true);
+        return;
       case DeepLinkAction.unavailable:
-        if (context.mounted) _showUnavailable(context, resolution.message);
-        break;
+        _showUnavailable(context, resolution.message);
+        return;
     }
   }
 

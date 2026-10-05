@@ -83,4 +83,70 @@ void main() {
       expect(fromSource(null).source, isNull);
     });
   });
+  group('Price and stock provenance are separate facts', () {
+    /// A POS sync pushes a price and leaves stock alone. One `source` for the
+    /// whole listing forced the app to answer "POS" for a product whose stock
+    /// was counted by hand - or, worse, "manual" for a price the POS set.
+    ShopProductItem split({
+      String? price,
+      String? stock,
+      String? legacy,
+    }) =>
+        ShopProductItem.fromJson({
+          'id': 11,
+          'name': 'Amul Milk 1L',
+          'price': 499,
+          'quantity': 12,
+          'stock_status': 'IN_STOCK',
+          'price_source': price,
+          'inventory_source': stock,
+          'source': legacy,
+        });
+
+    test('the spec example: price via POS, stock manual', () {
+      final row = split(
+        price: 'POS_INTEGRATION',
+        stock: 'MANUAL',
+        legacy: 'MANUAL',
+      );
+
+      expect(row.priceSource, 'POS_INTEGRATION');
+      expect(row.inventorySource, 'MANUAL');
+
+      // And the two read differently, which is the whole point.
+      expect(inventorySourceLabel(row.priceSource), 'Updated via POS');
+      expect(inventorySourceLabel(row.inventorySource), 'Updated manually');
+    });
+
+    test('a barcode scan that moved stock but not price', () {
+      final row = split(
+        price: 'MANUAL',
+        stock: 'BARCODE_SCAN',
+        legacy: 'BARCODE_SCAN',
+      );
+      expect(inventorySourceLabel(row.priceSource), 'Updated manually');
+      expect(inventorySourceLabel(row.inventorySource),
+          'Updated via barcode');
+    });
+
+    test('an older backend sends neither field, so the legacy one answers',
+        () {
+      // Degrading to the single axis is honest; showing nothing would hide the
+      // provenance the app already had.
+      final row = split(legacy: 'EXCEL_UPLOAD');
+      expect(row.priceSource, 'EXCEL_UPLOAD');
+      expect(row.inventorySource, 'EXCEL_UPLOAD');
+    });
+
+    test('copyWith actually copies the two new fields', () {
+      // Regression shape: copyWith lists its parameters explicitly, so adding
+      // a field to the constructor without adding it to the signature compiles
+      // and silently drops the value.
+      final row = split(price: 'POS_INTEGRATION', stock: 'MANUAL');
+      final copy = row.copyWith(price: 550);
+      expect(copy.priceSource, 'POS_INTEGRATION');
+      expect(copy.inventorySource, 'MANUAL');
+      expect(copy.price, 550);
+    });
+  });
 }

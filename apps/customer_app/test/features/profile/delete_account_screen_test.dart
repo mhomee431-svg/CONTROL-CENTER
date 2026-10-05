@@ -106,11 +106,13 @@ GoRouter _router() {
       ),
       GoRoute(
         path: '/login',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('LoginPage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('LoginPage')),
       ),
       GoRoute(
         path: '/welcome',
-        builder: (_, _) => Scaffold(appBar: AppBar(), body: const Text('WelcomePage')),
+        builder: (_, _) =>
+            Scaffold(appBar: AppBar(), body: const Text('WelcomePage')),
       ),
     ],
   );
@@ -255,9 +257,7 @@ void main() {
     expect(find.text('Your account has been deleted'), findsOneWidget);
   });
 
-  testWidgets('a failed backend call destroys NOTHING locally', (
-    tester,
-  ) async {
+  testWidgets('a failed backend call destroys NOTHING locally', (tester) async {
     // The critical safety property: a refused deletion must leave the
     // customer signed in and able to retry, not half-deleted.
     final repo = _RecordingProfileRepo(shouldFail: true);

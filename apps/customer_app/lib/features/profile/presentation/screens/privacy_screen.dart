@@ -82,7 +82,10 @@ class PrivacyScreen extends ConsumerWidget {
           const Divider(indent: AppSpacing.md),
 
           // -- Data use --
-          const SectionLabel('How your data is used', padding: SectionLabel.tight),
+          const SectionLabel(
+            'How your data is used',
+            padding: SectionLabel.tight,
+          ),
           const _PrivacyCard(
             icon: Icons.analytics_outlined,
             title: 'What we collect',
@@ -149,10 +152,7 @@ class PrivacyScreen extends ConsumerWidget {
           else ...[
             ListTile(
               key: const Key('privacyDeleteAccountTile'),
-              leading: const Icon(
-                Icons.delete_forever,
-                color: AppColors.error,
-              ),
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
               title: const Text(
                 'Delete account',
                 style: TextStyle(color: AppColors.error),
@@ -160,10 +160,7 @@ class PrivacyScreen extends ConsumerWidget {
               subtitle: const Text(
                 'Permanently remove your account and synced data',
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: AppColors.error,
-              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.error),
               onTap: () => context.push('/delete-account'),
             ),
             const _PrivacyCard(

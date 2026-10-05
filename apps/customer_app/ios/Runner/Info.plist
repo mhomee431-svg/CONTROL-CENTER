@@ -78,5 +78,28 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+<key>CFBundleURLTypes</key>
+        <array>
+                <!-- Custom-scheme deep links: passly://product/<id>.
+                     Without this iOS has no way to route the scheme to the app,
+                     and `app_links` never sees a URL. -->
+                <dict>
+                        <key>CFBundleURLName</key>
+                        <string>app.passly.app</string>
+                        <key>CFBundleURLSchemes</key>
+                        <array>
+                                <string>passly</string>
+                        </array>
+                </dict>
+        </array>
+        <key>LSApplicationQueriesSchemes</key>
+        <array>
+                <!-- Required so url_launcher can detect and offer the native
+                     Google Maps app for a directions link. iOS otherwise
+                     reports canLaunchUrl as false for any scheme not listed
+                     here, and the tap silently does nothing. -->
+                <string>comgooglemaps</string>
+                <string>googlemaps</string>
+        </array>
 </dict>
 </plist>

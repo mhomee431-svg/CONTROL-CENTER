@@ -1000,24 +1000,28 @@ String businessCategoryLabel(String? code) {
 /// Mirrors the backend's `SERVICE_PROFILE_FIELDS` keys. A category with no entry
 /// simply has no profile, which means no category-specific fields.
 enum ServiceCategoryProfile {
-  personalTravel('PERSONAL_TRANSPORT_TRAVEL'),
-  transport('TRANSPORT'),
-  restaurant('RESTAURANTS');
-
-  const ServiceCategoryProfile(this.wire);
-
-  /// The backend's category code for this profile.
-  final String wire;
-
-  static ServiceCategoryProfile? fromWire(String? value) {
-    final key = (value ?? '').trim().toUpperCase();
-    for (final profile in ServiceCategoryProfile.values) {
-      if (profile.wire == key) return profile;
-    }
-    return null;
-  }
+  personalTravel,
+  transport,
+  restaurant;
 }
+
+/// Category code -> the service profile it publishes data under.
+///
+/// The map, rather than a code carried on the enum, is the shape the backend
+/// already uses (`SERVICE_PROFILE_FIELDS` is keyed by category code), so the
+/// two sides stay readable line for line and a category added on one side is
+/// obviously missing on the other. `test_dart_profile_map_covers_the_same_
+/// categories` pins that.
+///
+/// A category absent from here has no profile, which means no
+/// category-specific fields render for it.
+const Map<String, ServiceCategoryProfile> kServiceCategoryProfiles =
+    <String, ServiceCategoryProfile>{
+  'PERSONAL_TRANSPORT_TRAVEL': ServiceCategoryProfile.personalTravel,
+  'TRANSPORT': ServiceCategoryProfile.transport,
+  'RESTAURANTS': ServiceCategoryProfile.restaurant,
+};
 
 /// The service profile a category belongs to, or null when it has none.
 ServiceCategoryProfile? serviceProfileForCategory(String? categoryCode) =>
-    ServiceCategoryProfile.fromWire((categoryCode ?? '').trim().toUpperCase());
+    kServiceCategoryProfiles[(categoryCode ?? '').trim().toUpperCase()];
