@@ -39,6 +39,13 @@ import {
   BarChart2,
   Building2,
   Activity as ActivityIcon,
+  Newspaper,
+  Image as ImageIcon,
+  Megaphone,
+  HelpCircle,
+  BookOpen,
+  Ticket,
+  AlertTriangle,
 } from 'lucide-react';
 import { usePermissions } from '../permissions/PermissionGuard';
 import { CAPABILITIES, Capability } from '../permissions/permissions';
@@ -130,6 +137,18 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Push Notifications', path: ROUTES.NOTIFICATIONS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Campaigns', path: ROUTES.NOTIFICATION_CAMPAIGNS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Audit Logs', path: ROUTES.AUDIT, icon: <FileText size={18} />, capability: CAPABILITIES.AUDIT_READ },
+    ],
+  },
+  {
+    group: 'CONTENT & ANNOUNCEMENTS',
+    items: [
+      { title: 'Content Overview', path: ROUTES.CONTENT, icon: <Newspaper size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Home Banners', path: ROUTES.CONTENT_BANNERS, icon: <ImageIcon size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Announcements', path: ROUTES.CONTENT_ANNOUNCEMENTS, icon: <Megaphone size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'FAQs', path: ROUTES.CONTENT_FAQS, icon: <HelpCircle size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Help Content', path: ROUTES.CONTENT_HELP, icon: <BookOpen size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'Promotional Cards', path: ROUTES.CONTENT_PROMOTIONS, icon: <Ticket size={18} />, capability: CAPABILITIES.CONTENT_READ },
+      { title: 'System Messages', path: ROUTES.CONTENT_SYSTEM_MESSAGES, icon: <AlertTriangle size={18} />, capability: CAPABILITIES.CONTENT_READ },
     ],
   },
   {

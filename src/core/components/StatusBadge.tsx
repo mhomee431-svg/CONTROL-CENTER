@@ -25,6 +25,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
     case 'SUCCESS':
     case 'RESOLVED':
     case 'COMPLETED':
+    // POS Control Center: link established (a syncing integration is still connected).
+    case 'CONNECTED':
+    case 'SYNCED':
       color = 'success';
       break;
 
@@ -33,6 +36,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
     case 'IN_PROGRESS':
     case 'PROCESSING':
     case 'QUEUED':
+    // Import Center in-flight phases (data ingestion pipeline).
+    case 'UPLOADED':
+    case 'VALIDATING':
+    // PARTIAL means the job finished but some rows were rejected.
+    case 'PARTIAL':
+    // POS Control Center: a sync run is in flight.
+    case 'SYNCING':
+    case 'RUNNING':
       color = 'warning';
       break;
 
@@ -42,6 +53,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
     case 'CANCELLED':
     case 'FAILED':
     case 'URGENT':
+    // POS Control Center: link down, or the last sync run failed.
+    case 'DISCONNECTED':
+    case 'SYNC_FAILED':
       color = 'error';
       break;
 

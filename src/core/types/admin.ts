@@ -227,3 +227,130 @@ export interface ShopkeeperDetail {
   shop_ids?: number[];
   shop_names?: string[];
 }
+/**
+ * Notification campaign models (Section 48–50).
+ *
+ * A campaign is the persisted record of a broadcast/targeted dispatch. The
+ * backend is authoritative for delivery counts; the frontend only renders them.
+ */
+export type NotificationAudience = 'all' | 'customer' | 'shopkeeper';
+export type NotificationCampaignStatus = 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT' | 'FAILED' | 'CANCELLED';
+
+export interface NotificationCampaignItem {
+  id: number;
+  title: string;
+  body?: string;
+  notification_type: string;
+  audience?: NotificationAudience | string;
+  status: NotificationCampaignStatus | string;
+  deep_link?: string | null;
+  entity_id?: string | null;
+  recipients_total?: number;
+  recipients_sent?: number;
+  recipients_failed?: number;
+  sent_by?: string | null;
+  created_at: string;
+  sent_at?: string | null;
+}
+
+export interface NotificationSendPayload {
+  title: string;
+  body: string;
+  notification_type: string;
+  audience?: NotificationAudience;
+  /** Pre-validated, root-relative admin path only. */
+  deep_link?: string | null;
+  entity_id?: string | null;
+  /** Operator reason, recorded in the audit log for high-impact broadcasts. */
+  reason?: string;
+}
+
+/**
+ * Content & Announcements models (banners, announcements, FAQs, help content,
+ * promotional cards, system messages). Only usable when the backend exposes the
+ * `/api/v1/admin/content/*` API.
+ */
+export type ContentStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface ContentAudienceTarget {
+  audience: NotificationAudience | string;
+}
+
+export interface HomeBannerItem {
+  id: number;
+  title: string;
+  subtitle?: string | null;
+  image_url?: string | null;
+  deep_link?: string | null;
+  placement?: string | null;
+  status: ContentStatus | string;
+  sort_order?: number;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AnnouncementItem {
+  id: number;
+  title: string;
+  body: string;
+  audience?: NotificationAudience | string;
+  status: ContentStatus | string;
+  is_pinned?: boolean;
+  published_at?: string | null;
+  expires_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FaqItem {
+  id: number;
+  question: string;
+  answer: string;
+  category?: string | null;
+  audience?: NotificationAudience | string;
+  status: ContentStatus | string;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HelpContentItem {
+  id: number;
+  title: string;
+  slug?: string | null;
+  body: string;
+  section?: string | null;
+  status: ContentStatus | string;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PromotionalCardItem {
+  id: number;
+  title: string;
+  description?: string | null;
+  image_url?: string | null;
+  cta_label?: string | null;
+  deep_link?: string | null;
+  status: ContentStatus | string;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SystemMessageItem {
+  id: number;
+  title: string;
+  body: string;
+  severity?: 'INFO' | 'WARNING' | 'CRITICAL' | string;
+  status: ContentStatus | string;
+  is_active?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

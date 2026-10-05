@@ -102,6 +102,31 @@ export const API_ENDPOINTS = {
   // Notifications
   NOTIFICATIONS: {
     SEND: '/api/v1/admin/notifications/send',
+    CAMPAIGNS: '/api/v1/admin/notifications/campaigns',
+    CAMPAIGN_DETAIL: (id: number | string) => `/api/v1/admin/notifications/campaigns/${id}`,
+    // Optional: force-cancel an in-flight campaign (backend-authoritative).
+    CAMPAIGN_CANCEL: (id: number | string) => `/api/v1/admin/notifications/campaigns/${id}/cancel`,
+  },
+
+  // Content & Announcements (banners, announcements, FAQs, help, promos, system messages)
+  CONTENT: {
+    BANNERS: '/api/v1/admin/content/banners',
+    BANNER_DETAIL: (id: number | string) => `/api/v1/admin/content/banners/${id}`,
+
+    ANNOUNCEMENTS: '/api/v1/admin/content/announcements',
+    ANNOUNCEMENT_DETAIL: (id: number | string) => `/api/v1/admin/content/announcements/${id}`,
+
+    FAQS: '/api/v1/admin/content/faqs',
+    FAQ_DETAIL: (id: number | string) => `/api/v1/admin/content/faqs/${id}`,
+
+    HELP: '/api/v1/admin/content/help',
+    HELP_DETAIL: (id: number | string) => `/api/v1/admin/content/help/${id}`,
+
+    PROMOTIONS: '/api/v1/admin/content/promotions',
+    PROMOTION_DETAIL: (id: number | string) => `/api/v1/admin/content/promotions/${id}`,
+
+    SYSTEM_MESSAGES: '/api/v1/admin/content/system-messages',
+    SYSTEM_MESSAGE_DETAIL: (id: number | string) => `/api/v1/admin/content/system-messages/${id}`,
   },
 
   // Governance & Audit
@@ -110,6 +135,25 @@ export const API_ENDPOINTS = {
     ACTIONS: '/api/v1/admin/actions',
     NOTES: '/api/v1/admin/notes',
     NOTE_DETAIL: (id: number | string) => `/api/v1/admin/notes/${id}`,
+  },
+
+  // POS Integrations (provider-neutral)
+  POS: {
+    LIST: '/api/v1/admin/pos/integrations',
+    DETAIL: (id: number | string) => `/api/v1/admin/pos/integrations/${id}`,
+    SYNC: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/sync`,
+    DISCONNECT: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/disconnect`,
+    RECONNECT: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/reconnect`,
+    SYNC_HISTORY: (id: number | string) => `/api/v1/admin/pos/integrations/${id}/syncs`,
+  },
+
+  // Data Imports / Import Center
+  IMPORTS: {
+    LIST: '/api/v1/admin/imports',
+    DETAIL: (id: number | string) => `/api/v1/admin/imports/${id}`,
+    ERRORS: (id: number | string) => `/api/v1/admin/imports/${id}/errors`,
+    RETRY: (id: number | string) => `/api/v1/admin/imports/${id}/retry`,
+    CANCEL: (id: number | string) => `/api/v1/admin/imports/${id}/cancel`,
   },
 
   // System
