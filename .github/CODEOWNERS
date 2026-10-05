@@ -1,0 +1,22 @@
+# Default owner for everything not matched below.
+* @mhomee431-svg
+
+# The parts where a silent mistake has the worst blast radius. This repo is
+# an admin control centre: these paths can lock users out, suspend shops, or
+# erase the audit trail, so they get an explicit owner rather than relying on
+# the wildcard.
+
+# Access control and identity.
+/src/core/auth/          @mhomee431-svg
+/src/core/permissions/   @mhomee431-svg
+/src/app/(auth)/         @mhomee431-svg
+/src/app/login/          @mhomee431-svg
+
+# The contract and pipeline that decide what "working" means.
+/docs/                   @mhomee431-svg
+/.github/                @mhomee431-svg
+/package.json            @mhomee431-svg
+/tsconfig.json           @mhomee431-svg
+
+# Data plumbing — a wrong endpoint or payload shape shows blank pages.
+/src/core/api/           @mhomee431-svg

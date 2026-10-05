@@ -1,0 +1,77 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: 'Breaking changes'
+    labels:
+      - 'breaking-change'
+    collapse: false
+  - title: 'Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+    collapse: false
+  - title: 'Fixes'
+    labels:
+      - 'fix'
+      - 'bug'
+    collapse: false
+  - title: 'Security'
+    labels:
+      - 'security'
+    collapse: false
+  - title: 'CI and infrastructure'
+    labels:
+      - 'ci'
+      - 'automation'
+    collapse: false
+  - title: 'Dependencies'
+    labels:
+      - 'dependencies'
+    collapse: true
+  - title: 'Documentation'
+    labels:
+      - 'documentation'
+    collapse: true
+  - title: 'Other changes'
+    labels:
+      - '*'
+    collapse: true
+
+# Changes with no label still appear, rather than silently vanishing from
+# the notes. A commit that fits nothing should be visible, not dropped.
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+change-title-escapes: '\<*_&'
+
+# Template applied to the PR body of the draft release.
+template: |
+  ## What's changed
+
+  $CHANGES
+
+  ## Verification
+
+  - CI (typecheck, lint, tests, build): see the checks on the tagged commit
+  - Staging was verified before this tag was cut
+
+auto-label: false
+update: true
+version-resolver:
+  major:
+    labels:
+      - 'breaking-change'
+  minor:
+    labels:
+      - 'feature'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'fix'
+      - 'bug'
+  default: patch
+
+categories-sort-order: alphabetical
+
+references:
+  - use: OWNER
+  - uses: '@mhomee431-svg'

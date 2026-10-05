@@ -1,0 +1,53 @@
+name: Release Notes
+
+# Turns a tag into a GitHub Release with notes grouped by change type.
+# Release drafter reads the Conventional Commits prefix, so a `feat:` lands
+# under Features and a `fix:` under Fixes without anyone writing prose at
+# release time. Production deploys from the same tag; this runs alongside it.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-notes
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    name: draft release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      notes: ${{ steps.draft.outputs.body }}
+
+    steps:
+      - name: Draft the release notes
+        id: draft
+        uses: release-drafter/release-drafter@6a93d829887aa2e0748befe2e808c66c0ec6e4c7 # v6.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # The tag that was just pushed starts the release.
+          name: ${{ github.ref_name }}
+          tag: ${{ github.ref_name }}
+          version: ${{ github.ref_name }}
+          # Everything since the previous release tag.
+          include-pre-releases: false
+          include-paths: CHANGELOG.md
+          config-name: release-drafter
+
+      - name: Publish the release
+        uses: release-drafter/release-drafter@6a93d829887aa2e0748befe2e808c66c0ec6e4c7 # v6.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          publish: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
