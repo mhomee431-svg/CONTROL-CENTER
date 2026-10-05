@@ -102,3 +102,29 @@ Thumbs.db
 test_err.txt
 test_out.txt
 temp_file.txt
+
+# ── Repo-root scratch transcripts (added 2026-10) ────────────────────────────
+# These are ad-hoc capture files from running analyze/test/ruff by hand. They
+# are regenerated in seconds and were being committed at the repo root, so every
+# clone and every `git log` carried ~140 stale copies of tool output.
+#
+# Pattern note: deliberately anchored to the repo root ("/rq_*.txt") rather than
+# matching anywhere. A file named rq_*.txt inside a feature folder might be real
+# work; one at the root is always scratch.
+#
+# They are UNTRACKED, not deleted — the files remain on disk.
+/rq_*.txt
+/analyze_*.txt
+/analyze*.txt
+/fa_done.txt
+/rq2.txt
+/test_screen*.png
+/test_screen_fix*.png
+/docker_install.txt
+/pg_install.txt
+
+# Analysis report dumps produced by the ad-hoc scripts above.
+/analyze_out.txt
+/analyze_full.txt
+/analyze_output.txt
+/analyze_after_regen.txt

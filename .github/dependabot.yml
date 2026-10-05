@@ -1,0 +1,85 @@
+# Dependabot — the one automation a solo maintainer cannot do by hand.
+#
+# Rationale: with one person, nothing forces a dependency bump review the way a
+# team or a scanner deadline would. This file is that forcing function. GitHub
+# opens the PR, CI proves it, you merge or close.
+#
+# Groups are intentionally small and homogeneous: a grouped major bump that
+# pulls an unrelated package along makes a failing build impossible to bisect.
+version: 2
+updates:
+  # ── Python (backend) ────────────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+    groups:
+      # Security-only fixes ship together so one test run covers the lot.
+      security-patches:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["patch"]
+      python-minor:
+        update-types: ["minor"]
+
+  # ── Dart / Flutter ──────────────────────────────────────────────────────────
+  # One entry per Flutter workspace: Dependabot does not follow pubspec paths
+  # across workspaces, so each needs its own stanza.
+  - package-ecosystem: pub
+    directory: /apps/customer_app
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 4
+    labels: [dependencies, flutter]
+
+  - package-ecosystem: pub
+    directory: /apps/shopkeeper_app
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 4
+    labels: [dependencies, flutter]
+
+  - package-ecosystem: pub
+    directory: /packages/shared_models
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 3
+    labels: [dependencies, flutter]
+
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  # Highest-value stanza here. Unpinned action tags rot silently and are the most
+  # common cause of a workflow that used to pass and now fails for no code reason.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, ci]
+    groups:
+      actions-patches:
+        update-types: ["patch", "minor"]
+
+  # ── Docker ──────────────────────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /infrastructure
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels: [dependencies, infra]
