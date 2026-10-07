@@ -60,6 +60,14 @@ export const API_ENDPOINTS = {
     PRICING: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/pricing`,
     HOURS: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/hours`,
     VERIFICATION: (shopId: number | string) => `/api/v1/admin/shops/${shopId}/verification`,
+    /** Per-stage counts for the queue's tab badges. */
+    VERIFICATION_SUMMARY: '/api/v1/admin/shops/verification/summary',
+    /** The decision trail for one case, newest first. */
+    VERIFICATION_HISTORY: (shopId: number | string) =>
+      `/api/v1/admin/shops/${shopId}/verification/history`,
+    /** Put a case in a named reviewer's hands, or release it. */
+    VERIFICATION_ASSIGN: (shopId: number | string) =>
+      `/api/v1/admin/shops/${shopId}/verification/assign`,
     BULK: '/api/v1/admin/shops/bulk',
   },
 
@@ -84,6 +92,9 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/admin/products',
     BARCODE_SEARCH: '/api/v1/admin/products/barcode-search',
     DETAIL: (productId: number | string) => `/api/v1/admin/products/${productId}`,
+    /** Variants of one master product. Route-by-route like every other
+        product surface: unpublished here reads as unavailable, not empty. */
+    VARIANTS: (productId: number | string) => `/api/v1/admin/products/${productId}/variants`,
     UPDATE: (productId: number | string) => `/api/v1/admin/products/${productId}`,
     BULK: '/api/v1/admin/products/bulk',
     APPROVALS: '/api/v1/admin/products/approvals',

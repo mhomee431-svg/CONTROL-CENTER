@@ -1,0 +1,56 @@
+INFO:     Started server process [8456]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53493 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53517 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53517 - "GET /api/v1/admin/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/shops HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/shops/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/shops/1/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/shops/1/pricing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/shops/1/hours HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/shops/1/verification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/products?shop_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/inventory/shop/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/offers?shop_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53544 - "GET /api/v1/admin/audit-logs?entity_type=shop&entity_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/dashboard/metrics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/analytics/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/customers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/customers/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/shopkeepers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/shopkeepers/5/shops HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/categories HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/brands HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/identifiers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/inventory/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/inventory/stale HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/inventory/anomalies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/inventory/sync-failures HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/subscriptions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/payments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/complaints HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/notifications/campaigns HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/content/banners HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/content/faqs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/pos/integrations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/imports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/feature-flags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/audit-logs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53563 - "GET /api/v1/admin/actions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53597 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53951 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53954 - "GET /api/v1/admin/shops/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54880 - "OPTIONS /api/v1/admin/me HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:54891 - "OPTIONS /api/v1/admin/me HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:54994 - "OPTIONS /api/v1/admin/me HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:54994 - "OPTIONS /api/v1/admin/me HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55154 - "OPTIONS /api/v1/admin/auth/login HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55179 - "OPTIONS /api/v1/admin/auth/login HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55344 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55344 - "POST /api/v1/admin/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55475 - "OPTIONS /api/v1/admin/me HTTP/1.1" 400 Bad Request

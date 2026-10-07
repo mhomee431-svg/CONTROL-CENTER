@@ -1,0 +1,30 @@
+   ▲ Next.js 15.2.1
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.31.8:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling /login ...
+ ✓ Compiled /login in 32.3s (1971 modules)
+ GET /login 200 in 33916ms
+ ○ Compiling /businesses/[id] ...
+ ✓ Compiled /businesses/[id] in 20.1s (3382 modules)
+ GET /businesses/1 200 in 22826ms
+(node:8632) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `Code --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.1s (2457 modules)
+ GET / 200 in 2593ms
+ GET / 200 in 62ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1685ms (2461 modules)
+ GET /_next/static/chunks/app/layout.js 404 in 1906ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 1910ms
+ GET /_next/static/chunks/main-app.js?v=1791275270663 404 in 1936ms
+ GET /_next/static/chunks/app/global-error.js 404 in 1908ms
+ ✓ Compiled in 1713ms (1515 modules)
+ ✓ Compiled in 1558ms (1515 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\aryan\Documents\CONTROL-CENTER\.next\cache\webpack\client-development\12.pack.gz_' -> 'C:\Users\aryan\Documents\CONTROL-CENTER\.next\cache\webpack\client-development\12.pack.gz'
+ ✓ Compiled in 1209ms (1515 modules)
+[?25h

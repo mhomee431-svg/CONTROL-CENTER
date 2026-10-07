@@ -21,6 +21,14 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ArrowLeft,
@@ -31,6 +39,7 @@ import {
   Store,
   MapPin,
   User,
+  UserPlus,
   FileText,
   History,
   Gavel,
@@ -38,7 +47,13 @@ import {
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { fetchList } from '@/core/api/fetchList';
-import { ShopItem, ShopDocumentItem, ShopkeeperDetail, AuditLogItem } from '@/core/types/admin';
+import {
+  ShopItem,
+  ShopDocumentItem,
+  ShopkeeperDetail,
+  AuditLogItem,
+  AdminUserItem,
+} from '@/core/types/admin';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
@@ -165,6 +180,8 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
   const [docPagination, setDocPagination] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [docSearch, setDocSearch] = useState('');
   const [decisionKey, setDecisionKey] = useState<DecisionKey | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignee, setAssignee] = useState('');
 
   const {
     data: shop,
@@ -257,10 +274,42 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
       setDecisionKey(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id, 'audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id, 'verification-history'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification-summary'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'metrics'] });
     },
+  });
+
+  /**
+   * Assignment moves a case into a reviewer's hands without deciding it. The
+   * dropdown reads the same admin list the queue's reviewer filter does, so the
+   * two offer the same names.
+   */
+  const assignMutation = useMutation({
+    mutationFn: (reviewer: string | null) =>
+      apiClient(API_ENDPOINTS.SHOPS.VERIFICATION_ASSIGN(id), {
+        method: 'POST',
+        body: JSON.stringify({ reviewer, reason: null }),
+      }),
+    onSuccess: () => {
+      setAssignOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id, 'audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification-summary'] });
+    },
+  });
+
+  const { data: reviewers } = useQuery<{ items: AdminUserItem[]; total: number }>({
+    queryKey: ['admin', 'verification-reviewers'],
+    queryFn: () =>
+      apiClient<{ items: AdminUserItem[]; total: number }>(API_ENDPOINTS.CUSTOMERS.LIST, {
+        params: { role: 'admin', limit: 100 },
+      }),
+    enabled: assignOpen,
+    staleTime: 5 * 60 * 1000,
   });
 
   const events = useMemo(
@@ -377,6 +426,18 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
                     onClick={() => setDecisionKey('HOLD')}
                   >
                     Put On Hold
+                  </Button>
+                </PermissionGuard>
+                <PermissionGuard capability={DECISIONS.HOLD.capability}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<UserPlus size={16} />}
+                    onClick={() => {
+                      setAssignee(shop.verified_by || '');
+                      setAssignOpen(true);
+                    }}
+                  >
+                    Assign Reviewer
                   </Button>
                 </PermissionGuard>
               </Box>
@@ -897,6 +958,55 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
           onClose={() => setDecisionKey(null)}
         />
       )}
+
+      {/* Assignment is deliberately not a decision: it changes who holds the
+          case, not its stage (except Pending, which becomes Under Review), so
+          it gets its own dialog rather than riding on ConfirmationDialog. */}
+      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Assign Reviewer</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Pick the operator who will hold this case. Assigning moves it to Under Review;
+            leaving it unassigned releases it back to the shared queue.
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel id="assign-reviewer-label">Reviewer</InputLabel>
+            <Select
+              labelId="assign-reviewer-label"
+              label="Reviewer"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {(reviewers?.items || [])
+                .filter((r) => r.name)
+                .map((r) => (
+                  <MenuItem key={r.id} value={r.name as string}>
+                    {r.name}
+                  </MenuItem>
+                ))}
+            </Select>
+          </FormControl>
+          {assignMutation.isError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              The assignment could not be saved. The request failed — retry, and escalate if it
+              keeps failing.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignOpen(false)} disabled={assignMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={assignMutation.isPending}
+            onClick={() => assignMutation.mutate(assignee || null)}
+          >
+            {assignMutation.isPending ? 'Saving…' : 'Assign'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

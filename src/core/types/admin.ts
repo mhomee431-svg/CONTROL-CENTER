@@ -163,6 +163,30 @@ export interface ProductItem {
   shop_count?: number;
   created_at: string;
   updated_at: string;
+  /** Backend-disclosed product extras. Absent values render as "Not reported"
+      rather than invented — the variants tab reads its own endpoint instead. */
+  image_url?: string | null;
+  images?: string[] | null;
+  description?: string | null;
+  mrp?: number | null;
+  unit?: string | null;
+}
+
+/** One purchasable variant of a master product. */
+export interface ProductVariantItem {
+  id: number | string;
+  product_id?: number | null;
+  name?: string | null;
+  variant_name?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  mrp?: number | null;
+  price?: number | null;
+  unit?: string | null;
+  status?: string | null;
+  image_url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface CategoryItem {
@@ -291,6 +315,7 @@ export interface ShopInventoryItem {
   shop_product_id: number;
   product_name: string;
   product_id?: number;
+  shop_name?: string | null;
   quantity: number;
   price?: number | null;
   stock_status: string;

@@ -16,6 +16,7 @@ import {
   MenuItem,
   TextField,
   Alert,
+  Chip,
 } from '@mui/material';
 import { ShieldCheck, ShieldAlert, Eye, Store, X } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
@@ -64,6 +65,7 @@ const ACCOUNT_STATUSES = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'SUSPENDED', label: 'Suspended' },
   { value: 'INACTIVE', label: 'Inactive' },
+  { value: 'REJECTED', label: 'Rejected' },
 ] as const;
 
 export default function VerificationPage() {
@@ -147,6 +149,19 @@ export default function VerificationPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  /**
+   * Per-stage counts for the tab badges. One grouped read, refreshed whenever a
+   * decision lands, so the badge and the list behind it are never a click apart.
+   */
+  const { data: summary, isError: summaryError } = useQuery<{
+    counts: Record<string, number>;
+    stages: string[];
+  }>({
+    queryKey: ['admin', 'verification-summary'],
+    queryFn: () => apiClient(API_ENDPOINTS.SHOPS.VERIFICATION_SUMMARY),
+    staleTime: 30 * 1000,
+  });
+
   const verificationMutation = useMutation({
     mutationFn: ({ shopId, decision, reason }: { shopId: number; decision: string; reason: string }) =>
       apiClient(API_ENDPOINTS.SHOPS.VERIFICATION(shopId), {
@@ -158,6 +173,7 @@ export default function VerificationPage() {
       // counter moves with it — invalidating only the queue would leave the
       // two surfaces disagreeing until a hard reload.
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification-summary'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'metrics'] });
     },
@@ -303,9 +319,31 @@ export default function VerificationPage() {
         sx={{ mb: 2, borderBottom: '1px solid #E2E8F0' }}
         variant="scrollable"
       >
-        {TABS.map((t) => (
-          <Tab key={t.value} value={t.value} label={t.label} sx={{ textTransform: 'none' }} />
-        ))}
+        {TABS.map((t) => {
+          const count = summary?.counts?.[t.value];
+          return (
+            <Tab
+              key={t.value}
+              value={t.value}
+              sx={{ textTransform: 'none' }}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <span>{t.label}</span>
+                  {/* The badge is the queue depth for that stage. It is
+                      omitted, not shown as 0, until the counts load — a
+                      provisional "0 pending" reads as an empty queue. */}
+                  {count != null && (
+                    <Chip
+                      size="small"
+                      label={count}
+                      sx={{ height: 20, fontSize: 12, backgroundColor: '#E2E8F0' }}
+                    />
+                  )}
+                </Box>
+              }
+            />
+          );
+        })}
       </Tabs>
 
       {/* Filters */}
@@ -390,8 +428,11 @@ export default function VerificationPage() {
           >
             <MenuItem value="">All Reviewers</MenuItem>
             {(reviewers?.items || []).map((r) => (
-              <MenuItem key={r.id} value={String(r.id)}>
-                {r.name || `Admin #${r.id}`}
+              // The backend matches the reviewer filter against `verified_by`,
+              // which stores the operator's display name — so the value sent
+              // is the name, not the id.
+              <MenuItem key={r.id} value={r.name || ''} disabled={!r.name}>
+                {r.name || `Admin #${r.id} (no display name)`}
               </MenuItem>
             ))}
           </Select>
@@ -422,6 +463,15 @@ export default function VerificationPage() {
         <Alert severity="warning" sx={{ mb: 2 }}>
           {categoriesError && 'Category options could not be loaded, so that filter is empty. '}
           {reviewersError && 'Reviewer options could not be loaded, so that filter is empty.'}
+        </Alert>
+      )}
+
+      {/* The badge counts are supplementary: the lists below stay valid when
+          the summary fails, so this is a warning, not an error. */}
+      {summaryError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Queue counts could not be loaded, so the tab badges are hidden. The lists below are
+          unaffected.
         </Alert>
       )}
 

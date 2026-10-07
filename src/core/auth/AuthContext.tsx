@@ -46,9 +46,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [pathname, router]);
 
-  const fetchAdminProfile = useCallback(async () => {
+  const fetchAdminProfile = useCallback(async (sessionToken?: string) => {
     try {
-      const data = await apiClient<AdminRoleInfo>(API_ENDPOINTS.AUTH.ME);
+      const data = await apiClient<AdminRoleInfo>(API_ENDPOINTS.AUTH.ME, sessionToken ? {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      } : {});
       setAdminRole(data);
       // Feature flags are optional profile context. A flags failure (a role
       // without settings access, or an older backend) must never terminate an
@@ -84,11 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAdminAccessToken(newToken);
       setToken(newToken);
     }
-    const profile = await fetchAdminProfile();
-    if (profile) {
-      setStatus('authenticated');
-      router.push('/dashboard');
+    const profile = await fetchAdminProfile(newToken);
+    if (!profile) {
+      throw new Error('Token invalid or expired, or the backend is unavailable.');
     }
+    setStatus('authenticated');
+    router.push('/dashboard');
   };
 
   useEffect(() => {
