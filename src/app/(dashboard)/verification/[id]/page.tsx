@@ -29,6 +29,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  TextField,
 } from '@mui/material';
 import {
   ArrowLeft,
@@ -53,6 +54,7 @@ import {
   ShopkeeperDetail,
   AuditLogItem,
   AdminUserItem,
+  VerificationHistoryItem,
 } from '@/core/types/admin';
 import { StatusBadge } from '@/core/components/StatusBadge';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
@@ -154,9 +156,13 @@ const fmtDate = (value?: string | null) =>
 const fmtDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString() : null;
 
-/** Pulls the operator's written reason out of an audit details payload. */
-const reasonOf = (log: AuditLogItem) => {
-  const d = (log.details || {}) as Record<string, unknown>;
+/** Pulls the operator's written reason out of an audit details payload, or out
+ * of a dedicated history row that already carries it top-level. */
+const reasonOf = (log: AuditLogItem | VerificationHistoryItem) => {
+  if ('reason' in log && typeof log.reason === 'string' && log.reason.trim()) {
+    return log.reason;
+  }
+  const d = ((log as AuditLogItem).details || {}) as Record<string, unknown>;
   const raw = d.reason ?? d.review_notes ?? d.review_reason ?? d.note ?? d.comment;
   return typeof raw === 'string' && raw.trim() ? raw : null;
 };
@@ -164,13 +170,11 @@ const reasonOf = (log: AuditLogItem) => {
 /** Anything the verification pipeline wrote: submissions, reviews, decisions. */
 const isVerificationEvent = (log: AuditLogItem) => /verif/i.test(log.action || '');
 
-/** Operator rulings rather than pipeline activity: Approve/Reject/Hold/Correct. */
-const isDecision = (log: AuditLogItem) =>
-  /approv/i.test(log.action || '') ||
-  (/verif/i.test(log.action || '') &&
-    /reject|hold|correct|approv|suspend/i.test(
-      `${log.action} ${reasonOf(log) || ''} ${JSON.stringify(log.details || {})}`
-    ));
+/** Newest ruling first for the Previous decisions table. */
+const byTimeDesc = (
+  a: { created_at?: string | null },
+  b: { created_at?: string | null }
+) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
 
 export default function VerificationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -182,6 +186,8 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
   const [decisionKey, setDecisionKey] = useState<DecisionKey | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignee, setAssignee] = useState('');
+  // Every assignment is logged with a reason, same as every decision.
+  const [assignReason, setAssignReason] = useState('');
 
   const {
     data: shop,
@@ -264,6 +270,29 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
     retry: false,
   });
 
+  /**
+   * Previous decisions reads the dedicated audited history (newest first)
+   * rather than filtering the generic trail: the row already carries Admin +
+   * Time + Reason + Action, and holds stay visible as holds instead of
+   * dissolving into "under review".
+   */
+  const historyEnabled = tabIndex === TAB.ATTEMPTS || tabIndex === TAB.DECISIONS;
+  const {
+    data: history,
+    isLoading: historyLoading,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useQuery<{ items: VerificationHistoryItem[]; total: number }>({
+    queryKey: ['admin', 'shops', id, 'verification-history'],
+    queryFn: () =>
+      apiClient<{ items: VerificationHistoryItem[]; total: number }>(
+        API_ENDPOINTS.SHOPS.VERIFICATION_HISTORY(id),
+        { params: { limit: 100, offset: 0 } }
+      ),
+    enabled: historyEnabled,
+    retry: false,
+  });
+
   const decisionMutation = useMutation({
     mutationFn: ({ decision, reason }: { decision: string; reason: string }) =>
       apiClient(API_ENDPOINTS.SHOPS.VERIFICATION(id), {
@@ -288,15 +317,17 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
    * two offer the same names.
    */
   const assignMutation = useMutation({
-    mutationFn: (reviewer: string | null) =>
+    mutationFn: ({ reviewer, reason }: { reviewer: string | null; reason: string }) =>
       apiClient(API_ENDPOINTS.SHOPS.VERIFICATION_ASSIGN(id), {
         method: 'POST',
-        body: JSON.stringify({ reviewer, reason: null }),
+        body: JSON.stringify({ reviewer, reason }),
       }),
     onSuccess: () => {
       setAssignOpen(false);
+      setAssignReason('');
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id, 'audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'shops', id, 'verification-history'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification-queue'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification-summary'] });
     },
@@ -312,21 +343,30 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
     staleTime: 5 * 60 * 1000,
   });
 
+  // Previous decisions: the audited rulings table (Admin + Time + Reason +
+  // Action), newest first. Reads the dedicated history trail so holds stay
+  // visible as holds; `byTimeDesc` runs on copies, never cached arrays.
+  const historyEntries = useMemo(
+    () => (history?.items || []).slice().sort(byTimeDesc),
+    [history]
+  );
+  const decisions = historyEntries;
+
   const events = useMemo(
     () => (auditLogs?.items || []).filter(isVerificationEvent),
     [auditLogs]
   );
-  const decisions = useMemo(() => events.filter(isDecision), [events]);
 
   const attemptsSummary = useMemo(() => {
-    if (events.length === 0) return null;
-    const times = events.map((e) => new Date(e.created_at).getTime()).filter((t) => !Number.isNaN(t));
+    const source = decisions.length > 0 ? decisions : events;
+    if (source.length === 0) return null;
+    const times = source.map((e) => new Date(e.created_at).getTime()).filter((t) => !Number.isNaN(t));
     return {
-      count: events.length,
+      count: history?.total ?? decisions.length,
       first: times.length > 0 ? fmtDateTime(new Date(Math.min(...times)).toISOString()) : null,
       last: times.length > 0 ? fmtDateTime(new Date(Math.max(...times)).toISOString()) : null,
     };
-  }, [events]);
+  }, [decisions, events, history]);
   const documentsList = documents?.items ?? [];
 
   /**
@@ -434,6 +474,7 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
                     startIcon={<UserPlus size={16} />}
                     onClick={() => {
                       setAssignee(shop.verified_by || '');
+                      setAssignReason('');
                       setAssignOpen(true);
                     }}
                   >
@@ -731,22 +772,22 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
           {tabIndex === TAB.ATTEMPTS && (
             <TabSection
               title="Verification Attempts"
-              description="Each pass this submission made through the verification pipeline."
+              description="Each ruling recorded on this case — the audited attempt count."
             >
               <ListState
-                isError={auditError}
+                isError={historyError}
                 unavailable={false}
-                isEmpty={!auditLoading && events.length === 0}
+                isEmpty={!historyLoading && decisions.length === 0}
                 emptyMessage="No verification activity is recorded for this case yet."
                 unavailableMessage=""
-                onRetry={() => refetchAudit()}
+                onRetry={() => refetchHistory()}
               />
-              {auditLoading && (
+              {historyLoading && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                   <CircularProgress size={28} />
                 </Box>
               )}
-              {!auditLoading && attemptsSummary && (
+              {!historyLoading && attemptsSummary && (
                 <>
                   <Grid container spacing={2} sx={{ mb: 2 }}>
                     <Grid item xs={12} sm={4}>
@@ -759,7 +800,7 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
                       <DetailField label="Last attempt" value={attemptsSummary.last} />
                     </Grid>
                   </Grid>
-                  {events.map((e) => (
+                  {decisions.map((e) => (
                     <Box
                       key={e.id}
                       sx={{
@@ -799,19 +840,19 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
               description="Every ruling recorded on this case — the same endpoint the header actions post to."
             >
               <ListState
-                isError={auditError}
+                isError={historyError}
                 unavailable={false}
-                isEmpty={!auditLoading && decisions.length === 0}
+                isEmpty={!historyLoading && decisions.length === 0}
                 emptyMessage="No decisions are recorded on this case yet. It is awaiting its first ruling."
                 unavailableMessage=""
-                onRetry={() => refetchAudit()}
+                onRetry={() => refetchHistory()}
               />
-              {auditLoading && (
+              {historyLoading && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                   <CircularProgress size={28} />
                 </Box>
               )}
-              {!auditLoading && decisions.length > 0 && (
+              {!historyLoading && decisions.length > 0 && (
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#F8FAFC' }}>
@@ -847,7 +888,7 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
           {tabIndex === TAB.REVIEWER && (
             <TabSection
               title="Reviewer"
-              description="Who holds this case right now."
+              description="Who holds this case right now — assigned by the Reviewer dialog, recorded in the audit trail."
             >
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
@@ -865,10 +906,22 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  {!shop.verified_by && (
+                  {decisions.length > 0 && (
+                    <DetailField
+                      label="Last decision"
+                      value={`${decisions[0].action} · ${decisions[0].admin_user || 'System'} · ${fmtDateTime(decisions[0].created_at) || '—'}${reasonOf(decisions[0]) ? ` · ${reasonOf(decisions[0])}` : ''}`}
+                    />
+                  )}
+                  {!shop.verified_by && decisions.length === 0 && (
                     <Alert severity="info">
                       No operator has recorded a decision yet — this case is unassigned, not
                       missing its reviewer.
+                    </Alert>
+                  )}
+                  {!shop.verified_by && decisions.length > 0 && (
+                    <Alert severity="warning">
+                      This case has rulings but no current holder — assign a reviewer to take
+                      ownership.
                     </Alert>
                   )}
                 </Grid>
@@ -987,6 +1040,17 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
                 ))}
             </Select>
           </FormControl>
+          <TextField
+            fullWidth
+            size="small"
+            multiline
+            rows={2}
+            label="Reason (Recorded in Audit Log)"
+            placeholder="Why is this case moving reviewers?"
+            value={assignReason}
+            onChange={(e) => setAssignReason(e.target.value)}
+            sx={{ mt: 2 }}
+          />
           {assignMutation.isError && (
             <Alert severity="error" sx={{ mt: 2 }}>
               The assignment could not be saved. The request failed — retry, and escalate if it
@@ -1000,8 +1064,8 @@ export default function VerificationDetailPage({ params }: { params: Promise<{ i
           </Button>
           <Button
             variant="contained"
-            disabled={assignMutation.isPending}
-            onClick={() => assignMutation.mutate(assignee || null)}
+            disabled={assignMutation.isPending || !assignReason.trim()}
+            onClick={() => assignMutation.mutate({ reviewer: assignee || null, reason: assignReason.trim() })}
           >
             {assignMutation.isPending ? 'Saving…' : 'Assign'}
           </Button>

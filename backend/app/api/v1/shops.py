@@ -58,8 +58,10 @@ DECISION_TO_STAGE = {
     "UNDER_REVIEW": "UNDER_REVIEW",
 }
 
-# Decisions that must carry a written reason: the merchant is told why.
-REASON_REQUIRED = {"REJECTED", "NEEDS_CORRECTION"}
+# Every triage ruling must say why: the merchant is told, and the Previous
+# decisions table renders Admin + Time + Reason + Action for each entry.
+# Approve included — "verified, no comment" is not an auditable decision.
+REASON_REQUIRED = {"VERIFIED", "REJECTED", "NEEDS_CORRECTION", "UNDER_REVIEW"}
 
 
 def _record_audit(
@@ -316,6 +318,8 @@ def decide_verification(
     reason = (payload.reason or "").strip() or None
 
     # A rejection or a correction request is only actionable if it says why.
+    # Approve and Hold included: every row in Previous decisions renders
+    # Admin + Time + Reason + Action.
     if stage in REASON_REQUIRED and not reason:
         raise HTTPException(
             status_code=422,
@@ -324,6 +328,14 @@ def decide_verification(
 
     previous = shop.verification_status
     shop.verification_status = stage
+
+    # One audit action per operator verb: a hold stays visible as a hold in the
+    # Previous decisions table rather than dissolving into "under review".
+    audit_action = (
+        "shop.verification.hold"
+        if payload.decision in ("ON_HOLD", "HOLD")
+        else f"shop.verification.{stage.lower()}"
+    )
 
     if stage == "VERIFIED":
         shop.verified_at = datetime.now(timezone.utc)
@@ -343,7 +355,7 @@ def decide_verification(
     _record_audit(
         db,
         admin,
-        f"shop.verification.{stage.lower()}",
+        audit_action,
         shop_id,
         {
             "from": previous,

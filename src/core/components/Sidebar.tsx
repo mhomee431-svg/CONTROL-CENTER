@@ -95,6 +95,8 @@ const NAV_GROUPS: NavGroup[] = [
     group: 'CATALOG',
     items: [
       { title: 'Products Master', path: ROUTES.PRODUCTS, icon: <Package size={18} />, capability: CAPABILITIES.PRODUCTS_READ },
+      { title: 'Quality Control', path: ROUTES.PRODUCTS_QUALITY, icon: <AlertTriangle size={18} />, capability: CAPABILITIES.PRODUCTS_READ },
+      { title: 'Product Merge', path: ROUTES.PRODUCTS_MERGE, icon: <Layers size={18} />, capability: CAPABILITIES.PRODUCTS_MERGE },
       { title: 'Categories', path: ROUTES.CATEGORIES, icon: <Layers size={18} />, capability: CAPABILITIES.TAXONOMY_READ },
       { title: 'Brands', path: ROUTES.BRANDS, icon: <Tag size={18} />, capability: CAPABILITIES.TAXONOMY_READ },
       { title: 'Approval Queue', path: ROUTES.PRODUCTS_APPROVALS, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.PRODUCTS_APPROVE },

@@ -54,7 +54,7 @@ ALL_PERMISSIONS = [
     "shops.view", "shops.update", "shops.verify", "shops.reject",
     "shops.suspend", "shops.reactivate", "shops.archive",
     "customers.view", "customers.restrict", "customers.status",
-    "products.view", "products.update", "products.approve",
+    "products.view", "products.update", "products.approve", "products.merge",
     "inventory.view", "offers.view", "offers.update",
     "notifications.send", "content.manage", "imports.manage",
     "pos.manage", "support.update", "system.flags", "system.settings",
