@@ -19,7 +19,7 @@ export default function OffersPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [actionTarget, setActionTarget] = useState<{ id: number; title: string; nextStatus: 'ACTIVE' | 'PAUSED' } | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: OfferItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: OfferItem[]; total: number }>({
     queryKey: ['admin', 'offers', { page: paginationModel.page, pageSize: paginationModel.pageSize }],
     queryFn: () =>
       apiClient<{ items: OfferItem[]; total: number }>(API_ENDPOINTS.OFFERS.LIST, {
@@ -34,7 +34,7 @@ export default function OffersPage() {
     mutationFn: ({ id, new_status }: { id: number; new_status: string }) =>
       apiClient(API_ENDPOINTS.OFFERS.UPDATE_STATUS(id), {
         method: 'POST',
-        params: { new_status },
+        body: JSON.stringify({ new_status }),
       }),
     onSuccess: () => {
       setActionTarget(null);
@@ -129,6 +129,7 @@ export default function OffersPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {actionTarget && (

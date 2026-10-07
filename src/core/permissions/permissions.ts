@@ -20,6 +20,9 @@ export const CAPABILITIES = {
   CUSTOMERS_SUSPEND: 'customers.suspend',
 
   SHOPS_READ: 'shops.read',
+  /** Editing shop master fields (name, category) — spec: "Edit if permitted". */
+  SHOPS_UPDATE: 'shops.update',
+  SHOPS_ARCHIVE: 'shops.archive',
   SHOPS_APPROVE: 'shops.approve',
   SHOPS_REJECT: 'shops.reject',
   SHOPS_SUSPEND: 'shops.suspend',

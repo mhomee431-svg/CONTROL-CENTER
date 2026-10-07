@@ -22,12 +22,14 @@ interface PricingAnomaly extends Partial<StaleInventoryItem> {
 
 export default function PricingPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: PricingAnomaly[]; total: number }>({
-    queryKey: ['admin', 'pricing-anomalies', paginationModel],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: PricingAnomaly[]; total: number }>({
+    queryKey: ['admin', 'pricing-anomalies', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
       apiClient<{ items: PricingAnomaly[]; total: number }>(API_ENDPOINTS.INVENTORY.MISSING_PRICES, {
         params: {
+          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -98,7 +100,7 @@ export default function PricingPage() {
                     PRICING REVIEW QUEUE
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700, mt: 0.5 }}>
-                    Live
+                    {isLoading ? '...' : `${data?.items?.length ?? 0} records`}
                   </Typography>
                 </Box>
                 <DollarSign size={22} color="#0F52BA" />
@@ -116,7 +118,10 @@ export default function PricingPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search pricing records..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
       />
     </Box>
   );

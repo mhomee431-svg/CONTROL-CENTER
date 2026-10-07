@@ -10,6 +10,8 @@ import { AnalyticsSummary } from '@/core/types/analytics';
 import { DashboardMetrics } from '@/core/types/admin';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
+import { useDateRange } from '@/core/filters/DateRangeContext';
+import { DateRangePicker } from '@/core/filters/DateRangePicker';
 
 export interface AnalyticsKpi {
   label: string;
@@ -17,16 +19,29 @@ export interface AnalyticsKpi {
   color: string;
 }
 
-interface Props {
+export interface AnalyticsKpiContext {
+  summary?: AnalyticsSummary;
+  metrics?: DashboardMetrics;
+  isLoading: boolean;
+}
+
+export interface AnalyticsSectionProps {
   title: string;
   description: string;
   /**
-   * KPI definitions. When `resolveKpis` is provided it receives the loaded
-   * summary/metrics and must return the final values — this lets each section
-   * bind real backend figures instead of static placeholders.
+   * KPI definitions — a static list, or a resolver that receives the live
+   * summary/metrics context so each section can surface real backend values
+   * instead of permanent placeholders.
+   *
+   * `resolveKpis` is an equivalent resolver form, kept as a separate optional
+   * prop for compatibility with earlier section definitions.
    */
-  kpis: AnalyticsKpi[];
-  resolveKpis?: (data: { summary: AnalyticsSummary | undefined; metrics: DashboardMetrics | undefined; isLoading: boolean }) => AnalyticsKpi[];
+  kpis: AnalyticsKpi[] | ((ctx: AnalyticsKpiContext) => AnalyticsKpi[]);
+  resolveKpis?: (data: {
+    summary: AnalyticsSummary | undefined;
+    metrics: DashboardMetrics | undefined;
+    isLoading: boolean;
+  }) => AnalyticsKpi[];
   chartTitle?: string;
   chartData?: Array<{ label: string; value: number }>;
   /** Optional per-section extra list, sourced from the analytics summary. */
@@ -38,21 +53,32 @@ interface Props {
  * Shared analytics section renderer. Keeps the analytics routes thin and
  * guarantees consistent presentation + drill-down breadcrumbs.
  *
- * Data sources: the search analytics summary (`/analytics/summary`) and the
- * platform dashboard metrics (`/dashboard/metrics`). Sections bind live values
- * via `resolveKpis`; anything the backend does not report stays as "—".
- */
-export function AnalyticsSection({ title, description, kpis, resolveKpis, chartTitle, chartData, secondaryListSource, secondaryListTitle }: Props) {
+  * Data sources: the search analytics summary (`/analytics/summary`) and the
+  * platform dashboard metrics (`/dashboard/metrics`) under centralized query
+  * keys, so results are cached and reused across the dashboard and every
+  * analytics route. The reporting window is owned by the shared date-range
+  * context so every analytics surface honours the same range.
+  */
+export function AnalyticsSection({ title, description, kpis, resolveKpis, chartTitle, chartData, secondaryListSource, secondaryListTitle }: AnalyticsSectionProps) {
+  // Reporting window is owned by the shared date-range context, so every
+  // analytics surface honours the same range with no local configuration.
+  const { params: dateParams, label: rangeLabel } = useDateRange();
+
   const summaryQuery = useQuery<AnalyticsSummary>({
-    queryKey: ['admin', 'analytics', 'summary'],
-    queryFn: () => apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY),
+    queryKey: ['admin', 'analytics', 'summary', dateParams],
+    queryFn: () =>
+      apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY, {
+        params: dateParams,
+      }),
     retry: false,
   });
 
   const metricsQuery = useQuery<DashboardMetrics>({
-    queryKey: ['admin', 'dashboard', 'metrics'],
-    queryFn: () => apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS),
-    retry: false,
+    queryKey: ['admin', 'dashboard', 'metrics', dateParams],
+    queryFn: () =>
+      apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS, {
+        params: dateParams,
+      }),
   });
 
   const summary = summaryQuery.data;
@@ -62,6 +88,8 @@ export function AnalyticsSection({ title, description, kpis, resolveKpis, chartT
 
   const resolvedKpis = resolveKpis
     ? resolveKpis({ summary, metrics, isLoading })
+    : typeof kpis === 'function'
+    ? kpis({ summary, metrics, isLoading })
     : kpis;
 
   const series = chartData ?? summary?.searches_by_day?.map((d) => ({ label: d.date, value: d.count })) ?? [];
@@ -90,7 +118,14 @@ export function AnalyticsSection({ title, description, kpis, resolveKpis, chartT
         <Typography variant="body2" color="text.secondary">
           {description}
         </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          Reporting window: {rangeLabel}
+        </Typography>
       </Box>
+
+      {/* The centralized date-range control (presets + custom range) so the
+          window can be changed without leaving the analytics surface. */}
+      <DateRangePicker />
 
       {isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>

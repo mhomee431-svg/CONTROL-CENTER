@@ -36,7 +36,7 @@ export default function BrandsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<BrandItem | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: BrandItem[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: BrandItem[] }>({
     queryKey: ['admin', 'brands'],
     queryFn: () => apiClient<{ items: BrandItem[] }>(API_ENDPOINTS.BRANDS.LIST),
   });
@@ -159,6 +159,7 @@ export default function BrandsPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {/* Create Dialog */}

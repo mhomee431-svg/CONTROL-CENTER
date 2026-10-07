@@ -62,7 +62,7 @@ function InventoryContent() {
     }
   };
 
-  const { data, isLoading, refetch } = useQuery<{ items: StaleInventoryItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: StaleInventoryItem[]; total: number }>({
     queryKey: ['admin', 'inventory-list', tabIndex, { page: paginationModel.page, pageSize: paginationModel.pageSize }],
     queryFn: () =>
       apiClient<{ items: StaleInventoryItem[]; total: number }>(getEndpoint(), {
@@ -217,6 +217,7 @@ function InventoryContent() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
         onRowClick={(params) => router.push(`/inventory/${params.row.shop_product_id ?? params.id}`)}
       />
 

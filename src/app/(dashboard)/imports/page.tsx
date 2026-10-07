@@ -257,6 +257,8 @@ export default function ImportsPage() {
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
+        error={isError}
+        errorMessage="Import jobs could not be loaded. The request failed — retry, and escalate if it keeps failing."
         searchPlaceholder="Search import jobs..."
         onRefresh={() => refetch()}
         onRowClick={(params) => router.push(ROUTES.IMPORT_DETAIL(params.row.id as number))}

@@ -18,7 +18,7 @@ export default function NotificationCampaignsPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
 
-  const { data, isLoading, refetch } = useQuery<{ items: NotificationCampaignItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: NotificationCampaignItem[]; total: number }>({
     queryKey: ['admin', 'campaigns', paginationModel],
     queryFn: () =>
       apiClient<{ items: NotificationCampaignItem[]; total: number }>(API_ENDPOINTS.NOTIFICATIONS.CAMPAIGNS, {
@@ -108,6 +108,8 @@ export default function NotificationCampaignsPage() {
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
+        error={isError}
+        errorMessage="Campaigns could not be loaded. The request failed — retry, and escalate if it keeps failing."
         searchPlaceholder="Search campaigns..."
         onRefresh={() => refetch()}
         onRowClick={(params) => router.push(ROUTES.NOTIFICATION_DETAIL(params.row.id as number))}

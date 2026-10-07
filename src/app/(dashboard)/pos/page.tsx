@@ -221,6 +221,8 @@ export default function PosPage() {
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
+        error={isError}
+        errorMessage="POS integrations could not be loaded. The request failed — retry, and escalate if it keeps failing."
         searchPlaceholder="Search POS integrations..."
         onRefresh={() => refetch()}
         onRowClick={(params) => router.push(ROUTES.POS_DETAIL(params.row.id as number))}

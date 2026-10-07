@@ -50,7 +50,7 @@ export default function SupportPage() {
   const [newStatus, setNewStatus] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: ComplaintItem[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: ComplaintItem[]; total: number }>({
     queryKey: [
       'admin',
       'complaints',
@@ -241,6 +241,7 @@ export default function SupportPage() {
         loading={isLoading}
         onRefresh={() => refetch()}
         onRowClick={(params) => router.push(ROUTES.SUPPORT_DETAIL(params.row.id as number))}
+        error={isError}
       />
 
       {triageTarget && (

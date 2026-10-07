@@ -38,7 +38,7 @@ export default function CategoriesPage() {
   // Delete State
   const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ items: CategoryItem[] }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: CategoryItem[] }>({
     queryKey: ['admin', 'categories'],
     queryFn: () => apiClient<{ items: CategoryItem[] }>(API_ENDPOINTS.CATEGORIES.LIST),
   });
@@ -166,6 +166,7 @@ export default function CategoriesPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         onRefresh={() => refetch()}
+        error={isError}
       />
 
       {/* Create Dialog */}

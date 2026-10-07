@@ -40,6 +40,8 @@ function LoginContent() {
   // Expired sessions land here with ?expired=1 for explicit re-authentication.
   const sessionExpired = searchParams.get('expired') === '1';
   const [error, setError] = React.useState<string | null>(null);
+  const [tokenInput, setTokenInput] = React.useState('');
+  const [tokenSubmitting, setTokenSubmitting] = React.useState(false);
 
   const {
     register,
@@ -65,6 +67,19 @@ function LoginContent() {
       await login(data?.access_token);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Authentication failed. Check admin credentials.');
+    }
+  };
+
+  const onTokenSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setTokenSubmitting(true);
+    try {
+      await login(tokenInput.trim());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Token authentication failed.');
+    } finally {
+      setTokenSubmitting(false);
     }
   };
 
@@ -155,6 +170,23 @@ function LoginContent() {
               sx={{ mt: 3, mb: 2, py: 1.25 }}
             >
               {isSubmitting ? 'Authenticating...' : 'Sign In to Control Center'}
+            </Button>
+          </Box>
+
+          <Divider sx={{ width: '100%', my: 2 }}>OR</Divider>
+
+          <Box component="form" onSubmit={onTokenSubmit} sx={{ width: '100%' }}>
+            <TextField
+              fullWidth
+              label="Admin access token"
+              type="password"
+              autoComplete="off"
+              value={tokenInput}
+              onChange={(event) => setTokenInput(event.target.value)}
+              disabled={tokenSubmitting}
+            />
+            <Button type="submit" fullWidth variant="outlined" sx={{ mt: 2 }} disabled={!tokenInput.trim() || tokenSubmitting}>
+              {tokenSubmitting ? 'Authenticating...' : 'Sign in with token'}
             </Button>
           </Box>
 

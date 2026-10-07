@@ -8,7 +8,7 @@ import {
   GridSortModel,
   GridRowSelectionModel,
 } from '@mui/x-data-grid';
-import { Box, Paper, Typography, Button, TextField, InputAdornment } from '@mui/material';
+import { Box, Paper, Typography, Button, TextField, InputAdornment, Alert } from '@mui/material';
 import { Search as SearchIcon, RefreshCw as RefreshIcon } from 'lucide-react';
 
 export interface AdminDataGridProps {
@@ -27,6 +27,16 @@ export interface AdminDataGridProps {
   checkboxSelection?: boolean;
   rowSelectionModel?: GridRowSelectionModel;
   onRowSelectionModelChange?: (model: GridRowSelectionModel) => void;
+  /**
+   * When true the grid is replaced by an explicit failure notice.
+   *
+   * Without this a failed request renders an empty grid, which an operator
+   * reads as "no records" rather than "backend unavailable" — a material
+   * difference when deciding whether to escalate.
+   */
+  error?: boolean;
+  /** Message shown when `error` is true. */
+  errorMessage?: string;
     bulkActions?: React.ReactNode;
     onRowClick?: (params: { row: Record<string, unknown>; id: unknown }) => void;
   }
@@ -51,10 +61,36 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
   checkboxSelection = false,
   rowSelectionModel,
   onRowSelectionModelChange,
-    bulkActions,
-    onRowClick,
-  }) => {
-  return (
+      error = false,
+      errorMessage = 'This list could not be loaded. The registry is unreachable or returned an error.',
+      bulkActions,
+      onRowClick,
+    }) => {
+      // A failed request must never look like an empty result set.
+      if (error) {
+        return (
+          <Paper
+            elevation={0}
+            sx={{ width: '100%', border: '1px solid #FECACA', borderRadius: 2, p: 2 }}
+          >
+            <Alert
+              severity="error"
+              action={
+                onRefresh ? (
+                  <Button color="inherit" size="small" onClick={onRefresh} startIcon={<RefreshIcon size={14} />}>
+                    Retry
+                  </Button>
+                ) : undefined
+              }
+              sx={{ '& .MuiAlert-message': { width: '100%' } }}
+            >
+              {errorMessage}
+            </Alert>
+          </Paper>
+        );
+      }
+
+      return (
     <Paper
       elevation={0}
       sx={{

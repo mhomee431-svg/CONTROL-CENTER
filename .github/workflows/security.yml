@@ -1,0 +1,82 @@
+name: Security
+
+# This is an admin control centre: it can ban users, suspend shops and read
+# audit trails. A dependency advisory here is a risk to the whole platform,
+# not just to this frontend, so the scan runs on a schedule rather than only
+# on push. Dependabot opens the remediation PR; this job is what proves the
+# repository is actually clean.
+on:
+  schedule:
+    # Mondays at 06:00 UTC. Off the hour so this does not pile onto the many
+    # other workflows scheduled at :00.
+    - cron: '17 6 * * 1'
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never let two audits overlap — a queued run adds nothing.
+concurrency:
+  group: security
+  cancel-in-progress: true
+
+jobs:
+  dependency-audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.1.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        # --audit-level=high keeps the gate on vulnerabilities that are
+        # actually exploitable in a shipped path. Moderate/low findings stay
+        # visible in the report without failing the run on every bump.
+        run: npm audit --audit-level=high
+
+      - name: Audit summary (all severities)
+        # Informational: records what exists at moderate/low so a regression
+        # is visible in history even when it does not fail the build.
+        run: npm audit --json > audit-report.json || true
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: npm-audit-report
+          path: audit-report.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  codeql:
+    name: CodeQL (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3.28.17
+        with:
+          languages: 'javascript-typescript'
+          queries: 'security-and-quality'
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3.28.17
+        with:
+          category: '/language:javascript-typescript'

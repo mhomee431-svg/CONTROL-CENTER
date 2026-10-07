@@ -14,43 +14,10 @@ import {
   Button,
   Tooltip,
 } from '@mui/material';
-import { Flame, Store, Search, User, ShieldCheck, RefreshCw, WifiOff, Zap } from 'lucide-react';
+import { Store, Search, User, ShieldCheck, RefreshCw, WifiOff, Zap, AlertCircle } from 'lucide-react';
 import { useRealtimeEvents } from '@/core/realtime/useRealtimeEvents';
-
-interface LiveEvent {
-  id: string;
-  type: 'SEARCH' | 'SHOP_UPDATE' | 'REGISTRATION' | 'VERIFICATION' | string;
-  title: string;
-  timestamp: string;
-}
-
-/** Sample events preserved as graceful fallback when the realtime stream is not connected. */
-const SAMPLE_EVENTS: LiveEvent[] = [
-  {
-    id: '1',
-    type: 'SEARCH',
-    title: 'Shopper searched for "pain relief spray" in Saket, New Delhi (4 nearby stores found)',
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    type: 'SHOP_UPDATE',
-    title: 'Shop "Gupta Chemist" updated stock count on 14 SKUs',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'REGISTRATION',
-    title: 'New customer registration via OTP (+91 9811XXXX82)',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'VERIFICATION',
-    title: 'Merchant onboarding submitted for "Sharma Hardware Store"',
-    timestamp: new Date(Date.now() - 9 * 60 * 1000).toISOString(),
-  },
-];
+import { LiveEvent } from '@/core/realtime/liveEvents';
+import { getOperationalEventMeta } from '@/core/realtime/eventTaxonomy';
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -64,20 +31,29 @@ function timeAgo(iso: string): string {
 
 export default function LiveOperationsPage() {
   const { events, transport, connected, reconnect } = useRealtimeEvents();
-  const displayEvents: LiveEvent[] = events.length > 0 ? events : SAMPLE_EVENTS;
+  // Only genuine streamed events are ever displayed.
+  const displayEvents: LiveEvent[] = events;
 
   const getIcon = (type: LiveEvent['type'] | string) => {
     switch (type) {
+      case 'CUSTOMER_SEARCH':
       case 'SEARCH':
         return <Search size={18} color="#0F52BA" />;
+      case 'INVENTORY_UPDATE':
+      case 'PRICE_UPDATE':
+      case 'IMPORT_COMPLETION':
       case 'SHOP_UPDATE':
         return <Store size={18} color="#10B981" />;
+      case 'SHOPKEEPER_REGISTRATION':
       case 'REGISTRATION':
         return <User size={18} color="#6366F1" />;
+      case 'VERIFICATION_SUBMISSION':
       case 'VERIFICATION':
         return <ShieldCheck size={18} color="#F59E0B" />;
+      case 'SUPPORT_TICKET':
+        return <AlertCircle size={18} color="#EC4899" />;
       default:
-        return <Flame size={18} color="#EF4444" />;
+        return <Zap size={18} color="#EF4444" />;
     }
   };
 
@@ -99,7 +75,7 @@ export default function LiveOperationsPage() {
                 ? 'Live WebSocket stream connected'
                 : transport === 'sse'
                 ? 'Connected via SSE fallback stream'
-                : 'Stream offline — showing latest known events'
+                : 'Stream offline — no events are being received'
             }
           >
             <Chip
@@ -118,32 +94,47 @@ export default function LiveOperationsPage() {
 
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <List>
-            {displayEvents.map((ev) => (
-              <ListItem
-                key={ev.id}
-                sx={{
-                  borderBottom: '1px solid #F1F5F9',
-                  py: 1.5,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <ListItemIcon sx={{ minWidth: 28 }}>{getIcon(ev.type)}</ListItemIcon>
-                  <ListItemText
-                    primary={ev.title}
-                    primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
+          {displayEvents.length === 0 ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                No operational events received
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {connected
+                  ? 'Stream is connected. Waiting for the next platform event…'
+                  : 'The realtime stream is not connected. The hook retries automatically — use Reconnect to retry now.'}
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {displayEvents.map((ev) => (
+                <ListItem
+                  key={ev.id}
+                  sx={{
+                    borderBottom: '1px solid #F1F5F9',
+                    py: 1.5,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <ListItemIcon sx={{ minWidth: 28 }}>{getIcon(ev.type)}</ListItemIcon>
+                    <ListItemText
+                      primary={ev.title}
+                      secondary={timeAgo(ev.timestamp)}
+                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
+                      secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                    />
+                  </Box>
+                  <Chip
+                    label={getOperationalEventMeta(ev.type)?.label ?? ev.type}
+                    size="small"
+                    sx={{ fontSize: '0.75rem', height: 22 }}
                   />
-                </Box>
-                <Chip
-                  label={events.length > 0 ? timeAgo(ev.timestamp) : 'Sample'}
-                  size="small"
-                  sx={{ fontSize: '0.75rem', height: 22 }}
-                />
-              </ListItem>
-            ))}
-          </List>
+                </ListItem>
+              ))}
+            </List>
+          )}
         </CardContent>
       </Card>
     </Box>

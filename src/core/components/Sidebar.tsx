@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Bell,
   FileText,
+  MessageSquare,
   Settings,
   ChevronDown,
   ChevronRight,
@@ -46,6 +47,7 @@ import {
   BookOpen,
   Ticket,
   AlertTriangle,
+  LayoutGrid,
 } from 'lucide-react';
 import { usePermissions } from '../permissions/PermissionGuard';
 import { CAPABILITIES, Capability } from '../permissions/permissions';
@@ -134,6 +136,7 @@ const NAV_GROUPS: NavGroup[] = [
     group: 'ENGAGEMENT & GOVERNANCE',
     items: [
       { title: 'Support & Complaints', path: ROUTES.SUPPORT, icon: <AlertCircle size={18} />, capability: CAPABILITIES.SUPPORT_READ },
+      { title: 'Reviews & Moderation', path: ROUTES.REVIEWS, icon: <MessageSquare size={18} />, capability: CAPABILITIES.REVIEWS_READ },
       { title: 'Push Notifications', path: ROUTES.NOTIFICATIONS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Campaigns', path: ROUTES.NOTIFICATION_CAMPAIGNS, icon: <Bell size={18} />, capability: CAPABILITIES.NOTIFICATIONS_SEND },
       { title: 'Audit Logs', path: ROUTES.AUDIT, icon: <FileText size={18} />, capability: CAPABILITIES.AUDIT_READ },
@@ -154,6 +157,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: 'ADMINISTRATION',
     items: [
+      // Landing page for the whole administration area. It collects the
+      // governance, config, audit and job destinations below it in one place,
+      // so it opens the section rather than sitting beside the parts.
+      { title: 'Settings Hub', path: ROUTES.SETTINGS, icon: <LayoutGrid size={18} />, capability: CAPABILITIES.SETTINGS_READ },
       { title: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: <ShieldCheck size={18} />, capability: CAPABILITIES.ADMINS_READ },
       { title: 'System Settings', path: ROUTES.SYSTEM_SETTINGS, icon: <Settings size={18} />, capability: CAPABILITIES.SETTINGS_READ },
       { title: 'Feature Flags', path: ROUTES.SYSTEM_FLAGS, icon: <Sliders size={18} />, capability: CAPABILITIES.SETTINGS_MANAGE },

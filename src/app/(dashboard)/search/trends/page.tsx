@@ -9,11 +9,18 @@ import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { AnalyticsSummary } from '@/core/types/analytics';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
+import { useDateRange } from '@/core/filters/DateRangeContext';
+import { DateRangePicker } from '@/core/filters/DateRangePicker';
 
 export default function SearchTrendsPage() {
+  const { params: dateParams } = useDateRange();
+
   const { data, isLoading, isError } = useQuery<AnalyticsSummary>({
-    queryKey: ['admin', 'analytics', 'summary'],
-    queryFn: () => apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY),
+    queryKey: ['admin', 'analytics', 'summary', dateParams],
+    queryFn: () =>
+      apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY, {
+        params: dateParams,
+      }),
     retry: false,
   });
 
@@ -28,6 +35,8 @@ export default function SearchTrendsPage() {
           { label: 'Trends' },
         ]}
       />
+      <DateRangePicker />
+
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>
           Search Trends

@@ -1,39 +1,29 @@
 'use client';
 
 import React from 'react';
-import { AnalyticsSection, AnalyticsKpi } from '@/core/components/AnalyticsSection';
-import { AnalyticsSummary } from '@/core/types/analytics';
+import { AnalyticsSection } from '@/core/components/AnalyticsSection';
 
 export default function AnalyticsSearchPage() {
-  const resolveKpis = ({ summary, isLoading }: { summary?: AnalyticsSummary; isLoading: boolean }): AnalyticsKpi[] => [
-    {
-      label: 'TOTAL SEARCHES',
-      value: isLoading ? '...' : (summary?.total_searches?.toLocaleString() ?? '—'),
-      color: '#0F52BA',
-    },
-    {
-      label: 'SUCCESS RATE',
-      value: isLoading ? '...' : summary?.search_success_rate !== undefined ? `${summary.search_success_rate}%` : '—',
-      color: '#10B981',
-    },
-    {
-      label: 'UNIQUE SEARCHERS',
-      value: isLoading ? '...' : (summary?.unique_searchers?.toLocaleString() ?? '—'),
-      color: '#A855F7',
-    },
-    {
-      label: 'ZERO-RESULT QUERIES',
-      value: isLoading ? '...' : (summary?.zero_result_queries?.length ?? '—'),
-      color: '#EF4444',
-    },
-  ];
-
   return (
     <AnalyticsSection
       title="Search Analytics"
       description="Discovery funnel performance, match quality, and zero-result demand."
-      kpis={[]}
-      resolveKpis={resolveKpis}
+      kpis={({ summary, isLoading }) => {
+        const ready = !isLoading && summary !== undefined;
+        const num = (v: number | undefined) => (!ready ? '…' : v != null ? v.toLocaleString() : '—');
+        const zeroCount = summary?.zero_result_queries?.reduce((sum, q) => sum + (q.count || 0), 0);
+        return [
+          { label: 'TOTAL SEARCHES', value: num(summary?.total_searches), color: '#0F52BA' },
+          {
+            label: 'SUCCESS RATE',
+            value:
+              !ready ? '…' : summary?.search_success_rate != null ? `${summary.search_success_rate}%` : '—',
+            color: '#10B981',
+          },
+          { label: 'UNIQUE SEARCHERS', value: num(summary?.unique_searchers), color: '#A855F7' },
+          { label: 'ZERO-RESULT QUERIES', value: num(zeroCount), color: '#EF4444' },
+        ];
+      }}
       chartTitle="Search Volume Trend"
     />
   );

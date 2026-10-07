@@ -23,13 +23,15 @@ import { ROUTES } from '@/core/routes/routes';
 export default function AdminUsersPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = useQuery<{ items: AdminUserItem[]; total: number }>({
-    queryKey: ['admin', 'admin-users', paginationModel],
+  const { data, isLoading, isError, refetch } = useQuery<{ items: AdminUserItem[]; total: number }>({
+    queryKey: ['admin', 'admin-users', { page: paginationModel.page, pageSize: paginationModel.pageSize, search }],
     queryFn: () =>
       apiClient<{ items: AdminUserItem[]; total: number }>(API_ENDPOINTS.CUSTOMERS.LIST, {
         params: {
           role: 'admin',
+          search: search || undefined,
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
         },
@@ -107,7 +109,10 @@ export default function AdminUsersPage() {
         onPaginationModelChange={setPaginationModel}
         loading={isLoading}
         searchPlaceholder="Search administrators..."
+        searchValue={search}
+        onSearchChange={setSearch}
         onRefresh={() => refetch()}
+        error={isError}
         onRowClick={(params) => router.push(ROUTES.ADMIN_USER_DETAIL(params.row.id as number))}
       />
     </Box>
