@@ -38,7 +38,6 @@ jobs:
           version: ${{ github.ref_name }}
           # Everything since the previous release tag.
           include-pre-releases: false
-          include-paths: CHANGELOG.md
           config-name: release-drafter
 
       - name: Publish the release
@@ -50,4 +49,3 @@ jobs:
           name: ${{ github.ref_name }}
           publish: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true

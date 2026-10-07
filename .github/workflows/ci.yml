@@ -220,7 +220,8 @@ jobs:
     needs: [verify, backend, infrastructure, security]
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: production
+    environment:
+      name: production
     concurrency:
       group: aws-production-deploy
       cancel-in-progress: false
