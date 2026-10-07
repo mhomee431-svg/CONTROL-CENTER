@@ -10,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/domain/auth_repository.dart'
     show phoneAuthServiceProvider;
 import '../../../auth/domain/auth_service.dart' show authServiceProvider;
+import '../../../notifications/data/device_token_coordinator.dart';
 import '../../../notifications/presentation/controllers/in_app_notification_controller.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../domain/profile_repository.dart';
@@ -386,14 +387,25 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       // Non-fatal — the backend account is already gone.
     }
 
-    // (c) Drop the access/refresh tokens so no stale credential survives.
+    // (c) Release this device's push registration. The account is gone, so the
+    // FCM token must stop being routable to it — otherwise the backend keeps
+    // delivering that customer's notifications. This is the same call logout
+    // makes, and deleting is a strictly stronger event than logging out.
+    try {
+      await ref.read(deviceTokenCoordinatorProvider).handleLogout();
+    } catch (_) {
+      // Non-fatal — the server-side deletion is what matters. A stale token
+      // would at worst keep delivering to a user whose row no longer exists.
+    }
+
+    // (d) Drop the access/refresh tokens so no stale credential survives.
     try {
       await ref.read(authServiceProvider).clearLocalSession();
     } catch (_) {
       // Non-fatal.
     }
 
-    // (d) Wipe the customer's own local data. Failing this would leave
+    // (e) Wipe the customer's own local data. Failing this would leave
     // personal data on a device whose account no longer exists, so it is
     // best-effort but always attempted.
     try {
@@ -402,7 +414,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       // Non-fatal — the server-side deletion is what matters legally.
     }
 
-    // (e) Any queued foreground alert belongs to the deleted account.
+    // (f) Any queued foreground alert belongs to the deleted account.
     ref.read(inAppNotificationControllerProvider.notifier).clear();
 
     if (!mounted) return;
