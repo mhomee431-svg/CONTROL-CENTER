@@ -8,7 +8,6 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import (
@@ -20,10 +19,12 @@ from app.api.v1 import (
     offers_audit,
     operations,
     people,
+    realtime,
     shops,
 )
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.migrations import upgrade_database
+from app.core.operational_events import register_operational_events
 
 app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0")
 
@@ -43,13 +44,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup() -> None:
-    if engine.dialect.name == "postgresql":
-        # Serialize first-start table creation when ECS starts multiple tasks.
-        with engine.begin() as connection:
-            connection.execute(text("SELECT pg_advisory_xact_lock(724231)"))
-            Base.metadata.create_all(bind=connection)
-    else:
-        Base.metadata.create_all(bind=engine)
+    register_operational_events()
+    upgrade_database()
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -115,5 +111,6 @@ for router in (
     dashboard.router,
     content.router,
     operations.router,
+    realtime.router,
 ):
     app.include_router(router, prefix=settings.API_V1_PREFIX)

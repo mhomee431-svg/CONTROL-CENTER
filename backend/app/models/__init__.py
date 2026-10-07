@@ -545,3 +545,14 @@ class SearchQuery(Base, TimestampMixin):
     result_count = Column(Integer, default=0)
     location = Column(String(96))
     searched_at = Column(DateTime(timezone=True))
+
+
+class OperationalEvent(Base):
+    """Persisted, non-sensitive events consumed by the admin live feed."""
+
+    __tablename__ = "operational_events"
+
+    id = Column(Integer, primary_key=True)
+    type = Column(String(48), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)

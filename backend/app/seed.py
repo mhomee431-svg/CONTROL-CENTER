@@ -11,7 +11,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
-from app.core.database import Base, SessionLocal, engine
+from app.core.database import SessionLocal
+from app.core.migrations import upgrade_database
 from app.core.security import hash_password
 from app.models import (
     AdminUser,
@@ -71,7 +72,7 @@ def _hours_map(open_at: str = "09:00", close_at: str = "21:00", closed_day: str 
 
 
 def seed() -> None:
-    Base.metadata.create_all(bind=engine)
+    upgrade_database()
     db = SessionLocal()
     try:
         if db.scalar(select(func.count()).select_from(AdminUser)):

@@ -114,12 +114,22 @@ Manager, sets `COOKIE_SECURE=true`, and requires TLS for database connections.
 Never commit `.env` files, signing keys, database passwords, AWS access keys,
 or token files.
 
-The API currently creates missing tables from SQLAlchemy metadata at startup;
-an advisory transaction lock serializes that operation across simultaneous
-ECS tasks. This is not a schema migration system: before deploying changes
-that alter or remove existing columns/tables, add and run a reviewed,
-backward-compatible database migration. RDS deletion protection and retained
-snapshots are not a substitute for testing restore procedures.
+Alembic migrations run automatically before the API starts. PostgreSQL startup
+uses an advisory lock so simultaneous ECS tasks cannot run migrations at the
+same time. Fresh databases receive the frozen initial schema and later
+migrations. An existing pre-Alembic database is stamped at the initial revision
+only if all legacy tables are present, then upgraded. Add and review a
+backward-compatible migration for every schema change; do not use `create_all`
+as a substitute for schema migrations.
+RDS deletion protection and retained snapshots are not a substitute for
+testing restore procedures.
+
+Operational feed events are persisted in PostgreSQL in the same transaction
+as their source changes. The feed shows events from the last seven days; older
+rows are pruned on the next operational write. The authenticated WebSocket and
+SSE endpoints are `/api/v1/ws` and
+`/api/v1/admin/events/stream`; the browser defaults to same-origin WebSocket
+so no extra public URL setting is required.
 
 ## Daily checks and release commands
 

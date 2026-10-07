@@ -8,8 +8,8 @@ import { isOperationalEventType } from './eventTaxonomy';
  * Contract: browser → approved backend WS/SSE endpoint → FastAPI. No direct infra access.
  *
  * Strategy:
- *  - Primary: WebSocket (NEXT_PUBLIC_WS_URL) — reconnect with exponential backoff.
- *  - Fallback: Server-Sent Events (SSE) at the same base + '/events' if WS fails twice.
+ *  - Primary: WebSocket (NEXT_PUBLIC_WS_URL or same-origin endpoint) — reconnect with exponential backoff.
+ *  - Fallback: authenticated Server-Sent Events after two WebSocket failures.
  *  - Consumers must handle absence gracefully (sample data fallback on pages).
  */
 
@@ -72,7 +72,8 @@ export function useRealtimeEvents(enabled = true): UseRealtimeEventsResult {
   useEffect(() => {
     if (!enabled) return;
     closedRef.current = false;
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL
+      || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/ws`;
 
     const startSseFallback = () => {
       if (closedRef.current || esRef.current) return;
@@ -80,10 +81,11 @@ export function useRealtimeEvents(enabled = true): UseRealtimeEventsResult {
       const es = new EventSource(`${base}/api/v1/admin/events/stream`);
       esRef.current = es;
       es.onopen = () => setTransport('sse');
-      es.onmessage = (msg) => {
+      es.addEventListener('operational', (msg) => {
+        if (!(msg instanceof MessageEvent)) return;
         const event = parseMessage(msg.data);
         if (event) pushEvent(event);
-      };
+      });
       es.onerror = () => {
         es.close();
         esRef.current = null;
