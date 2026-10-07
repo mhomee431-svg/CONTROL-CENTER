@@ -43,6 +43,10 @@ export const CAPABILITIES = {
   CONTENT_READ: 'content.read',
   CONTENT_MANAGE: 'content.manage',
 
+  REVIEWS_READ: 'reviews.read',
+  REVIEWS_MODERATE: 'reviews.moderate',
+  REVIEWS_ESCALATE: 'reviews.escalate',
+
   SUPPORT_READ: 'support.read',
   SUPPORT_UPDATE: 'support.update',
 
@@ -155,6 +159,9 @@ export const ROLE_CAPABILITIES: Record<AdminRole, Capability[] | '*'> = {
     CAPABILITIES.SUPPORT_READ,
     CAPABILITIES.SUPPORT_UPDATE,
     CAPABILITIES.NOTIFICATIONS_SEND,
+    CAPABILITIES.REVIEWS_READ,
+    CAPABILITIES.REVIEWS_MODERATE,
+    CAPABILITIES.REVIEWS_ESCALATE,
   ],
 
   CONTENT_ADMIN: [
@@ -168,6 +175,8 @@ export const ROLE_CAPABILITIES: Record<AdminRole, Capability[] | '*'> = {
     CAPABILITIES.CONTENT_READ,
     CAPABILITIES.CONTENT_MANAGE,
     CAPABILITIES.NOTIFICATIONS_SEND,
+    CAPABILITIES.REVIEWS_READ,
+    CAPABILITIES.REVIEWS_MODERATE,
   ],
 
   ANALYST: [

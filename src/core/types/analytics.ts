@@ -26,6 +26,21 @@ export interface AnalyticsSummary {
   top_categories_searched: Array<{ category: string; count: number }>;
   searches_by_day: Array<{ date: string; count: number }>;
   zero_result_queries: Array<{ query: string; count: number; location?: string }>;
+
+  /**
+   * Optional extended analytics surfaces. The backend includes these when the
+   * corresponding analytics modules are enabled; the UI renders each one only
+   * when present and degrades gracefully otherwise.
+   */
+  /** Geography: searches grouped by region/locality. */
+  searches_by_location?: Array<{ location: string; count: number }> | null;
+  /** Engagement: notifications dispatched in the period, with channel split. */
+  notifications_sent?: number | null;
+  notifications_by_type?: Array<{ type: string; count: number }> | null;
+  /** Platform operations: ingestion/POS/system health counters. */
+  imports_completed?: number | null;
+  imports_failed?: number | null;
+  pos_sync_failures?: number | null;
 }
 
 export interface SubscriptionRevenueSummary {

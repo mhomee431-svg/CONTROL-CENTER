@@ -7,6 +7,7 @@ import { BarChart } from '@mui/x-charts/BarChart';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { AnalyticsSummary } from '@/core/types/analytics';
+import { DashboardMetrics } from '@/core/types/admin';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
 
@@ -19,23 +20,58 @@ export interface AnalyticsKpi {
 interface Props {
   title: string;
   description: string;
+  /**
+   * KPI definitions. When `resolveKpis` is provided it receives the loaded
+   * summary/metrics and must return the final values — this lets each section
+   * bind real backend figures instead of static placeholders.
+   */
   kpis: AnalyticsKpi[];
+  resolveKpis?: (data: { summary: AnalyticsSummary | undefined; metrics: DashboardMetrics | undefined; isLoading: boolean }) => AnalyticsKpi[];
   chartTitle?: string;
   chartData?: Array<{ label: string; value: number }>;
+  /** Optional per-section extra list, sourced from the analytics summary. */
+  secondaryListSource?: 'top_categories_searched' | 'top_search_terms' | 'zero_result_queries' | 'searches_by_location';
+  secondaryListTitle?: string;
 }
 
 /**
- * Shared analytics section renderer. Keeps the six analytics routes thin and
+ * Shared analytics section renderer. Keeps the analytics routes thin and
  * guarantees consistent presentation + drill-down breadcrumbs.
+ *
+ * Data sources: the search analytics summary (`/analytics/summary`) and the
+ * platform dashboard metrics (`/dashboard/metrics`). Sections bind live values
+ * via `resolveKpis`; anything the backend does not report stays as "—".
  */
-export function AnalyticsSection({ title, description, kpis, chartTitle, chartData }: Props) {
-  const { data: summary, isLoading, isError } = useQuery<AnalyticsSummary>({
+export function AnalyticsSection({ title, description, kpis, resolveKpis, chartTitle, chartData, secondaryListSource, secondaryListTitle }: Props) {
+  const summaryQuery = useQuery<AnalyticsSummary>({
     queryKey: ['admin', 'analytics', 'summary'],
     queryFn: () => apiClient<AnalyticsSummary>(API_ENDPOINTS.DASHBOARD.ANALYTICS_SUMMARY),
     retry: false,
   });
 
+  const metricsQuery = useQuery<DashboardMetrics>({
+    queryKey: ['admin', 'dashboard', 'metrics'],
+    queryFn: () => apiClient<DashboardMetrics>(API_ENDPOINTS.DASHBOARD.METRICS),
+    retry: false,
+  });
+
+  const summary = summaryQuery.data;
+  const metrics = metricsQuery.data;
+  const isLoading = summaryQuery.isLoading || metricsQuery.isLoading;
+  const isError = summaryQuery.isError && metricsQuery.isError;
+
+  const resolvedKpis = resolveKpis
+    ? resolveKpis({ summary, metrics, isLoading })
+    : kpis;
+
   const series = chartData ?? summary?.searches_by_day?.map((d) => ({ label: d.date, value: d.count })) ?? [];
+
+  // Resolve the requested secondary list from whichever summary array carries it.
+  let secondaryItems: Array<{ label: string; value?: number }> = [];
+  if (secondaryListSource === 'top_search_terms') secondaryItems = summary?.top_search_terms?.map((t) => ({ label: t.term, value: t.count })) ?? [];
+  else if (secondaryListSource === 'top_categories_searched') secondaryItems = summary?.top_categories_searched?.map((c) => ({ label: c.category, value: c.count })) ?? [];
+  else if (secondaryListSource === 'zero_result_queries') secondaryItems = summary?.zero_result_queries?.map((q) => ({ label: q.location ? `${q.query} — ${q.location}` : q.query, value: q.count })) ?? [];
+  else if (secondaryListSource === 'searches_by_location') secondaryItems = summary?.searches_by_location?.map((l) => ({ label: l.location, value: l.count })) ?? [];
 
   return (
     <Box>
@@ -58,12 +94,12 @@ export function AnalyticsSection({ title, description, kpis, chartTitle, chartDa
 
       {isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Analytics summary endpoint is unavailable. Showing configured section KPIs.
+          Analytics endpoints are unavailable. Showing configured section KPIs.
         </Alert>
       )}
 
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {kpis.map((kpi) => (
+        {resolvedKpis.map((kpi) => (
           <Grid item xs={12} sm={6} md={3} key={kpi.label}>
             <Card sx={{ borderLeft: `4px solid ${kpi.color}` }}>
               <CardContent sx={{ p: 2.5 }}>
@@ -105,19 +141,41 @@ export function AnalyticsSection({ title, description, kpis, chartTitle, chartDa
         </CardContent>
       </Card>
 
-      {summary?.top_search_terms && summary.top_search_terms.length > 0 && (
+      {summaryQuery.data?.top_search_terms && summaryQuery.data.top_search_terms.length > 0 && (
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
               Top Search Terms
             </Typography>
             <List dense>
-              {summary.top_search_terms.slice(0, 8).map((term) => (
+              {summaryQuery.data.top_search_terms.slice(0, 8).map((term) => (
                 <ListItem key={term.term} sx={{ borderBottom: '1px solid #F1F5F9' }}>
                   <ListItemText primary={term.term} primaryTypographyProps={{ fontSize: '0.8125rem' }} />
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     {term.count.toLocaleString()}
                   </Typography>
+                </ListItem>
+              ))}
+            </List>
+          </CardContent>
+        </Card>
+      )}
+
+      {secondaryListSource && secondaryItems.length > 0 && (
+        <Card>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+              {secondaryListTitle || 'Breakdown'}
+            </Typography>
+            <List dense>
+              {secondaryItems.slice(0, 8).map((item) => (
+                <ListItem key={item.label} sx={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '0.8125rem' }} />
+                  {item.value !== undefined && (
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {item.value.toLocaleString()}
+                    </Typography>
+                  )}
                 </ListItem>
               ))}
             </List>

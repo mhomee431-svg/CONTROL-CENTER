@@ -173,7 +173,10 @@ export default function PosPage() {
         </Alert>
       )}
 
-      {/* Summary rail across the four documented states */}
+      {/* Summary applies to the currently loaded server page, not the full dataset. */}
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+        Status counts for this page
+      </Typography>
       <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
         <SummaryTile label="Connected" value={counts.connected} color="#10B981" />
         <SummaryTile label="Disconnected" value={counts.disconnected} color="#EF4444" />

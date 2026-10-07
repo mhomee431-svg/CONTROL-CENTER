@@ -53,6 +53,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
     case 'CANCELLED':
     case 'FAILED':
     case 'URGENT':
+    // Support Center: a ticket escalated to a higher tier.
+    case 'ESCALATED':
     // POS Control Center: link down, or the last sync run failed.
     case 'DISCONNECTED':
     case 'SYNC_FAILED':

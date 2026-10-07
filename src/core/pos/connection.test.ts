@@ -149,11 +149,14 @@ describe('Per-capability sync results', () => {
 });
 
 describe('Action gating', () => {
-  it('offers sync only when connected and idle', () => {
-    expect(canTriggerSync(integration({ status: 'CONNECTED' }))).toBe(true);
-    expect(canTriggerSync(integration({ status: 'SYNCING' }))).toBe(false);
-    expect(canTriggerSync(integration({ status: 'DISCONNECTED' }))).toBe(false);
-    expect(canTriggerSync(integration({ status: 'CONNECTED', can_trigger_sync: false }))).toBe(false);
+  it('offers sync only when connected, idle, and a stream is declared', () => {
+    expect(canTriggerSync(integration({ status: 'CONNECTED', capabilities: ['PRODUCTS'] }))).toBe(true);
+    expect(canTriggerSync(integration({ status: 'CONNECTED' }))).toBe(false);
+    expect(canTriggerSync(integration({ status: 'SYNCING', capabilities: ['PRODUCTS'] }))).toBe(false);
+    expect(canTriggerSync(integration({ status: 'DISCONNECTED', capabilities: ['PRODUCTS'] }))).toBe(false);
+    expect(canTriggerSync(integration({ status: 'CONNECTED', capabilities: ['PRODUCTS'], can_trigger_sync: false }))).toBe(false);
+    // Backend may explicitly advertise support while capabilities are fetched separately.
+    expect(canTriggerSync(integration({ status: 'CONNECTED', can_trigger_sync: true }))).toBe(true);
   });
 
   it('offers reconnect only when disconnected', () => {

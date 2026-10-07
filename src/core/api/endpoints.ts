@@ -96,7 +96,12 @@ export const API_ENDPOINTS = {
   // Complaints / Support
   COMPLAINTS: {
     LIST: '/api/v1/admin/complaints',
+    DETAIL: (id: number | string) => `/api/v1/admin/complaints/${id}`,
     UPDATE: (id: number | string) => `/api/v1/admin/complaints/${id}`,
+    ASSIGN: (id: number | string) => `/api/v1/admin/complaints/${id}/assign`,
+    NOTE: (id: number | string) => `/api/v1/admin/complaints/${id}/notes`,
+    RESPONSE: (id: number | string) => `/api/v1/admin/complaints/${id}/respond`,
+    TIMELINE: (id: number | string) => `/api/v1/admin/complaints/${id}/timeline`,
   },
 
   // Notifications
@@ -127,6 +132,13 @@ export const API_ENDPOINTS = {
 
     SYSTEM_MESSAGES: '/api/v1/admin/content/system-messages',
     SYSTEM_MESSAGE_DETAIL: (id: number | string) => `/api/v1/admin/content/system-messages/${id}`,
+  },
+
+  // Reviews & Moderation
+  REVIEWS: {
+    LIST: '/api/v1/admin/reviews',
+    DETAIL: (id: number | string) => `/api/v1/admin/reviews/${id}`,
+    MODERATE: (id: number | string) => `/api/v1/admin/reviews/${id}/moderation`,
   },
 
   // Governance & Audit

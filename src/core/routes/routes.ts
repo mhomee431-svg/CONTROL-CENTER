@@ -76,6 +76,10 @@ export const ROUTES = {
   SUPPORT_DETAIL: (id: number | string) => `/support/${id}`,
   AUDIT: '/audit',
 
+  // Reviews & Moderation
+  REVIEWS: '/reviews',
+  REVIEW_DETAIL: (id: number | string) => `/reviews/${id}`,
+
   // Analytics
   ANALYTICS: '/analytics',
   ANALYTICS_CUSTOMERS: '/analytics/customers',

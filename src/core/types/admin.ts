@@ -132,16 +132,83 @@ export interface OfferItem {
   valid_until: string;
 }
 
+/**
+ * Support Center ticket lifecycle.
+ *
+ * OPEN → IN_PROGRESS → (ESCALATED) → RESOLVED → CLOSED.
+ * ESCALATED marks a ticket pushed to a higher support tier; it can return to
+ * IN_PROGRESS or jump straight to RESOLVED. CLOSED is terminal.
+ */
+export type ComplaintStatus = 'OPEN' | 'IN_PROGRESS' | 'ESCALATED' | 'RESOLVED' | 'CLOSED';
+
+/**
+ * Support Center ticket categories. `OTHER` is the server-side fallback for
+ * any classifier value the console does not know about.
+ */
+export type ComplaintCategory =
+  | 'CUSTOMER'
+  | 'SHOPKEEPER'
+  | 'BUSINESS'
+  | 'PRODUCT'
+  | 'SEARCH'
+  | 'TECHNICAL'
+  | 'PAYMENT'
+  | 'OTHER';
+
+/** One entry in a ticket's activity timeline. */
+export interface ComplaintTimelineEntry {
+  id?: number | string;
+  /** e.g. CREATED, STATUS_CHANGED, ASSIGNED, NOTE_ADDED, RESPONSE_SENT. */
+  event_type: string;
+  /** Human-readable summary of what happened. */
+  message: string;
+  actor_name?: string | null;
+  /** True when the entry is an operator-visible-only internal note. */
+  is_internal?: boolean;
+  created_at: string;
+}
+
+/** An attachment uploaded alongside a ticket or added during handling. */
+export interface ComplaintAttachment {
+  id?: number | string;
+  file_name?: string | null;
+  /** Backend-hosted asset URL (S3/CDN). Never a user-supplied script URL. */
+  file_url?: string | null;
+  file_size_bytes?: number | null;
+  content_type?: string | null;
+  uploaded_at?: string | null;
+}
+
 export interface ComplaintItem {
   id: number;
   ticket_number?: string;
   reporter_type?: string;
   reporter_name?: string;
   complaint_type: string;
+  /** Classifier category, e.g. "TECHNICAL". Derived from complaint_type when absent. */
+  category?: string | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  status: ComplaintStatus | string;
   description: string;
   created_at: string;
+  /** Admin the ticket is currently assigned to. */
+  assigned_admin?: string | null;
+  assigned_admin_id?: number | null;
+  /** Related entity references surfaced as drill-down links. */
+  related_customer_id?: number | null;
+  related_customer_name?: string | null;
+  related_shop_id?: number | null;
+  related_shop_name?: string | null;
+  related_product_id?: number | null;
+  related_product_name?: string | null;
+  /** Detail payload extras — populated by the detail endpoint when supported. */
+  attachments?: ComplaintAttachment[] | null;
+  timeline?: ComplaintTimelineEntry[] | null;
+  /** Backend-advertised action availability; honoured when explicitly false. */
+  can_assign?: boolean;
+  can_respond?: boolean;
+  resolution_notes?: string | null;
+  updated_at?: string | null;
 }
 
 export interface AuditLogItem {

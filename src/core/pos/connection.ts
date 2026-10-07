@@ -147,7 +147,11 @@ export function resultFor(
 export function canTriggerSync(item?: PosIntegrationItem | null): boolean {
   if (!item) return false;
   if (item.can_trigger_sync === false) return false;
-  return isConnected(item) && !isSyncing(item);
+  // A sync with no declared data streams cannot do useful work. A positive
+  // backend capability flag may explicitly enable integrations that report
+  // capabilities through a separate endpoint.
+  const hasSyncableStreams = item.can_trigger_sync === true || declaredCapabilities(item).length > 0;
+  return hasSyncableStreams && isConnected(item) && !isSyncing(item);
 }
 
 /** Reconnect is offered only when the link is actually down. */
