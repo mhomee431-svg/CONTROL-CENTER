@@ -588,6 +588,17 @@ def delete_category(
         raise HTTPException(status_code=404, detail=f"Category {category_id} not found")
     db.add(
         AuditLog(
+            action="category.deleted",
+            entity_type="category",
+            entity_id=category_id,
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={"name": row.name},
+        )
+    )
+    db.delete(row)
+    db.commit()
+    return ok(None, message="Category deleted")
 
 
 BRAND_FIELDS = ["id", "name", "slug", "description", "logo_url", "is_active", "product_count", "created_at"]
@@ -646,17 +657,6 @@ def delete_brand(
     db.delete(row)
     db.commit()
     return ok(None, message="Brand deleted")
-            action="category.deleted",
-            entity_type="category",
-            entity_id=category_id,
-            user_id=admin.id,
-            admin_user=admin.name or admin.username,
-            details={"name": row.name},
-        )
-    )
-    db.delete(row)
-    db.commit()
-    return ok(None, message="Category deleted")
 
 
 @router.get("/brands")
