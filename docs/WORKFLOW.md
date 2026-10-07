@@ -1,191 +1,158 @@
 ---
 title: Development, Staging and Production Workflow
-last_reviewed: 2026-10-05
+last_reviewed: 2026-10-07
 ---
 
 # Development, Staging and Production Workflow
 
-This document is the operating manual for this repository. It exists because
-the project has one maintainer: six months from now there is no memory of
-why a rule exists, only the rule itself.
+This document describes the checks and AWS deployment path for this
+repository. A successful build does not replace verifying the deployed
+application, database backups, and operational alerts.
 
-## Shape of the pipeline
-
-```
-   edit locally
-       |
-   git push to main
-       |
-   +--- CI ---------------------------------------------------+
-   |  commitlint (advisory) -> typecheck -> lint -> test     |
-   |  -> build                                              |
-   |  also: CodeQL + npm audit (Security workflow)           |
-   +---------------------+-----------------------------------+
-         |               |
-      red |              | green
-         v               v
-    stop, fix      deploy-staging.yml
-                             |
-                    staging domain (real backend)
-                             |
-                 verified? tag a release
-                             |
-              git tag v1.2.3 && git push origin main --tags
-                             |
-         +-------------------+-------------------+
-         |                                       |
-  release-notes.yml                    deploy-production.yml
-  (GitHub Release + notes)              (production domain)
-```
-
-## Supply chain: every action is pinned to a commit SHA
-
-Third-party actions are referenced by full SHA, not by a movable tag:
-
-```yaml
-uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
-```
-
-`actions/checkout@v4` is a pointer the action's owner can move at any time.
-If that account is ever compromised, a tag reference runs the attacker's code
-inside this repository with access to its secrets. A SHA is immutable, so
-`@v4` resolving to something hostile cannot happen.
-
-Dependabot updates the pinned SHAs on its weekly schedule, so pinning costs
-no ongoing effort. The trailing comment records which release the SHA is, so
-the file stays readable.
-
-## Commit messages are the project's only automatic documentation
-
-`git log` is how "when did this break, and what touched it" gets answered
-months later. That is only possible if every message says what kind of change
-it was, so commits follow Conventional Commits:
+## Pipeline
 
 ```
-<type>(optional scope): <description>
-
-feat(customers): add saved-products tab
-fix(imports): resolve job detail from the ingestion registry
-ci: add staging and tag-driven production deployment pipeline
-refactor(api): extract a single request helper
+push / pull request
+    |
+    +-- frontend: typecheck -> lint -> tests -> production build
+    +-- backend: Python 3.12 tests
+    +-- infrastructure: CDK typecheck -> synth -> both container builds
+    +-- security: shipped dependency audit
+    +-- security workflow: npm audit and CodeQL
+            |
+            +-- successful push to main -> AWS staging (when configured)
+            +-- successful v* tag on main -> AWS production (when configured)
 ```
 
-The type carries meaning for tooling: `fix` is a patch release, `feat` is a
-minor one, and `!` or a `BREAKING CHANGE` footer is a major one.
+CI runs on Node 24 and Python 3.12. Production deploys use the same commit
+that passed CI. Configure GitHub's `production` environment with required
+reviewers to require approval before the production job assumes its AWS role.
+
+## AWS architecture
+
+The CDK application in `infrastructure/` provisions an internet-facing
+Application Load Balancer, an ECS Fargate service for the Next.js standalone
+server, a separate FastAPI service, and a private RDS PostgreSQL instance.
+The ALB redirects HTTP to HTTPS and sends `/api/v1/*` and `/health` to the API;
+all other paths go to Next.js. The API and web tasks are not publicly
+addressable. The database accepts connections only from the API task security
+group. Container logs are retained in CloudWatch Logs, the API signing key and
+database credentials are held in Secrets Manager, and production enables
+multi-AZ ECS/RDS and deletion protection.
+
+The stack uses billable AWS resources (including NAT gateways, an ALB, ECS
+tasks, and RDS). Configure AWS Budgets and review the selected region's prices
+before enabling automatic deployment. The stack does not create a domain,
+ACM certificate, AWS account, OIDC provider, or GitHub environment.
+
+The shipped frontend dependency gate (`npm audit --omit=dev --audit-level=high`)
+passes. Full audit reports still show high findings in development-only
+frontend lint dependencies and in AWS CDK's bundled `brace-expansion` 5.0.9.
+The current latest `aws-cdk-lib` bundles that version, so npm cannot repair it
+with a lockfile-only update; the infrastructure audit is recorded as an
+artifact and should be rechecked when CDK releases a patched bundle.
+
+## One-time AWS and GitHub setup
+
+1. Choose an AWS account and region. In that region, request and DNS-validate
+   ACM certificates covering the staging and production hostnames. The ALB
+   certificate must be in the same region as the ALB.
+2. If the domain is hosted in Route 53, note its hosted-zone ID and zone name.
+   Otherwise, leave the hosted-zone variables empty and create DNS alias/CNAME
+   records pointing to the ALB DNS name printed by the stack.
+3. Configure GitHub Actions OIDC in the AWS account. Create an IAM OIDC
+   provider for `https://token.actions.githubusercontent.com`; trust only this
+   repository and the intended refs/environments. The staging job's subject
+   is `repo:mhomee431-svg/CONTROL-CENTER:ref:refs/heads/main`; production uses
+   `repo:mhomee431-svg/CONTROL-CENTER:environment:production`. The deploy role
+   must be allowed to assume the CDK bootstrap deployment/publishing roles
+   and pass the task roles. Bootstrap CDK once per account/region using an
+   organization-approved CloudFormation execution policy. Do not store AWS
+   access keys in GitHub.
+4. Add these **repository variables** under Settings -> Secrets and variables
+   -> Actions:
+
+   | Variable | Required | Purpose |
+   | --- | --- | --- |
+   | `AWS_ROLE_ARN` | yes | OIDC role ARN for the CDK deployment |
+   | `AWS_REGION` | yes | AWS region used by the stacks |
+   | `AWS_STAGING_DOMAIN_NAME` | yes | Full staging hostname |
+   | `AWS_STAGING_CERTIFICATE_ARN` | yes | ACM certificate ARN for staging |
+   | `AWS_STAGING_HOSTED_ZONE_ID` | no | Route 53 zone ID when using Route 53 |
+   | `AWS_STAGING_HOSTED_ZONE_NAME` | no | Zone name paired with the zone ID |
+   | `AWS_PRODUCTION_DOMAIN_NAME` | yes | Full production hostname |
+   | `AWS_PRODUCTION_CERTIFICATE_ARN` | yes | ACM certificate ARN for production |
+   | `AWS_PRODUCTION_HOSTED_ZONE_ID` | no | Route 53 zone ID when using Route 53 |
+   | `AWS_PRODUCTION_HOSTED_ZONE_NAME` | no | Zone name paired with the zone ID |
+
+   Keep each hosted-zone ID/name pair either fully populated or both empty.
+   Use distinct staging and production domain/certificate values.
+5. Create a GitHub environment named `production`, add required reviewers, and
+   restrict deployment branches/tags to the release policy. Enable branch
+   protection on `main` and require the `typecheck, lint, test, build`,
+   `backend tests`, `AWS infrastructure synthesis`, and
+   `production dependency audit` checks.
+6. Push to `main`. When all required variables and OIDC permissions are in
+   place, CI deploys staging. A missing AWS variable intentionally skips the
+   deploy job while checks still run.
+7. Verify the staging URL, login, API health (`/health`), database persistence,
+   and relevant application flows. Only then create and push a version tag:
+
+   ```bash
+   git tag v1.2.3
+   git push origin v1.2.3
+   ```
+
+   The production job rejects tags whose commit is not on `main` and waits on
+   the configured production environment approval.
+
+## Backend configuration and data
+
+Local development can use `backend/.env.example` and SQLite. ECS injects a
+unique generated API signing key and PostgreSQL credentials from Secrets
+Manager, sets `COOKIE_SECURE=true`, and requires TLS for database connections.
+Never commit `.env` files, signing keys, database passwords, AWS access keys,
+or token files.
+
+The API currently creates missing tables from SQLAlchemy metadata at startup;
+an advisory transaction lock serializes that operation across simultaneous
+ECS tasks. This is not a schema migration system: before deploying changes
+that alter or remove existing columns/tables, add and run a reviewed,
+backward-compatible database migration. RDS deletion protection and retained
+snapshots are not a substitute for testing restore procedures.
+
+## Daily checks and release commands
 
 ```bash
-npm run lint:commit   # check the commits you just made
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+python -m pip install -r backend/requirements-dev.txt
+python -m pytest backend/tests
+
+cd infrastructure
+npm ci
+npm run typecheck
 ```
 
-**The CI check is advisory** (`continue-on-error`) on purpose. History still
-contains `hi`, `p` and `Update hi.txt content to 565` from before the
-convention existed; a hard gate would go permanently red on commits nobody is
-going to rewrite. Once history is clean it can be made blocking.
+Use Conventional Commit messages (`fix(api): ...`, `feat(catalog): ...`,
+`ci: ...`). Commit-message lint remains advisory because historical commits
+pre-date the convention. Keep third-party GitHub Actions pinned to immutable
+commit SHAs.
 
-## Releases are written by the tooling
+## Operations and rollback
 
-Tagging `v1.2.3` publishes a GitHub Release whose notes are grouped by change
-type from the commit prefixes. Nobody writes release prose at release time,
-which matters most when releasing under pressure.
-
-## The rules, and why each one exists
-
-**`main` is the trunk.** Commits go straight to it. Long-lived feature
-branches are not used for routine work: with a single maintainer a branch is
-a delayed commit, and rebasing it later costs more than it saves. Short-lived
-branches are still fine for a large or risky change.
-
-**Production only ships from a tag.** A commit is work-in-progress. A tag is
-the deliberate statement that this exact build was verified on staging. This
-is the single most useful rule here — it means an unreviewed 23:40 push can
-never reach the admin console.
-
-**CI is the reviewer, not a human.** Approving your own pull request is not
-review. The machine catches what tired eyes at 23:40 do not.
-
-**Staging is not the test environment.** Tests run locally and in CI. Staging
-answers a different question: does this build behave correctly against a real
-backend and real cookies. Bugs it catches are environment bugs.
-
-## Why the admin panel needs deployment protection
-
-This frontend can ban users, suspend shops, and read audit trails. A public
-production URL would expose that surface to anyone who guesses the address.
-
-**Enable Vercel Authentication** (Settings -> Deployment Protection). It is
-available on all Vercel plans, including Hobby, and restricts every
-deployment URL to Vercel accounts you explicitly grant access to. Password
-Protection is Pro-only, so it is not the option here.
-
-## Environment variables per environment
-
-| Variable | Local | Staging | Production |
-| --- | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | staging backend | production backend |
-| `NEXT_PUBLIC_WS_URL` | `ws://localhost:8000/api/v1/ws` | staging WS | production WS |
-| `NEXT_PUBLIC_ENV` | `development` | `staging` | `production` |
-
-Variables are read at build time. After changing one in Vercel, the existing
-deployment keeps the old value until it is rebuilt — redeploy it.
-
-## One-time setup
-
-1. Import the repository into Vercel (`vercel link` locally, or connect the
-   git integration).
-2. Add the repository variables — `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` under
-   Settings -> Secrets and variables -> Actions -> **Variables**.
-3. Add `VERCEL_TOKEN` under **Secrets**.
-4. Set the three `NEXT_PUBLIC_*` variables per environment.
-5. Enable Vercel Authentication under Deployment Protection.
-6. Point a staging domain at the preview deployment for the `main` branch.
-
-Until `VERCEL_ORG_ID` and `VERCEL_TOKEN` exist, the two deploy workflows skip
-themselves rather than failing. CI and security still run normally.
-
-## Daily commands
-
-```bash
-# Before every push — this is the habit that replaces code review.
-npm run typecheck && npm run lint && npm test
-
-# Release to production, after verifying staging.
-git tag v1.2.3
-git push origin main --tags
-```
-
-## If production breaks
-
-Vercel keeps every deployment. Dashboard -> Deployments -> pick the last good
-one -> instant rollback. It takes seconds and does not need a new commit.
-For a data-shape problem rather than a build problem, roll back first and
-diagnose after.
-
-## What is deliberately not here
-
-- **Pull-request ceremony.** No self-approving PRs. Approving your own work
-  is not review.
-- **Merge queue.** Available only on organization-owned repositories and
-  private repos on Enterprise Cloud — not on a personal account, so there is
-  nothing to enable.
-- **`develop` or `release/*` branches.** Coordination machinery for a team of
-  one is just overhead.
-- **Docker.** Vercel builds this frontend; a container would be something to
-  maintain with no benefit.
-- **Pre-commit hooks.** They get bypassed under time pressure. The habit of
-  running the checks before pushing is what actually holds.
-- **A hard commitlint gate.** History predates the convention; making it
-  blocking would mean permanently red CI or a history rewrite, both worse than
-  reporting drift.
-
-## GitHub settings worth turning on once
-
-These are in the repository settings rather than in files:
-
-- **Settings -> General -> Automatically delete head branches.** Keeps
-  finished branches from accumulating.
-- **Settings -> Actions -> General -> Require approval for all outside
-  collaborators.** Lets you run workflows from a fork without giving it
-  secrets.
-- **Settings -> Branches -> main -> Require status checks to pass.** The
-  check is `verify`. Even committing straight to `main`, this makes a red CI
-  run visible on the branch itself.
+- Check ECS service events, target-group health, and CloudWatch logs before
+  changing task counts or restarting a service.
+- The ECS deployment circuit breaker rolls back a deployment that cannot
+  become healthy. Redeploy the last known-good commit/tag to roll back
+  application code.
+- Database changes are not automatically rolled back with application code.
+  Use a tested RDS snapshot/point-in-time restore procedure for data incidents.
+- Configure alarms for ALB 5xx/target health, ECS task failures, RDS storage,
+  CPU/connections, and AWS budget thresholds before production use.
+- A successful CI run is evidence for the tested checks only; it cannot
+  guarantee that a deployment is error-free or that AWS is configured
+  correctly. Confirm health and critical user journeys after every release.

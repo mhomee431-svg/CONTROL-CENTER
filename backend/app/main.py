@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import (
@@ -29,7 +30,11 @@ app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_origin_regex=r"http://(?:localhost|127\.0\.0\.1):\d+",
+    allow_origin_regex=(
+        r"http://(?:localhost|127\.0\.0\.1):\d+"
+        if settings.ENVIRONMENT == "development"
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,9 +43,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup() -> None:
-    # create_all is enough for the local console; a shared environment would
-    # use Alembic migrations instead.
-    Base.metadata.create_all(bind=engine)
+    if engine.dialect.name == "postgresql":
+        # Serialize first-start table creation when ECS starts multiple tasks.
+        with engine.begin() as connection:
+            connection.execute(text("SELECT pg_advisory_xact_lock(724231)"))
+            Base.metadata.create_all(bind=connection)
+    else:
+        Base.metadata.create_all(bind=engine)
 
 
 @app.exception_handler(StarletteHTTPException)

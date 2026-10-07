@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { ALL_QUALITY_CHECKS, QUALITY_CHECKS, QUALITY_CHECKS_TAIL, barcodeVerdict, normaliseProductName } from './qualityChecks';
 import type { EnrichedProduct, IdentifierRow } from './qualityChecks';
 

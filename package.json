@@ -7,11 +7,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "lint:commit": "commitlint --from origin/main --to HEAD",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.mjs",
     "test:watch": "vitest --config vitest.config.mjs"
+  },
+  "overrides": {
+    "postcss": "8.5.29"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
@@ -34,14 +37,13 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.3",
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.13.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
-    "@types/testing-library__jest-dom": "^6.0.0",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.2.1",

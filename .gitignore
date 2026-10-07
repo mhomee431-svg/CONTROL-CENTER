@@ -30,6 +30,7 @@ yarn-error.log*
 /.vscode/settings.json
 
 # Python
+.venv/
 __pycache__/
 *.py[cod]
 
@@ -42,6 +43,11 @@ __pycache__/
 
 # vercel
 .vercel
+
+# Docker and CDK
+cdk.out/
+/infrastructure/node_modules/
+/infrastructure/dist/
 
 # typescript
 *.tsbuildinfo

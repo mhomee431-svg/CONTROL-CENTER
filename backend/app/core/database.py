@@ -7,11 +7,10 @@ from app.core.config import settings
 
 # check_same_thread is a SQLite-only concern; harmless for other drivers once
 # guarded, so it is passed conditionally.
-connect_args = (
-    {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
-)
+database_url = settings.database_url
+connect_args = {"check_same_thread": False} if str(database_url).startswith("sqlite") else {}
 
-engine = create_engine(settings.DATABASE_URL, connect_args=connect_args, future=True)
+engine = create_engine(database_url, connect_args=connect_args, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
