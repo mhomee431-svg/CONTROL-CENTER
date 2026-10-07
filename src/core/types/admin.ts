@@ -158,6 +158,10 @@ export interface ProductItem {
   category_id?: number | null;
   category_name?: string | null;
   subcategory_id?: number | null;
+  /** Denormalized variant count for the product table's Variant column. */
+  variant_count?: number | null;
+  /** Primary trade identifier (SKU) alongside the barcode. */
+  sku?: string | null;
   barcode?: string | null;
   status: ProductStatus;
   shop_count?: number;
@@ -260,6 +264,22 @@ export interface AuditLogItem {
   ip_address?: string | null;
   created_at: string;
   details?: Record<string, unknown> | null;
+}
+
+/**
+ * One row of the audited verification trail — the Previous decisions table.
+ * Shaped by `GET /admin/shops/{id}/verification/history` (newest first) so
+ * Admin + Time + Reason + Action render without client-side filtering.
+ */
+export interface VerificationHistoryItem {
+  id: number;
+  action: string;
+  admin_user?: string | null;
+  created_at: string;
+  reason?: string | null;
+  decision?: string | null;
+  from?: string | null;
+  to?: string | null;
 }
 
 export interface SystemSettingItem {

@@ -28,6 +28,8 @@ export const ROUTES = {
   PRODUCTS: '/products',
   PRODUCT_DETAIL: (id: number | string) => `/products/${id}`,
   PRODUCTS_APPROVALS: '/products/approvals',
+  PRODUCTS_QUALITY: '/products/quality',
+  PRODUCTS_MERGE: '/products/merge',
   CATEGORIES: '/categories',
   CATEGORY_DETAIL: (id: number | string) => `/categories/${id}`,
   BRANDS: '/brands',

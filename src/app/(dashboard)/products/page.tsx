@@ -98,6 +98,22 @@ function ProductsPage() {
       minWidth: 140,
       valueGetter: (_, row) => row.category_name || 'Unassigned',
     },
+    {
+      field: 'variant_count',
+      headerName: 'Variant',
+      width: 110,
+      valueGetter: (_, row) => {
+        const n = Number((row as ProductItem).variant_count ?? 0);
+        return n > 0 ? `${n} variant${n === 1 ? '' : 's'}` : 'Base only';
+      },
+    },
+    {
+      field: 'identifier',
+      headerName: 'Identifier',
+      flex: 1,
+      minWidth: 150,
+      valueGetter: (_, row) => (row as ProductItem).barcode || (row as ProductItem).sku || '—',
+    },
     { field: 'barcode', headerName: 'Barcode / EAN', flex: 1, minWidth: 140 },
     {
       field: 'status',
@@ -107,11 +123,23 @@ function ProductsPage() {
     },
     {
       field: 'shop_count',
-      headerName: 'Stocked In',
-      width: 100,
+      headerName: 'Shop Count',
+      width: 110,
       align: 'right',
       headerAlign: 'right',
       valueFormatter: (value) => (value ? `${value} shops` : '0 shops'),
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created',
+      width: 130,
+      valueFormatter: (value) => (value ? new Date(value as string).toLocaleDateString() : '—'),
+    },
+    {
+      field: 'updated_at',
+      headerName: 'Updated',
+      width: 130,
+      valueFormatter: (value) => (value ? new Date(value as string).toLocaleDateString() : '—'),
     },
   ];
 

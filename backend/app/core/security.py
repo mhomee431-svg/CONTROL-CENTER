@@ -104,13 +104,29 @@ def require_capability(capability: str):
     The platform owner bypasses the check; every other admin must hold the
     grant explicitly. Capabilities are compared case-insensitively so the
     frontend's lowercase dotted names line up with stored grants.
+
+    Verification triage accepts aliases: the console guards Approve / Reject /
+    Correction / Hold with `shops.approve`, `shops.reject` and `shops.suspend`
+    while the API historically required `shops.verify`. Either grant opens the
+    decision and assignment routes so a reviewer is never locked out by a
+    naming mismatch — the audit log still records exactly what was decided.
     """
+
+    # Frontend guard -> backend grant(s) that satisfy it.
+    _ALIASES: dict[str, set[str]] = {
+        "shops.verify": {"shops.verify", "shops.approve", "shops.reject", "shops.suspend"},
+        "shops.approve": {"shops.approve", "shops.verify"},
+        "shops.reject": {"shops.reject", "shops.verify"},
+        "shops.suspend": {"shops.suspend", "shops.verify"},
+    }
 
     def _guard(admin: AdminUser = Depends(get_current_admin)) -> AdminUser:
         if admin.is_owner:
             return admin
         grants = {g.lower() for g in (admin.permissions or [])}
-        if capability.lower() not in grants:
+        wanted = capability.lower()
+        accepted = {wanted} | _ALIASES.get(wanted, set())
+        if not (grants & accepted):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Missing capability: {capability}",

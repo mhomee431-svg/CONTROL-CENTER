@@ -99,6 +99,11 @@ export const API_ENDPOINTS = {
     BULK: '/api/v1/admin/products/bulk',
     APPROVALS: '/api/v1/admin/products/approvals',
     REVIEW_LISTING: (listingId: number | string) => `/api/v1/admin/products/listings/${listingId}/review`,
+    /** Server-computed hygiene findings across the nine quality checks. */
+    QUALITY: '/api/v1/admin/products/quality',
+    /** High-risk merge: compare two candidates, then confirm with a reason. */
+    MERGE_COMPARE: '/api/v1/admin/products/merge/compare',
+    MERGE_CONFIRM: '/api/v1/admin/products/merge/confirm',
   },
 
   // Categories & Brands
