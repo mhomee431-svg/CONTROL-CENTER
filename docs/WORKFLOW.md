@@ -1,6 +1,6 @@
 ---
 title: Development, Staging and Production Workflow
-last_reviewed: 2026-10-07
+last_reviewed: 2026-10-08
 ---
 
 # Development, Staging and Production Workflow
@@ -20,13 +20,18 @@ push / pull request
     +-- security: shipped dependency audit
     +-- security workflow: npm audit and CodeQL
             |
-            +-- successful push to main -> AWS staging (when configured)
-            +-- successful v* tag on main -> AWS production (when configured)
+            +-- AWS deployments require explicit repository-variable opt-in
 ```
 
 CI runs on Node 24 and Python 3.12. Production deploys use the same commit
 that passed CI. Configure GitHub's `production` environment with required
 reviewers to require approval before the production job assumes its AWS role.
+
+**Development mode:** CI checks run on pushes and pull requests, but AWS
+deployments are disabled unless the repository variable
+`ENABLE_AWS_DEPLOYMENTS` is explicitly set to `true`. Leave it unset while
+building features; AWS credentials and domain variables alone cannot trigger
+a deployment.
 
 ## AWS architecture
 
@@ -92,9 +97,10 @@ artifact and should be rechecked when CDK releases a patched bundle.
    protection on `main` and require the `typecheck, lint, test, build`,
    `backend tests`, `AWS infrastructure synthesis`, and
    `production dependency audit` checks.
-6. Push to `main`. When all required variables and OIDC permissions are in
-   place, CI deploys staging. A missing AWS variable intentionally skips the
-   deploy job while checks still run.
+6. Only when you intentionally want AWS staging deployments, set the
+   repository variable `ENABLE_AWS_DEPLOYMENTS` to `true`. Pushes to `main`
+   then deploy staging after all required variables and CI checks are in place.
+   Without that exact opt-in, deployment jobs stay skipped and checks still run.
 7. Verify the staging URL, login, API health (`/health`), database persistence,
    and relevant application flows. Only then create and push a version tag:
 
@@ -131,6 +137,11 @@ SSE endpoints are `/api/v1/ws` and
 `/api/v1/admin/events/stream`; the browser defaults to same-origin WebSocket
 so no extra public URL setting is required.
 
+For API failures, the frontend's `ApiError.requestId` matches the response
+`X-Request-ID` header and the backend log entry. Use that ID to correlate a
+generic `INTERNAL_ERROR` shown to an operator with the server traceback; the
+traceback is logged server-side and never returned in the API response.
+
 ## Daily checks and release commands
 
 ```bash
@@ -139,8 +150,11 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
-python -m pip install -r backend/requirements-dev.txt
-python -m pytest backend/tests
+
+cd backend
+python -m pip install -r requirements-dev.txt
+python -m pytest tests
+cd ..
 
 cd infrastructure
 npm ci

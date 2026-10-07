@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, inspect, text
 
-from app.core.migrations import upgrade_database
+from app.core.migrations import _LEGACY_BASELINE_TABLES, upgrade_database
 from app.models import Base, OperationalEvent
 
 
@@ -26,7 +26,7 @@ def test_upgrade_database_adopts_existing_legacy_schema(tmp_path):
     database_path = tmp_path / "legacy-test.db"
     engine = create_engine(f"sqlite:///{database_path}")
     legacy_tables = [
-        table for table in Base.metadata.sorted_tables if table is not OperationalEvent.__table__
+        table for table in Base.metadata.sorted_tables if table.name in _LEGACY_BASELINE_TABLES
     ]
     Base.metadata.create_all(engine, tables=legacy_tables)
 

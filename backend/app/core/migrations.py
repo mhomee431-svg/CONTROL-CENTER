@@ -7,10 +7,43 @@ from alembic.config import Config
 from sqlalchemy import Engine, inspect, text
 
 from app.core.database import engine
-from app.models import Base
 
 _MIGRATION_LOCK_ID = 724231
 _ALEMBIC_CONFIG = Path(__file__).resolve().parents[2] / "alembic.ini"
+_LEGACY_BASELINE_TABLES = {
+    "admin_notes",
+    "admin_users",
+    "announcements",
+    "audit_logs",
+    "banners",
+    "brands",
+    "categories",
+    "complaints",
+    "faqs",
+    "feature_flags",
+    "help_content",
+    "import_errors",
+    "import_jobs",
+    "inventory_history",
+    "notification_campaigns",
+    "offers",
+    "payments",
+    "pos_integrations",
+    "pos_sync_runs",
+    "products",
+    "product_variants",
+    "promotional_cards",
+    "revoked_admin_tokens",
+    "search_queries",
+    "shop_documents",
+    "shop_inventory",
+    "shop_pricing",
+    "shops",
+    "subscriptions",
+    "system_messages",
+    "system_settings",
+    "users",
+}
 
 
 def upgrade_database(target_engine: Engine = engine) -> None:
@@ -30,10 +63,9 @@ def upgrade_database(target_engine: Engine = engine) -> None:
         try:
             existing_tables = set(inspect(connection).get_table_names())
             if "alembic_version" not in existing_tables:
-                legacy_tables = set(Base.metadata.tables) - {"operational_events"}
-                present_legacy_tables = existing_tables & legacy_tables
-                if present_legacy_tables and not legacy_tables.issubset(existing_tables):
-                    missing = ", ".join(sorted(legacy_tables - existing_tables))
+                present_legacy_tables = existing_tables & _LEGACY_BASELINE_TABLES
+                if present_legacy_tables and not _LEGACY_BASELINE_TABLES.issubset(existing_tables):
+                    missing = ", ".join(sorted(_LEGACY_BASELINE_TABLES - existing_tables))
                     raise RuntimeError(
                         "Cannot adopt the existing database schema: expected legacy tables "
                         f"are missing ({missing})"

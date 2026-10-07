@@ -4,10 +4,16 @@ Run with:  uvicorn app.main:app --reload --port 8000
 The frontend proxies /api/v1/* here.
 """
 
+import logging
+import re
+from uuid import uuid4
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import (
@@ -27,6 +33,27 @@ from app.core.migrations import upgrade_database
 from app.core.operational_events import register_operational_events
 
 app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0")
+logger = logging.getLogger(__name__)
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _request_id_headers(request: Request) -> dict[str, str]:
+    request_id = getattr(request.state, "request_id", None)
+    return {"X-Request-ID": request_id} if request_id else {}
+
+
+@app.middleware("http")
+async def request_id_middleware(
+    request: Request, call_next: RequestResponseEndpoint
+) -> Response:
+    request_id = request.headers.get("X-Request-ID", "")
+    if not _REQUEST_ID_PATTERN.fullmatch(request_id):
+        request_id = uuid4().hex
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +66,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 
@@ -63,6 +91,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
             "data": exc.detail if not isinstance(exc.detail, str) else None,
             "error_code": f"HTTP_{exc.status_code}",
         },
+        headers=_request_id_headers(request),
     )
 
 
@@ -78,13 +107,20 @@ async def validation_exception_handler(
             "data": exc.errors(),
             "error_code": "VALIDATION_ERROR",
         },
+        headers=_request_id_headers(request),
     )
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    # A 500 still has to be readable JSON, or the client reports a parse error
-    # and hides the real failure.
+    request_id = getattr(request.state, "request_id", "unknown")
+    logger.error(
+        "Unhandled API exception (request_id=%s, method=%s, path=%s)",
+        request_id,
+        request.method,
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
     return JSONResponse(
         status_code=500,
         content={
@@ -93,6 +129,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
             "data": None,
             "error_code": "INTERNAL_ERROR",
         },
+        headers=_request_id_headers(request),
     )
 
 

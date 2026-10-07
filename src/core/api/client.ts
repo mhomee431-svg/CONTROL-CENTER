@@ -5,13 +5,21 @@ export class ApiError extends Error {
   public statusCode: number;
   public errorCode?: string;
   public data?: unknown;
+  public requestId?: string;
 
-  constructor(message: string, statusCode: number, errorCode?: string, data?: unknown) {
+  constructor(
+    message: string,
+    statusCode: number,
+    errorCode?: string,
+    data?: unknown,
+    requestId?: string
+  ) {
     super(message);
     this.name = 'ApiError';
     this.statusCode = statusCode;
     this.errorCode = errorCode;
     this.data = data;
+    this.requestId = requestId;
   }
 }
 
@@ -44,10 +52,11 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     }
   }
 
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'X-Request-ID': `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    'X-Request-ID': requestId,
     ...(headers as Record<string, string>),
   };
 
@@ -71,7 +80,9 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     throw new ApiError(
       err instanceof Error ? err.message : 'Network failure or server unreachable',
       0,
-      'NETWORK_ERROR'
+      'NETWORK_ERROR',
+      undefined,
+      requestId
     );
   }
 
@@ -81,12 +92,24 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
       window.location.href = '/login?expired=1';
     }
-    throw new ApiError('Session expired or unauthorized', 401, 'UNAUTHORIZED');
+    throw new ApiError(
+      'Session expired or unauthorized',
+      401,
+      'UNAUTHORIZED',
+      undefined,
+      response.headers.get('X-Request-ID') ?? undefined
+    );
   }
 
   // Handle Forbidden (403)
   if (response.status === 403) {
-    throw new ApiError('You do not have permission to perform this action', 403, 'FORBIDDEN');
+    throw new ApiError(
+      'You do not have permission to perform this action',
+      403,
+      'FORBIDDEN',
+      undefined,
+      response.headers.get('X-Request-ID') ?? undefined
+    );
   }
 
   let data: ApiResponse<T> | null = null;
@@ -98,7 +121,13 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 
   if (!response.ok) {
     const errorMessage = data?.message || response.statusText || 'An unexpected error occurred';
-    throw new ApiError(errorMessage, response.status, data?.error_code, data?.data);
+    throw new ApiError(
+      errorMessage,
+      response.status,
+      data?.error_code,
+      data?.data,
+      response.headers.get('X-Request-ID') ?? undefined
+    );
   }
 
   return (data?.data !== undefined ? data.data : (data as unknown)) as T;

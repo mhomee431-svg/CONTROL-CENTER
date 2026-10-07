@@ -16,13 +16,15 @@
 - [ ] `npm run lint`
 - [ ] `npm test` — new behaviour has a test that fails without this change
 - [ ] `npm run build`
-- [ ] Checked on the staging deployment against the real backend
+- [ ] Backend changes: `python -m pytest tests` (from `backend/`)
+- [ ] Checked on a staging deployment against the real backend (when available; not required during feature development)
 
 ## Checklist
 
 - [ ] No credentials, tokens or `.env` values committed
 - [ ] A failed request still renders a distinct error state, not an empty list
 - [ ] Loading and empty states are handled
+- [ ] Database model changes include a reviewed Alembic migration
 - [ ] Architecture contracts in `docs/` were not removed or contradicted
 - [ ] New env vars documented in `.env.example`
 
@@ -30,6 +32,6 @@
 
 <!--
 What breaks if this is wrong, and how to undo it.
-Vercel keeps every deployment, so rollback is Dashboard -> Deployments ->
-instant rollback. Say here if this needs a coordinated backend change.
+For application code, redeploy the last known-good commit. For database
+changes, note the migration and any required restore or forward-fix plan.
 -->
