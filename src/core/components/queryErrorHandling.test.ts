@@ -64,8 +64,9 @@ describe('query failure surfaces an explicit state', () => {
   // `useQueryClient` and `useMutation` both contain the substring, so a page
   // that only writes — no reads, nothing to fail into a false "no data" — was
   // being flagged for a handler it has no reason to have. Matched on the call
-  // or a generic argument instead.
-  const issuesQuery = (src: string) => /useQuery[<(]/.test(src);
+  // or a generic argument instead. Pages may also read through the shared
+  // `useSectionAnalytics` hook, which wraps `useQuery`; those are reads too.
+  const issuesQuery = (src: string) => /useQuery[<(]/.test(src) || /useSectionAnalytics[<(]/.test(src);
   const pagesWithQueries = PAGES.map((route) => ({
     route,
     src: findPageSource(route),
@@ -78,7 +79,9 @@ describe('query failure surfaces an explicit state', () => {
   it('resolves page sources, not just counts', () => {
     // Guards against the assertions below passing on an empty corpus.
     expect(findPageSource('/customers')).toContain('useQuery');
-    expect(findPageSource('/analytics/geography')).toContain('useQuery');
+    // Geography reads through the shared section hook rather than calling
+    // useQuery directly; both are reads and both must be recognised.
+    expect(findPageSource('/analytics/geography')).toMatch(/useSectionAnalytics|useQuery/);
   });
 
   it('every page issuing a query handles isError', () => {
@@ -108,10 +111,17 @@ describe('query failure surfaces an explicit state', () => {
   });
 
   it('no page renders zero-valued metrics as a substitute for a failure', () => {
-    // Geography analytics previously reported 0 covered cities on error.
+    // Geography analytics previously reported 0 covered cities on error. The
+    // section must both track a failure flag and render an explicit
+    // "Unavailable" state (here supplied by the shared AnalyticsPage, which the
+    // geography route passes `isError` into).
     const geo = findPageSource('/analytics/geography');
     expect(geo).toContain('isError');
-    expect(geo).toContain('Unavailable');
+    const analyticsPage = readFileSync(
+      join(process.cwd(), 'src/core/components/AnalyticsPage.tsx'),
+      'utf8'
+    );
+    expect(analyticsPage).toContain('Unavailable');
   });
 });
 

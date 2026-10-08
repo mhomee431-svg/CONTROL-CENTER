@@ -23,6 +23,7 @@ import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CAPABILITIES } from '@/core/permissions/permissions';
+import { toCsv, downloadCsv } from '@/core/export/csv';
 
 export default function BrandsPage() {
   const queryClient = useQueryClient();
@@ -160,6 +161,20 @@ export default function BrandsPage() {
         loading={isLoading}
         onRefresh={() => refetch()}
         error={isError}
+        gridId="brands"
+        showToolbar
+        onExport={() =>
+          downloadCsv(
+            'brands.csv',
+            toCsv(data?.items ?? [], [
+              { header: 'ID', value: (b) => b.id },
+              { header: 'Brand Name', value: (b) => b.name },
+              { header: 'Slug', value: (b) => b.slug },
+              { header: 'Description', value: (b) => b.description },
+              { header: 'Active', value: (b) => (b.is_active ? 'ACTIVE' : 'INACTIVE') },
+            ])
+          )
+        }
       />
 
       {/* Create Dialog */}

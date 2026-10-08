@@ -91,6 +91,7 @@ export const ROUTES = {
   ANALYTICS_PRODUCTS: '/analytics/products',
   ANALYTICS_SHOPS: '/analytics/shops',
   ANALYTICS_SEARCH: '/analytics/search',
+  ANALYTICS_NOTIFICATIONS: '/analytics/notifications',
   ANALYTICS_GEOGRAPHY: '/analytics/geography',
 
   // System

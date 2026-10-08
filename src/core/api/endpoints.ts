@@ -20,6 +20,19 @@ export const API_ENDPOINTS = {
     ANALYTICS_SUMMARY: '/api/v1/admin/analytics/summary',
   },
 
+  // Analytics sections. Each section has its own endpoint so a section that is
+  // not deployed on a given backend is a named failure rather than an empty
+  // page, and one slow section never holds up the rest.
+  ANALYTICS: {
+    CUSTOMERS: '/api/v1/admin/analytics/customers',
+    SHOPKEEPERS: '/api/v1/admin/analytics/shopkeepers',
+    PRODUCTS: '/api/v1/admin/analytics/products',
+    BUSINESSES: '/api/v1/admin/analytics/businesses',
+    SEARCH: '/api/v1/admin/analytics/search',
+    NOTIFICATIONS: '/api/v1/admin/analytics/notifications',
+    GEOGRAPHY: '/api/v1/admin/analytics/geography',
+  },
+
   // Users & Customers
   CUSTOMERS: {
     LIST: '/api/v1/admin/customers',

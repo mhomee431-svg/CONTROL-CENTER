@@ -1,24 +1,64 @@
 'use client';
 
 import React from 'react';
-import { AnalyticsSection } from '@/core/components/AnalyticsSection';
+import { AnalyticsPage, AnalyticsBreakdown } from '@/core/components/AnalyticsPage';
+import { useSectionAnalytics } from '@/core/analytics/useSectionAnalytics';
+import { BusinessAnalytics } from '@/core/types/analytics';
+import { API_ENDPOINTS } from '@/core/api/endpoints';
 
+/**
+ * Business (Shops) Analytics.
+ *
+ * Metrics: Active Shops, New Shops, Category distribution, Location
+ * distribution, Inventory freshness, Product coverage — over the shared
+ * reporting window.
+ */
 export default function AnalyticsShopsPage() {
+  const { data, isLoading, isError } = useSectionAnalytics<BusinessAnalytics>(
+    'businesses',
+    API_ENDPOINTS.ANALYTICS.BUSINESSES
+  );
+
+  const breakdowns: AnalyticsBreakdown[] = [
+    {
+      title: 'Category Distribution',
+      items: (data?.shops_by_category ?? []).map((c) => ({ label: c.category, value: c.count })),
+    },
+    {
+      title: 'Location Distribution',
+      items: (data?.shops_by_city ?? []).map((c) => ({ label: c.city, value: c.count })),
+    },
+    {
+      title: 'Top Product Coverage',
+      items: (data?.top_coverage_shops ?? []).map((s) => ({ label: s.name, value: s.products })),
+      emptyText: 'No inventory recorded for any shop yet.',
+    },
+  ];
+
   return (
-    <AnalyticsSection
-      title="Shop Analytics"
-      description="Storefront density, inventory freshness, and operational reliability."
-      kpis={({ metrics, isLoading }) => {
-        const ready = !isLoading && metrics !== undefined;
-        const num = (v: number | undefined) => (!ready ? '…' : v != null ? v.toLocaleString() : '—');
-        return [
-          { label: 'TOTAL SHOPS', value: num(metrics?.total_shops), color: '#F59E0B' },
-          { label: 'ACTIVE SHOPS', value: num(metrics?.active_shops), color: '#10B981' },
-          { label: 'STALE INVENTORY', value: num(metrics?.stale_inventory_count), color: '#EF4444' },
-          { label: 'SYNC FAILURES', value: num(metrics?.sync_failures), color: '#6366F1' },
-        ];
-      }}
-      chartTitle="Shop Inventory Update Trend"
+    <AnalyticsPage
+      title="Business Analytics"
+      description="Storefront activation, category and location distribution, inventory freshness and product coverage."
+      isLoading={isLoading}
+      isError={isError}
+      kpis={[
+        { label: 'ACTIVE SHOPS', value: data?.active_shops ?? null, color: '#10B981' },
+        { label: 'NEW SHOPS', value: data?.new_shops ?? null, color: '#3B82F6' },
+        { label: 'TOTAL SHOPS', value: data?.total_shops ?? null, color: '#F59E0B' },
+        { label: 'PENDING VERIFICATION', value: data?.pending_shops ?? null, color: '#A855F7' },
+        { label: 'FRESH INVENTORY SHOPS', value: data?.fresh_shops ?? null, color: '#22C55E' },
+        { label: 'STALE INVENTORY SHOPS', value: data?.stale_shops ?? null, color: '#EF4444' },
+        {
+          label: 'AVG PRODUCT COVERAGE',
+          value:
+            data === undefined ? null : data.average_product_coverage.toLocaleString(),
+          color: '#6366F1',
+        },
+      ]}
+      chartTitle="New Shops by Day"
+      chartKey="businesses:new-shops"
+      chartData={(data?.new_shops_by_day ?? []).map((d) => ({ label: d.date, value: d.count }))}
+      breakdowns={breakdowns}
     />
   );
 }

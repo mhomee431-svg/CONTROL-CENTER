@@ -3,15 +3,16 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Typography, Grid, Card, CardContent, CardActionArea } from '@mui/material';
-import { Users, Store, Package, Building2, Search, MapPin } from 'lucide-react';
+import { Users, Store, Package, Building2, Search, MapPin, Bell } from 'lucide-react';
 import { ROUTES } from '@/core/routes/routes';
 
 const SECTIONS = [
   { title: 'Customers Analytics', path: ROUTES.ANALYTICS_CUSTOMERS, icon: <Users size={22} />, color: '#3B82F6', bg: '#EFF6FF' },
   { title: 'Shopkeepers Analytics', path: ROUTES.ANALYTICS_SHOPKEEPERS, icon: <Store size={22} />, color: '#10B981', bg: '#ECFDF5' },
   { title: 'Products Analytics', path: ROUTES.ANALYTICS_PRODUCTS, icon: <Package size={22} />, color: '#A855F7', bg: '#FAF5FF' },
-  { title: 'Shops Analytics', path: ROUTES.ANALYTICS_SHOPS, icon: <Building2 size={22} />, color: '#F59E0B', bg: '#FFFBEB' },
+  { title: 'Business Analytics', path: ROUTES.ANALYTICS_SHOPS, icon: <Building2 size={22} />, color: '#F59E0B', bg: '#FFFBEB' },
   { title: 'Search Analytics', path: ROUTES.ANALYTICS_SEARCH, icon: <Search size={22} />, color: '#0F52BA', bg: '#EFF6FF' },
+  { title: 'Notification Analytics', path: ROUTES.ANALYTICS_NOTIFICATIONS, icon: <Bell size={22} />, color: '#14B8A6', bg: '#F0FDFA' },
   { title: 'Geography Analytics', path: ROUTES.ANALYTICS_GEOGRAPHY, icon: <MapPin size={22} />, color: '#EC4899', bg: '#FDF2F8' },
 ];
 

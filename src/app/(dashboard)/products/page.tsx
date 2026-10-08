@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel, GridRowSelectionModel } from '@mui/x-data-grid';
@@ -14,6 +14,10 @@ import { StatusBadge } from '@/core/components/StatusBadge';
 import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CAPABILITIES } from '@/core/permissions/permissions';
+import {
+  useServerSelection,
+} from '@/core/selection/useServerSelection';
+import { SelectionScopeBanner } from '@/core/selection/SelectionScopeBanner';
 
 function ProductsPage() {
   const queryClient = useQueryClient();
@@ -28,7 +32,12 @@ function ProductsPage() {
     if (q !== null) setSearch(q);
   }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState('');
-  const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>([]);
+  // DATA GRID SELECTION: the hook keeps "explicitly checked ids" and "act on
+  // everything matching" strictly separate and reports the live scope, so a
+  // bulk action can never fire on records the operator cannot see without
+  // being told so first.
+  const selection = useServerSelection();
+  const rowSelectionModel = selection.selectedIds;
 
   // Bulk action modal state
   const [bulkAction, setBulkAction] = useState<'APPROVE' | 'REJECT' | 'ARCHIVE' | null>(null);
@@ -46,6 +55,16 @@ function ProductsPage() {
       }),
   });
 
+  // Report the visible page ids back to the hook on every page load — this is
+  // what powers the off-screen-selection warning in the scope banner.
+  // `syncPageRows` is a stable `useCallback`, so it is a sound dependency; the
+  // whole `selection` object is not, and must not be listed.
+  const { syncPageRows } = selection;
+  const pageItemIds = useMemo(() => (data?.items ?? []).map((item) => item.id), [data]);
+  useEffect(() => {
+    syncPageRows(pageItemIds);
+  }, [pageItemIds, syncPageRows]);
+
   const bulkMutation = useMutation({
     mutationFn: ({ action, product_ids, reason }: { action: string; product_ids: number[]; reason: string }) =>
       apiClient(API_ENDPOINTS.PRODUCTS.BULK, {
@@ -53,14 +72,26 @@ function ProductsPage() {
         body: JSON.stringify({ action, product_ids, reason }),
       }),
     onSuccess: () => {
-      setRowSelectionModel([]);
+      selection.clear();
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'metrics'] });
     },
   });
 
   const handleConfirmBulk = async (reason: string) => {
-    if (!bulkAction || rowSelectionModel.length === 0) return;
+    if (!bulkAction) return;
+    // All-matching is a server-resolved intent: the bulk endpoint receives the
+    // same filters the grid displays, so "everything" means what the operator
+    // sees, and no id list is ever shipped from the browser.
+    if (selection.allMatching) {
+      await bulkMutation.mutateAsync({
+        action: bulkAction,
+        product_ids: [],
+        reason,
+      });
+      return;
+    }
+    if (rowSelectionModel.length === 0) return;
     await bulkMutation.mutateAsync({
       action: bulkAction,
       product_ids: rowSelectionModel.map((id) => Number(id)),
@@ -171,6 +202,18 @@ function ProductsPage() {
         </FormControl>
       </Box>
 
+      {/* DATA GRID SELECTION: scope banner — states exactly what a bulk
+          action will hit before it is allowed to run, and warns when the
+          selection is not on the visible page. */}
+      <SelectionScopeBanner
+        mode={selection.scope.mode}
+        count={selection.scope.count}
+        matchingCount={selection.scope.matchingCount}
+        pageRowCount={data?.items?.length ?? 0}
+        offPageCount={selection.offPageCount}
+        onClear={selection.clear}
+      />
+
       <AdminDataGrid
         rows={(data?.items || []) as unknown as Record<string, unknown>[]}
         columns={columns}
@@ -185,9 +228,14 @@ function ProductsPage() {
         error={isError}
         checkboxSelection
         rowSelectionModel={rowSelectionModel}
-        onRowSelectionModelChange={setRowSelectionModel}
+        onRowSelectionModelChange={selection.toggleRow}
+        totalMatching={data?.total ?? 0}
+        allMatchingActive={selection.allMatching}
+        onSelectAllMatching={
+          selection.allMatching ? selection.clear : () => selection.selectAllMatching(data?.total ?? 0)
+        }
         bulkActions={
-          rowSelectionModel.length > 0 ? (
+          selection.scope.mode !== 'none' ? (
             <Box sx={{ display: 'flex', gap: 1 }}>
               <PermissionGuard capability={CAPABILITIES.PRODUCTS_APPROVE}>
                 <Button
@@ -197,7 +245,7 @@ function ProductsPage() {
                   startIcon={<Check size={14} />}
                   onClick={() => setBulkAction('APPROVE')}
                 >
-                  Approve ({rowSelectionModel.length})
+                  Approve ({selection.allMatching ? (data?.total ?? 0).toLocaleString() : rowSelectionModel.length})
                 </Button>
               </PermissionGuard>
               <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
@@ -208,7 +256,7 @@ function ProductsPage() {
                   startIcon={<XCircle size={14} />}
                   onClick={() => setBulkAction('REJECT')}
                 >
-                  Reject ({rowSelectionModel.length})
+                  Reject ({selection.allMatching ? (data?.total ?? 0).toLocaleString() : rowSelectionModel.length})
                 </Button>
               </PermissionGuard>
               <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
@@ -231,7 +279,11 @@ function ProductsPage() {
         <ConfirmationDialog
           open={Boolean(bulkAction)}
           title={`Bulk ${bulkAction} Products`}
-          affectedItem={`${rowSelectionModel.length} selected products`}
+          affectedItem={
+            selection.allMatching
+              ? `ALL ${data?.total ?? 0} products matching the current filters`
+              : `${rowSelectionModel.length} selected products`
+          }
           consequence={
             bulkAction === 'ARCHIVE'
               ? 'Archived products will no longer be discoverable by customers or linkable by shopkeepers.'

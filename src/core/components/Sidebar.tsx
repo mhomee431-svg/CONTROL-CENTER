@@ -131,6 +131,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Products', path: ROUTES.ANALYTICS_PRODUCTS, icon: <Package size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
       { title: 'Shops', path: ROUTES.ANALYTICS_SHOPS, icon: <Building2 size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
       { title: 'Search', path: ROUTES.ANALYTICS_SEARCH, icon: <Search size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
+      { title: 'Notifications', path: ROUTES.ANALYTICS_NOTIFICATIONS, icon: <Bell size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
       { title: 'Geography', path: ROUTES.ANALYTICS_GEOGRAPHY, icon: <MapPin size={18} />, capability: CAPABILITIES.ANALYTICS_READ },
     ],
   },

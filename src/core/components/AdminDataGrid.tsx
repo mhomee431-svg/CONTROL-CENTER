@@ -7,9 +7,14 @@ import {
   GridPaginationModel,
   GridSortModel,
   GridRowSelectionModel,
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+  GridToolbarFilterButton,
+  GridToolbarDensitySelector,
 } from '@mui/x-data-grid';
 import { Box, Paper, Typography, Button, TextField, InputAdornment, Alert } from '@mui/material';
 import { Search as SearchIcon, RefreshCw as RefreshIcon } from 'lucide-react';
+import { useGridPreferences } from '@/core/components/gridPreferences';
 
 export interface AdminDataGridProps {
   rows: Record<string, unknown>[];
@@ -39,7 +44,50 @@ export interface AdminDataGridProps {
   errorMessage?: string;
     bulkActions?: React.ReactNode;
     onRowClick?: (params: { row: Record<string, unknown>; id: unknown }) => void;
+  /**
+   * Show MUI X's built-in toolbar: column visibility, filter and density
+   * controls. Column visibility is the big one for wide registries — it lets an
+   * operator hide the columns they do not need instead of scrolling sideways.
+   */
+  showToolbar?: boolean;
+  /**
+   * Export the currently loaded page to CSV. Only offered when the caller
+   * provides it: the DATA GRID RULE allows export "if supported", and a grid
+   * over server-side data must not pretend an export covers the whole dataset
+   * when it only holds the current page.
+   */
+  onExport?: () => void;
+  /**
+   * Stable key used to remember column visibility per grid across visits.
+   * Omit it and preferences are simply not persisted (e.g. ephemeral tabs).
+   */
+  gridId?: string;
+  /**
+   * When set, the toolbar gains "Select all matching" — an intent to act on
+   * every record the current query returns, not just the visible page. The
+   * caller owns what that resolves to server-side; this grid only surfaces the
+   * intent and its scale. Omitted for grids without bulk actions.
+   */
+  totalMatching?: number;
+  /** Called when the operator chooses "Select all matching". */
+  onSelectAllMatching?: () => void;
+  /** True while an all-matching intent is active (drives the banner). */
+  allMatchingActive?: boolean;
   }
+
+/**
+ * A custom toolbar so the grid owns its column-visibility, filter and density
+ * controls in one place, styled to match the control bar above it.
+ */
+function GridToolbar() {
+  return (
+    <GridToolbarContainer sx={{ p: 1, gap: 1 }}>
+      <GridToolbarColumnsButton />
+      <GridToolbarFilterButton />
+      <GridToolbarDensitySelector />
+    </GridToolbarContainer>
+  );
+}
 
 /**
  * Section 69: Reusable AdminDataGrid Abstraction
@@ -65,9 +113,31 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
       errorMessage = 'This list could not be loaded. The registry is unreachable or returned an error.',
       bulkActions,
       onRowClick,
+      showToolbar = false,
+      onExport,
+      gridId,
+      totalMatching,
+      onSelectAllMatching,
+      allMatchingActive = false,
     }) => {
-      // A failed request must never look like an empty result set.
-      if (error) {
+  // Column visibility is remembered per grid (keyed by `gridId`) so an
+  // operator's choices survive a reload. It is a UI preference only — no
+  // platform data is ever persisted.
+  const { columnVisibility, setColumnVisibility } = useGridPreferences(gridId);
+
+  const exportButton = onExport ? (
+    <Button
+      size="small"
+      variant="outlined"
+      onClick={onExport}
+      sx={{ borderColor: '#CBD5E1', color: '#475569' }}
+    >
+      Export CSV
+    </Button>
+  ) : null;
+
+  // A failed request must never look like an empty result set.
+  if (error) {
         return (
           <Paper
             elevation={0}
@@ -144,6 +214,22 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
               Refresh
             </Button>
           )}
+          {exportButton}
+          {onSelectAllMatching && (
+            <Button
+              size="small"
+              variant={allMatchingActive ? 'contained' : 'outlined'}
+              onClick={onSelectAllMatching}
+              // Announced as a state change so screen readers know that the
+              // scope of a following bulk action has changed.
+              aria-pressed={allMatchingActive}
+              sx={{ borderColor: '#CBD5E1', color: '#475569' }}
+            >
+              {allMatchingActive
+                ? `All matching (${(totalMatching ?? 0).toLocaleString()}) selected`
+                : 'Select all matching'}
+            </Button>
+          )}
         </Box>
 
         {/* Bulk Action Slot */}
@@ -169,8 +255,10 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
           onRowSelectionModelChange={onRowSelectionModelChange}
           disableRowSelectionOnClick
           onRowClick={onRowClick}
+          columnVisibilityModel={columnVisibility}
+          onColumnVisibilityModelChange={setColumnVisibility}
           sx={{
-           border: 'none',
+            border: 'none',
             '& .MuiDataGrid-columnHeaders': {
               backgroundColor: '#F8FAFC',
               borderBottom: '1px solid #E2E8F0',
@@ -192,6 +280,7 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
             },
           }}
           slots={{
+            toolbar: showToolbar ? GridToolbar : undefined,
             noRowsOverlay: () => (
               <Box
                 sx={{
@@ -206,6 +295,9 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
                 </Typography>
               </Box>
             ),
+          }}
+          slotProps={{
+            toolbar: { showQuickFilter: false },
           }}
         />
       </Box>
