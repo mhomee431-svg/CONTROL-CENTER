@@ -99,12 +99,21 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
+    # pydantic v2 puts the original exception inside each error's `ctx` (e.g.
+    # a ValueError raised by a field validator). Those objects are not
+    # JSON-serializable, so serialising exc.errors() directly would blow up
+    # while building the 422 response. The `msg` string already carries the
+    # same information; ctx is dropped, not lost.
+    safe_errors = [
+        {k: v for k, v in err.items() if k != "ctx"}
+        for err in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
         content={
             "success": False,
             "message": "Request validation failed",
-            "data": exc.errors(),
+            "data": safe_errors,
             "error_code": "VALIDATION_ERROR",
         },
         headers=_request_id_headers(request),

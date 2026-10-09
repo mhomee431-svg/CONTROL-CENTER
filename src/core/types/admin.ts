@@ -203,7 +203,63 @@ export interface CategoryItem {
   sort_order: number;
   is_active: boolean;
   is_subcategory: boolean;
+  /** Listing template & feature switches (server-managed configuration). */
+  required_fields?: string[] | null;
+  optional_fields?: string[] | null;
+  feature_capabilities?: string[] | null;
   created_at?: string;
+}
+
+/**
+ * Category configuration (“CATEGORY CONFIGURATION” spec section).
+ *
+ * The backend is authoritative for the whole configuration surface: it is the
+ * one place that normalises identifier lists, enforces the Section 33 category
+ * rules, and defines the feature-capability vocabulary. The frontend only
+ * renders and PATCHes these fields — it never invents a rule of its own.
+ *
+ * `CategoryConfigDraft` is the local, editable shape the configuration dialog
+ * holds (all strings, because form inputs are strings). `toCategoryConfigBody`
+ * in `core/catalog/categoryConfig.ts` converts it into the partial wire body
+ * and drops fields the operator did not change, so a PATCH never rewrites the
+ * whole record.
+ */
+export interface CategoryConfigDraft {
+  name: string;
+  slug: string;
+  description: string;
+  /** 'ACTIVE' | 'INACTIVE' — the category's status. */
+  status: string;
+  /** Raw sort-order input; parsed to an integer on save. */
+  sortOrder: string;
+  /** Parent category id as a raw select value ('' means root). */
+  parentId: string;
+  /** Comma-separated attribute names, normalised on save. */
+  requiredFields: string;
+  /** Comma-separated attribute names, normalised on save. */
+  optionalFields: string;
+  /** Selected feature-capability keys (multi-select). */
+  featureCapabilities: string[];
+}
+
+/** One entry in a server-defined key/label vocabulary. */
+export interface ConfigCatalogEntry {
+  key: string;
+  label: string;
+  description?: string;
+}
+
+/**
+ * `GET /admin/categories/config-catalog` — the vocabulary the console renders
+ * for category configuration. Served by the backend so the accepted feature
+ * keys and the field presets are defined once, on the server, and the frontend
+ * cannot drift into a rule set the API would reject.
+ */
+export interface CategoryConfigCatalog {
+  feature_capabilities: ConfigCatalogEntry[];
+  field_presets: ConfigCatalogEntry[];
+  /** Regex (as a string) that a field identifier must satisfy. */
+  identifier_pattern?: string;
 }
 
 export interface BrandItem {
@@ -217,6 +273,24 @@ export interface BrandItem {
   created_at?: string;
 }
 
+/**
+ * `GET /admin/inventory/summary` — freshness buckets for the Inventory
+ * Control Center dashboard. The four buckets partition `total_records`, so
+ * Fresh % + Recent % + Stale % + Unknown % always sum to 100.
+ */
+export interface InventorySummary {
+  total_records: number;
+  fresh_count: number;
+  recent_count: number;
+  stale_count: number;
+  unknown_count: number;
+  missing_prices: number;
+  out_of_stock: number;
+  stale_after_hours: number;
+  fresh_after_hours?: number;
+  low_stock_threshold?: number;
+}
+
 export interface StaleInventoryItem {
   shop_product_id: number;
   product_name: string;
@@ -224,9 +298,15 @@ export interface StaleInventoryItem {
   shop_id: number;
   quantity: number;
   stock_status: string;
+  /** Whether the row is currently sellable, as stored by the sync. */
+  availability?: string | null;
   freshness_status?: string | null;
   last_updated?: string | null;
+  /** Where the last update came from (POS, import, manual, ...). */
   last_updated_source?: string | null;
+  /** Integration source/status of the most recent sync attempt. */
+  sync_source?: string | null;
+  sync_status?: string | null;
   stale_hours?: number | null;
 }
 

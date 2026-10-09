@@ -129,8 +129,16 @@ export const API_ENDPOINTS = {
   CATEGORIES: {
     LIST: '/api/v1/admin/categories',
     CREATE: '/api/v1/admin/categories',
+    /** One taxonomy node, for the category drill-down. */
+    DETAIL: (id: number | string) => `/api/v1/admin/categories/${id}`,
     UPDATE: (id: number | string) => `/api/v1/admin/categories/${id}`,
     DELETE: (id: number | string) => `/api/v1/admin/categories/${id}`,
+    /**
+     * Server-authoritative configuration vocabulary: the feature-capability
+     * keys and field presets this deployment accepts. Declared as its own route
+     * because category rules live on the backend, not only in the frontend.
+     */
+    CONFIG_CATALOG: '/api/v1/admin/categories/config-catalog',
   },
   BRANDS: {
     LIST: '/api/v1/admin/brands',
@@ -144,6 +152,8 @@ export const API_ENDPOINTS = {
 
   // Inventory
   INVENTORY: {
+    /** One list route serving the control center's eight sections. */
+    LIST: '/api/v1/admin/inventory',
     SUMMARY: '/api/v1/admin/inventory/summary',
     STALE: '/api/v1/admin/inventory/stale',
     MISSING_PRICES: '/api/v1/admin/inventory/missing-prices',

@@ -168,11 +168,81 @@ def list_shops(
 
 @router.get("/bulk")
 def bulk_preview(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_admin)):
-    """Placeholder for the multi-shop governance surface.
+    """Actions the multi-shop governance surface supports.
 
     Declared before `/{shop_id}` so "bulk" is never parsed as an id.
     """
     return ok({"supported_actions": ["approve", "reject", "suspend", "reactivate", "archive"]})
+
+
+class BulkShopDecision(BaseModel):
+    """One audited VERIFY or SUSPEND applied to every selected shop."""
+
+    shop_ids: list[int]
+    decision: str
+    reason: str | None = None
+
+    @field_validator("decision")
+    @classmethod
+    def normalise_decision(cls, value: str) -> str:
+        upper = (value or "").strip().upper()
+        if upper not in ("VERIFY", "SUSPEND"):
+            raise ValueError(f"Unknown bulk decision '{value}'. Expected VERIFY or SUSPEND.")
+        return upper
+
+
+@router.post("/bulk")
+def bulk_decide_shops(
+    payload: BulkShopDecision,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_capability("shops.verify")),
+):
+    """Apply one audited VERIFY or SUSPEND to every selected shop.
+
+    VERIFY marks each shop VERIFIED and activates it; SUSPEND marks each shop
+    SUSPENDED. The posted reason is mandatory and recorded on every audit row,
+    exactly like the single-shop decision surface. Missing ids fail loudly so
+    an operator never believes unselected or deleted shops were decided.
+    """
+    reason = (payload.reason or "").strip()
+    if not payload.shop_ids:
+        raise HTTPException(status_code=422, detail="Select at least one shop")
+    if not reason:
+        raise HTTPException(status_code=422, detail="A reason is required for a bulk shop decision")
+
+    now = datetime.now(timezone.utc)
+    admin_name = admin.name or admin.username
+    updated = 0
+    for shop_id in payload.shop_ids:
+        shop = _get_shop_or_404(db, shop_id)
+        previous = shop.verification_status
+        if payload.decision == "VERIFY":
+            shop.verification_status = "VERIFIED"
+            shop.verified_at = now
+            shop.verified_by = admin_name
+            shop.rejection_reason = None
+            if shop.status == "PENDING":
+                shop.status = "ACTIVE"
+            audit_action = "shop.verification.verified"
+        else:
+            shop.status = "SUSPENDED"
+            audit_action = "shop.suspend"
+        _record_audit(
+            db,
+            admin,
+            audit_action,
+            shop_id,
+            {
+                "from": previous,
+                "to": shop.verification_status,
+                "status": shop.status,
+                "decision": payload.decision,
+                "reason": reason,
+            },
+        )
+        updated += 1
+    db.commit()
+    return ok({"updated": updated}, message=f"Bulk {payload.decision} applied to {updated} shops")
 
 
 @router.get("/verification/summary")

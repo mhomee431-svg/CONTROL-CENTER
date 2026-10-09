@@ -104,9 +104,50 @@ def seed() -> None:
         db.flush()
 
         # --- Taxonomy -----------------------------------------------------
+        # The canonical category list is a product decision, not a seed
+        # accident: exactly the eleven categories the spec fixes, in spec
+        # order. "Grocery" and "General Food" are deliberately absent — the
+        # spec forbids adding them unless a future product decision
+        # explicitly changes the catalog. Existing demo rows were moved off
+        # "Grocery" onto the closest allowed category (Household Goods).
+        CATEGORY_SEED = [
+            # (name, slug, sort_order, required_fields, optional_fields, feature_capabilities)
+            ("Pharmacy & Healthcare", "pharmacy-healthcare", 1,
+             ["expiry_date"], ["batch_number", "prescription_required"], ["delivery"]),
+            ("Beauty & Personal Care", "beauty-personal-care", 2,
+             [], ["shade", "shelf_life"], ["delivery"]),
+            ("Furniture", "furniture", 3,
+             ["dimensions"], ["material", "assembly_required"], ["delivery", "installation"]),
+            ("Home Care", "home-care", 4,
+             [], ["expiry_date"], ["delivery"]),
+            ("Household Goods", "household-goods", 5,
+             [], ["expiry_date", "brand"], ["delivery"]),
+            ("Sports, Fitness & Outdoor", "sports-fitness-outdoor", 6,
+             [], ["size", "material"], ["delivery"]),
+            ("Books, Media & Stationery", "books-media-stationery", 7,
+             [], ["author", "isbn", "language"], ["delivery"]),
+            ("Automotive Parts & Tools", "automotive-parts-tools", 8,
+             ["compatibility"], ["warranty_months"], ["delivery"]),
+            ("Hardware", "hardware", 9,
+             [], ["material", "dimensions", "warranty_months"], ["delivery"]),
+            ("Restaurants", "restaurants", 10,
+             ["fssai_license"], ["cuisine", "veg_only"], ["delivery", "pickup"]),
+            ("Transport", "transport", 11,
+             ["permit_number"], ["vehicle_type", "seating_capacity"], []),
+            ("Personal Transport / Personal Travel", "personal-transport-personal-travel", 12,
+             [], ["vehicle_type", "license_required"], []),
+        ]
         categories = {}
-        for name in ["Grocery", "Pharmacy", "Electronics", "Hardware", "Bakery"]:
-            c = Category(name=name, slug=name.lower(), is_active=True)
+        for name, slug, sort_order, required_f, optional_f, features in CATEGORY_SEED:
+            c = Category(
+                name=name,
+                slug=slug,
+                sort_order=sort_order,
+                is_active=True,
+                required_fields=required_f,
+                optional_fields=optional_f,
+                feature_capabilities=features,
+            )
             db.add(c)
             db.flush()
             categories[name] = c
@@ -154,11 +195,11 @@ def seed() -> None:
 
         # --- Shops --------------------------------------------------------
         shop_specs = [
-            ("Sharma Super Mart", "Grocery", "Mumbai", "VERIFIED", "ACTIVE"),
-            ("Wellness Pharmacy", "Pharmacy", "Pune", "VERIFIED", "ACTIVE"),
-            ("Gupta Electronics", "Electronics", "Mumbai", "PENDING", "PENDING"),
+            ("Sharma Super Mart", "Household Goods", "Mumbai", "VERIFIED", "ACTIVE"),
+            ("Wellness Pharmacy", "Pharmacy & Healthcare", "Pune", "VERIFIED", "ACTIVE"),
+            ("Gupta Electronics", "Beauty & Personal Care", "Mumbai", "PENDING", "PENDING"),
             ("Krishna Hardware", "Hardware", "Nagpur", "VERIFIED", "ACTIVE"),
-            ("Sweet Corner Bakery", "Bakery", "Pune", "NEEDS_CORRECTION", "INACTIVE"),
+            ("Sweet Corner Bakery", "Restaurants", "Pune", "NEEDS_CORRECTION", "INACTIVE"),
         ]
         shops = []
         for idx, (name, cat, city, verif, status) in enumerate(shop_specs, start=1):
@@ -203,10 +244,10 @@ def seed() -> None:
         # --- Products and variants ---------------------------------------
         products = []
         product_specs = [
-            ("Basmati Rice 5kg", "Grocery", "Local Choice", 450, 520),
-            ("Full Cream Milk 1L", "Grocery", "Amul", 60, 68),
-            ("Paracetamol 500mg", "Pharmacy", "Local Choice", 25, 32),
-            ("LED Bulb 9W", "Electronics", "Samsung", 99, 149),
+            ("Basmati Rice 5kg", "Household Goods", "Local Choice", 450, 520),
+            ("Full Cream Milk 1L", "Household Goods", "Amul", 60, 68),
+            ("Paracetamol 500mg", "Pharmacy & Healthcare", "Local Choice", 25, 32),
+            ("LED Bulb 9W", "Home Care", "Samsung", 99, 149),
             ("Hammer 500g", "Hardware", "Local Choice", 180, 240),
         ]
         for i, (name, cat, brand, price, mrp) in enumerate(product_specs, start=1):

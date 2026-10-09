@@ -63,9 +63,17 @@ export function normaliseProductName(name?: string | null): string {
 }
 
 /**
- * EAN/UPC validity without a checksum library: numeric, plausible length,
- * and — where a full 8/12/13-digit payload exists — a correct GS1 check digit.
- * Short internal PLU-style codes are "unverifiable", never "invalid".
+ * EAN/UPC validity without a checksum library: numeric, plausible length, and —
+ * where a full GS1 payload exists — a correct check digit. Short internal
+ * PLU-style codes are "unverifiable", never "invalid".
+ *
+ * The GS1 weight alternates by position counted from the RIGHT-hand end of the
+ * payload (the digit adjacent to the check digit always carries weight 3).
+ * Counting from the left instead happens to agree for 8- and 14-digit payloads
+ * but inverts for 12- and 13-digit ones — so a perfectly valid EAN-13 like
+ * 8901234567890 was reported "invalid", which is exactly the false positive
+ * this check exists to avoid. Deriving the weight from the right makes all four
+ * lengths correct.
  */
 export function barcodeVerdict(barcode?: string | null): 'ok' | 'missing' | 'unverifiable' | 'invalid' {
   if (barcode == null || String(barcode).trim() === '') return 'missing';
@@ -75,8 +83,12 @@ export function barcodeVerdict(barcode?: string | null): 'ok' | 'missing' | 'unv
   if (![8, 12, 13, 14].includes(digits.length)) return 'invalid';
   const body = digits.slice(0, -1).split('').map(Number);
   const check = Number(digits[digits.length - 1]);
-  const firstWeight = body.length % 2 === 0 ? 1 : 3;
-  const sum = body.reduce((acc, d, i) => acc + d * (i % 2 === 0 ? firstWeight : 4 - firstWeight), 0);
+  // Position counted from the right of the payload: index 0 is the digit next
+  // to the check digit, which carries weight 3 in every GS1 symbol length.
+  const sum = body.reduce((acc, d, i) => {
+    const fromRight = body.length - 1 - i;
+    return acc + d * (fromRight % 2 === 0 ? 3 : 1);
+  }, 0);
   return (10 - (sum % 10)) % 10 === check ? 'ok' : 'invalid';
 }
 

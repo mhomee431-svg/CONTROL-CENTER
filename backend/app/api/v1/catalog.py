@@ -6,6 +6,8 @@
 # requires an operator-written reason and lands in the audit trail.
 
 from fastapi import APIRouter, Depends, HTTPException
+import re
+
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -106,6 +108,95 @@ def product_approvals(
 # declared BEFORE /products/{product_id} below — FastAPI matches in order,
 # so the dynamic route must come last or it swallows every static path
 # ("quality" parsed as a product id -> 404/422 instead of the real surface).
+
+
+# Server-computed hygiene signals for the Quality Control surface. The frontend
+# `qualityChecks.ts` mirrors these client-side; this route is the paginated,
+# authoritative source so large catalogs never pull every row to find breakage.
+#
+# Declared here, above /products/{product_id}: FastAPI matches in registration
+# order, so a GET /products/quality declared after the dynamic route would be
+# eaten as product_id="quality" (422) and the whole Quality Control page would
+# report a validation error instead of its findings.
+@router.get("/products/quality")
+def product_quality(
+    check: str | None = None,
+    page: Pagination = Depends(pagination),
+    db: Session = Depends(get_db),
+    _: AdminUser = Depends(get_current_admin),
+):
+    """Findings across the nine quality checks, oldest product first."""
+    rows = db.scalars(select(Product).order_by(Product.id)).all()
+    barcodes: dict[str, list[int]] = {}
+    for r in rows:
+        if r.barcode:
+            barcodes.setdefault(str(r.barcode).strip().lower(), []).append(r.id)
+    names: dict[str, list[int]] = {}
+    for r in rows:
+        key = (r.name or "").lower().strip()
+        if key:
+            names.setdefault(key, []).append(r.id)
+
+    def _row(pid: int, check_id: str, title: str, detail: str) -> dict:
+        p = next((x for x in rows if x.id == pid), None)
+        return {
+            "key": f"{check_id}:{pid}",
+            "check": check_id,
+            "title": title,
+            "product_id": pid,
+            "product_name": p.name if p else f"Product #{pid}",
+            "detail": detail,
+        }
+
+    findings: list[dict] = []
+    for r in rows:
+        lname = (r.name or "").lower().strip()
+        if lname and len(names.get(lname, [])) > 1:
+            others = sorted(i for i in names[lname] if i != r.id)
+            findings.append(_row(r.id, "duplicates", "Duplicate candidates",
+                                 f"Same name as product(s): {', '.join(map(str, others))}"))
+        if not (r.image_url or (r.images or [])):
+            findings.append(_row(r.id, "missing-images", "Missing images",
+                                 "No master image and no image list reported"))
+        if r.brand_id is None and not (r.brand_name or "").strip():
+            findings.append(_row(r.id, "missing-brand", "Missing brand",
+                                 "No brand linkage reported"))
+        if r.category_id is None and not (r.category_name or "").strip():
+            findings.append(_row(r.id, "missing-category", "Missing category",
+                                 "No category linkage reported"))
+        if r.barcode:
+            digits = "".join(ch for ch in str(r.barcode) if ch.isdigit())
+            has_letters = any(ch.isalpha() for ch in str(r.barcode))
+            if not digits or has_letters:
+                findings.append(_row(r.id, "invalid-barcode", "Invalid barcode",
+                                     f"Barcode {r.barcode!r} is not numeric"))
+            elif len(digits) not in {8, 12, 13, 14}:
+                findings.append(_row(r.id, "invalid-barcode", "Invalid barcode",
+                                     f"Barcode {r.barcode!r} has an implausible length"))
+            else:
+                key = str(r.barcode).strip().lower()
+                others = sorted(i for i in barcodes.get(key, []) if i != r.id)
+                if others:
+                    findings.append(_row(r.id, "unmatched-identifiers", "Unmatched identifiers",
+                                         f"Barcode shared with product(s): {', '.join(map(str, others))}"))
+        if (r.status or "").upper() in {"INACTIVE", "ARCHIVED"}:
+            findings.append(_row(r.id, "inactive", "Inactive products",
+                                 f"Status is {r.status}"))
+        if (r.shop_count or 0) <= 0:
+            findings.append(_row(r.id, "no-shop", "Products with no shop",
+                                 "No stocking shop reported"))
+        mrp = float(r.mrp) if r.mrp is not None else None
+        if mrp is not None and mrp <= 0:
+            findings.append(_row(r.id, "suspicious", "Suspicious data",
+                                 f"MRP is {mrp}, expected a positive amount"))
+        if not (r.name or "").strip():
+            findings.append(_row(r.id, "suspicious", "Suspicious data",
+                                 "Product name is blank"))
+    if check:
+        findings = [f for f in findings if f["check"] == check]
+    total = len(findings)
+    start, end = page.window()
+    return ok(paged(findings[start:end], total))
 
 
 @router.get("/products/{product_id}")
@@ -407,91 +498,6 @@ def merge_confirm(
 
 
 # --- Product quality control findings ----------------------------------------
-# Server-computed hygiene signals for the Quality Control surface. The frontend
-# `qualityChecks.ts` mirrors these client-side; this route is the paginated,
-# authoritative source so large catalogs never pull every row to find breakage.
-
-
-@router.get("/products/quality")
-def product_quality(
-    check: str | None = None,
-    page: Pagination = Depends(pagination),
-    db: Session = Depends(get_db),
-    _: AdminUser = Depends(get_current_admin),
-):
-    """Findings across the nine quality checks, oldest product first."""
-    rows = db.scalars(select(Product).order_by(Product.id)).all()
-    barcodes: dict[str, list[int]] = {}
-    for r in rows:
-        if r.barcode:
-            barcodes.setdefault(str(r.barcode).strip().lower(), []).append(r.id)
-    names: dict[str, list[int]] = {}
-    for r in rows:
-        key = (r.name or "").lower().strip()
-        if key:
-            names.setdefault(key, []).append(r.id)
-
-    def _row(pid: int, check_id: str, title: str, detail: str) -> dict:
-        p = next((x for x in rows if x.id == pid), None)
-        return {
-            "key": f"{check_id}:{pid}",
-            "check": check_id,
-            "title": title,
-            "product_id": pid,
-            "product_name": p.name if p else f"Product #{pid}",
-            "detail": detail,
-        }
-
-    findings: list[dict] = []
-    for r in rows:
-        lname = (r.name or "").lower().strip()
-        if lname and len(names.get(lname, [])) > 1:
-            others = sorted(i for i in names[lname] if i != r.id)
-            findings.append(_row(r.id, "duplicates", "Duplicate candidates",
-                                 f"Same name as product(s): {', '.join(map(str, others))}"))
-        if not (r.image_url or (r.images or [])):
-            findings.append(_row(r.id, "missing-images", "Missing images",
-                                 "No master image and no image list reported"))
-        if r.brand_id is None and not (r.brand_name or "").strip():
-            findings.append(_row(r.id, "missing-brand", "Missing brand",
-                                 "No brand linkage reported"))
-        if r.category_id is None and not (r.category_name or "").strip():
-            findings.append(_row(r.id, "missing-category", "Missing category",
-                                 "No category linkage reported"))
-        if r.barcode:
-            digits = "".join(ch for ch in str(r.barcode) if ch.isdigit())
-            has_letters = any(ch.isalpha() for ch in str(r.barcode))
-            if not digits or has_letters:
-                findings.append(_row(r.id, "invalid-barcode", "Invalid barcode",
-                                     f"Barcode {r.barcode!r} is not numeric"))
-            elif len(digits) not in {8, 12, 13, 14}:
-                findings.append(_row(r.id, "invalid-barcode", "Invalid barcode",
-                                     f"Barcode {r.barcode!r} has an implausible length"))
-            else:
-                key = str(r.barcode).strip().lower()
-                others = sorted(i for i in barcodes.get(key, []) if i != r.id)
-                if others:
-                    findings.append(_row(r.id, "unmatched-identifiers", "Unmatched identifiers",
-                                         f"Barcode shared with product(s): {', '.join(map(str, others))}"))
-        if (r.status or "").upper() in {"INACTIVE", "ARCHIVED"}:
-            findings.append(_row(r.id, "inactive", "Inactive products",
-                                 f"Status is {r.status}"))
-        if (r.shop_count or 0) <= 0:
-            findings.append(_row(r.id, "no-shop", "Products with no shop",
-                                 "No stocking shop reported"))
-        mrp = float(r.mrp) if r.mrp is not None else None
-        if mrp is not None and mrp <= 0:
-            findings.append(_row(r.id, "suspicious", "Suspicious data",
-                                 f"MRP is {mrp}, expected a positive amount"))
-        if not (r.name or "").strip():
-            findings.append(_row(r.id, "suspicious", "Suspicious data",
-                                 "Product name is blank"))
-    if check:
-        findings = [f for f in findings if f["check"] == check]
-    total = len(findings)
-    start, end = page.window()
-    return ok(paged(findings[start:end], total))
-
 @router.get("/products/{product_id}/variants")
 def product_variants(
     product_id: int, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_admin)
@@ -529,6 +535,10 @@ def list_categories(
     fields = [
         "id", "name", "slug", "description", "icon_url", "parent_id",
         "sort_order", "is_active", "is_subcategory", "created_at",
+        # Category configuration (Section: CATEGORY CONFIGURATION) — the
+        # listing template and feature switches travel with every list row so
+        # the taxonomy table and the configuration dialog see the same data.
+        "required_fields", "optional_fields", "feature_capabilities",
     ]
     return ok(paged([to_dict(r, fields) for r in rows], total))
 
@@ -539,10 +549,99 @@ def list_categories(
 CATEGORY_FIELDS = [
     "id", "name", "slug", "description", "icon_url", "parent_id",
     "sort_order", "is_active", "is_subcategory", "created_at",
+    "required_fields", "optional_fields", "feature_capabilities",
 ]
 
 
+# Canonical feature-capability keys a category can switch on. This is the
+# authoritative vocabulary: the frontend renders it as a picker and the API
+# rejects anything outside it, so "category rules" are defined once, on the
+# server, and never only in the frontend.
+FEATURE_CAPABILITY_CATALOG: list[dict[str, str]] = [
+    {"key": "delivery", "label": "Delivery",
+     "description": "Products in this category can be delivered to the shopper."},
+    {"key": "pickup", "label": "Pickup",
+     "description": "Shoppers can reserve and collect in person."},
+    {"key": "installation", "label": "Installation",
+     "description": "Merchants offer on-site installation for this category."},
+    {"key": "prescription_required", "label": "Prescription required",
+     "description": "Listings require a valid prescription reference (pharmacy)."},
+    {"key": "barcode_scan", "label": "Barcode scan",
+     "description": "Listings are expected to carry a scannable trade identifier."},
+    {"key": "warranty", "label": "Warranty",
+     "description": "Products may declare a warranty period."},
+    {"key": "serial_tracking", "label": "Serial tracking",
+     "description": "Each unit carries a unique serial the platform tracks."},
+    {"key": "age_restricted", "label": "Age restricted",
+     "description": "Purchase is limited to verified adults."},
+    {"key": "bulk_pricing", "label": "Bulk pricing",
+     "description": "Quantity-tier pricing is supported for this category."},
+    {"key": "custom_order", "label": "Custom order",
+     "description": "Shoppers may place made-to-order requests."},
+]
+
+FEATURE_CAPABILITY_KEYS: set[str] = {entry["key"] for entry in FEATURE_CAPABILITY_CATALOG}
+
+# Sensible starting suggestions for the field pickers. Not a whitelist — a
+# merchant attribute name is free-form snake_case — but the console offers these
+# as one-click presets so operators converge on one vocabulary instead of
+# inventing expiry vs expiry_date per category.
+FIELD_PRESET_CATALOG: list[dict[str, str]] = [
+    {"key": "expiry_date", "label": "Expiry date"},
+    {"key": "batch_number", "label": "Batch number"},
+    {"key": "brand", "label": "Brand"},
+    {"key": "material", "label": "Material"},
+    {"key": "dimensions", "label": "Dimensions"},
+    {"key": "size", "label": "Size"},
+    {"key": "shade", "label": "Shade"},
+    {"key": "colour", "label": "Colour"},
+    {"key": "warranty_months", "label": "Warranty months"},
+    {"key": "compatibility", "label": "Compatibility"},
+    {"key": "shelf_life", "label": "Shelf life"},
+    {"key": "author", "label": "Author"},
+    {"key": "isbn", "label": "ISBN"},
+    {"key": "language", "label": "Language"},
+    {"key": "cuisine", "label": "Cuisine"},
+    {"key": "veg_only", "label": "Veg only"},
+    {"key": "fssai_license", "label": "FSSAI licence"},
+    {"key": "vehicle_type", "label": "Vehicle type"},
+    {"key": "permit_number", "label": "Permit number"},
+    {"key": "seating_capacity", "label": "Seating capacity"},
+]
+
+
+def _normalise_identifier_list(value: list[str] | None) -> list[str] | None:
+    """Lowercase snake_case identifiers, de-duplicated, order preserved.
+
+    Shared by create + update so a field list written on POST is byte-for-byte
+    the same as one written on PATCH — the frontend diffing two configs must not
+    see a phantom change caused by two normalisation code paths.
+    """
+    if value is None:
+        return None
+    normalised: list[str] = []
+    for raw in value:
+        if not isinstance(raw, str):
+            raise ValueError("list entries must be strings")
+        token = raw.strip().lower().replace(" ", "_").replace("-", "_")
+        if not token:
+            continue
+        if not re.fullmatch(r"[a-z0-9_]{1,64}", token):
+            raise ValueError(f"invalid entry {raw!r}: use letters, digits, underscores (max 64)")
+        if token not in normalised:
+            normalised.append(token)
+    return normalised
+
+
 class CategoryCreate(BaseModel):
+    """Create one taxonomy node, including its listing template.
+
+    The create route accepts the same configuration surface as PATCH so a
+    category can be born fully specified (required/optional fields, feature
+    capabilities, parent, status, sort order) rather than created blank and
+    immediately edited.
+    """
+
     name: str
     slug: str
     description: str | None = None
@@ -550,6 +649,44 @@ class CategoryCreate(BaseModel):
     sort_order: int = 0
     is_active: bool = True
     is_subcategory: bool = False
+    required_fields: list[str] | None = None
+    optional_fields: list[str] | None = None
+    feature_capabilities: list[str] | None = None
+
+    @field_validator("required_fields", "optional_fields", "feature_capabilities")
+    @classmethod
+    def _normalise_lists(cls, value: list[str] | None) -> list[str] | None:
+        return _normalise_identifier_list(value)
+
+    @field_validator("feature_capabilities")
+    @classmethod
+    def _known_capabilities(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        unknown = [v for v in value if v not in FEATURE_CAPABILITY_KEYS]
+        if unknown:
+            raise ValueError(f"unknown feature capabilities: {', '.join(unknown)}")
+        return value
+
+
+@router.get("/categories/config-catalog")
+def category_config_catalog(_: AdminUser = Depends(get_current_admin)):
+    """The server-authoritative vocabulary for category configuration.
+
+    Declared BEFORE `/categories/{category_id}` for the same reason the product
+    static routes are: FastAPI matches in registration order, so a later
+    declaration would be parsed as category_id="config-catalog".
+
+    The console reads this to populate its feature-capability picker and field
+    presets instead of hardcoding the lists in the frontend.
+    """
+    return ok(
+        {
+            "feature_capabilities": FEATURE_CAPABILITY_CATALOG,
+            "field_presets": FIELD_PRESET_CATALOG,
+            "identifier_pattern": "^[a-z0-9_]{1,64}$",
+        }
+    )
 
 
 @router.post("/categories")
@@ -558,8 +695,28 @@ def create_category(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(require_capability("taxonomy.manage")),
 ):
-    """Create one taxonomy node (Section 33 rules enforced in the UI)."""
-    row = Category(**payload.model_dump())
+    """Create one taxonomy node (Section 33 rules enforced server-side)."""
+    # The forbidden-category rule lives here, not only in the UI: an admin
+    # console could be bypassed by a direct API call, and the spec explicitly
+    # forbids implementing category rules only in the frontend. "Grocery" and
+    # "General Food" stay out of the catalog unless a future product decision
+    # explicitly changes it.
+    lowered = (payload.name or "").lower()
+    if "grocery" in lowered or "general food" in lowered:
+        raise HTTPException(
+            status_code=422,
+            detail="Grocery and General Food are excluded from the platform taxonomy by product decision.",
+        )
+    data = payload.model_dump()
+    # A parent_id turns the node into a subcategory; keep the flag honest even
+    # if the client forgot to send it. A root node is never a subcategory.
+    if data.get("parent_id") is not None:
+        if db.get(Category, data["parent_id"]) is None:
+            raise HTTPException(status_code=422, detail="Parent category not found")
+        data["is_subcategory"] = True
+    else:
+        data["is_subcategory"] = False
+    row = Category(**data)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -586,6 +743,8 @@ def delete_category(
     row = db.get(Category, category_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Category {category_id} not found")
+    name = row.name
+    db.delete(row)
     db.add(
         AuditLog(
             action="category.deleted",
@@ -593,12 +752,131 @@ def delete_category(
             entity_id=category_id,
             user_id=admin.id,
             admin_user=admin.name or admin.username,
-            details={"name": row.name},
+            details={"name": name},
         )
     )
-    db.delete(row)
     db.commit()
-    return ok(None, message="Category deleted")
+    return ok({"id": category_id, "deleted": True}, message="Category deleted")
+
+
+class CategoryUpdate(BaseModel):
+    """Partial update of a taxonomy node's configuration.
+
+    Category configuration is server-managed (spec: do not implement category
+    rules only in the frontend) — the frontend sends the fields the operator
+    changed and this model decides what is writable. `is_active` is the
+    category's status; `sort_order` controls display ordering.
+
+    The list fields configure the listing template for this category:
+      - required_fields: attributes a merchant MUST provide (e.g. expiry_date
+        for Pharmacy). Enforced server-side where the backend validates
+        listings, not just displayed here.
+      - optional_fields: attributes a merchant MAY provide.
+      - feature_capabilities: platform features switched on for this category
+        (e.g. "prescription_required", "delivery", "barcode_scan").
+    Entries are normalised to lowercase snake_case identifiers, duplicates
+    removed, and values are validated server-side below.
+    """
+
+    name: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    icon_url: str | None = None
+    parent_id: int | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+    is_subcategory: bool | None = None
+    required_fields: list[str] | None = None
+    optional_fields: list[str] | None = None
+    feature_capabilities: list[str] | None = None
+
+    @field_validator("required_fields", "optional_fields", "feature_capabilities")
+    @classmethod
+    def _normalise_lists(cls, value: list[str] | None) -> list[str] | None:
+        """Normalize identifier-style strings and reject bad entries early.
+
+        Each entry must be a short identifier: lowercase letters, digits and
+        underscores (spaces/hyphens are converted). Empty lists are valid —
+        they clear the configuration.
+        """
+        return _normalise_identifier_list(value)
+
+    @field_validator("feature_capabilities")
+    @classmethod
+    def _known_capabilities(cls, value: list[str] | None) -> list[str] | None:
+        """Reject feature keys outside the server vocabulary.
+
+        The console picks from `config-catalog`; enforcing the same set here
+        means a direct API call cannot store a capability the platform does not
+        understand. `_normalise_lists` runs first, so comparison is on tokens.
+        """
+        if value is None:
+            return None
+        unknown = [v for v in value if v not in FEATURE_CAPABILITY_KEYS]
+        if unknown:
+            raise ValueError(f"unknown feature capabilities: {', '.join(unknown)}")
+        return value
+
+
+@router.get("/categories/{category_id}")
+def category_detail(
+    category_id: int, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_admin)
+):
+    """One taxonomy node. The product drill-down's Category/Subcategory tabs
+    read this route; until now they borrowed the PATCH endpoint as a reader,
+    which a deployment without PATCH permission served as 405."""
+    row = db.get(Category, category_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Category {category_id} not found")
+    return ok(to_dict(row, CATEGORY_FIELDS))
+
+
+@router.patch("/categories/{category_id}")
+def update_category(
+    category_id: int,
+    payload: CategoryUpdate,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_capability("taxonomy.manage")),
+):
+    """Audited partial update: only the supplied fields are written."""
+    row = db.get(Category, category_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Category {category_id} not found")
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="No fields to update")
+    if "name" in changes and not (changes["name"] or "").strip():
+        raise HTTPException(status_code=422, detail="Category name cannot be blank")
+    if "slug" in changes and not (changes["slug"] or "").strip():
+        raise HTTPException(status_code=422, detail="Category slug cannot be blank")
+    # Parent / subcategory integrity: a node cannot parent itself, the parent
+    # must exist, and the is_subcategory flag is derived from parent_id so the
+    # two can never disagree. Reparenting to a root clears the flag.
+    if "parent_id" in changes:
+        parent_id = changes["parent_id"]
+        if parent_id is not None:
+            if parent_id == category_id:
+                raise HTTPException(status_code=422, detail="A category cannot be its own parent")
+            if db.get(Category, parent_id) is None:
+                raise HTTPException(status_code=422, detail="Parent category not found")
+            changes["is_subcategory"] = True
+        else:
+            changes["is_subcategory"] = False
+    for field, value in changes.items():
+        setattr(row, field, value)
+    db.add(
+        AuditLog(
+            action="category.updated",
+            entity_type="category",
+            entity_id=row.id,
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={"fields": list(changes.keys())},
+        )
+    )
+    db.commit()
+    db.refresh(row)
+    return ok(to_dict(row, CATEGORY_FIELDS), message="Category updated")
 
 
 BRAND_FIELDS = ["id", "name", "slug", "description", "logo_url", "is_active", "product_count", "created_at"]
@@ -633,6 +911,61 @@ def create_brand(
     )
     db.commit()
     return ok(to_dict(row, BRAND_FIELDS), message="Brand created")
+
+
+@router.get("/brands/{brand_id}")
+def brand_detail(
+    brand_id: int, db: Session = Depends(get_db), _: AdminUser = Depends(get_current_admin)
+):
+    """One brand record. The product drill-down's Brand tab reads this route;
+    until now it borrowed the create route as a reader."""
+    row = db.get(Brand, brand_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Brand {brand_id} not found")
+    return ok(to_dict(row, BRAND_FIELDS))
+
+
+class BrandUpdate(BaseModel):
+    """Partial update of a brand's configuration (spec: manage name,
+    description, status)."""
+
+    name: str | None = None
+    description: str | None = None
+    logo_url: str | None = None
+    is_active: bool | None = None
+
+
+@router.patch("/brands/{brand_id}")
+def update_brand(
+    brand_id: int,
+    payload: BrandUpdate,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_capability("taxonomy.manage")),
+):
+    """Audited partial update: only the supplied fields are written."""
+    row = db.get(Brand, brand_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Brand {brand_id} not found")
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="No fields to update")
+    if "name" in changes and not (changes["name"] or "").strip():
+        raise HTTPException(status_code=422, detail="Brand name cannot be blank")
+    for field, value in changes.items():
+        setattr(row, field, value)
+    db.add(
+        AuditLog(
+            action="brand.updated",
+            entity_type="brand",
+            entity_id=row.id,
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={"fields": list(changes.keys())},
+        )
+    )
+    db.commit()
+    db.refresh(row)
+    return ok(to_dict(row, BRAND_FIELDS), message="Brand updated")
 
 
 @router.delete("/brands/{brand_id}")

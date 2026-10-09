@@ -105,7 +105,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     group: 'OPERATIONS',
     items: [
-      { title: 'Inventory Freshness', path: ROUTES.INVENTORY, icon: <Warehouse size={18} />, capability: CAPABILITIES.INVENTORY_READ },
+      { title: 'Inventory Control Center', path: ROUTES.INVENTORY, icon: <Warehouse size={18} />, capability: CAPABILITIES.INVENTORY_READ },
       { title: 'Pricing Integrity', path: ROUTES.PRICING, icon: <DollarSign size={18} />, capability: CAPABILITIES.INVENTORY_READ },
       { title: 'Offers & Campaigns', path: ROUTES.OFFERS, icon: <DollarSign size={18} />, capability: CAPABILITIES.OFFERS_READ },
       { title: 'Subscriptions', path: ROUTES.SUBSCRIPTIONS, icon: <DollarSign size={18} />, capability: CAPABILITIES.SUBSCRIPTIONS_READ },

@@ -19,6 +19,12 @@ export const ROUTE_CAPABILITIES: Record<string, Capability> = {
 
   // Businesses & discovery footprint
   '/businesses': CAPABILITIES.SHOPS_READ,
+  // The verification queue reads the same shop registry the Businesses area
+  // does, so read access is the entry requirement. Each triage ruling is gated
+  // separately in the page by <PermissionGuard /> on SHOPS_APPROVE / SHOPS_REJECT
+  // / SHOPS_SUSPEND — a reviewer who may only look a case up can open it without
+  // being able to decide it. Mapping the queue here (not SHOPS_APPROVE) keeps
+  // this registry, the sidebar and the backend's own read gate in agreement.
   '/verification': CAPABILITIES.SHOPS_READ,
   '/locations': CAPABILITIES.SHOPS_READ,
 

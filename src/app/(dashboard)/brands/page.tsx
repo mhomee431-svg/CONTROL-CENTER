@@ -1,20 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel } from '@mui/x-data-grid';
-import {
-  Box,
-  Typography,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Alert,
-} from '@mui/material';
-import { Tag, Plus, Trash2 } from 'lucide-react';
+import { Box, Typography, Button } from '@mui/material';
+import { Plus, Tag } from 'lucide-react';
+import { BrandDialog } from './BrandDialog';
+import { BrandStatusSwitch } from './BrandStatusSwitch';
+import { BrandItemRowActions } from './BrandItemRowActions';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { BrandItem } from '@/core/types/admin';
@@ -30,11 +23,10 @@ export default function BrandsPage() {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 50 });
 
   const [openCreate, setOpenCreate] = useState(false);
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [description, setDescription] = useState('');
-  const [createError, setCreateError] = useState<string | null>(null);
-
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openDuplicate, setOpenDuplicate] = useState(false);
+  const [editBrand, setEditBrand] = useState<BrandItem | null>(null);
+  const [duplicateSource, setDuplicateSource] = useState<BrandItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BrandItem | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery<{ items: BrandItem[] }>({
@@ -50,10 +42,46 @@ export default function BrandsPage() {
       }),
     onSuccess: () => {
       setOpenCreate(false);
-      setName('');
-      setSlug('');
-      setDescription('');
       queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
+      refetch();
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (brand: BrandItem) =>
+      apiClient(API_ENDPOINTS.BRANDS.UPDATE(brand.id), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: brand.name,
+          slug: brand.slug,
+          description: brand.description || undefined,
+          is_active: brand.is_active,
+        }),
+      }),
+    onSuccess: () => {
+      setOpenEdit(false);
+      setEditBrand(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
+      refetch();
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (source: BrandItem) =>
+      apiClient(API_ENDPOINTS.BRANDS.CREATE, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `${source.name} (Copy)`,
+          slug: source.slug,
+          description: `Copy of ${source.name}`,
+          is_active: true,
+        }),
+      }),
+    onSuccess: () => {
+      setOpenDuplicate(false);
+      setDuplicateSource(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
+      refetch();
     },
   });
 
@@ -65,22 +93,53 @@ export default function BrandsPage() {
     onSuccess: () => {
       setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
+      refetch();
     },
   });
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !slug.trim()) {
-      setCreateError('Brand Name and Slug are required.');
-      return;
-    }
-    setCreateError(null);
-    try {
-      await createMutation.mutateAsync({ name, slug, description });
-    } catch (err: unknown) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create brand');
-    }
-  };
+  // Status toggle: flips is_active on the backend (never deletes).
+  const statusMutation = useMutation({
+    mutationFn: (brand: BrandItem) =>
+      apiClient(API_ENDPOINTS.BRANDS.UPDATE(brand.id), {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: !brand.is_active }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
+      refetch();
+    },
+  });
+
+  const handleEdit = useCallback((brand: BrandItem) => {
+    setEditBrand(brand);
+    setOpenEdit(true);
+  }, []);
+
+  const handleDuplicate = useCallback((brand: BrandItem) => {
+    setDuplicateSource(brand);
+    setOpenDuplicate(true);
+  }, []);
+
+  const handleDelete = useCallback((brand: BrandItem) => {
+    // Open the confirmation dialog — the actual delete runs from its confirm
+    // handler (reason required), so a stray click can never destroy a brand.
+    setDeleteTarget(brand);
+  }, []);
+
+  const handleStatusToggle = useCallback(
+    (brand: BrandItem) => {
+      statusMutation.mutate(brand);
+    },
+    [statusMutation],
+  );
+
+  const handleEditSaved = useCallback(() => {
+    editMutation.mutate(editBrand!);
+  }, [editBrand, editMutation]);
+
+  const handleDuplicateSaved = useCallback(() => {
+    duplicateMutation.mutate(duplicateSource!);
+  }, [duplicateSource, duplicateMutation]);
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', width: 80 },
@@ -114,16 +173,14 @@ export default function BrandsPage() {
       renderCell: (params) => {
         const item = params.row as BrandItem;
         return (
-          <PermissionGuard capability={CAPABILITIES.TAXONOMY_MANAGE}>
-            <Button
-              size="small"
-              color="error"
-              startIcon={<Trash2 size={14} />}
-              onClick={() => setDeleteTarget(item)}
-            >
-              Delete
-            </Button>
-          </PermissionGuard>
+          <BrandItemRowActions
+            row={item}
+            excluded={false}
+            onEdit={handleEdit}
+            onDuplicate={handleDuplicate}
+            onStatusToggle={handleStatusToggle}
+            onDelete={handleDelete}
+          />
         );
       },
     },
@@ -178,54 +235,30 @@ export default function BrandsPage() {
       />
 
       {/* Create Dialog */}
-      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 600 }}>Register New Brand</DialogTitle>
-        <Box component="form" onSubmit={handleCreateSubmit}>
-          <DialogContent>
-            {createError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {createError}
-              </Alert>
-            )}
-            <TextField
-              margin="dense"
-              label="Brand Name"
-              fullWidth
-              required
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (!slug) setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-              }}
-            />
-            <TextField
-              margin="dense"
-              label="URL Slug"
-              fullWidth
-              required
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-            />
-            <TextField
-              margin="dense"
-              label="Description"
-              fullWidth
-              multiline
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOpenCreate(false)} color="inherit">
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" disabled={createMutation.isPending}>
-              {createMutation.isPending ? 'Saving...' : 'Save Brand'}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+      <BrandDialog
+        open={openCreate}
+        mode="create"
+        onClose={() => setOpenCreate(false)}
+        onSaved={() => setOpenCreate(false)}
+      />
+
+      {/* Edit Dialog */}
+      <BrandDialog
+        open={openEdit}
+        mode="edit"
+        brand={editBrand}
+        onClose={() => setOpenEdit(false)}
+        onSaved={() => setOpenEdit(false)}
+      />
+
+      {/* Duplicate Dialog */}
+      <BrandDialog
+        open={openDuplicate}
+        mode="duplicate"
+        sourceBrand={duplicateSource}
+        onClose={() => setOpenDuplicate(false)}
+        onSaved={() => setOpenDuplicate(false)}
+      />
 
       {/* Delete Confirmation */}
       {deleteTarget && (

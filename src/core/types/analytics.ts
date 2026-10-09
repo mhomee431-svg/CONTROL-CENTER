@@ -44,6 +44,9 @@ export interface AnalyticsSummary {
 }
 
 export interface SubscriptionRevenueSummary {
+  // Mirrors GET /api/v1/admin/analytics/summary. Currently unused while the
+  // subscriptions refresh work is being scoped — kept as the contract the
+  // future revenue tiles will read, so the design stays close at hand.
   total_revenue: number;
   active_subscriptions: number;
   mrr: number; // monthly recurring revenue

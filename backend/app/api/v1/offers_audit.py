@@ -171,3 +171,67 @@ def create_note(
     db.refresh(note)
     fields = ["id", "entity_type", "entity_id", "note", "author", "created_at"]
     return ok(to_dict(note, fields), message="Note added")
+
+
+class NoteUpdate(BaseModel):
+    note: str | None = None
+    entity_type: str | None = None
+    entity_id: int | None = None
+
+
+@router.patch("/notes/{note_id}")
+def update_note(
+    note_id: int,
+    payload: NoteUpdate,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_capability("settings.manage")),
+):
+    """Edit an administrative note. Only supplied fields are written."""
+    note = db.get(AdminNote, note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail=f"Note {note_id} not found")
+    if payload.note is not None:
+        note.note = payload.note
+    if payload.entity_type is not None:
+        note.entity_type = payload.entity_type
+    if payload.entity_id is not None:
+        note.entity_id = payload.entity_id
+    db.add(
+        AuditLog(
+            action="note.updated",
+            entity_type="note",
+            entity_id=note_id,
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={"note_id": note_id},
+        )
+    )
+    db.commit()
+    db.refresh(note)
+    fields = ["id", "entity_type", "entity_id", "note", "author", "created_at"]
+    return ok(to_dict(note, fields), message="Note updated")
+
+
+@router.delete("/notes/{note_id}")
+def delete_note(
+    note_id: int,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_capability("settings.manage")),
+):
+    """Remove an administrative note. Deletion is audited."""
+    note = db.get(AdminNote, note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail=f"Note {note_id} not found")
+    db.delete(note)
+    db.add(
+        AuditLog(
+            action="note.deleted",
+            entity_type="note",
+            entity_id=note_id,
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={"note_id": note_id},
+        )
+    )
+    db.commit()
+    return ok({"deleted": note_id}, message="Note deleted")

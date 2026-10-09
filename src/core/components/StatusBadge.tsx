@@ -72,6 +72,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
       color = 'default';
       break;
 
+    case 'FRESH':
+      color = 'success';
+      break;
+
+    case 'RECENT':
+      color = 'info';
+      break;
+
     case 'STALE':
     case 'ANOMALY':
       color = 'secondary';
@@ -88,6 +96,20 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'small'
       color = 'warning';
       break;
 
+    // Inventory Control Center: stock & availability states.
+    case 'IN_STOCK':
+    case 'AVAILABLE':
+      color = 'success';
+      break;
+
+    case 'LOW_STOCK':
+      color = 'warning';
+      break;
+
+    case 'OUT_OF_STOCK':
+    case 'UNAVAILABLE':
+      color = 'error';
+      break;
     default:
       color = 'default';
   }

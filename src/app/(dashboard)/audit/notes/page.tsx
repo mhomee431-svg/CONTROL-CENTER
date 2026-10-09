@@ -78,7 +78,7 @@ export default function AdminNotesPage() {
   const updateMutation = useMutation({
     mutationFn: (note: AdminNote) =>
       apiClient(API_ENDPOINTS.AUDIT.NOTE_DETAIL(note.id), {
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify({
           note: noteText,
           entity_type: entityType || undefined,
@@ -150,7 +150,7 @@ export default function AdminNotesPage() {
       field: 'created_by',
       headerName: 'Author',
       width: 150,
-      valueGetter: (_, row) => row.created_by || 'System',
+      valueGetter: (_, row) => row.author || row.created_by || 'System',
     },
     {
       field: 'created_at',

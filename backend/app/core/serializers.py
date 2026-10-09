@@ -47,7 +47,8 @@ def serialise_inventory(row: ShopInventory) -> dict[str, Any]:
         row,
         [
             "id", "product_id", "product_name", "quantity", "price", "mrp",
-            "stock_status", "freshness_status", "last_updated",
+            "stock_status", "freshness_status", "availability", "last_updated",
+            "last_updated_source", "sync_source", "sync_status",
         ],
     )
     # The drill-down keys inventory rows by shop_product_id, not id.

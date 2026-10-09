@@ -23,6 +23,15 @@ describe('capabilityForPath — centralized route authorization (Section 8/138)'
     expect(capabilityForPath(ROUTES.INVENTORY_DETAIL(7))).toBe(CAPABILITIES.INVENTORY_READ);
   });
 
+  it('gates the verification queue and its case drill-down on the read capability', () => {
+    // The queue is a read surface over the shop registry; the four triage
+    // actions inside it are gated separately by <PermissionGuard />. Mapping
+    // the route to the read capability keeps a look-only reviewer able to open
+    // a case, which is the same population the sidebar offers the area to.
+    expect(capabilityForPath(ROUTES.VERIFICATION)).toBe(CAPABILITIES.SHOPS_READ);
+    expect(capabilityForPath(ROUTES.VERIFICATION_DETAIL(1))).toBe(CAPABILITIES.SHOPS_READ);
+  });
+
   it('prefers the longest matching prefix', () => {
     // /system/settings must win over any broader /system mapping.
     expect(capabilityForPath(ROUTES.SYSTEM_SETTINGS)).toBe(CAPABILITIES.SETTINGS_READ);

@@ -159,6 +159,12 @@ class Category(Base, TimestampMixin):
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_subcategory = Column(Boolean, default=False)
+    # Category configuration beyond identity (Section: CATEGORY CONFIGURATION).
+    # Stored server-side on purpose — the spec forbids implementing category
+    # rules only in the frontend. JSON lists of field names / feature keys.
+    required_fields = Column(JSON, default=list)
+    optional_fields = Column(JSON, default=list)
+    feature_capabilities = Column(JSON, default=list)
 
 
 class Brand(Base, TimestampMixin):

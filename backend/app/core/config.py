@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
+    # Session cookie transport. False for local HTTP; set COOKIE_SECURE=true in
+    # any environment served over HTTPS so the admin session never travels
+    # plaintext.
     COOKIE_SECURE: bool = False
 
     @model_validator(mode="after")
