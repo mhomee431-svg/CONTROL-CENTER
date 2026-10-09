@@ -18,21 +18,13 @@ import {
 import { StickyNote, Plus, Pencil, Trash2 } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
+import { AdminNoteItem } from '@/core/types/admin';
 import { AdminDataGrid } from '@/core/components/AdminDataGrid';
+import { ConfirmationDialog } from '@/core/components/ConfirmationDialog';
 import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CAPABILITIES } from '@/core/permissions/permissions';
-
-interface AdminNote {
-  id: number;
-  entity_type?: string | null;
-  entity_id?: number | null;
-  note: string;
-  created_by?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
 
 const ENTITY_TYPES = ['SHOP', 'USER', 'PRODUCT', 'CATEGORY', 'SETTING'] as const;
 
@@ -40,16 +32,18 @@ export default function AdminNotesPage() {
   const queryClient = useQueryClient();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
 
-  const [editing, setEditing] = useState<AdminNote | null>(null);
+  const [editing, setEditing] = useState<AdminNoteItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [entityType, setEntityType] = useState<string>('');
   const [entityId, setEntityId] = useState<string>('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminNoteItem | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery<{ items: AdminNote[]; total: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ items: AdminNoteItem[]; total: number }>({
     queryKey: ['admin', 'notes', { page: paginationModel.page, pageSize: paginationModel.pageSize }],
     queryFn: () =>
-      apiClient<{ items: AdminNote[]; total: number }>(API_ENDPOINTS.AUDIT.NOTES, {
+      apiClient<{ items: AdminNoteItem[]; total: number }>(API_ENDPOINTS.AUDIT.NOTES, {
         params: {
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
@@ -59,15 +53,21 @@ export default function AdminNotesPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'notes'] });
 
+  /**
+   * The backend requires `entity_type` and `entity_id` together or neither, so
+   * the pair is only sent when a type was chosen AND an id was typed. Sending
+   * `entity_type` with no id would be rejected as half a reference.
+   */
+  const entityPayload = () => {
+    if (!entityType || !entityId.trim()) return {};
+    return { entity_type: entityType, entity_id: Number(entityId) };
+  };
+
   const createMutation = useMutation({
     mutationFn: () =>
       apiClient(API_ENDPOINTS.AUDIT.NOTES, {
         method: 'POST',
-        body: JSON.stringify({
-          note: noteText,
-          entity_type: entityType || undefined,
-          entity_id: entityId ? Number(entityId) : undefined,
-        }),
+        body: JSON.stringify({ note: noteText.trim(), ...entityPayload() }),
       }),
     onSuccess: () => {
       invalidate();
@@ -76,14 +76,10 @@ export default function AdminNotesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (note: AdminNote) =>
+    mutationFn: (note: AdminNoteItem) =>
       apiClient(API_ENDPOINTS.AUDIT.NOTE_DETAIL(note.id), {
         method: 'PATCH',
-        body: JSON.stringify({
-          note: noteText,
-          entity_type: entityType || undefined,
-          entity_id: entityId ? Number(entityId) : undefined,
-        }),
+        body: JSON.stringify({ note: noteText.trim(), ...entityPayload() }),
       }),
     onSuccess: () => {
       invalidate();
@@ -92,9 +88,12 @@ export default function AdminNotesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (note: AdminNote) =>
+    mutationFn: (note: AdminNoteItem) =>
       apiClient(API_ENDPOINTS.AUDIT.NOTE_DETAIL(note.id), { method: 'DELETE' }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setDeleteTarget(null);
+      invalidate();
+    },
   });
 
   function closeDialog() {
@@ -103,6 +102,7 @@ export default function AdminNotesPage() {
     setNoteText('');
     setEntityType('');
     setEntityId('');
+    setFormError(null);
   }
 
   function openCreate() {
@@ -110,23 +110,39 @@ export default function AdminNotesPage() {
     setNoteText('');
     setEntityType('');
     setEntityId('');
+    setFormError(null);
     setDialogOpen(true);
   }
 
-  function openEdit(note: AdminNote) {
+  function openEdit(note: AdminNoteItem) {
     setEditing(note);
     setNoteText(note.note ?? '');
     setEntityType(note.entity_type ?? '');
-    setEntityId(note.entity_id ? String(note.entity_id) : '');
+    setEntityId(note.entity_id != null ? String(note.entity_id) : '');
+    setFormError(null);
     setDialogOpen(true);
   }
 
-  function submit() {
-    if (!noteText.trim()) return;
-    if (editing) {
-      updateMutation.mutate(editing);
-    } else {
-      createMutation.mutate();
+  async function submit() {
+    if (!noteText.trim()) {
+      setFormError('A note body is required.');
+      return;
+    }
+    // A type without an id is half a reference; block it before the round-trip
+    // so the operator gets an immediate, specific message.
+    if (entityType && !entityId.trim()) {
+      setFormError('Enter an Entity ID for the chosen Entity Type, or set the type to None.');
+      return;
+    }
+    setFormError(null);
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync(editing);
+      } else {
+        await createMutation.mutateAsync();
+      }
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Could not save the note.');
     }
   }
 
@@ -147,10 +163,18 @@ export default function AdminNotesPage() {
     { field: 'entity_type', headerName: 'Entity', width: 130 },
     { field: 'entity_id', headerName: 'Entity ID', width: 110 },
     {
-      field: 'created_by',
+      field: 'author',
       headerName: 'Author',
       width: 150,
-      valueGetter: (_, row) => row.author || row.created_by || 'System',
+      valueGetter: (value) => (value as string) || 'System',
+    },
+    {
+      field: 'entity_link',
+      headerName: 'Target',
+      width: 160,
+      sortable: false,
+      valueGetter: (_, row) =>
+        row.entity_type ? `${row.entity_type} #${row.entity_id}` : 'General',
     },
     {
       field: 'created_at',
@@ -164,7 +188,7 @@ export default function AdminNotesPage() {
       width: 140,
       sortable: false,
       renderCell: (params) => {
-        const note = params.row as unknown as AdminNote;
+        const note = params.row as unknown as AdminNoteItem;
         return (
           <Box sx={{ display: 'flex', gap: 0.5 }}>
             <PermissionGuard capability={CAPABILITIES.SETTINGS_MANAGE}>
@@ -184,7 +208,9 @@ export default function AdminNotesPage() {
                 aria-label={`Delete note ${note.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  deleteMutation.mutate(note);
+                  // Deleting a note is irreversible, so it goes through the
+                  // shared confirmation dialog rather than firing on one click.
+                  setDeleteTarget(note);
                 }}
               >
                 <Trash2 size={14} />
@@ -249,6 +275,11 @@ export default function AdminNotesPage() {
       <Dialog open={dialogOpen} onClose={closeDialog} fullWidth maxWidth="sm">
         <DialogTitle>{editing ? `Edit Note #${editing.id}` : 'New Administrative Note'}</DialogTitle>
         <DialogContent>
+          {formError && (
+            <Alert severity="error" sx={{ mt: 1 }}>
+              {formError}
+            </Alert>
+          )}
           <TextField
             label="Note"
             value={noteText}
@@ -280,6 +311,12 @@ export default function AdminNotesPage() {
             onChange={(e) => setEntityId(e.target.value)}
             type="number"
             fullWidth
+            disabled={!entityType}
+            helperText={
+              entityType
+                ? 'The record this note is attached to.'
+                : 'Choose an Entity Type first — or leave as None for a general note.'
+            }
             sx={{ mt: 2 }}
           />
         </DialogContent>
@@ -294,6 +331,27 @@ export default function AdminNotesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Deleting a note is irreversible — confirmed with the operator reason. */}
+      {deleteTarget && (
+        <ConfirmationDialog
+          open={Boolean(deleteTarget)}
+          title={`Delete Note #${deleteTarget.id}`}
+          affectedItem={
+            deleteTarget.entity_type
+              ? `${deleteTarget.entity_type} #${deleteTarget.entity_id}`
+              : 'General note'
+          }
+          consequence="The note is removed permanently. Deletion is recorded in the audit log."
+          isDangerous
+          requireReason
+          isLoading={deleteMutation.isPending}
+          onConfirm={async () => {
+            await deleteMutation.mutateAsync(deleteTarget);
+          }}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
     </Box>
   );
 }

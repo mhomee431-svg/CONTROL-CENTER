@@ -401,6 +401,31 @@ export interface ComplaintItem {
   updated_at?: string | null;
 }
 
+/**
+ * One administrative note (`GET /admin/notes`).
+ *
+ * `author` is the stored column name the API actually returns — the notes grid
+ * reads it directly rather than guessing between `author` and a non-existent
+ * `created_by`. A note may be free-standing, so the entity pair is optional; the
+ * backend requires `entity_type` and `entity_id` together or neither.
+ */
+export interface AdminNoteItem {
+  id: number;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  note: string;
+  author?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Create/update payload for an administrative note. */
+export interface AdminNotePayload {
+  note: string;
+  entity_type?: string | null;
+  entity_id?: number | null;
+}
+
 export interface AuditLogItem {
   id: number;
   action: string;

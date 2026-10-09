@@ -6,6 +6,7 @@ The frontend proxies /api/v1/* here.
 
 import logging
 import re
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -32,7 +33,20 @@ from app.core.config import settings
 from app.core.migrations import upgrade_database
 from app.core.operational_events import register_operational_events
 
-app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Startup work, on the supported lifespan hook.
+
+    `@app.on_event("startup")` is deprecated in current FastAPI and emits a
+    DeprecationWarning on every run; the lifespan context manager replaces it
+    with no change in behaviour.
+    """
+    register_operational_events()
+    upgrade_database()
+    yield
+
+
+app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0", lifespan=lifespan)
 logger = logging.getLogger(__name__)
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
@@ -68,12 +82,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    register_operational_events()
-    upgrade_database()
 
 
 @app.exception_handler(StarletteHTTPException)

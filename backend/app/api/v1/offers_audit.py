@@ -1,7 +1,7 @@
 """Offers, audit trail and admin notes."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -129,9 +129,35 @@ def list_actions(db: Session = Depends(get_db), _: AdminUser = Depends(get_curre
 
 
 class NoteCreate(BaseModel):
-    entity_type: str
-    entity_id: int
+    """One administrative note.
+
+    A note may be free-standing: `entity_type`/`entity_id` are optional because
+    the console offers "None" as a valid target for a general operator memo. The
+    two move together — a note attached to an entity must name both — so the
+    model validates that pairing rather than storing half a reference.
+    """
+
     note: str
+    entity_type: str | None = None
+    entity_id: int | None = None
+
+    @field_validator("note")
+    @classmethod
+    def _note_required(cls, v: str) -> str:
+        if not (v or "").strip():
+            raise ValueError("A note body is required")
+        return v.strip()
+
+    @model_validator(mode="after")
+    def _entity_pairing(self) -> "NoteCreate":
+        if (self.entity_type is None) != (self.entity_id is None):
+            raise ValueError("entity_type and entity_id must be supplied together")
+        return self
+
+
+# The response shape is the single source of truth for the notes grid. `author`
+# is the stored column name; the frontend interface mirrors it exactly.
+NOTE_FIELDS = ["id", "entity_type", "entity_id", "note", "author", "created_at", "updated_at"]
 
 
 @router.get("/notes")
@@ -150,16 +176,16 @@ def list_notes(
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     start, end = page.window()
     rows = db.scalars(stmt.order_by(AdminNote.id.desc()).offset(start).limit(end - start)).all()
-    fields = ["id", "entity_type", "entity_id", "note", "author", "created_at"]
-    return ok(paged([to_dict(r, fields) for r in rows], total))
+    return ok(paged([to_dict(r, NOTE_FIELDS) for r in rows], total))
 
 
 @router.post("/notes")
 def create_note(
     payload: NoteCreate,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin),
+    admin: AdminUser = Depends(require_capability("settings.manage")),
 ):
+    """Create an administrative note. Creation is audited like edit and delete."""
     note = AdminNote(
         entity_type=payload.entity_type,
         entity_id=payload.entity_id,
@@ -167,16 +193,44 @@ def create_note(
         author=admin.name or admin.username,
     )
     db.add(note)
+    db.flush()
+    db.add(
+        AuditLog(
+            action="note.created",
+            entity_type="note",
+            entity_id=note.id,
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={
+                "target_type": payload.entity_type,
+                "target_id": payload.entity_id,
+            },
+        )
+    )
     db.commit()
     db.refresh(note)
-    fields = ["id", "entity_type", "entity_id", "note", "author", "created_at"]
-    return ok(to_dict(note, fields), message="Note added")
+    return ok(to_dict(note, NOTE_FIELDS), message="Note added")
 
 
 class NoteUpdate(BaseModel):
+    """Partial update of one administrative note.
+
+    `entity_type: null` / `entity_id: null` are meaningful: they detach the note
+    from its target. `exclude_unset` in the route keeps "not supplied" distinct
+    from "explicitly cleared", so a caller can re-target or detach without
+    rewriting the body.
+    """
+
     note: str | None = None
     entity_type: str | None = None
     entity_id: int | None = None
+
+    @field_validator("note")
+    @classmethod
+    def _note_not_blank(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("A note body is required")
+        return v.strip() if v is not None else None
 
 
 @router.patch("/notes/{note_id}")
@@ -190,12 +244,18 @@ def update_note(
     note = db.get(AdminNote, note_id)
     if note is None:
         raise HTTPException(status_code=404, detail=f"Note {note_id} not found")
-    if payload.note is not None:
-        note.note = payload.note
-    if payload.entity_type is not None:
-        note.entity_type = payload.entity_type
-    if payload.entity_id is not None:
-        note.entity_id = payload.entity_id
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="No fields supplied to update")
+    for field, value in changes.items():
+        setattr(note, field, value)
+    # After applying the changes the pairing must still hold, so a caller cannot
+    # PATCH in half a reference (a type with no id, or the reverse).
+    if (note.entity_type is None) != (note.entity_id is None):
+        raise HTTPException(
+            status_code=422,
+            detail="entity_type and entity_id must be supplied together",
+        )
     db.add(
         AuditLog(
             action="note.updated",
@@ -203,13 +263,12 @@ def update_note(
             entity_id=note_id,
             user_id=admin.id,
             admin_user=admin.name or admin.username,
-            details={"note_id": note_id},
+            details={"fields": sorted(changes)},
         )
     )
     db.commit()
     db.refresh(note)
-    fields = ["id", "entity_type", "entity_id", "note", "author", "created_at"]
-    return ok(to_dict(note, fields), message="Note updated")
+    return ok(to_dict(note, NOTE_FIELDS), message="Note updated")
 
 
 @router.delete("/notes/{note_id}")
