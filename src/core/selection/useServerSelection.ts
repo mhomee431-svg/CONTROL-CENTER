@@ -42,6 +42,8 @@ export interface ServerSelection {
   toggleRow: (ids: GridRowSelectionModel) => void;
   toggleAllOnPage: (pageIds: GridRowSelectionModel) => void;
   selectAllMatching: (matchingCount: number) => void;
+  /** Current query signature, used to invalidate intent when filters/search change. */
+  bindQuery: (signature: string) => void;
   clear: () => void;
   /** Report the id set visible on the current page — call on every page load. */
   syncPageRows: (pageIds: unknown[]) => void;
@@ -73,6 +75,7 @@ export function useServerSelection(): ServerSelection {
   // Mirror of selectedIds so syncPageRows can recompute against the latest
   // selection even when both change in the same batch of updates.
   const selectedIdsRef = useRef<GridRowSelectionModel>([]);
+  const querySignatureRef = useRef<string | null>(null);
 
   /**
    * Called by the grid with the ids actually rendered. Recomputes how much of
@@ -87,12 +90,16 @@ export function useServerSelection(): ServerSelection {
 
   const toggleRow = useCallback((ids: GridRowSelectionModel) => {
     setAllMatching(false);
+    setMatchingCount(null);
     selectedIdsRef.current = ids;
     setSelectedIds(ids);
   }, []);
 
   const toggleAllOnPage = useCallback((pageIds: GridRowSelectionModel) => {
+    // Replace the explicit set with only this page's ids. Never treat a page
+    // header checkbox as a request to select the entire server-side dataset.
     setAllMatching(false);
+    setMatchingCount(null);
     selectedIdsRef.current = pageIds;
     setSelectedIds(pageIds);
   }, []);
@@ -103,6 +110,17 @@ export function useServerSelection(): ServerSelection {
     setMatchingCount(count);
     selectedIdsRef.current = [];
     setSelectedIds([]);
+  }, []);
+
+  const bindQuery = useCallback((signature: string) => {
+    if (querySignatureRef.current !== null && querySignatureRef.current !== signature) {
+      selectedIdsRef.current = [];
+      setSelectedIds([]);
+      setAllMatching(false);
+      setMatchingCount(null);
+      setOffPageIds(new Set());
+    }
+    querySignatureRef.current = signature;
   }, []);
 
   const clear = useCallback(() => {
@@ -117,8 +135,16 @@ export function useServerSelection(): ServerSelection {
     () =>
       allMatching
         ? { mode: 'all-matching', count: matchingCount ?? 0, matchingCount }
-        : { mode: selectedIds.length > 0 ? 'explicit' : 'none', count: selectedIds.length, matchingCount: null },
-    [allMatching, matchingCount, selectedIds.length]
+        : {
+            mode: selectedIds.length === 0
+              ? 'none'
+              : pageRowCount > 0 && selectedIds.length === pageRowCount
+                ? 'page'
+                : 'explicit',
+            count: selectedIds.length,
+            matchingCount: null,
+          },
+    [allMatching, matchingCount, pageRowCount, selectedIds.length]
   );
 
   const scopeLabel = useMemo(() => {
@@ -126,6 +152,7 @@ export function useServerSelection(): ServerSelection {
       const n = scope.matchingCount ?? 0;
       return `ALL ${n.toLocaleString()} records matching the current query`;
     }
+    if (scope.mode === 'page') return `${scope.count} records on this page selected`;
     if (scope.mode === 'explicit') return `${scope.count} selected records`;
     return 'no records selected';
   }, [scope]);
@@ -139,6 +166,7 @@ export function useServerSelection(): ServerSelection {
     toggleRow,
     toggleAllOnPage,
     selectAllMatching,
+    bindQuery,
     clear,
     syncPageRows,
     // Warning state: something is selected and none of it is visible here.

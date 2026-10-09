@@ -58,6 +58,12 @@ export const API_ENDPOINTS = {
     STATUS: (userId: number | string) => `/api/v1/admin/users/${userId}/status`,
   },
 
+  // Bulk account actions. Kept separate from single-user status changes so the
+  // backend can authorize and audit a multi-record operation independently.
+  USERS: {
+    BULK_STATUS: '/api/v1/admin/users/bulk-status',
+  },
+
   // Shops & Verification
    SHOPS: {
     LIST: '/api/v1/admin/shops',

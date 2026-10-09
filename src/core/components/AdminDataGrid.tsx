@@ -73,6 +73,12 @@ export interface AdminDataGridProps {
   onSelectAllMatching?: () => void;
   /** True while an all-matching intent is active (drives the banner). */
   allMatchingActive?: boolean;
+  /** True only when every row currently rendered on this page is selected. */
+  pageSelectionActive?: boolean;
+  /** Optional summary for the current selection scope. */
+  selectionSummary?: string;
+  /** Restrict selection to a single row where multi-select is inappropriate. */
+  disableMultipleRowSelection?: boolean;
   }
 
 /**
@@ -119,6 +125,9 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
       totalMatching,
       onSelectAllMatching,
       allMatchingActive = false,
+      pageSelectionActive = false,
+      selectionSummary,
+      disableMultipleRowSelection = false,
     }) => {
   // Column visibility is remembered per grid (keyed by `gridId`) so an
   // operator's choices survive a reload. It is a UI preference only — no
@@ -215,19 +224,25 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
             </Button>
           )}
           {exportButton}
-          {onSelectAllMatching && (
+          {selectionSummary && (
+            <Typography variant="body2" role="status" aria-live="polite" sx={{ color: '#475569' }}>
+              {selectionSummary}
+            </Typography>
+          )}
+          {checkboxSelection && pageSelectionActive && onSelectAllMatching && !allMatchingActive && (
+            <Button size="small" variant="outlined" onClick={onSelectAllMatching}>
+              Select all matching ({(totalMatching ?? 0).toLocaleString()})
+            </Button>
+          )}
+          {allMatchingActive && onSelectAllMatching && (
             <Button
               size="small"
-              variant={allMatchingActive ? 'contained' : 'outlined'}
+              variant="contained"
               onClick={onSelectAllMatching}
-              // Announced as a state change so screen readers know that the
-              // scope of a following bulk action has changed.
-              aria-pressed={allMatchingActive}
-              sx={{ borderColor: '#CBD5E1', color: '#475569' }}
+              aria-pressed="true"
+              aria-label={`Clear all matching selection of ${(totalMatching ?? 0).toLocaleString()} records`}
             >
-              {allMatchingActive
-                ? `All matching (${(totalMatching ?? 0).toLocaleString()}) selected`
-                : 'Select all matching'}
+              All matching ({(totalMatching ?? 0).toLocaleString()}) selected · Clear
             </Button>
           )}
         </Box>
@@ -253,6 +268,8 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
           checkboxSelection={checkboxSelection}
           rowSelectionModel={rowSelectionModel}
           onRowSelectionModelChange={onRowSelectionModelChange}
+          disableMultipleRowSelection={disableMultipleRowSelection}
+          keepNonExistentRowsSelected
           disableRowSelectionOnClick
           onRowClick={onRowClick}
           columnVisibilityModel={columnVisibility}

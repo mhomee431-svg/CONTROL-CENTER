@@ -38,6 +38,7 @@ function ProductsPage() {
   // being told so first.
   const selection = useServerSelection();
   const rowSelectionModel = selection.selectedIds;
+  const selectionQuerySignature = JSON.stringify({ search, status: statusFilter });
 
   // Bulk action modal state
   const [bulkAction, setBulkAction] = useState<'APPROVE' | 'REJECT' | 'ARCHIVE' | null>(null);
@@ -59,27 +60,31 @@ function ProductsPage() {
   // what powers the off-screen-selection warning in the scope banner.
   // `syncPageRows` is a stable `useCallback`, so it is a sound dependency; the
   // whole `selection` object is not, and must not be listed.
-  const { syncPageRows } = selection;
+  const { syncPageRows, bindQuery } = selection;
   const pageItemIds = useMemo(() => (data?.items ?? []).map((item) => item.id), [data]);
+  useEffect(() => {
+    bindQuery(selectionQuerySignature);
+  }, [bindQuery, selectionQuerySignature]);
   useEffect(() => {
     syncPageRows(pageItemIds);
   }, [pageItemIds, syncPageRows]);
 
   const bulkMutation = useMutation({
-    mutationFn: ({ action, product_ids, reason }: { action: string; product_ids: number[]; reason: string }) =>
+    mutationFn: ({ action, product_ids, reason, all_matching, filters }: { action: string; product_ids: number[]; reason: string; all_matching?: boolean; filters?: { search?: string; status?: string } }) =>
       apiClient(API_ENDPOINTS.PRODUCTS.BULK, {
-        method: 'POST',
-        body: JSON.stringify({ action, product_ids, reason }),
-      }),
+      method: 'POST',
+      body: JSON.stringify({ action, product_ids, reason, ...(all_matching ? { all_matching: true, filters } : {}) }),
+    }),
     onSuccess: () => {
       selection.clear();
+      setBulkAction(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'metrics'] });
     },
   });
 
   const handleConfirmBulk = async (reason: string) => {
-    if (!bulkAction) return;
+    if (!bulkAction || selection.scope.mode === 'none') return;
     // All-matching is a server-resolved intent: the bulk endpoint receives the
     // same filters the grid displays, so "everything" means what the operator
     // sees, and no id list is ever shipped from the browser.
@@ -88,6 +93,8 @@ function ProductsPage() {
         action: bulkAction,
         product_ids: [],
         reason,
+        all_matching: true,
+        filters: { search: search || undefined, status: statusFilter || undefined },
       });
       return;
     }
@@ -229,49 +236,24 @@ function ProductsPage() {
         checkboxSelection
         rowSelectionModel={rowSelectionModel}
         onRowSelectionModelChange={selection.toggleRow}
+        selectionSummary={selection.scope.mode === 'none' ? undefined : selection.scopeLabel}
+        bulkActions={selection.scope.mode !== 'none' ? (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <PermissionGuard capability={CAPABILITIES.PRODUCTS_APPROVE}>
+              <Button size="small" variant="contained" color="success" onClick={() => setBulkAction('APPROVE')}>Approve ({selection.scope.count.toLocaleString()})</Button>
+            </PermissionGuard>
+            <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
+              <Button size="small" variant="outlined" color="error" onClick={() => setBulkAction('REJECT')}>Reject ({selection.scope.count.toLocaleString()})</Button>
+              <Button size="small" variant="outlined" onClick={() => setBulkAction('ARCHIVE')}>Archive</Button>
+            </PermissionGuard>
+            <Button size="small" onClick={selection.clear}>Clear</Button>
+          </Box>
+        ) : undefined}
         totalMatching={data?.total ?? 0}
         allMatchingActive={selection.allMatching}
+        pageSelectionActive={selection.scope.mode === 'page'}
         onSelectAllMatching={
           selection.allMatching ? selection.clear : () => selection.selectAllMatching(data?.total ?? 0)
-        }
-        bulkActions={
-          selection.scope.mode !== 'none' ? (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <PermissionGuard capability={CAPABILITIES.PRODUCTS_APPROVE}>
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="success"
-                  startIcon={<Check size={14} />}
-                  onClick={() => setBulkAction('APPROVE')}
-                >
-                  Approve ({selection.allMatching ? (data?.total ?? 0).toLocaleString() : rowSelectionModel.length})
-                </Button>
-              </PermissionGuard>
-              <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="error"
-                  startIcon={<XCircle size={14} />}
-                  onClick={() => setBulkAction('REJECT')}
-                >
-                  Reject ({selection.allMatching ? (data?.total ?? 0).toLocaleString() : rowSelectionModel.length})
-                </Button>
-              </PermissionGuard>
-              <PermissionGuard capability={CAPABILITIES.PRODUCTS_UPDATE}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<Archive size={14} />}
-                  onClick={() => setBulkAction('ARCHIVE')}
-                >
-                  Archive
-                </Button>
-              </PermissionGuard>
-            </Box>
-          ) : undefined
         }
       />
 
@@ -279,11 +261,8 @@ function ProductsPage() {
         <ConfirmationDialog
           open={Boolean(bulkAction)}
           title={`Bulk ${bulkAction} Products`}
-          affectedItem={
-            selection.allMatching
-              ? `ALL ${data?.total ?? 0} products matching the current filters`
-              : `${rowSelectionModel.length} selected products`
-          }
+          affectedItem={selection.scopeLabel}
+          actionSummary={`Action: ${bulkAction} · Scope: ${selection.scopeLabel}`}
           consequence={
             bulkAction === 'ARCHIVE'
               ? 'Archived products will no longer be discoverable by customers or linkable by shopkeepers.'

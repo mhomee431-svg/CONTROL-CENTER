@@ -20,6 +20,7 @@ export interface ConfirmationDialogProps {
   title: string;
   affectedItem?: string;
   consequence?: string;
+  actionSummary?: string;
   isDangerous?: boolean;
   requireReason?: boolean;
   isLoading?: boolean;
@@ -36,6 +37,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   title,
   affectedItem,
   consequence,
+  actionSummary,
   isDangerous = false,
   requireReason = true,
   isLoading = false,
@@ -81,6 +83,12 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
               {affectedItem}
             </Typography>
           </Box>
+        )}
+
+        {actionSummary && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {actionSummary}
+          </Alert>
         )}
 
         {consequence && (

@@ -24,6 +24,7 @@ function useHarness() {
     hasInvisibleSelection: selection.hasInvisibleSelection,
     toggleRow: selection.toggleRow,
     selectAllMatching: selection.selectAllMatching,
+    bindQuery: selection.bindQuery,
     syncPageRows: selection.syncPageRows,
     clear: selection.clear,
   };
@@ -62,6 +63,20 @@ describe('useServerSelection', () => {
     expect(h.current.scopeLabel).toBe('3 selected records');
   });
 
+  it('distinguishes selecting the current page from selecting explicit records', () => {
+    const h = renderHarness();
+    act(() => h.current.syncPageRows([1, 2, 3]));
+    act(() => h.current.toggleRow([1, 2, 3]));
+    expect(h.current.scope.mode).toBe('page');
+  });
+
+  it('clears stale all-matching counts when switching back to explicit selection', () => {
+    const h = renderHarness();
+    act(() => h.current.selectAllMatching(5000));
+    act(() => h.current.toggleRow([7]));
+    expect(h.current.scope).toEqual({ mode: 'explicit', count: 1, matchingCount: null });
+  });
+
   it('tracks select-all-matching as intent, never as an id list', () => {
     const h = renderHarness();
     act(() => h.current.selectAllMatching(5000));
@@ -81,6 +96,15 @@ describe('useServerSelection', () => {
     act(() => h.current.toggleRow([7]));
     expect(h.current.allMatching).toBe(false);
     expect(h.current.scope.mode).toBe('explicit');
+  });
+
+  it('clears selection when the filter/search query changes', () => {
+    const h = renderHarness();
+    act(() => h.current.bindQuery('search=soap'));
+    act(() => h.current.selectAllMatching(17));
+    act(() => h.current.bindQuery('search=milk'));
+    expect(h.current.scope.mode).toBe('none');
+    expect(h.current.allMatching).toBe(false);
   });
 
   it('clear resets every form of selection', () => {

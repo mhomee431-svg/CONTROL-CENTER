@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel, GridRowSelectionModel } from '@mui/x-data-grid';
@@ -16,6 +16,8 @@ import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CAPABILITIES } from '@/core/permissions/permissions';
 import { ROUTES } from '@/core/routes/routes';
 import { describeRecency } from '@/core/privacy/masking';
+import { SelectionScopeBanner } from '@/core/selection/SelectionScopeBanner';
+import { useServerSelection } from '@/core/selection/useServerSelection';
 
 type ShopDecision = 'VERIFY' | 'REJECT' | 'SUSPEND' | 'REACTIVATE' | 'ARCHIVE';
 
@@ -27,7 +29,8 @@ export default function BusinessesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [selectedIds, setSelectedIds] = useState<GridRowSelectionModel>([]);
+  const selection = useServerSelection();
+  const selectedIds = selection.selectedIds;
   const [bulkDecision, setBulkDecision] = useState<'VERIFY' | 'SUSPEND' | null>(null);
   const [editTarget, setEditTarget] = useState<ShopItem | null>(null);
   const [editName, setEditName] = useState('');
@@ -58,6 +61,16 @@ export default function BusinessesPage() {
         },
       }),
   });
+
+  const shopQuerySignature = JSON.stringify({ search, status: statusFilter, category: categoryFilter });
+  const pageShopIds = useMemo(() => (data?.items ?? []).map((shop) => shop.id), [data]);
+  const { bindQuery, syncPageRows } = selection;
+  useEffect(() => {
+    bindQuery(shopQuerySignature);
+  }, [bindQuery, shopQuerySignature]);
+  useEffect(() => {
+    syncPageRows(pageShopIds);
+  }, [pageShopIds, syncPageRows]);
 
   const verificationMutation = useMutation({
     mutationFn: ({ shopId, decision, reason }: { shopId: number; decision: string; reason: string }) =>
@@ -94,15 +107,20 @@ export default function BusinessesPage() {
   });
 
   const bulkMutation = useMutation({
-    mutationFn: ({ decision, reason }: { decision: string; reason: string }) =>
+    mutationFn: ({ decision, reason, all_matching, filters }: { decision: string; reason: string; all_matching?: boolean; filters?: { search?: string; status?: string; category?: string } }) =>
       apiClient(API_ENDPOINTS.SHOPS.BULK, {
         method: 'POST',
-        body: JSON.stringify({ shop_ids: selectedIds, decision, reason }),
+        body: JSON.stringify({
+          shop_ids: all_matching ? [] : selectedIds,
+          decision,
+          reason,
+          ...(all_matching ? { all_matching: true, filters } : {}),
+        }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'shops'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'metrics'] });
-      setSelectedIds([]);
+      selection.clear();
       setBulkDecision(null);
     },
   });
@@ -348,50 +366,14 @@ export default function BusinessesPage() {
         </FormControl>
       </Box>
 
-      {/* Bulk operations — POST /admin/shops/bulk, reason is recorded server-side */}
-      {selectedIds.length > 0 && (
-        <Box
-          sx={{
-            mb: 2,
-            p: 1.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            borderRadius: 2,
-            border: '1px solid #E2E8F0',
-            backgroundColor: '#F8FAFC',
-          }}
-        >
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {selectedIds.length} shop{selectedIds.length === 1 ? '' : 's'} selected
-          </Typography>
-          <Box sx={{ flex: 1 }} />
-          <PermissionGuard capability={CAPABILITIES.SHOPS_APPROVE}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setBulkDecision('VERIFY')}
-              disabled={bulkMutation.isPending}
-            >
-              Bulk Verify
-            </Button>
-          </PermissionGuard>
-          <PermissionGuard capability={CAPABILITIES.SHOPS_SUSPEND}>
-            <Button
-              size="small"
-              color="error"
-              variant="outlined"
-              onClick={() => setBulkDecision('SUSPEND')}
-              disabled={bulkMutation.isPending}
-            >
-              Bulk Suspend
-            </Button>
-          </PermissionGuard>
-          <Button size="small" onClick={() => setSelectedIds([])}>
-            Clear
-          </Button>
-        </Box>
-      )}
+      <SelectionScopeBanner
+        mode={selection.scope.mode}
+        count={selection.scope.count}
+        matchingCount={selection.scope.matchingCount}
+        pageRowCount={data?.items.length ?? 0}
+        offPageCount={selection.offPageCount}
+        onClear={selection.clear}
+      />
 
       <AdminDataGrid
         rows={(data?.items || []) as unknown as Record<string, unknown>[]}
@@ -407,14 +389,33 @@ export default function BusinessesPage() {
         error={isError}
         checkboxSelection
         rowSelectionModel={selectedIds}
-        onRowSelectionModelChange={setSelectedIds}
+        onRowSelectionModelChange={selection.toggleRow}
+        selectionSummary={selection.scope.mode === 'none' ? undefined : selection.scopeLabel}
+        bulkActions={selection.scope.mode !== 'none' ? (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <PermissionGuard capability={CAPABILITIES.SHOPS_APPROVE}>
+              <Button size="small" variant="outlined" onClick={() => setBulkDecision('VERIFY')} disabled={bulkMutation.isPending}>Bulk Verify</Button>
+            </PermissionGuard>
+            <PermissionGuard capability={CAPABILITIES.SHOPS_SUSPEND}>
+              <Button size="small" color="error" variant="outlined" onClick={() => setBulkDecision('SUSPEND')} disabled={bulkMutation.isPending}>Bulk Suspend</Button>
+            </PermissionGuard>
+            <Button size="small" onClick={selection.clear}>Clear</Button>
+          </Box>
+        ) : undefined}
+        totalMatching={data?.total ?? 0}
+        allMatchingActive={selection.allMatching}
+        pageSelectionActive={selection.scope.mode === 'page'}
+        onSelectAllMatching={selection.allMatching
+          ? selection.clear
+          : () => selection.selectAllMatching(data?.total ?? 0)}
       />
 
       {bulkDecision && (
         <ConfirmationDialog
           open={Boolean(bulkDecision)}
-          title={`Bulk ${bulkDecision} — ${selectedIds.length} shops`}
-          affectedItem={`${selectedIds.length} selected shops`}
+          title={`Bulk ${bulkDecision} — ${selection.scopeLabel}`}
+          affectedItem={selection.scopeLabel}
+          actionSummary={`Action: ${bulkDecision} · Scope: ${selection.scopeLabel}`}
           consequence={
             bulkDecision === 'SUSPEND'
               ? 'All selected shops and their inventory will immediately disappear from customer discovery.'
@@ -424,7 +425,17 @@ export default function BusinessesPage() {
           requireReason
           isLoading={bulkMutation.isPending}
           onConfirm={async (reason) => {
-            await bulkMutation.mutateAsync({ decision: bulkDecision, reason });
+            if (selection.scope.mode === 'none') return;
+            await bulkMutation.mutateAsync({
+              decision: bulkDecision,
+              reason,
+              all_matching: selection.allMatching,
+              filters: selection.allMatching ? {
+                search: search || undefined,
+                status: statusFilter || undefined,
+                category: categoryFilter || undefined,
+              } : undefined,
+            });
           }}
           onClose={() => setBulkDecision(null)}
         />

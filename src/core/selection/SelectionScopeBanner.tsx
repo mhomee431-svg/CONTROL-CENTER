@@ -47,7 +47,8 @@ export function SelectionScopeBanner({
   if (mode === 'none') return null;
 
   const isAllMatching = mode === 'all-matching';
-  const offScreen = !isAllMatching && offPageCount > 0;
+  const isPage = mode === 'page';
+  const offScreen = !isAllMatching && !isPage && offPageCount > 0;
 
   return (
     <Alert
@@ -69,11 +70,10 @@ export function SelectionScopeBanner({
       <Box>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {isAllMatching
-            ? `Bulk actions will apply to ALL ${(
-              matchingCount ?? 0
-            ).toLocaleString()} records matching the current query — not just the ${pageRowCount.toLocaleString()} on this page.`
-            : `Bulk actions will apply to ${count.toLocaleString()} selected record${count === 1 ? '' : 's'
-            }.`}
+            ? `Bulk actions will apply to ALL ${(matchingCount ?? 0).toLocaleString()} records matching the current query — not just the ${pageRowCount.toLocaleString()} on this page.`
+            : isPage
+              ? `Bulk actions will apply to the ${count.toLocaleString()} selected records on this page only.`
+              : `Bulk actions will apply to ${count.toLocaleString()} selected record${count === 1 ? '' : 's'}.`}
         </Typography>
         {offScreen && (
           <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
