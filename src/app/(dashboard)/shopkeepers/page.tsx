@@ -80,10 +80,14 @@ function ShopkeepersContent() {
 
   // Shop-derived aggregates (category / verification / product + inventory
   // counts) require the shops registry, keyed by owner.
+  //
+  // The backend caps `limit` at 200 (pagination contract), so requesting 500
+  // was rejected with a 422 and every derived column came back empty. Ask for
+  // the maximum the API accepts.
   const { data: shopData } = useQuery<{ items: ShopItem[] }>({
     queryKey: ['admin', 'shopkeepers', 'shop-aggregates'],
     queryFn: () =>
-      apiClient<{ items: ShopItem[] }>(API_ENDPOINTS.SHOPS.LIST, { params: { limit: 500 } }),
+      apiClient<{ items: ShopItem[] }>(API_ENDPOINTS.SHOPS.LIST, { params: { limit: 200 } }),
     staleTime: 60 * 1000,
   });
 

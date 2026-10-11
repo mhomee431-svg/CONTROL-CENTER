@@ -198,6 +198,9 @@ export default function FeatureFlagsPage() {
         loading={isLoading}
         onRefresh={() => refetch()}
         error={isError}
+        // A feature flag's primary key is its name, not an `id`. Without this
+        // the grid throws "A row was provided without id" and the panel fails.
+        getRowId={(row) => String(row.name)}
       />
 
       {toggleTarget && (

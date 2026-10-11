@@ -79,6 +79,15 @@ export interface AdminDataGridProps {
   selectionSummary?: string;
   /** Restrict selection to a single row where multi-select is inappropriate. */
   disableMultipleRowSelection?: boolean;
+  /**
+   * Resolve a stable row id.
+   *
+   * MUI X requires every row to carry a unique `id`. Most registries have one,
+   * but a table whose primary key is a name (feature flags) does not — omitting
+   * this throws "A row was provided without id" and the whole panel fails to
+   * render. Callers with a non-`id` primary key pass the accessor here.
+   */
+  getRowId?: (row: Record<string, unknown>) => string | number;
 }
 
 /**
@@ -128,6 +137,7 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
       pageSelectionActive = false,
       selectionSummary,
       disableMultipleRowSelection = false,
+      getRowId,
     }) => {
   // Column visibility is remembered per grid (keyed by `gridId`) so an
   // operator's choices survive a reload. It is a UI preference only — no
@@ -269,6 +279,7 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
           rowSelectionModel={rowSelectionModel}
           onRowSelectionModelChange={onRowSelectionModelChange}
           disableMultipleRowSelection={disableMultipleRowSelection}
+          getRowId={getRowId ?? ((row: Record<string, unknown>) => row.id as string | number)}
           keepNonExistentRowsSelected
           disableRowSelectionOnClick
           onRowClick={onRowClick}
