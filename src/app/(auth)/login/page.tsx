@@ -131,7 +131,19 @@ function LoginContent() {
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ width: '100%' }} noValidate>
+          {/* method="post" is a safety net, not the real submission path. React
+              Hook Form handles the submit; but if the handler is not attached
+              yet (slow hydration, a JS error, or an automated click), a native
+              submit defaults to GET and appends the credentials to the URL —
+              where they leak into history, logs and the Referer header. POST
+              keeps them in the request body even on that degraded path. */}
+          <Box
+            component="form"
+            method="post"
+            onSubmit={handleSubmit(onSubmit)}
+            sx={{ width: '100%' }}
+            noValidate
+          >
             <TextField
               margin="normal"
               required
@@ -175,7 +187,9 @@ function LoginContent() {
 
           <Divider sx={{ width: '100%', my: 2 }}>OR</Divider>
 
-          <Box component="form" onSubmit={onTokenSubmit} sx={{ width: '100%' }}>
+          {/* Same POST safety net as the credential form — a bearer token in a
+              URL would be just as damaging to leak. */}
+          <Box component="form" method="post" onSubmit={onTokenSubmit} sx={{ width: '100%' }}>
             <TextField
               fullWidth
               label="Admin access token"

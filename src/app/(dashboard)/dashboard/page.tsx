@@ -64,12 +64,19 @@ export default function DashboardPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // The backend caps `limit` at 200 (pagination contract), so 500 was rejected
+  // with a 422 and the geography filter options silently came back empty. Ask
+  // for the maximum the API accepts and read the paged envelope it actually
+  // returns ({ items, total }), not a bare array.
   const { data: shopGeoOptions } = useQuery<{ city?: string; state?: string }[]>({
     queryKey: ['admin', 'shops', 'filter-options'],
-    queryFn: () =>
-      apiClient<{ city?: string; state?: string }[]>(API_ENDPOINTS.SHOPS.LIST, {
-        params: { limit: 500 },
-      }),
+    queryFn: async () => {
+      const res = await apiClient<{ items?: { city?: string; state?: string }[] }>(
+        API_ENDPOINTS.SHOPS.LIST,
+        { params: { limit: 200 } }
+      );
+      return res.items ?? [];
+    },
     staleTime: 5 * 60 * 1000,
   });
 
