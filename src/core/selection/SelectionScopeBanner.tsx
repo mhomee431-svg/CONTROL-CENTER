@@ -33,6 +33,8 @@ export interface SelectionScopeBannerProps {
   onClear: () => void;
   /** Optional slot: the bulk action buttons themselves. */
   actions?: React.ReactNode;
+  /** Additional small controls such as exporting the explicit selection. */
+  tools?: React.ReactNode;
 }
 
 export function SelectionScopeBanner({
@@ -43,6 +45,7 @@ export function SelectionScopeBanner({
   offPageCount,
   onClear,
   actions,
+  tools,
 }: SelectionScopeBannerProps) {
   if (mode === 'none') return null;
 
@@ -68,6 +71,7 @@ export function SelectionScopeBanner({
       }
     >
       <Box>
+        {tools && <Box sx={{ mb: 1, display: 'flex', gap: 1 }}>{tools}</Box>}
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {isAllMatching
             ? `Bulk actions will apply to ALL ${(matchingCount ?? 0).toLocaleString()} records matching the current query — not just the ${pageRowCount.toLocaleString()} on this page.`
@@ -81,6 +85,7 @@ export function SelectionScopeBanner({
             scope before continuing, or clear the selection.
           </Typography>
         )}
+        {tools && <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>{tools}</Box>}
         {actions && <Box sx={{ mt: 1 }}>{actions}</Box>}
       </Box>
     </Alert>

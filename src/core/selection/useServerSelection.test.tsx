@@ -24,6 +24,7 @@ function useHarness() {
     hasInvisibleSelection: selection.hasInvisibleSelection,
     toggleRow: selection.toggleRow,
     selectAllMatching: selection.selectAllMatching,
+    toggleAllOnPage: selection.toggleAllOnPage,
     bindQuery: selection.bindQuery,
     syncPageRows: selection.syncPageRows,
     clear: selection.clear,
@@ -67,6 +68,21 @@ describe('useServerSelection', () => {
     const h = renderHarness();
     act(() => h.current.syncPageRows([1, 2, 3]));
     act(() => h.current.toggleRow([1, 2, 3]));
+    expect(h.current.scope.mode).toBe('page');
+  });
+
+  it('does not mislabel a cross-page selection as page scope when the page has no rows yet', () => {
+    const h = renderHarness();
+    act(() => h.current.toggleRow([1, 2]));
+    expect(h.current.scope.mode).toBe('explicit');
+  });
+
+  it('selecting the page replaces prior cross-page selection rather than widening it', () => {
+    const h = renderHarness();
+    act(() => h.current.toggleRow([1, 2, 99]));
+    act(() => h.current.syncPageRows([1, 2]));
+    act(() => h.current.toggleAllOnPage([1, 2]));
+    expect(h.current.selectedCount).toBe(2);
     expect(h.current.scope.mode).toBe('page');
   });
 

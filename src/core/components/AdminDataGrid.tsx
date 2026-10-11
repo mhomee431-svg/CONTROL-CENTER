@@ -42,8 +42,8 @@ export interface AdminDataGridProps {
   error?: boolean;
   /** Message shown when `error` is true. */
   errorMessage?: string;
-    bulkActions?: React.ReactNode;
-    onRowClick?: (params: { row: Record<string, unknown>; id: unknown }) => void;
+  bulkActions?: React.ReactNode;
+  onRowClick?: (params: { row: Record<string, unknown>; id: unknown }) => void;
   /**
    * Show MUI X's built-in toolbar: column visibility, filter and density
    * controls. Column visibility is the big one for wide registries — it lets an
@@ -79,7 +79,7 @@ export interface AdminDataGridProps {
   selectionSummary?: string;
   /** Restrict selection to a single row where multi-select is inappropriate. */
   disableMultipleRowSelection?: boolean;
-  }
+}
 
 /**
  * A custom toolbar so the grid owns its column-visibility, filter and density
@@ -230,7 +230,7 @@ export const AdminDataGrid: React.FC<AdminDataGridProps> = ({
             </Typography>
           )}
           {checkboxSelection && pageSelectionActive && onSelectAllMatching && !allMatchingActive && (
-            <Button size="small" variant="outlined" onClick={onSelectAllMatching}>
+            <Button size="small" variant="outlined" onClick={onSelectAllMatching} disabled={(totalMatching ?? 0) === 0}>
               Select all matching ({(totalMatching ?? 0).toLocaleString()})
             </Button>
           )}

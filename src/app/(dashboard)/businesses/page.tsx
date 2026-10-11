@@ -16,7 +16,6 @@ import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CAPABILITIES } from '@/core/permissions/permissions';
 import { ROUTES } from '@/core/routes/routes';
 import { describeRecency } from '@/core/privacy/masking';
-import { SelectionScopeBanner } from '@/core/selection/SelectionScopeBanner';
 import { useServerSelection } from '@/core/selection/useServerSelection';
 
 type ShopDecision = 'VERIFY' | 'REJECT' | 'SUSPEND' | 'REACTIVATE' | 'ARCHIVE';
@@ -366,15 +365,6 @@ export default function BusinessesPage() {
         </FormControl>
       </Box>
 
-      <SelectionScopeBanner
-        mode={selection.scope.mode}
-        count={selection.scope.count}
-        matchingCount={selection.scope.matchingCount}
-        pageRowCount={data?.items.length ?? 0}
-        offPageCount={selection.offPageCount}
-        onClear={selection.clear}
-      />
-
       <AdminDataGrid
         rows={(data?.items || []) as unknown as Record<string, unknown>[]}
         columns={columns}
@@ -405,9 +395,7 @@ export default function BusinessesPage() {
         totalMatching={data?.total ?? 0}
         allMatchingActive={selection.allMatching}
         pageSelectionActive={selection.scope.mode === 'page'}
-        onSelectAllMatching={selection.allMatching
-          ? selection.clear
-          : () => selection.selectAllMatching(data?.total ?? 0)}
+        onSelectAllMatching={selection.allMatching ? selection.clear : undefined}
       />
 
       {bulkDecision && (

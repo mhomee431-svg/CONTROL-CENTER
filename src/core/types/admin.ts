@@ -401,6 +401,16 @@ export interface ComplaintItem {
   updated_at?: string | null;
 }
 
+/**
+ * One row of the platform audit trail.
+ *
+ * The backend stores a free-form `details` JSON blob alongside each event.
+ * It does not publish dedicated `reason`, `result`, `request_id`, `before` or
+ * `after` columns on every deployment, so those are declared optional here and
+ * the Audit Log Center derives them from `details` (see
+ * `src/core/audit/auditLogs.ts`). Declaring them explicitly lets a backend that
+ * does publish them surface them directly instead of re-deriving.
+ */
 export interface AuditLogItem {
   id: number;
   action: string;
@@ -410,7 +420,51 @@ export interface AuditLogItem {
   admin_user?: string | null;
   ip_address?: string | null;
   created_at: string;
+  /** Structured payload the backend stores with the event. */
   details?: Record<string, unknown> | null;
+  /** Operator-supplied justification, when the event carries one. */
+  reason?: string | null;
+  /** Outcome of the action (SUCCESS / FAILED / PARTIAL), when reported. */
+  result?: string | null;
+  /** Derived/backend-reported severity (INFO / WARNING / CRITICAL). */
+  severity?: string | null;
+  /** Correlation id linking this row to the originating request/log entry. */
+  request_id?: string | null;
+  /** Entity snapshot before the change, when the backend supplies it. */
+  before?: Record<string, unknown> | null;
+  /** Entity snapshot after the change, when the backend supplies it. */
+  after?: Record<string, unknown> | null;
+}
+
+/**
+ * One operator in the Admin User Management registry.
+ *
+ * Distinct from `AdminUserItem` (a customer-shaped row): this is the RBAC
+ * record the backend's `/admin/admin-users` routes own. `hashed_password` is
+ * never part of the payload.
+ */
+export interface AdminUserRecord {
+  id: number;
+  username: string;
+  name?: string | null;
+  email?: string | null;
+  role_name: string;
+  level: 'SUPER' | 'SUB' | string;
+  is_owner: boolean;
+  is_active: boolean;
+  permissions?: string[];
+  last_login?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  /** Present only on a fresh access reset response; shown once, never stored. */
+  temporary_password?: string | null;
+}
+
+/** A role the console can assign, and whether ownership is one of them. */
+export interface AdminRoleOption {
+  name: string;
+  assignable: boolean;
+  is_owner: boolean;
 }
 
 /**
@@ -444,6 +498,11 @@ export interface FeatureFlagItem {
   rollout_percentage: number;
   scope: 'GLOBAL' | 'SHOP' | 'USER' | 'REGION';
   description?: string | null;
+  /** Which environment the flag applies to, when the backend reports it. */
+  environment?: string | null;
+  /** Who last changed the flag, resolved from the audit trail. */
+  changed_by?: string | null;
+  /** Last change timestamp (the backend's `updated_at`). */
   updated_at?: string;
 }
 

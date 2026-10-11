@@ -96,8 +96,8 @@ export function useServerSelection(): ServerSelection {
   }, []);
 
   const toggleAllOnPage = useCallback((pageIds: GridRowSelectionModel) => {
-    // Replace the explicit set with only this page's ids. Never treat a page
-    // header checkbox as a request to select the entire server-side dataset.
+    // Page selection intentionally replaces any previously selected ids from
+    // other pages, so a page-header operation cannot silently widen its scope.
     setAllMatching(false);
     setMatchingCount(null);
     selectedIdsRef.current = pageIds;

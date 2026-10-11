@@ -71,11 +71,28 @@ def _authenticated_websocket(websocket: WebSocket) -> bool:
 
     with SessionLocal() as db:
         admin = db.get(AdminUser, int(claims["sub"]))
-        return (
-            admin is not None
-            and admin.is_active
-            and db.get(RevokedAdminToken, claims["jti"]) is None
-        )
+        if admin is None or not admin.is_active:
+            return False
+        if db.get(RevokedAdminToken, claims["jti"]) is not None:
+            return False
+        # An access reset records a `cutoff:<admin_id>:<epoch>` marker: any token
+        # issued at or before it must be refused here too, otherwise a socket
+        # opened before a reset would keep streaming after the reset.
+        cutoffs = db.scalars(
+            select(RevokedAdminToken).where(
+                RevokedAdminToken.jti.like(f"cutoff:{int(claims['sub'])}:%")
+            )
+        ).all()
+        issued_at = claims.get("iat")
+        if isinstance(issued_at, int):
+            for marker in cutoffs:
+                try:
+                    cutoff_epoch = int(marker.jti.rsplit(":", 1)[-1])
+                except (ValueError, IndexError):
+                    continue
+                if issued_at <= cutoff_epoch:
+                    return False
+        return True
 
 
 async def _sse_stream(request: Request, after_id: int) -> AsyncIterator[str]:
