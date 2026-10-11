@@ -9,6 +9,15 @@ export const ANALYTICS_ENDPOINTS = {
   GENERATE_REPORT: '/api/v1/admin/reports/generate',
 } as const;
 
+/**
+ * Standalone endpoint constants, currently unintegrated into the console flow.
+ *
+ * Preserved intact for future feature development: nothing in the admin UI
+ * reads these (all live calls go through `API_ENDPOINTS` in
+ * `src/core/api/endpoints.ts`). Do NOT point console code at these paths:
+ * they address the public `/api/v1/shopkeeper/...` surface, not the
+ * admin `/api/v1/admin/...` surface, and would bypass admin auth scoping.
+ */
 export const SHOPKEEPER_ENDPOINTS = {
   DETAIL: (id: number | string) => `/api/v1/shopkeeper/${id}/profile`,
   PORTAL: (id: number | string) => `/api/v1/shopkeeper/${id}/portal-summary`,

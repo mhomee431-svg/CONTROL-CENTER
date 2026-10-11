@@ -28,13 +28,49 @@ def list_offers(
     page: Pagination = Depends(pagination),
     shop_id: int | None = None,
     status: str | None = None,
+    section: str | None = None,
     db: Session = Depends(get_db),
     _: AdminUser = Depends(get_current_admin),
 ):
+    """Offer listing, and the read behind the Offer Management console sections.
+
+    `section` is the console's tab vocabulary. Each section is resolved to a real
+    predicate over stored columns rather than filtered in the client, so the
+    page total always reflects what the operator asked for (filtering after
+    paging would show a full page then hide rows inside it):
+
+    * ``active``    — status == ACTIVE and already started (still running).
+    * ``scheduled`` — not yet started: starts_at in the future.
+    * ``expired``   — ended or already marked EXPIRED.
+    * ``disabled``  — a human took it down: CANCELLED (terminal).
+    * ``review``    — PAUSED, i.e. held pending an operator decision.
+
+    `status` remains as an exact-match override and wins over `section` when both
+    are supplied.
+    """
     stmt = select(Offer)
     if shop_id is not None:
         stmt = stmt.where(Offer.shop_id == shop_id)
-    if status:
+    if section:
+        now = func.now()
+        if section == "active":
+            # Running now: ACTIVE, already started, and not yet ended. Checking
+            # only the start would keep a stale ACTIVE row visible forever after
+            # its window closed.
+            stmt = stmt.where(
+                Offer.status == "ACTIVE",
+                or_(Offer.starts_at.is_(None), Offer.starts_at <= now),
+                or_(Offer.ends_at.is_(None), Offer.ends_at > now),
+            )
+        elif section == "scheduled":
+            stmt = stmt.where(Offer.starts_at.isnot(None), Offer.starts_at > now)
+        elif section == "expired":
+            stmt = stmt.where(or_(Offer.status == "EXPIRED", Offer.ends_at < now))
+        elif section == "disabled":
+            stmt = stmt.where(Offer.status == "CANCELLED")
+        elif section == "review":
+            stmt = stmt.where(Offer.status == "PAUSED")
+    elif status:
         stmt = stmt.where(Offer.status == status)
     if page.search:
         like = f"%{page.search}%"

@@ -26,7 +26,9 @@ from app.api.v1 import (
     offers_audit,
     operations,
     people,
+    pricing,
     realtime,
+    search_control,
     shops,
 )
 from app.core.config import settings
@@ -165,6 +167,8 @@ for router in (
     dashboard.router,
     content.router,
     operations.router,
+    pricing.router,
     realtime.router,
+    search_control.router,
 ):
     app.include_router(router, prefix=settings.API_V1_PREFIX)

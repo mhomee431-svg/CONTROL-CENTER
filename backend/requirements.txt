@@ -8,3 +8,7 @@ python-jose[cryptography]==3.3.0
 python-multipart==0.0.20
 bcrypt==4.2.1
 psycopg[binary]==3.2.3
+# Test client: starlette's TestClient is a thin httpx wrapper, so the API
+# contract tests (`pytest tests`) cannot import without it.
+httpx==0.28.1
+pytest==8.3.4

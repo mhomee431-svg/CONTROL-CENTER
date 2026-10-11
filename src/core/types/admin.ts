@@ -320,6 +320,11 @@ export interface OfferItem {
   shop_name?: string;
   valid_from: string;
   valid_until: string;
+  /** Campaign window start/end as stored. Offer Management derives its
+   *  Scheduled / Expired sections from these on the backend, so both are
+   *  optional — older rows carry only valid_from/valid_until. */
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 /**

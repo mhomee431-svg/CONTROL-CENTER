@@ -20,6 +20,16 @@ export const API_ENDPOINTS = {
     ANALYTICS_SUMMARY: '/api/v1/admin/analytics/summary',
   },
 
+  // Price Management — global, cross-shop surfaces. Two read-only endpoints:
+  // SUMMARY backs the four tiles (Current Price / MRP / Offer Price / History)
+  // and HISTORY is the paginated, searchable Price detail audit trail. Kept
+  // separate from INVENTORY so a missing pricing router is a named failure
+  // rather than an empty screen.
+  PRICING: {
+    SUMMARY: '/api/v1/admin/pricing/summary',
+    HISTORY: '/api/v1/admin/pricing/history',
+  },
+
   // Analytics sections. Each section has its own endpoint so a section that is
   // not deployed on a given backend is a named failure rather than an empty
   // page, and one slow section never holds up the rest.
@@ -31,6 +41,19 @@ export const API_ENDPOINTS = {
     SEARCH: '/api/v1/admin/analytics/search',
     NOTIFICATIONS: '/api/v1/admin/analytics/notifications',
     GEOGRAPHY: '/api/v1/admin/analytics/geography',
+  },
+
+  // Search Control Center — the highest-priority discovery surfaces. Dedicated
+  // routes (backed by `backend/app/api/v1/search_control.py`) so a slow
+  // dashboard never holds up search governance, and an unpublished router is
+  // a named failure rather than an empty screen.
+  SEARCH_CONTROL: {
+    /** Volume, funnel, quality and top-search tiles for the hub page. */
+    SUMMARY: '/api/v1/admin/search/summary',
+    /** Paginated catalog-gap investigation list (zero-result queries). */
+    ZERO_RESULTS: '/api/v1/admin/search/zero-results',
+    /** Per-term quality breakdown for Search Review. */
+    QUALITY: '/api/v1/admin/search/quality',
   },
 
   // Users & Customers

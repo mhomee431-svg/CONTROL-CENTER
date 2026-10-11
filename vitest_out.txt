@@ -1,0 +1,56 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.3 [39m[90mC:/Users/aryan/Documents/CONTROL-CENTER[39m
+
+ [32m✓[39m src/core/selection/SelectionScopeBanner.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1633[2mms[22m[39m
+   [32m✓[39m SelectionScopeBanner [2m(6)[22m
+     [33m[2m✓[22m[39m states the explicit scope in words[33m 912[2mms[22m[39m
+     [33m[2m✓[22m[39m offers a clear-selection escape hatch[33m 485[2mms[22m[39m
+ [32m✓[39m src/core/permissions/PermissionGuard.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/core/components/StatusBadge.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m src/core/filters/dateRange.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/core/selection/useServerSelection.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/core/components/globalSearch.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+Not implemented: navigation to another Document
+ [32m✓[39m src/core/export/csv.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+Not implemented: navigation to another Document
+ [32m✓[39m src/core/components/queryErrorHandling.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/core/notifications/deepLink.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/core/reviews/moderation.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/core/api/fetchList.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/core/imports/jobUtils.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/core/permissions/permissions.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/core/pos/connection.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/core/permissions/routeAccess.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/core/catalog/categoryConfig.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/core/api/client.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/core/support/tickets.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/core/routes/routes.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/core/privacy/masking.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/core/catalog/qualityChecks.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/core/realtime/eventTaxonomy.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/core/api/businessEndpoints.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/core/inventory/freshness.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/core/analytics/chartPolicy.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/core/api/shopkeeperEndpoints.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/core/api/ingestionEndpoints.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/core/api/customerEndpoints.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/core/api/categoryEndpoints.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/core/filters/dashboardFilters.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/core/realtime/liveEvents.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/core/docs/contractDocs.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/core/api/inventoryEndpoints.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 1[2mms[22m[39m
+ [32m✓[39m src/core/api/analyticsEndpoints.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/core/auth/adminSession.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/core/components/AnalyticsSection.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 921[2mms[22m[39m
+   [32m✓[39m AnalyticsSection — live KPI resolver contract [2m(5)[22m
+     [33m[2m✓[22m[39m resolves KPI values from live summary and metrics instead of placeholders[33m 415[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the centralized date-range control[33m 329[2mms[22m[39m
+ [32m✓[39m src/core/components/AnalyticsPage.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 851[2mms[22m[39m
+   [32m✓[39m AnalyticsPage — shared section renderer [2m(6)[22m
+     [33m[2m✓[22m[39m renders KPI values and the shared date-range control[33m 502[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m37 passed[39m[22m[90m (37)[39m
+[2m      Tests [22m [1m[32m345 passed[39m[22m[90m (345)[39m
+[2m   Start at [22m 13:07:00
+[2m   Duration [22m 91.55s[2m (environment 57%, import 35%, setup 5%, transform 1%, tests 1%)[22m
+

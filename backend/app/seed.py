@@ -27,6 +27,7 @@ from app.models import (
     HelpContent,
     ImportError,
     ImportJob,
+    InventoryHistory,
     NotificationCampaign,
     Offer,
     Payment,
@@ -285,29 +286,62 @@ def seed() -> None:
 
         # --- Inventory, pricing, documents per shop ----------------------
         for idx, shop in enumerate(shops, start=1):
+            # Priced inventory rows for this shop, collected so a price change
+            # can be recorded against them once every row has an id.
+            priced_rows: list = []
             for p in products[: 3 if idx > 3 else 5]:
                 qty = 0 if idx == 5 else 12 * idx
-                db.add(
-                    ShopInventory(
-                        shop_id=shop.id,
-                        product_id=p.id,
-                        product_name=p.name,
-                        quantity=qty,
-                        price=p.mrp - 10 if p.mrp else None,
-                        mrp=p.mrp,
-                        stock_status="OUT_OF_STOCK" if qty == 0 else "IN_STOCK",
-                        freshness_status="FRESH" if idx % 2 else "STALE",
-                        availability="AVAILABLE" if qty else "UNAVAILABLE",
-                        last_updated=_now() - timedelta(hours=idx * 20),
-                        last_updated_source="POS_SYNC",
-                        sync_source="POS_SYNC" if idx != 4 else "MANUAL_IMPORT",
-                        sync_status="FAILED" if idx == 4 else "SUCCESS",
-                        sync_error="Provider token expired" if idx == 4 else None,
-                    )
+                inv = ShopInventory(
+                    shop_id=shop.id,
+                    product_id=p.id,
+                    product_name=p.name,
+                    quantity=qty,
+                    price=p.mrp - 10 if p.mrp else None,
+                    mrp=p.mrp,
+                    stock_status="OUT_OF_STOCK" if qty == 0 else "IN_STOCK",
+                    freshness_status="FRESH" if idx % 2 else "STALE",
+                    availability="AVAILABLE" if qty else "UNAVAILABLE",
+                    last_updated=_now() - timedelta(hours=idx * 20),
+                    last_updated_source="POS_SYNC",
+                    sync_source="POS_SYNC" if idx != 4 else "MANUAL_IMPORT",
+                    sync_status="FAILED" if idx == 4 else "SUCCESS",
+                    sync_error="Provider token expired" if idx == 4 else None,
                 )
+                db.add(inv)
+                if inv.price is not None and inv.mrp is not None:
+                    priced_rows.append(inv)
                 shop.product_count = (shop.product_count or 0) + 1
                 shop.inventory_count = (shop.inventory_count or 0) + 1
             db.flush()
+
+            # --- Price history (Price detail table) ------------------------
+            # A realistic audit trail: every priced row got a POS-driven change
+            # when the stock was last synced, and the first row also shows an
+            # admin override before that. Written after flush so ids exist.
+            for inv in priced_rows:
+                db.add(
+                    InventoryHistory(
+                        shop_product_id=inv.id,
+                        change_type="PRICE",
+                        old_value=str(inv.price + 15),
+                        new_value=str(inv.price),
+                        source="POS_SYNC",
+                        changed_by="System",
+                        created_at=_now() - timedelta(hours=idx * 20 + 1),
+                    )
+                )
+            if priced_rows:
+                db.add(
+                    InventoryHistory(
+                        shop_product_id=priced_rows[0].id,
+                        change_type="PRICE",
+                        old_value=str(priced_rows[0].price + 5),
+                        new_value=str(priced_rows[0].price),
+                        source="MANUAL_IMPORT",
+                        changed_by="Platform Owner",
+                        created_at=_now() - timedelta(hours=idx * 20 + 5),
+                    )
+                )
 
             db.add(
                 ShopPricing(
@@ -390,6 +424,28 @@ def seed() -> None:
                     result_count=0 if i % 7 == 0 else (i % 9) + 1,
                     location="Mumbai",
                     searched_at=_now() - timedelta(days=i % 14),
+                )
+            )
+
+        # Zero-result demand with real catalog gaps (tokens intentionally do
+        # not match seeded product names, so the Search Control Center shows
+        # genuine "no match" rows the moment the console is opened).
+        for i, (q, loc) in enumerate(
+            [
+                ("bosch drill 10mm", "Delhi"),
+                ("quinoa organic 1kg", "Pune"),
+                ("electric scooter parts", "Mumbai"),
+                ("gluten free pasta", "Delhi"),
+                ("drill bits set", "Pune"),
+            ]
+        ):
+            db.add(
+                SearchQuery(
+                    user_id=customers[i % len(customers)].id,
+                    query=q,
+                    result_count=0,
+                    location=loc,
+                    searched_at=_now() - timedelta(days=i % 10),
                 )
             )
 
