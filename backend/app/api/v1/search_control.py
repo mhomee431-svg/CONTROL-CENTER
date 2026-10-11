@@ -156,19 +156,24 @@ def search_control_summary(
     )
 
     # Day-by-day volume and zero-result volume (the trends overlay).
+    # Built explicitly from unpacked rows rather than `dict(rows)`: each SQLAlchemy
+    # Row is a two-tuple, but a static checker cannot see that from the result
+    # type and rejects it as a mapping source.
     day = func.date(SearchQuery.searched_at)
-    by_day = dict(
-        db.execute(
+    by_day = {
+        str(day_key): int(count)
+        for day_key, count in db.execute(
             select(day, func.count()).where(SearchQuery.searched_at >= start).group_by(day)
         ).all()
-    )
-    zero_by_day = dict(
-        db.execute(
+    }
+    zero_by_day = {
+        str(day_key): int(count)
+        for day_key, count in db.execute(
             select(day, func.count())
             .where(SearchQuery.searched_at >= start, SearchQuery.result_count == 0)
             .group_by(day)
         ).all()
-    )
+    }
     by_location = db.execute(
         select(SearchQuery.location, func.count())
         .where(SearchQuery.searched_at >= start, SearchQuery.location.isnot(None))
