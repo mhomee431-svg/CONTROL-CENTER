@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel, GridRowSelectionModel } from '@mui/x-data-grid';
 import { Box, Typography, Button, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
-import { Package, Check, Archive, XCircle } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
 import { API_ENDPOINTS } from '@/core/api/endpoints';
 import { ProductItem } from '@/core/types/admin';
@@ -72,9 +72,9 @@ function ProductsPage() {
   const bulkMutation = useMutation({
     mutationFn: ({ action, product_ids, reason, all_matching, filters }: { action: string; product_ids: number[]; reason: string; all_matching?: boolean; filters?: { search?: string; status?: string } }) =>
       apiClient(API_ENDPOINTS.PRODUCTS.BULK, {
-      method: 'POST',
-      body: JSON.stringify({ action, product_ids, reason, ...(all_matching ? { all_matching: true, filters } : {}) }),
-    }),
+        method: 'POST',
+        body: JSON.stringify({ action, product_ids, reason, ...(all_matching ? { all_matching: true, filters } : {}) }),
+      }),
     onSuccess: () => {
       selection.clear();
       setBulkAction(null);
@@ -252,9 +252,7 @@ function ProductsPage() {
         totalMatching={data?.total ?? 0}
         allMatchingActive={selection.allMatching}
         pageSelectionActive={selection.scope.mode === 'page'}
-        onSelectAllMatching={
-          selection.allMatching ? selection.clear : () => selection.selectAllMatching(data?.total ?? 0)
-        }
+        onSelectAllMatching={selection.allMatching ? selection.clear : undefined}
       />
 
       {bulkAction && (

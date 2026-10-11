@@ -7,6 +7,7 @@ from uuid import uuid4
 import bcrypt
 from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -95,6 +96,27 @@ def get_current_admin(request: Request, db: Session = Depends(get_db)) -> AdminU
     from app.models import RevokedAdminToken
     if db.get(RevokedAdminToken, payload["jti"]) is not None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
+    # A full access reset (password rotation) records a "cutoff" marker for the
+    # subject. Any token issued at or before that instant is refused, so an
+    # operator whose access was reset cannot keep using a pre-reset token even
+    # though we cannot enumerate its jti. Markers are cheap rows keyed by
+    # `cutoff:<admin_id>:<epoch>`.
+    prefix = f"cutoff:{user_id}:"
+    cutoffs = db.scalars(
+        select(RevokedAdminToken).where(RevokedAdminToken.jti.like(f"{prefix}%"))
+    ).all()
+    if cutoffs:
+        issued_at = payload.get("iat")
+        if isinstance(issued_at, int):
+            for marker in cutoffs:
+                try:
+                    cutoff_epoch = int(marker.jti.rsplit(":", 1)[-1])
+                except (ValueError, IndexError):
+                    continue
+                if issued_at <= cutoff_epoch:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked"
+                    )
     return admin
 
 
@@ -118,6 +140,9 @@ def require_capability(capability: str):
         "shops.approve": {"shops.approve", "shops.verify"},
         "shops.reject": {"shops.reject", "shops.verify"},
         "shops.suspend": {"shops.suspend", "shops.verify"},
+        # Access resets are a security operation; an admin-manager may perform
+        # one, and the owner always can.
+        "admin.access.reset": {"admin.access.reset", "admins.manage", "security.manage"},
     }
 
     def _guard(admin: AdminUser = Depends(get_current_admin)) -> AdminUser:

@@ -81,11 +81,6 @@ export const API_ENDPOINTS = {
     STATUS: (userId: number | string) => `/api/v1/admin/users/${userId}/status`,
   },
 
-  // Bulk account actions. Kept separate from single-user status changes so the
-  // backend can authorize and audit a multi-record operation independently.
-  USERS: {
-    BULK_STATUS: '/api/v1/admin/users/bulk-status',
-  },
 
   // Shops & Verification
    SHOPS: {
@@ -251,9 +246,23 @@ export const API_ENDPOINTS = {
   // Governance & Audit
   AUDIT: {
     LOGS: '/api/v1/admin/audit-logs',
+    /** One audit entry, including before/after when the backend supplies it. */
+    DETAIL: (id: number | string) => `/api/v1/admin/audit-logs/${id}`,
     ACTIONS: '/api/v1/admin/actions',
     NOTES: '/api/v1/admin/notes',
     NOTE_DETAIL: (id: number | string) => `/api/v1/admin/notes/${id}`,
+  },
+
+  // Admin Users (RBAC management). Every write is audited by the backend;
+  // each mutation requires an explicit operator confirmation + reason.
+  ADMIN_USERS: {
+    LIST: '/api/v1/admin/admin-users',
+    ROLES: '/api/v1/admin/admin-users/roles',
+    CREATE: '/api/v1/admin/admin-users',
+    DETAIL: (id: number | string) => `/api/v1/admin/admin-users/${id}`,
+    STATUS: (id: number | string) => `/api/v1/admin/admin-users/${id}/status`,
+    ROLE: (id: number | string) => `/api/v1/admin/admin-users/${id}/role`,
+    RESET_ACCESS: (id: number | string) => `/api/v1/admin/admin-users/${id}/reset-access`,
   },
 
   // POS Integrations (provider-neutral)

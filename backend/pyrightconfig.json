@@ -1,0 +1,6 @@
+{
+  "include": ["app"],
+  "exclude": ["**/__pycache__", "alembic/versions"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic"
+}

@@ -8,10 +8,10 @@ than fabricate a value.
 """
 
 from datetime import datetime, timezone
+from typing import Any, Optional
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -20,7 +20,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -30,34 +30,58 @@ def _now() -> datetime:
 
 
 class TimestampMixin:
-    created_at = Column(DateTime(timezone=True), default=_now)
-    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+    """Created/updated timestamps shared by most tables.
+
+    Typed with `Mapped[...]` so a static checker sees `created_at` as a
+    `datetime`, not a `Column`. Legacy `Column(...)` declarations leave the
+    instance attribute typed as the descriptor, which is why reading one in a
+    boolean context (e.g. `admin.created_at or default`) was reported as a type
+    error even though it works at runtime.
+    """
+
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
 
 
 class AdminUser(Base, TimestampMixin):
-    """An operator of the control center, with its capability grants."""
+    """An operator of the control center, with its capability grants.
+
+    Declared with SQLAlchemy 2.0 typed mapping so instance attributes carry
+    their real Python types (`is_active` is a `bool`, `id` an `int`). That is
+    what lets the admin-user management routes assign to these fields and read
+    them in conditionals without tripping the type checker.
+    """
 
     __tablename__ = "admin_users"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(64), unique=True, nullable=False, index=True)
-    name = Column(String(128))
-    email = Column(String(255))
-    hashed_password = Column(String(255), nullable=False)
-    role_name = Column(String(64), default="Support Admin")
-    level = Column(String(16), default="SUB")  # SUPER | SUB
-    is_owner = Column(Boolean, default=False)
-    is_active = Column(Boolean, default=True)
-    last_login = Column(DateTime(timezone=True))
-    permissions = Column(JSON, default=list)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[Optional[str]] = mapped_column(String(128))
+    email: Mapped[Optional[str]] = mapped_column(String(255))
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role_name: Mapped[Optional[str]] = mapped_column(String(64), default="Support Admin")
+    level: Mapped[Optional[str]] = mapped_column(String(16), default="SUB")  # SUPER | SUB
+    is_owner: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    permissions: Mapped[Optional[list[Any]]] = mapped_column(JSON, default=list)
 
 
 class RevokedAdminToken(Base):
-    """Server-side denylist for signed-out or exchanged access tokens."""
+    """Server-side denylist for signed-out or exchanged access tokens.
+
+    `jti` also holds synthetic `cutoff:<admin_id>:<epoch>` markers written when
+    an administrator's access is reset; the auth layer interprets those as
+    "every token issued at or before this instant is revoked".
+    """
 
     __tablename__ = "revoked_admin_tokens"
-    jti = Column(String(32), primary_key=True)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
+    jti: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class User(Base, TimestampMixin):
@@ -65,23 +89,23 @@ class User(Base, TimestampMixin):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(128))
-    phone = Column(String(32))
-    email = Column(String(255))
-    status = Column(String(32), default="ACTIVE")
-    last_login = Column(DateTime(timezone=True))
-    last_active = Column(DateTime(timezone=True))
-    auth_status = Column(String(32), default="VERIFIED")
-    city = Column(String(64))
-    state = Column(String(64))
-    is_profile_complete = Column(Boolean, default=True)
-    is_restricted = Column(Boolean, default=False)
-    search_count = Column(Integer, default=0)
-    viewed_product_count = Column(Integer, default=0)
-    viewed_shop_count = Column(Integer, default=0)
-    saved_product_count = Column(Integer, default=0)
-    saved_shop_count = Column(Integer, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[Optional[str]] = mapped_column(String(128))
+    phone: Mapped[Optional[str]] = mapped_column(String(32))
+    email: Mapped[Optional[str]] = mapped_column(String(255))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="ACTIVE")
+    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_active: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    auth_status: Mapped[Optional[str]] = mapped_column(String(32), default="VERIFIED")
+    city: Mapped[Optional[str]] = mapped_column(String(64))
+    state: Mapped[Optional[str]] = mapped_column(String(64))
+    is_profile_complete: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    is_restricted: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    search_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    viewed_product_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    viewed_shop_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    saved_product_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    saved_shop_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
 
 
 class Shop(Base, TimestampMixin):
@@ -94,129 +118,139 @@ class Shop(Base, TimestampMixin):
 
     __tablename__ = "shops"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(160), nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id"))
-    category_id = Column(Integer, ForeignKey("categories.id"))
-    category = Column(String(96))
-    subcategory = Column(String(96))
-    business_type = Column(String(32))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    owner_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"))
+    category_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("categories.id"))
+    category: Mapped[Optional[str]] = mapped_column(String(96))
+    subcategory: Mapped[Optional[str]] = mapped_column(String(96))
+    business_type: Mapped[Optional[str]] = mapped_column(String(32))
 
     # Location
-    address = Column(String(255))
-    locality = Column(String(96))
-    city = Column(String(64))
-    state = Column(String(64))
-    pincode = Column(String(12))
-    latitude = Column(Float)
-    longitude = Column(Float)
+    address: Mapped[Optional[str]] = mapped_column(String(255))
+    locality: Mapped[Optional[str]] = mapped_column(String(96))
+    city: Mapped[Optional[str]] = mapped_column(String(64))
+    state: Mapped[Optional[str]] = mapped_column(String(64))
+    pincode: Mapped[Optional[str]] = mapped_column(String(12))
+    latitude: Mapped[Optional[float]] = mapped_column(Float)
+    longitude: Mapped[Optional[float]] = mapped_column(Float)
 
     # Contact
-    phone = Column(String(32))
-    alt_phone = Column(String(32))
-    email = Column(String(255))
-    website = Column(String(255))
+    phone: Mapped[Optional[str]] = mapped_column(String(32))
+    alt_phone: Mapped[Optional[str]] = mapped_column(String(32))
+    email: Mapped[Optional[str]] = mapped_column(String(255))
+    website: Mapped[Optional[str]] = mapped_column(String(255))
 
     # Presentation / registration
-    logo_url = Column(String(512))
-    description = Column(Text)
-    registration_number = Column(String(64))
-    gst_number = Column(String(32))
+    logo_url: Mapped[Optional[str]] = mapped_column(String(512))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    registration_number: Mapped[Optional[str]] = mapped_column(String(64))
+    gst_number: Mapped[Optional[str]] = mapped_column(String(32))
 
     # State
-    status = Column(String(32), default="PENDING")
-    verification_status = Column(String(32), default="PENDING")
-    verified_at = Column(DateTime(timezone=True))
-    verified_by = Column(String(128))
-    rejection_reason = Column(Text)
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="PENDING")
+    verification_status: Mapped[Optional[str]] = mapped_column(String(32), default="PENDING")
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    verified_by: Mapped[Optional[str]] = mapped_column(String(128))
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text)
 
     # Operating hours: a weekday map. Stored as JSON so a closed day can be
     # null rather than an absent key.
-    operating_hours = Column(JSON)
+    operating_hours: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
 
     # Denormalised rollups the listing reads directly.
-    product_count = Column(Integer, default=0)
-    inventory_count = Column(Integer, default=0)
-    inventory_freshness = Column(String(32))
-    last_inventory_update = Column(DateTime(timezone=True))
+    product_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    inventory_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    inventory_freshness: Mapped[Optional[str]] = mapped_column(String(32))
+    last_inventory_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
-    owner = relationship("User", foreign_keys=[owner_id])
-    documents = relationship("ShopDocument", back_populates="shop", cascade="all, delete-orphan")
-    prices = relationship("ShopPricing", back_populates="shop", cascade="all, delete-orphan")
-    inventory = relationship("ShopInventory", back_populates="shop", cascade="all, delete-orphan")
-    offers = relationship("Offer", back_populates="shop", cascade="all, delete-orphan")
+    owner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[owner_id])
+    documents: Mapped[list["ShopDocument"]] = relationship(
+        "ShopDocument", back_populates="shop", cascade="all, delete-orphan"
+    )
+    prices: Mapped[list["ShopPricing"]] = relationship(
+        "ShopPricing", back_populates="shop", cascade="all, delete-orphan"
+    )
+    inventory: Mapped[list["ShopInventory"]] = relationship(
+        "ShopInventory", back_populates="shop", cascade="all, delete-orphan"
+    )
+    offers: Mapped[list["Offer"]] = relationship(
+        "Offer", back_populates="shop", cascade="all, delete-orphan"
+    )
 
 
 class Category(Base, TimestampMixin):
     __tablename__ = "categories"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(96), nullable=False)
-    slug = Column(String(96))
-    description = Column(Text)
-    icon_url = Column(String(512))
-    parent_id = Column(Integer, ForeignKey("categories.id"))
-    sort_order = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
-    is_subcategory = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(96), nullable=False)
+    slug: Mapped[Optional[str]] = mapped_column(String(96))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    icon_url: Mapped[Optional[str]] = mapped_column(String(512))
+    parent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("categories.id"))
+    sort_order: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    is_subcategory: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
     # Category configuration beyond identity (Section: CATEGORY CONFIGURATION).
     # Stored server-side on purpose — the spec forbids implementing category
     # rules only in the frontend. JSON lists of field names / feature keys.
-    required_fields = Column(JSON, default=list)
-    optional_fields = Column(JSON, default=list)
-    feature_capabilities = Column(JSON, default=list)
+    required_fields: Mapped[Optional[list[Any]]] = mapped_column(JSON, default=list)
+    optional_fields: Mapped[Optional[list[Any]]] = mapped_column(JSON, default=list)
+    feature_capabilities: Mapped[Optional[list[Any]]] = mapped_column(JSON, default=list)
 
 
 class Brand(Base, TimestampMixin):
     __tablename__ = "brands"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(96), nullable=False)
-    slug = Column(String(96))
-    description = Column(Text)
-    logo_url = Column(String(512))
-    is_active = Column(Boolean, default=True)
-    product_count = Column(Integer, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(96), nullable=False)
+    slug: Mapped[Optional[str]] = mapped_column(String(96))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(512))
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    product_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
 
 
 class Product(Base, TimestampMixin):
     __tablename__ = "products"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(200), nullable=False)
-    brand_id = Column(Integer, ForeignKey("brands.id"))
-    brand_name = Column(String(96))
-    category_id = Column(Integer, ForeignKey("categories.id"))
-    category_name = Column(String(96))
-    subcategory_id = Column(Integer)
-    barcode = Column(String(64))
-    status = Column(String(32), default="DRAFT")
-    shop_count = Column(Integer, default=0)
-    image_url = Column(String(512))
-    images = Column(JSON)
-    description = Column(Text)
-    mrp = Column(Float)
-    unit = Column(String(32))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    brand_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("brands.id"))
+    brand_name: Mapped[Optional[str]] = mapped_column(String(96))
+    category_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("categories.id"))
+    category_name: Mapped[Optional[str]] = mapped_column(String(96))
+    subcategory_id: Mapped[Optional[int]] = mapped_column(Integer)
+    barcode: Mapped[Optional[str]] = mapped_column(String(64))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
+    shop_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    image_url: Mapped[Optional[str]] = mapped_column(String(512))
+    images: Mapped[Optional[list[Any]]] = mapped_column(JSON)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    mrp: Mapped[Optional[float]] = mapped_column(Float)
+    unit: Mapped[Optional[str]] = mapped_column(String(32))
 
-    variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
+    variants: Mapped[list["ProductVariant"]] = relationship(
+        "ProductVariant", back_populates="product", cascade="all, delete-orphan"
+    )
 
 
 class ProductVariant(Base, TimestampMixin):
     __tablename__ = "product_variants"
 
-    id = Column(Integer, primary_key=True)
-    product_id = Column(Integer, ForeignKey("products.id"))
-    name = Column(String(128))
-    variant_name = Column(String(128))
-    sku = Column(String(64))
-    barcode = Column(String(64))
-    mrp = Column(Float)
-    price = Column(Float)
-    unit = Column(String(32))
-    status = Column(String(32), default="ACTIVE")
-    image_url = Column(String(512))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("products.id"))
+    name: Mapped[Optional[str]] = mapped_column(String(128))
+    variant_name: Mapped[Optional[str]] = mapped_column(String(128))
+    sku: Mapped[Optional[str]] = mapped_column(String(64))
+    barcode: Mapped[Optional[str]] = mapped_column(String(64))
+    mrp: Mapped[Optional[float]] = mapped_column(Float)
+    price: Mapped[Optional[float]] = mapped_column(Float)
+    unit: Mapped[Optional[str]] = mapped_column(String(32))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="ACTIVE")
+    image_url: Mapped[Optional[str]] = mapped_column(String(512))
 
-    product = relationship("Product", back_populates="variants")
+    product: Mapped[Optional["Product"]] = relationship("Product", back_populates="variants")
 
 
 class ShopInventory(Base, TimestampMixin):
@@ -224,86 +258,88 @@ class ShopInventory(Base, TimestampMixin):
 
     __tablename__ = "shop_inventory"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"))
-    product_name = Column(String(200))
-    quantity = Column(Integer, default=0)
-    price = Column(Float)
-    mrp = Column(Float)
-    stock_status = Column(String(32), default="IN_STOCK")
-    freshness_status = Column(String(32))
-    availability = Column(String(32))
-    last_updated = Column(DateTime(timezone=True))
-    last_updated_source = Column(String(64))
-    stale_hours = Column(Float)
-    sync_source = Column(String(64))
-    sync_status = Column(String(32))
-    sync_error = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
+    product_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("products.id"))
+    product_name: Mapped[Optional[str]] = mapped_column(String(200))
+    quantity: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    price: Mapped[Optional[float]] = mapped_column(Float)
+    mrp: Mapped[Optional[float]] = mapped_column(Float)
+    stock_status: Mapped[Optional[str]] = mapped_column(String(32), default="IN_STOCK")
+    freshness_status: Mapped[Optional[str]] = mapped_column(String(32))
+    availability: Mapped[Optional[str]] = mapped_column(String(32))
+    last_updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_updated_source: Mapped[Optional[str]] = mapped_column(String(64))
+    stale_hours: Mapped[Optional[float]] = mapped_column(Float)
+    sync_source: Mapped[Optional[str]] = mapped_column(String(64))
+    sync_status: Mapped[Optional[str]] = mapped_column(String(32))
+    sync_error: Mapped[Optional[str]] = mapped_column(Text)
 
-    shop = relationship("Shop", back_populates="inventory")
+    shop: Mapped[Optional["Shop"]] = relationship("Shop", back_populates="inventory")
 
 
 class InventoryHistory(Base, TimestampMixin):
     __tablename__ = "inventory_history"
 
-    id = Column(Integer, primary_key=True)
-    shop_product_id = Column(Integer, ForeignKey("shop_inventory.id"), nullable=False)
-    change_type = Column(String(48))
-    old_value = Column(String(255))
-    new_value = Column(String(255))
-    source = Column(String(64))
-    changed_by = Column(String(128))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("shop_inventory.id"), nullable=False
+    )
+    change_type: Mapped[Optional[str]] = mapped_column(String(48))
+    old_value: Mapped[Optional[str]] = mapped_column(String(255))
+    new_value: Mapped[Optional[str]] = mapped_column(String(255))
+    source: Mapped[Optional[str]] = mapped_column(String(64))
+    changed_by: Mapped[Optional[str]] = mapped_column(String(128))
 
 
 class ShopDocument(Base, TimestampMixin):
     __tablename__ = "shop_documents"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
-    doc_type = Column(String(64))
-    title = Column(String(200))
-    file_name = Column(String(255))
-    file_url = Column(String(512))
-    status = Column(String(32), default="PENDING")
-    uploaded_at = Column(DateTime(timezone=True))
-    expires_at = Column(DateTime(timezone=True))
-    verified_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
+    doc_type: Mapped[Optional[str]] = mapped_column(String(64))
+    title: Mapped[Optional[str]] = mapped_column(String(200))
+    file_name: Mapped[Optional[str]] = mapped_column(String(255))
+    file_url: Mapped[Optional[str]] = mapped_column(String(512))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="PENDING")
+    uploaded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
-    shop = relationship("Shop", back_populates="documents")
+    shop: Mapped[Optional["Shop"]] = relationship("Shop", back_populates="documents")
 
 
 class ShopPricing(Base, TimestampMixin):
     __tablename__ = "shop_pricing"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"))
-    product_name = Column(String(200))
-    sku = Column(String(64))
-    barcode = Column(String(64))
-    price = Column(Float)
-    mrp = Column(Float)
-    currency = Column(String(8), default="INR")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
+    product_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("products.id"))
+    product_name: Mapped[Optional[str]] = mapped_column(String(200))
+    sku: Mapped[Optional[str]] = mapped_column(String(64))
+    barcode: Mapped[Optional[str]] = mapped_column(String(64))
+    price: Mapped[Optional[float]] = mapped_column(Float)
+    mrp: Mapped[Optional[float]] = mapped_column(Float)
+    currency: Mapped[Optional[str]] = mapped_column(String(8), default="INR")
 
-    shop = relationship("Shop", back_populates="prices")
+    shop: Mapped[Optional["Shop"]] = relationship("Shop", back_populates="prices")
 
 
 class Offer(Base, TimestampMixin):
     __tablename__ = "offers"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"))
-    title = Column(String(200), nullable=False)
-    discount_type = Column(String(32), default="PERCENT")
-    discount_value = Column(Float, default=0)
-    status = Column(String(32), default="ACTIVE")
-    starts_at = Column(DateTime(timezone=True))
-    ends_at = Column(DateTime(timezone=True))
-    valid_from = Column(DateTime(timezone=True))
-    valid_until = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("shops.id"))
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    discount_type: Mapped[Optional[str]] = mapped_column(String(32), default="PERCENT")
+    discount_value: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="ACTIVE")
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    valid_from: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
-    shop = relationship("Shop", back_populates="offers")
+    shop: Mapped[Optional["Shop"]] = relationship("Shop", back_populates="offers")
 
 
 class AuditLog(Base, TimestampMixin):
@@ -314,230 +350,240 @@ class AuditLog(Base, TimestampMixin):
 
     __tablename__ = "audit_logs"
 
-    id = Column(Integer, primary_key=True)
-    action = Column(String(96), nullable=False)
-    entity_type = Column(String(64), index=True)
-    entity_id = Column(Integer, index=True)
-    user_id = Column(Integer)
-    admin_user = Column(String(128))
-    ip_address = Column(String(64))
-    details = Column(JSON)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    action: Mapped[str] = mapped_column(String(96), nullable=False)
+    entity_type: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    entity_id: Mapped[Optional[int]] = mapped_column(Integer, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer)
+    admin_user: Mapped[Optional[str]] = mapped_column(String(128))
+    ip_address: Mapped[Optional[str]] = mapped_column(String(64))
+    details: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
 
 
 class Complaint(Base, TimestampMixin):
     __tablename__ = "complaints"
 
-    id = Column(Integer, primary_key=True)
-    ticket_number = Column(String(32))
-    reporter_type = Column(String(32))
-    reporter_name = Column(String(128))
-    complaint_type = Column(String(64))
-    priority = Column(String(16), default="MEDIUM")
-    status = Column(String(32), default="OPEN")
-    description = Column(Text)
-    resolution = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticket_number: Mapped[Optional[str]] = mapped_column(String(32))
+    reporter_type: Mapped[Optional[str]] = mapped_column(String(32))
+    reporter_name: Mapped[Optional[str]] = mapped_column(String(128))
+    complaint_type: Mapped[Optional[str]] = mapped_column(String(64))
+    priority: Mapped[Optional[str]] = mapped_column(String(16), default="MEDIUM")
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="OPEN")
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    resolution: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class Subscription(Base, TimestampMixin):
     __tablename__ = "subscriptions"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"))
-    shop_name = Column(String(160))
-    plan_name = Column(String(96))
-    status = Column(String(32), default="ACTIVE")
-    amount = Column(Float, default=0)
-    currency = Column(String(8), default="INR")
-    started_at = Column(DateTime(timezone=True))
-    expires_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("shops.id"))
+    shop_name: Mapped[Optional[str]] = mapped_column(String(160))
+    plan_name: Mapped[Optional[str]] = mapped_column(String(96))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="ACTIVE")
+    amount: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    currency: Mapped[Optional[str]] = mapped_column(String(8), default="INR")
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class Payment(Base, TimestampMixin):
     __tablename__ = "payments"
 
-    id = Column(Integer, primary_key=True)
-    subscription_id = Column(Integer, ForeignKey("subscriptions.id"))
-    shop_name = Column(String(160))
-    amount = Column(Float, default=0)
-    currency = Column(String(8), default="INR")
-    status = Column(String(32), default="SUCCESS")
-    method = Column(String(32))
-    reference = Column(String(96))
-    paid_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    subscription_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("subscriptions.id"))
+    shop_name: Mapped[Optional[str]] = mapped_column(String(160))
+    amount: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    currency: Mapped[Optional[str]] = mapped_column(String(8), default="INR")
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="SUCCESS")
+    method: Mapped[Optional[str]] = mapped_column(String(32))
+    reference: Mapped[Optional[str]] = mapped_column(String(96))
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class NotificationCampaign(Base, TimestampMixin):
     __tablename__ = "notification_campaigns"
 
-    id = Column(Integer, primary_key=True)
-    title = Column(String(200), nullable=False)
-    body = Column(Text)
-    notification_type = Column(String(64))
-    audience = Column(String(32), default="all")
-    status = Column(String(32), default="DRAFT")
-    deep_link = Column(String(255))
-    entity_id = Column(String(64))
-    recipients_total = Column(Integer, default=0)
-    recipients_sent = Column(Integer, default=0)
-    recipients_failed = Column(Integer, default=0)
-    sent_by = Column(String(128))
-    sent_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[Optional[str]] = mapped_column(Text)
+    notification_type: Mapped[Optional[str]] = mapped_column(String(64))
+    audience: Mapped[Optional[str]] = mapped_column(String(32), default="all")
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
+    deep_link: Mapped[Optional[str]] = mapped_column(String(255))
+    entity_id: Mapped[Optional[str]] = mapped_column(String(64))
+    recipients_total: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    recipients_sent: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    recipients_failed: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    sent_by: Mapped[Optional[str]] = mapped_column(String(128))
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class Banner(Base, TimestampMixin):
     __tablename__ = "banners"
 
-    id = Column(Integer, primary_key=True)
-    title = Column(String(200), nullable=False)
-    subtitle = Column(String(255))
-    image_url = Column(String(512))
-    deep_link = Column(String(255))
-    placement = Column(String(64))
-    status = Column(String(32), default="DRAFT")
-    sort_order = Column(Integer, default=0)
-    starts_at = Column(DateTime(timezone=True))
-    ends_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    subtitle: Mapped[Optional[str]] = mapped_column(String(255))
+    image_url: Mapped[Optional[str]] = mapped_column(String(512))
+    deep_link: Mapped[Optional[str]] = mapped_column(String(255))
+    placement: Mapped[Optional[str]] = mapped_column(String(64))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
+    sort_order: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class Announcement(Base, TimestampMixin):
     __tablename__ = "announcements"
 
-    id = Column(Integer, primary_key=True)
-    title = Column(String(200), nullable=False)
-    body = Column(Text, nullable=False)
-    audience = Column(String(32), default="all")
-    status = Column(String(32), default="DRAFT")
-    is_pinned = Column(Boolean, default=False)
-    published_at = Column(DateTime(timezone=True))
-    expires_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    audience: Mapped[Optional[str]] = mapped_column(String(32), default="all")
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
+    is_pinned: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class Faq(Base, TimestampMixin):
     __tablename__ = "faqs"
 
-    id = Column(Integer, primary_key=True)
-    question = Column(Text, nullable=False)
-    answer = Column(Text, nullable=False)
-    category = Column(String(64))
-    audience = Column(String(32), default="all")
-    status = Column(String(32), default="PUBLISHED")
-    sort_order = Column(Integer, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String(64))
+    audience: Mapped[Optional[str]] = mapped_column(String(32), default="all")
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="PUBLISHED")
+    sort_order: Mapped[Optional[int]] = mapped_column(Integer, default=0)
 
 
 class HelpContent(Base, TimestampMixin):
     __tablename__ = "help_content"
 
-    id = Column(Integer, primary_key=True)
-    title = Column(String(200), nullable=False)
-    slug = Column(String(128))
-    body = Column(Text, nullable=False)
-    section = Column(String(64))
-    status = Column(String(32), default="PUBLISHED")
-    sort_order = Column(Integer, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[Optional[str]] = mapped_column(String(128))
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    section: Mapped[Optional[str]] = mapped_column(String(64))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="PUBLISHED")
+    sort_order: Mapped[Optional[int]] = mapped_column(Integer, default=0)
 
 
 class PromotionalCard(Base, TimestampMixin):
     __tablename__ = "promotional_cards"
 
-    id = Column(Integer, primary_key=True)
-    title = Column(String(200), nullable=False)
-    description = Column(Text)
-    image_url = Column(String(512))
-    cta_label = Column(String(64))
-    deep_link = Column(String(255))
-    status = Column(String(32), default="DRAFT")
-    starts_at = Column(DateTime(timezone=True))
-    ends_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    image_url: Mapped[Optional[str]] = mapped_column(String(512))
+    cta_label: Mapped[Optional[str]] = mapped_column(String(64))
+    deep_link: Mapped[Optional[str]] = mapped_column(String(255))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class SystemMessage(Base, TimestampMixin):
     __tablename__ = "system_messages"
 
-    id = Column(Integer, primary_key=True)
-    title = Column(String(200), nullable=False)
-    body = Column(Text, nullable=False)
-    severity = Column(String(32), default="INFO")
-    status = Column(String(32), default="DRAFT")
-    is_active = Column(Boolean, default=True)
-    starts_at = Column(DateTime(timezone=True))
-    ends_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[Optional[str]] = mapped_column(String(32), default="INFO")
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class PosIntegration(Base, TimestampMixin):
     __tablename__ = "pos_integrations"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"))
-    shop_name = Column(String(160))
-    provider = Column(String(64))
-    status = Column(String(32), default="CONNECTED")
-    last_sync = Column(DateTime(timezone=True))
-    external_ref = Column(String(128))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("shops.id"))
+    shop_name: Mapped[Optional[str]] = mapped_column(String(160))
+    provider: Mapped[Optional[str]] = mapped_column(String(64))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="CONNECTED")
+    last_sync: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    external_ref: Mapped[Optional[str]] = mapped_column(String(128))
 
 
 class PosSyncRun(Base, TimestampMixin):
     __tablename__ = "pos_sync_runs"
 
-    id = Column(Integer, primary_key=True)
-    integration_id = Column(Integer, ForeignKey("pos_integrations.id"), nullable=False)
-    status = Column(String(32), default="SUCCESS")
-    rows_synced = Column(Integer, default=0)
-    message = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    integration_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("pos_integrations.id"), nullable=False
+    )
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="SUCCESS")
+    rows_synced: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    message: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class ImportJob(Base, TimestampMixin):
     __tablename__ = "import_jobs"
 
-    id = Column(Integer, primary_key=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"))
-    shop_name = Column(String(160))
-    source = Column(String(64))
-    filename = Column(String(255))
-    status = Column(String(32), default="COMPLETED")
-    rows_total = Column(Integer, default=0)
-    rows_processed = Column(Integer, default=0)
-    rows_failed = Column(Integer, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("shops.id"))
+    shop_name: Mapped[Optional[str]] = mapped_column(String(160))
+    source: Mapped[Optional[str]] = mapped_column(String(64))
+    filename: Mapped[Optional[str]] = mapped_column(String(255))
+    status: Mapped[Optional[str]] = mapped_column(String(32), default="COMPLETED")
+    rows_total: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    rows_processed: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    rows_failed: Mapped[Optional[int]] = mapped_column(Integer, default=0)
 
 
 class ImportError(Base, TimestampMixin):
     __tablename__ = "import_errors"
 
-    id = Column(Integer, primary_key=True)
-    import_id = Column(Integer, ForeignKey("import_jobs.id"), nullable=False)
-    row_number = Column(Integer)
-    column_name = Column(String(96))
-    message = Column(Text)
-    raw_value = Column(String(255))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    import_id: Mapped[int] = mapped_column(Integer, ForeignKey("import_jobs.id"), nullable=False)
+    row_number: Mapped[Optional[int]] = mapped_column(Integer)
+    column_name: Mapped[Optional[str]] = mapped_column(String(96))
+    message: Mapped[Optional[str]] = mapped_column(Text)
+    raw_value: Mapped[Optional[str]] = mapped_column(String(255))
 
 
 class FeatureFlag(Base, TimestampMixin):
     __tablename__ = "feature_flags"
 
-    name = Column(String(96), primary_key=True)
-    is_enabled = Column(Boolean, default=False)
-    rollout_percentage = Column(Integer, default=0)
-    scope = Column(String(32), default="GLOBAL")
-    description = Column(Text)
+    name: Mapped[str] = mapped_column(String(96), primary_key=True)
+    is_enabled: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    rollout_percentage: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    scope: Mapped[Optional[str]] = mapped_column(String(32), default="GLOBAL")
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    # Which environment the flag applies to (DEVELOPMENT / STAGING / PRODUCTION).
+    # Nullable so a pre-existing row is reported as "not set" rather than being
+    # silently defaulted to production.
+    environment: Mapped[Optional[str]] = mapped_column(String(32))
+    # Who last changed the flag, resolved from the audit trail on read when this
+    # column is null. Denormalised here so the console can render it without a
+    # join, but it is not the source of truth — the audit log is.
+    changed_by: Mapped[Optional[str]] = mapped_column(String(128))
 
 
 class SystemSetting(Base, TimestampMixin):
     __tablename__ = "system_settings"
 
-    key = Column(String(128), primary_key=True)
-    value = Column(String(512))
-    value_type = Column(String(16), default="string")
-    description = Column(Text)
-    is_secret = Column(Boolean, default=False)
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(String(512))
+    value_type: Mapped[Optional[str]] = mapped_column(String(16), default="string")
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    is_secret: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
 
 class AdminNote(Base, TimestampMixin):
     __tablename__ = "admin_notes"
 
-    id = Column(Integer, primary_key=True)
-    entity_type = Column(String(64))
-    entity_id = Column(Integer)
-    note = Column(Text, nullable=False)
-    author = Column(String(128))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_type: Mapped[Optional[str]] = mapped_column(String(64))
+    entity_id: Mapped[Optional[int]] = mapped_column(Integer)
+    note: Mapped[str] = mapped_column(Text, nullable=False)
+    author: Mapped[Optional[str]] = mapped_column(String(128))
 
 
 class SearchQuery(Base, TimestampMixin):
@@ -545,12 +591,12 @@ class SearchQuery(Base, TimestampMixin):
 
     __tablename__ = "search_queries"
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    query = Column(String(255))
-    result_count = Column(Integer, default=0)
-    location = Column(String(96))
-    searched_at = Column(DateTime(timezone=True))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"))
+    query: Mapped[Optional[str]] = mapped_column(String(255))
+    result_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    location: Mapped[Optional[str]] = mapped_column(String(96))
+    searched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class OperationalEvent(Base):
@@ -558,7 +604,9 @@ class OperationalEvent(Base):
 
     __tablename__ = "operational_events"
 
-    id = Column(Integer, primary_key=True)
-    type = Column(String(48), nullable=False, index=True)
-    title = Column(String(200), nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    type: Mapped[str] = mapped_column(String(48), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now, index=True
+    )

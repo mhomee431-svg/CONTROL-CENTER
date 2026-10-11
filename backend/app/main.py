@@ -18,6 +18,7 @@ from starlette.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import (
+    admin_users,
     auth,
     catalog,
     content,
@@ -168,6 +169,7 @@ for router in (
     content.router,
     operations.router,
     pricing.router,
+    admin_users.router,
     realtime.router,
     search_control.router,
 ):

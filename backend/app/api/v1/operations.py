@@ -492,14 +492,77 @@ def cancel_import(
 
 # --- System ----------------------------------------------------------------
 
-FLAG_FIELDS = ["name", "is_enabled", "rollout_percentage", "scope", "description", "updated_at"]
+FLAG_FIELDS = [
+    "name", "is_enabled", "rollout_percentage", "scope", "description",
+    "environment", "changed_by", "updated_at",
+]
 SETTING_FIELDS = ["key", "value", "value_type", "description", "is_secret", "updated_at"]
+
+# The example flags named in the spec are seeded when absent so the console has
+# something meaningful to show on a fresh deployment. A flag already in the
+# database is never overwritten — an operator's decision wins over the seed.
+DEFAULT_FLAGS = (
+    ("BARCODE_SEARCH", "Barcode-scan product lookup in discovery."),
+    ("EXCEL_IMPORT", "Bulk product/inventory import via Excel workbooks."),
+    ("POS", "Point-of-sale integrations and inventory sync."),
+    ("OFFERS", "Merchant offers and promotions surface."),
+    ("AI_SEARCH", "AI-assisted semantic search ranking."),
+    ("NEW_SEARCH_UI", "Next-generation search experience."),
+)
+
+
+def _resolve_flag(row: FeatureFlag, db: Session) -> dict:
+    """One flag, enriched with its last-change actor from the audit trail.
+
+    `changed_by` is stored on the row when a change goes through this API, but
+    a row seeded or edited out-of-band has none. Rather than render a blank —
+    which reads as "nobody changed it" — the actor is resolved from the newest
+    matching audit entry. The audit log stays the source of truth.
+    """
+    payload = to_dict(row, FLAG_FIELDS)
+    if not payload.get("changed_by"):
+        entry = db.scalar(
+            select(AuditLog)
+            .where(
+                AuditLog.entity_type == "feature_flag",
+                AuditLog.details["name"].as_string() == row.name,
+            )
+            .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        )
+        payload["changed_by"] = entry.admin_user if entry else None
+        if entry is not None and not payload.get("environment"):
+            details = entry.details or {}
+            payload["environment"] = details.get("environment")
+    return payload
 
 
 @router.get("/feature-flags")
 def list_flags(db: Session = Depends(get_db), _: AdminUser = Depends(get_current_admin)):
+    """Every feature flag, with status, environment and last-change actor.
+
+    The spec's example flags are ensured present first so a fresh deployment
+    shows the standard set rather than an empty grid.
+    """
+    existing = {row.name for row in db.scalars(select(FeatureFlag)).all()}
+    seeded = False
+    for name, description in DEFAULT_FLAGS:
+        if name not in existing:
+            db.add(
+                FeatureFlag(
+                    name=name,
+                    is_enabled=False,
+                    rollout_percentage=0,
+                    scope="GLOBAL",
+                    description=description,
+                    environment="PRODUCTION",
+                )
+            )
+            seeded = True
+    if seeded:
+        db.commit()
+
     rows = db.scalars(select(FeatureFlag).order_by(FeatureFlag.name)).all()
-    return ok({"items": [to_dict(r, FLAG_FIELDS) for r in rows], "total": len(rows)})
+    return ok({"items": [_resolve_flag(r, db) for r in rows], "total": len(rows)})
 
 
 class FlagUpdate(BaseModel):
@@ -507,6 +570,8 @@ class FlagUpdate(BaseModel):
     rollout_percentage: int | None = None
     scope: str | None = None
     description: str | None = None
+    environment: str | None = None
+    reason: str | None = None
 
 
 @router.patch("/feature-flags/{name}")
@@ -519,20 +584,34 @@ def update_flag(
     flag = db.get(FeatureFlag, name)
     if flag is None:
         raise HTTPException(status_code=404, detail=f"Feature flag '{name}' not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+
+    changes = payload.model_dump(exclude_unset=True)
+    # `reason` is part of the request envelope, not the flag record.
+    reason = changes.pop("reason", None)
+    previous = {key: getattr(flag, key, None) for key in changes}
+
+    for key, value in changes.items():
         setattr(flag, key, value)
+    flag.changed_by = admin.name or admin.username
+
     db.add(
         AuditLog(
             action="feature_flag.updated",
             entity_type="feature_flag",
             user_id=admin.id,
             admin_user=admin.name or admin.username,
-            details={"name": name, **payload.model_dump(exclude_unset=True)},
+            details={
+                "name": name,
+                **changes,
+                "reason": reason,
+                "before": previous,
+                "after": {key: getattr(flag, key, None) for key in changes},
+            },
         )
     )
     db.commit()
     db.refresh(flag)
-    return ok(to_dict(flag, FLAG_FIELDS), message="Feature flag updated")
+    return ok(_resolve_flag(flag, db), message="Feature flag updated")
 
 
 @router.get("/settings")
