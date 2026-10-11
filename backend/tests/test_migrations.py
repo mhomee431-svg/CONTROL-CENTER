@@ -18,7 +18,7 @@ def test_upgrade_database_applies_initial_schema_and_is_repeatable(tmp_path):
     assert "admin_users" in tables
     assert "shops" in tables
     assert "operational_events" in tables
-    assert revision == "0003_feature_flag_environment"
+    assert revision == "0005_export_jobs"
     engine.dispose()
 
 
@@ -37,5 +37,5 @@ def test_upgrade_database_adopts_existing_legacy_schema(tmp_path):
         revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
 
     assert "operational_events" in tables
-    assert revision == "0003_feature_flag_environment"
+    assert revision == "0005_export_jobs"
     engine.dispose()

@@ -888,22 +888,40 @@ def geography_analytics(
     ).all()
 
     # Demand/coverage relation: per city, shops vs searches in the window, so an
-    # operator can see where demand outruns storefront coverage.
+    # operator can see where demand outruns storefront coverage. `customers` is
+    # the distinct registered customers in the area (the same scope as `shops`
+    # and `searches`); it is NOT a business conclusion about who will buy.
     city_shop_counts = {c or "Unknown": n for c, n in shops_by_city}
     city_search_counts = {
         loc or "Unknown": n for loc, n in searches_by_location
     }
+    city_customer_counts = {c or "Unknown": n for c, n in customers_by_city}
     demand_coverage = []
     for city in sorted(set(city_shop_counts) | set(city_search_counts)):
         shops = city_shop_counts.get(city, 0)
         searches = city_search_counts.get(city, 0)
+        customers = city_customer_counts.get(city, 0)
+        demand_per_shop = round(searches / shops, 2) if shops else None
+        # Purely arithmetic coverage tag. `customers` and `searches` are counts of
+        # real registered users and real recorded searches; `shops` is the count
+        # of real shops in the area. Nothing about market potential is invented.
+        if shops == 0 and customers > 0:
+            coverage_gap = "NO_SHOPS"
+        elif shops > 0 and searches / shops > 1.5:
+            coverage_gap = "HIGH_DEMAND_LOW_COVERAGE"
+        elif shops > 0:
+            coverage_gap = "BALANCED"
+        else:
+            coverage_gap = "NO_DATA"
         demand_coverage.append(
             {
                 "city": city,
+                "customers": customers,
                 "shops": shops,
                 "searches": searches,
                 # Searches per shop; null when there is no storefront to serve it.
-                "demand_per_shop": round(searches / shops, 2) if shops else None,
+                "demand_per_shop": demand_per_shop,
+                "coverage_gap": coverage_gap,
             }
         )
 
@@ -926,5 +944,135 @@ def geography_analytics(
                 {"city": c, "category": cat, "count": n} for c, cat, n in category_density
             ],
             "demand_coverage": demand_coverage,
+        }
+    )
+
+
+# --- Coverage analysis ---------------------------------------------------------
+
+
+@router.get("/analytics/coverage")
+def coverage_analysis(
+    days: int | None = Query(None, ge=0, le=MAX_ANALYTICS_DAYS),
+    city: str | None = Query(None, min_length=1),
+    status: str | None = Query(None),
+    db: Session = Depends(get_db),
+    _: AdminUser = Depends(get_current_admin),
+):
+    """Coverage analysis: demand (customers + searches) vs matching shop count.
+
+    ``/analytics/coverage`` is a read-aggregate analytics endpoint; it computes
+    every figure from the ``users``, ``shops`` and ``search_queries`` tables and
+    never invents market potential or demand intentions. It exists so an admin
+    can inspect, for each area, how many customers and searches sit behind how
+    many matching shops, without turning that arithmetic into a business
+    recommendation.
+
+    ``status`` (optional) restricts the *matching shop* registry to shops that
+    are currently able to serve shoppers. A shop whose status is
+    INACTIVE/DEACTIVATED/SUSPENDED/PENDING/REJECTED cannot serve demand right
+    now, so it does not count toward "matching shops" and therefore does not
+    dilute the coverage gap. This is analytics of the live registry, not a
+    business conclusion: an area still shows its raw customer/shop/search
+    counts, and the admin is expected to investigate specific shops on the
+    Locations registry.
+
+    The `city` query parameter is the customer-facing filter only; it does not
+    alter the computed coverage_gap tags, which remain server-side analytics of
+    the same three counts.
+    """
+    window_days, start, _previous_start, end = _window(days)
+
+    # Per-area registered customers (distinct).
+    customers_by_city = {
+        c
+        for (c,) in db.execute(
+            select(func.distinct(User.city)).where(User.city.isnot(None))
+        ).all()
+    }
+    # Per-area shops (the matching shop registry). `status` restricts the
+    # registry to shops that are currently able to serve shoppers; an
+    # INACTIVE/DEACTIVATED/SUSPENDED shop is not a live match at this moment.
+    status_clause = None
+    if status:
+        wanted = status.strip().upper()
+        if wanted in ("ACTIVE", "INACTIVE", "SUSPENDED", "PENDING", "REJECTED"):
+            status_clause = Shop.status == wanted
+        else:
+            status_clause = Shop.status == status
+    shops_by_city = {
+        c or "Unknown": n
+        for c, n in db.execute(
+            (
+                select(Shop.city, func.count(Shop.id))
+                .where(Shop.city.isnot(None))
+                .where(status_clause)
+                if status_clause
+                else select(Shop.city, func.count(Shop.id)).where(Shop.city.isnot(None))
+            )
+            .group_by(Shop.city)
+            .order_by(func.count(Shop.id).desc())
+            .limit(20)
+        ).all()
+    }
+    # Per-area searches in the window.
+    searches_by_city = {
+        loc or "Unknown": n
+        for loc, n in db.execute(
+            select(SearchQuery.location, func.count(SearchQuery.id))
+            .where(SearchQuery.searched_at >= start, SearchQuery.location.isnot(None))
+            .group_by(SearchQuery.location)
+            .order_by(func.count(SearchQuery.id).desc())
+            .limit(20)
+        ).all()
+    }
+
+    # Customer-facing filter only; does not change the computed analytics.
+    if city:
+        city = (city or "").strip() or None
+        shops_by_city = {
+            k: v for k, v in shops_by_city.items() if city.lower() in k.lower()
+        }
+        searches_by_city = {
+            k: v for k, v in searches_by_city.items() if city.lower() in k.lower()
+        }
+        customers_by_city = {
+            k: v for k, v in customers_by_city.items() if city.lower() in k.lower()
+        }
+
+    rows = []
+    for city in sorted(set(shops_by_city) | set(searches_by_city) | set(customers_by_city)):
+        shops = shops_by_city.get(city, 0)
+        searches = searches_by_city.get(city, 0)
+        customers = customers_by_city.get(city, 0)
+        demand_per_shop = round(searches / shops, 2) if shops else None
+        # Purely arithmetic coverage tag over the three real counts.
+        if shops == 0 and customers > 0:
+            coverage_gap = "NO_SHOPS"
+        elif shops > 0 and searches / shops > 1.5:
+            coverage_gap = "HIGH_DEMAND_LOW_COVERAGE"
+        elif shops > 0:
+            coverage_gap = "BALANCED"
+        else:
+            coverage_gap = "NO_DATA"
+        rows.append(
+            {
+                "city": city,
+                "customers": customers,
+                "searches": searches,
+                "shops": shops,
+                "demand_per_shop": demand_per_shop,
+                "coverage_gap": coverage_gap,
+            }
+        )
+
+    return ok(
+        {
+            "period_days": window_days,
+            "window_start": start.date().isoformat(),
+            "window_end": end.date().isoformat(),
+            "covered_cities": len(shops_by_city),
+            "covered_states": len({c or "Unknown" for c in shops_by_city}),
+            "items": rows,
         }
     )

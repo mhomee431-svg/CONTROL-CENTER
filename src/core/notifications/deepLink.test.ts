@@ -2,14 +2,19 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  ALL_NOTIFICATION_AUDIENCES,
+  AUDIENCE_TARGETING,
   NOTIFICATION_TYPES,
   SUPPORTED_ROUTE_PREFIXES,
   buildDeepLink,
+  isNotificationAudience,
   isNotificationType,
   isSupportedRoute,
   validateDeepLink,
   validateEntityId,
   validateExplicitUrl,
+  validateMetadata,
+  validateSchedule,
 } from './deepLink';
 
 /**
@@ -171,5 +176,74 @@ describe('buildDeepLink', () => {
 
   it('returns the correct route for a valid entity id', () => {
     expect(buildDeepLink(NOTIFICATION_TYPES.PRODUCT_ALERT, 7)).toBe('/products/7');
+  });
+});
+describe('Audience targeting — only backend-supported dimensions exposed', () => {
+  it('exposes a capability entry for every audience scope', () => {
+    ALL_NOTIFICATION_AUDIENCES.forEach((audience) => {
+      expect(AUDIENCE_TARGETING[audience]).toBeDefined();
+      expect(AUDIENCE_TARGETING[audience].audience).toBe(audience);
+    });
+  });
+
+  it('only enables selected-id targeting for selectable audiences', () => {
+    // "All" is a whole-platform scope; it has no explicit id list.
+    expect(AUDIENCE_TARGETING.all.selected).toBe(false);
+    expect(AUDIENCE_TARGETING.customer.selected).toBe(true);
+    expect(AUDIENCE_TARGETING.shopkeeper.selected).toBe(true);
+  });
+
+  it('recognises supported audiences and rejects others', () => {
+    expect(isNotificationAudience('customer')).toBe(true);
+    expect(isNotificationAudience('shopkeeper')).toBe(true);
+    expect(isNotificationAudience('everyone')).toBe(false);
+  });
+});
+
+describe('Schedule validation (Notification Composer)', () => {
+  const now = new Date('2026-01-01T00:00:00.000Z');
+
+  it('treats an empty schedule as "send now"', () => {
+    const result = validateSchedule('', now);
+    expect(result.valid).toBe(true);
+    expect(result.iso).toBeNull();
+  });
+
+  it('rejects a schedule in the past', () => {
+    const result = validateSchedule('2025-12-31T23:00:00.000Z', now);
+    expect(result.valid).toBe(false);
+    expect(result.message).toMatch(/future/i);
+  });
+
+  it('rejects an unparseable date', () => {
+    expect(validateSchedule('not-a-date', now).valid).toBe(false);
+  });
+
+  it('accepts a future schedule and normalises to ISO', () => {
+    const result = validateSchedule('2026-01-02T10:00:00.000Z', now);
+    expect(result.valid).toBe(true);
+    expect(result.iso).toBe('2026-01-02T10:00:00.000Z');
+  });
+});
+
+describe('Metadata validation (Notification Composer)', () => {
+  it('treats empty metadata as absent', () => {
+    expect(validateMetadata('')).toEqual({ valid: true, value: null });
+  });
+
+  it('rejects invalid JSON', () => {
+    const result = validateMetadata('{ not json }');
+    expect(result.valid).toBe(false);
+  });
+
+  it('rejects non-object JSON', () => {
+    expect(validateMetadata('[1,2,3]').valid).toBe(false);
+    expect(validateMetadata('"a string"').valid).toBe(false);
+  });
+
+  it('accepts a JSON object verbatim', () => {
+    const result = validateMetadata('{"campaign":"spring","tier":2}');
+    expect(result.valid).toBe(true);
+    expect(result.value).toEqual({ campaign: 'spring', tier: 2 });
   });
 });

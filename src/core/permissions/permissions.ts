@@ -43,6 +43,8 @@ export const CAPABILITIES = {
 
   NOTIFICATIONS_SEND: 'notifications.send',
 
+  EXPORTS_GENERATE: 'exports.generate',
+
   CONTENT_READ: 'content.read',
   CONTENT_MANAGE: 'content.manage',
 

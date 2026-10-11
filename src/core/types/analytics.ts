@@ -202,8 +202,31 @@ export interface GeographyAnalytics extends AnalyticsWindow {
   category_density: Array<{ city: string; category: string; count: number }>;
   demand_coverage: Array<{
     city: string;
+    customers: number;
     shops: number;
     searches: number;
     demand_per_shop: number | null;
+    coverage_gap: CoverageGap;
   }>;
 }
+
+/**
+ * Coverage-analysis row, served by the dedicated `/analytics/coverage` endpoint.
+ * All counts are real registered/recorded figures; `coverage_gap` is a purely
+ * arithmetic tag derived from those counts.
+ */
+export interface CoverageAnalysisItem {
+  city: string;
+  customers: number;
+  searches: number;
+  shops: number;
+  demand_per_shop: number | null;
+  coverage_gap: CoverageGap;
+}
+
+/**
+ * Purely-arithmetic coverage tags. These are server-side analytics of the
+ * actual customer/shop/search counts and are never promoted into a business
+ * conclusion about market potential.
+ */
+export type CoverageGap = "NO_SHOPS" | "HIGH_DEMAND_LOW_COVERAGE" | "BALANCED" | "NO_DATA";

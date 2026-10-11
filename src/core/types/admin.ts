@@ -786,16 +786,30 @@ export interface NotificationCampaignItem {
   title: string;
   body?: string;
   notification_type: string;
+  /** Coarse audience scope the campaign targeted. */
   audience?: NotificationAudience | string;
   status: NotificationCampaignStatus | string;
   deep_link?: string | null;
   entity_id?: string | null;
-  recipients_total?: number;
-  recipients_sent?: number;
-  recipients_failed?: number;
+  /** Null (not 0) until a campaign has actually been delivered. */
+  recipients_total?: number | null;
+  recipients_sent?: number | null;
+  recipients_failed?: number | null;
   sent_by?: string | null;
   created_at: string;
   sent_at?: string | null;
+  /** When a SCHEDULED campaign should go out (UTC ISO-8601). */
+  scheduled_at?: string | null;
+  /** Optional category filter applied to the audience. */
+  category?: string | null;
+  /** Optional location filter applied to the audience. */
+  location?: string | null;
+  /** Explicit subject ids for a "Selected" audience. */
+  selected_ids?: number[] | null;
+  /** Opaque composer metadata; never used to build a route. */
+  metadata_json?: Record<string, unknown> | null;
+  /** Operator justification captured with the campaign/draft. */
+  reason?: string | null;
 }
 
 export interface NotificationSendPayload {
@@ -808,6 +822,33 @@ export interface NotificationSendPayload {
   entity_id?: string | null;
   /** Operator reason, recorded in the audit log for high-impact broadcasts. */
   reason?: string;
+  /** When set, the campaign is queued instead of dispatched immediately. */
+  scheduled_at?: string | null;
+  /** Only the targeting dimensions the backend resolves are sent. */
+  category?: string | null;
+  location?: string | null;
+  selected_ids?: number[] | null;
+  /** Opaque composer metadata envelope. */
+  metadata?: Record<string, unknown> | null;
+}
+
+/**
+ * A composer draft. A draft may be incomplete, but anything it carries must
+ * still be a recognised type/audience and a safe deep link.
+ */
+export interface NotificationDraftPayload {
+  title: string;
+  body: string;
+  notification_type: string;
+  audience?: NotificationAudience;
+  deep_link?: string | null;
+  entity_id?: string | null;
+  reason?: string;
+  scheduled_at?: string | null;
+  category?: string | null;
+  location?: string | null;
+  selected_ids?: number[] | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 /**
@@ -898,4 +939,52 @@ export interface SystemMessageItem {
   ends_at?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+/**
+ * Export Center models — asynchronous export jobs.
+ *
+ * The EXPORT CENTER rule requires large exports to run through backend jobs
+ * rather than being assembled in the browser, so the console only ever queues a
+ * job and reads its state back. The backend is authoritative for the row count
+ * and the artifact.
+ */
+export interface ExportDatasetItem {
+  key: string;
+  label: string;
+}
+
+export interface ExportDatasetsResponse {
+  items: ExportDatasetItem[];
+  total: number;
+  /** Hard row ceiling per job; the backend refuses a larger scope. */
+  max_rows_per_job?: number;
+}
+
+export type ExportJobStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+export interface ExportJobItem {
+  id: number;
+  dataset: string;
+  /** The exact filter scope the job was requested with (verbatim). */
+  filters_json?: Record<string, unknown> | null;
+  status: ExportJobStatus | string;
+  format?: string | null;
+  /** Null until the job has produced a result. */
+  rows_exported?: number | null;
+  file_size_bytes?: number | null;
+  file_url?: string | null;
+  error?: string | null;
+  requested_by?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  reason?: string | null;
+}
+
+/** Payload to queue an export job. The backend resolves the real row count. */
+export interface ExportJobPayload {
+  dataset: string;
+  filters?: Record<string, unknown> | null;
+  format?: string;
+  reason?: string;
 }

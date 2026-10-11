@@ -41,6 +41,8 @@ export const API_ENDPOINTS = {
     SEARCH: '/api/v1/admin/analytics/search',
     NOTIFICATIONS: '/api/v1/admin/analytics/notifications',
     GEOGRAPHY: '/api/v1/admin/analytics/geography',
+    /** Demand vs shop coverage per area (high demand / low coverage). */
+    COVERAGE: '/api/v1/admin/analytics/coverage',
   },
 
   // Search Control Center — the highest-priority discovery surfaces. Dedicated
@@ -209,10 +211,20 @@ export const API_ENDPOINTS = {
   // Notifications
   NOTIFICATIONS: {
     SEND: '/api/v1/admin/notifications/send',
+    // Save a composer draft without dispatching anything.
+    DRAFTS: '/api/v1/admin/notifications/drafts',
     CAMPAIGNS: '/api/v1/admin/notifications/campaigns',
     CAMPAIGN_DETAIL: (id: number | string) => `/api/v1/admin/notifications/campaigns/${id}`,
     // Optional: force-cancel an in-flight campaign (backend-authoritative).
     CAMPAIGN_CANCEL: (id: number | string) => `/api/v1/admin/notifications/campaigns/${id}/cancel`,
+  },
+
+  // Export Center — asynchronous export jobs (never generated in the browser).
+  EXPORTS: {
+    DATASETS: '/api/v1/admin/exports/datasets',
+    JOBS: '/api/v1/admin/exports/jobs',
+    JOB_DETAIL: (id: number | string) => `/api/v1/admin/exports/jobs/${id}`,
+    JOB_CANCEL: (id: number | string) => `/api/v1/admin/exports/jobs/${id}/cancel`,
   },
 
   // Content & Announcements (banners, announcements, FAQs, help, promos, system messages)

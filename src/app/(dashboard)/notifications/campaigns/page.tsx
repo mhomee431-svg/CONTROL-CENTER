@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { GridColDef, GridPaginationModel } from '@mui/x-data-grid';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography, Button, Tabs, Tab } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Megaphone } from 'lucide-react';
 import { apiClient } from '@/core/api/client';
@@ -14,17 +14,36 @@ import { DrillDownBreadcrumbs } from '@/core/components/DrillDownBreadcrumbs';
 import { ROUTES } from '@/core/routes/routes';
 import { NotificationCampaignItem } from '@/core/types/admin';
 
+/**
+ * Delivery-status tabs. Each tab is a real server-side `status` filter, so a
+ * tab's list and total are the campaigns that genuinely carry that status —
+ * never a client-side slice of another tab.
+ */
+type CampaignTab = 'ALL' | 'DRAFT' | 'SCHEDULED' | 'SENT' | 'FAILED';
+
+const CAMPAIGN_TABS: ReadonlyArray<{ value: CampaignTab; label: string; status?: string }> = [
+  { value: 'ALL', label: 'All' },
+  { value: 'DRAFT', label: 'Drafts', status: 'DRAFT' },
+  { value: 'SCHEDULED', label: 'Scheduled', status: 'SCHEDULED' },
+  { value: 'SENT', label: 'Sent', status: 'SENT' },
+  { value: 'FAILED', label: 'Failed', status: 'FAILED' },
+];
+
 export default function NotificationCampaignsPage() {
   const router = useRouter();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [tab, setTab] = useState<CampaignTab>('ALL');
+
+  const statusFilter = CAMPAIGN_TABS.find((t) => t.value === tab)?.status;
 
   const { data, isLoading, isError, refetch } = useQuery<{ items: NotificationCampaignItem[]; total: number }>({
-    queryKey: ['admin', 'campaigns', paginationModel],
+    queryKey: ['admin', 'campaigns', tab, paginationModel],
     queryFn: () =>
       apiClient<{ items: NotificationCampaignItem[]; total: number }>(API_ENDPOINTS.NOTIFICATIONS.CAMPAIGNS, {
         params: {
           limit: paginationModel.pageSize,
           offset: paginationModel.page * paginationModel.pageSize,
+          status: statusFilter,
         },
       }),
     retry: false,
@@ -59,8 +78,10 @@ export default function NotificationCampaignsPage() {
       width: 130,
       valueGetter: (_, row) => {
         const c = row as NotificationCampaignItem;
-        if (c.recipients_sent == null && c.recipients_total == null) return 'N/A';
-        return `${c.recipients_sent ?? 0} / ${c.recipients_total ?? 0}`;
+        // A campaign that has not gone out reports no delivery count at all,
+        // rather than a misleading 0 / 0.
+        if (c.recipients_sent == null) return 'Not sent';
+        return `${c.recipients_sent} / ${c.recipients_total ?? 0}`;
       },
     },
     {
@@ -68,6 +89,14 @@ export default function NotificationCampaignsPage() {
       headerName: 'Status',
       width: 130,
       renderCell: (params) => <StatusBadge status={(params.value as string) || 'SENT'} />,
+    },
+    {
+      field: 'scheduled_at',
+      headerName: 'Scheduled',
+      flex: 1.2,
+      minWidth: 170,
+      valueFormatter: (value) =>
+        value ? new Date(value as string).toLocaleString() : '—',
     },
     {
       field: 'created_at',
@@ -100,6 +129,20 @@ export default function NotificationCampaignsPage() {
           New Broadcast →
         </Button>
       </Box>
+
+      {/* Delivery-status tabs — each is a real server-side status filter. */}
+      <Tabs
+        value={tab}
+        onChange={(_, value: CampaignTab) => {
+          setTab(value);
+          setPaginationModel((prev) => ({ ...prev, page: 0 }));
+        }}
+        sx={{ mb: 2, borderBottom: '1px solid #E2E8F0' }}
+      >
+        {CAMPAIGN_TABS.map((t) => (
+          <Tab key={t.value} value={t.value} label={t.label} />
+        ))}
+      </Tabs>
 
       <AdminDataGrid
         rows={(data?.items || []) as unknown as Record<string, unknown>[]}

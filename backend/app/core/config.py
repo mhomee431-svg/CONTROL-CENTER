@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # plaintext.
     COOKIE_SECURE: bool = False
 
+    # Where finished export artifacts are written. The directory is created on
+    # demand; files are served back through an authenticated endpoint, never a
+    # public static mount.
+    EXPORT_DIR: str = "exports"
+
     @model_validator(mode="after")
     def require_signing_key(self) -> "Settings":
         if len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "change-me-in-production-admin-console-signing-key":

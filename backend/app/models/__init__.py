@@ -413,11 +413,41 @@ class NotificationCampaign(Base, TimestampMixin):
     status: Mapped[Optional[str]] = mapped_column(String(32), default="DRAFT")
     deep_link: Mapped[Optional[str]] = mapped_column(String(255))
     entity_id: Mapped[Optional[str]] = mapped_column(String(64))
-    recipients_total: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    recipients_sent: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    recipients_failed: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    # Delivery counts are NULL until a campaign actually goes out. There is no
+    # column default on purpose: a DRAFT/SCHEDULED row must honestly report
+    # "not delivered" rather than a fabricated 0. The API writes these
+    # explicitly on every send.
+    recipients_total: Mapped[Optional[int]] = mapped_column(Integer)
+    recipients_sent: Mapped[Optional[int]] = mapped_column(Integer)
+    recipients_failed: Mapped[Optional[int]] = mapped_column(Integer)
     sent_by: Mapped[Optional[str]] = mapped_column(String(128))
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # --- Scheduling -------------------------------------------------------
+    # When a scheduled campaign should go out. Stored as UTC. A row with a
+    # future `scheduled_at` and status SCHEDULED has not been dispatched yet;
+    # the recipients_* columns stay null until it is, so an undelivered
+    # campaign never reports a fabricated delivery count.
+    scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # --- Targeting --------------------------------------------------------
+    # Only the targeting dimensions the backend actually resolves are stored:
+    # a coarse audience scope, an optional category filter, an optional
+    # location filter and an explicit list of selected subject ids. These are
+    # JSON so a later reader sees exactly what was targeted at send time.
+    category: Mapped[Optional[str]] = mapped_column(String(128))
+    location: Mapped[Optional[str]] = mapped_column(String(128))
+    selected_ids: Mapped[Optional[list]] = mapped_column(JSON)
+
+    # --- Composer metadata ------------------------------------------------
+    # Free-form, opaque metadata the composer attaches to a notification
+    # (e.g. attribution / routing hints). Never used to build a route — the
+    # route is always derived and validated independently.
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON)
+
+    # Operator reason recorded alongside a draft at save time, so the intent
+    # survives until the campaign actually goes out.
+    reason: Mapped[Optional[str]] = mapped_column(String(512))
 
 
 class Banner(Base, TimestampMixin):
@@ -610,3 +640,38 @@ class OperationalEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now, index=True
     )
+
+
+class ExportJob(Base, TimestampMixin):
+    """An asynchronous export request.
+
+    The EXPORT CENTER rule is explicit: large exports must run through backend
+    jobs, never be assembled entirely in the browser. A job records what was
+    asked for (dataset + the exact filter scope), who asked, and how far it has
+    progressed — so the console reflects the server's state rather than a
+    client-side guess.
+
+    `status` follows QUEUED → PROCESSING → COMPLETED / FAILED / CANCELLED.
+    `rows_exported` and `file_size_bytes` stay null until the job produces a
+    result; a job that has not run yet must not report a fabricated 0.
+    """
+
+    __tablename__ = "export_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # One of EXPORT_DATASETS (customers, shopkeepers, businesses, products,
+    # inventory, prices, search, analytics, audit_logs).
+    dataset: Mapped[str] = mapped_column(String(48), nullable=False)
+    # The filter scope the export was requested with, stored verbatim so the
+    # job's output is reproducible from its record.
+    filters_json: Mapped[Optional[dict]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(32), default="QUEUED", nullable=False)
+    format: Mapped[Optional[str]] = mapped_column(String(16), default="CSV")
+    rows_exported: Mapped[Optional[int]] = mapped_column(Integer)
+    file_size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
+    # Where the finished artifact lives, once the worker has produced it.
+    file_url: Mapped[Optional[str]] = mapped_column(String(512))
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    requested_by: Mapped[Optional[str]] = mapped_column(String(128))
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    reason: Mapped[Optional[str]] = mapped_column(String(512))

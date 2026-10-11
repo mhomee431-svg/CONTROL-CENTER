@@ -19,6 +19,7 @@ _LEGACY_BASELINE_TABLES = {
     "brands",
     "categories",
     "complaints",
+    "export_jobs",
     "faqs",
     "feature_flags",
     "help_content",

@@ -60,6 +60,7 @@ ALL_PERMISSIONS = [
     "inventory.view", "offers.view", "offers.update",
     "notifications.send", "content.manage", "imports.manage",
     "pos.manage", "support.update", "system.flags", "system.settings",
+    "exports.generate",
 ]
 
 
@@ -568,6 +569,21 @@ def seed() -> None:
             ("max_products_per_shop", "5000", "int", "Upper bound on catalogue size"),
             ("support_email", "support@hyperlocal.test", "string", "Public support address"),
             ("payment_gateway_key", "sk_live_xxxxx", "string", "Gateway secret"),
+            # --- SYSTEM CONFIGURATION: the operator-controlled tuning knobs ---
+            # Each is a value the console may legitimately adjust; none is an
+            # infrastructure secret. Secrets (gateway keys, DB credentials,
+            # Firebase admin keys) are never seeded here and any that exist are
+            # masked as •••••••• on read (is_secret=True).
+            ("search_radius_km", "10", "int", "Default discovery radius around a customer (km)"),
+            ("inventory_fresh_after_hours", "24", "int", "Inventory considered fresh within this many hours of last update"),
+            ("inventory_stale_after_hours", "72", "int", "Inventory flagged stale after this many hours without a sync"),
+            ("inventory_low_stock_threshold", "5", "int", "Units on hand below which a record is low stock"),
+            ("import_max_rows", "50000", "int", "Upper bound on rows accepted per import job"),
+            ("import_max_file_mb", "25", "int", "Upper bound on import file size (MB)"),
+            ("notification_max_recipients", "100000", "int", "Upper bound on recipients per broadcast"),
+            ("notification_rate_per_minute", "600", "int", "Dispatch pacing ceiling for notification sends"),
+            ("search_result_limit", "200", "int", "Maximum results returned per search page"),
+            ("export_max_rows", "1000000", "int", "Upper bound on rows per export job"),
         ]:
             db.add(
                 SystemSetting(

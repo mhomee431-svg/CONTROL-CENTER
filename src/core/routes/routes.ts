@@ -65,6 +65,7 @@ export const ROUTES = {
   NOTIFICATIONS: '/notifications',
   NOTIFICATION_CAMPAIGNS: '/notifications/campaigns',
   NOTIFICATION_DETAIL: (id: number | string) => `/notifications/${id}`,
+  EXPORTS: '/exports',
 
   // Content & Announcements
   CONTENT: '/content',

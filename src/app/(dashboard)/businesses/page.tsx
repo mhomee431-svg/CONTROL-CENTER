@@ -17,6 +17,7 @@ import { CAPABILITIES } from '@/core/permissions/permissions';
 import { ROUTES } from '@/core/routes/routes';
 import { describeRecency } from '@/core/privacy/masking';
 import { useServerSelection } from '@/core/selection/useServerSelection';
+import { downloadCsv, toCsv } from '@/core/export/csv';
 
 type ShopDecision = 'VERIFY' | 'REJECT' | 'SUSPEND' | 'REACTIVATE' | 'ARCHIVE';
 
@@ -30,6 +31,27 @@ export default function BusinessesPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const selection = useServerSelection();
   const selectedIds = selection.selectedIds;
+
+  /**
+   * DATA GRID RULE — export "if supported". This exports the currently loaded
+   * page only: the browser holds exactly one server page, so a page export is
+   * the only honest client-side export. A full-dataset export belongs to the
+   * Export Center's asynchronous backend jobs, not to this grid.
+   */
+  const handleExportPage = () => {
+    const csv = toCsv((data?.items ?? []) as unknown as ShopItem[], [
+      { header: 'ID', value: (s) => s.id },
+      { header: 'Name', value: (s) => s.name },
+      { header: 'City', value: (s) => s.city },
+      { header: 'State', value: (s) => s.state },
+      { header: 'Category', value: (s) => s.category },
+      { header: 'Status', value: (s) => s.status },
+      { header: 'Verification', value: (s) => s.verification_status },
+      { header: 'Products', value: (s) => s.product_count },
+      { header: 'Created', value: (s) => s.created_at },
+    ]);
+    downloadCsv(`businesses-page${paginationModel.page + 1}.csv`, csv);
+  };
   const [bulkDecision, setBulkDecision] = useState<'VERIFY' | 'SUSPEND' | null>(null);
   const [editTarget, setEditTarget] = useState<ShopItem | null>(null);
   const [editName, setEditName] = useState('');
@@ -396,6 +418,7 @@ export default function BusinessesPage() {
         allMatchingActive={selection.allMatching}
         pageSelectionActive={selection.scope.mode === 'page'}
         onSelectAllMatching={selection.allMatching ? selection.clear : undefined}
+        onExport={handleExportPage}
       />
 
       {bulkDecision && (

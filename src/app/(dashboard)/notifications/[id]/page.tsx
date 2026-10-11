@@ -206,12 +206,22 @@ export default function NotificationDetailPage({ params }: { params: Promise<{ i
                   {data.sent_at ? new Date(data.sent_at).toLocaleString() : 'Not yet sent'}
                 </Typography>
               </Grid>
+              {data.scheduled_at && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Scheduled For
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {new Date(data.scheduled_at).toLocaleString()}
+                  </Typography>
+                </Grid>
+              )}
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   Dispatched By
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {data.sent_by || 'Platform'}
+                  {data.sent_by || 'Not yet dispatched'}
                 </Typography>
               </Grid>
             </Grid>

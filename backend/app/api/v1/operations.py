@@ -1,6 +1,7 @@
 """Notifications, subscriptions, complaints, POS, imports and system settings."""
 
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -8,6 +9,12 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.notification_safety import (
+    NOTIFICATION_TYPES,
+    SUPPORTED_AUDIENCES,
+    validate_explicit_url,
+    validate_notification_payload,
+)
 from app.core.pagination import Pagination, pagination
 from app.core.responses import ok, paged
 from app.core.serializers import to_dict
@@ -44,7 +51,135 @@ CAMPAIGN_FIELDS = [
     "id", "title", "body", "notification_type", "audience", "status",
     "deep_link", "entity_id", "recipients_total", "recipients_sent",
     "recipients_failed", "sent_by", "created_at", "sent_at",
+    "scheduled_at", "category", "location", "selected_ids", "metadata_json",
+    "reason",
 ]
+
+
+class CampaignCreate(BaseModel):
+    title: str
+    body: str
+    notification_type: str = "ADMIN_BROADCAST"
+    audience: str = "all"
+    deep_link: str | None = None
+    entity_id: str | None = None
+    reason: str | None = None
+    # Scheduling: an ISO-8601 timestamp. When supplied the campaign is queued
+    # (SCHEDULED) instead of dispatched immediately.
+    scheduled_at: datetime | None = None
+    # Targeting: only the dimensions the backend resolves are accepted.
+    category: str | None = None
+    location: str | None = None
+    selected_ids: list[int] | None = None
+    # Opaque composer metadata; never parsed to build a route.
+    metadata: dict[str, Any] | None = None
+
+
+def _recipient_count(
+    db: Session,
+    audience: str,
+    category: str | None,
+    location: str | None,
+    selected_ids: list[int] | None,
+) -> int:
+    """Resolve the number of subjects a campaign would reach.
+
+    Only the targeting the backend actually supports is honoured; anything it
+    cannot resolve is reported as zero rather than a fabricated estimate.
+    """
+    from app.models import User
+
+    if selected_ids:
+        # "Selected customers" / "Selected shopkeepers" — an explicit id list.
+        if audience == "shopkeeper":
+            owner_ids = select(Shop.owner_id).where(
+                Shop.owner_id.isnot(None), Shop.owner_id.in_(selected_ids)
+            )
+            return db.scalar(
+                select(func.count()).select_from(User).where(User.id.in_(owner_ids))
+            ) or 0
+        return db.scalar(
+            select(func.count()).select_from(User).where(User.id.in_(selected_ids))
+        ) or 0
+
+    stmt = select(func.count()).select_from(User)
+    if audience == "shopkeeper":
+        owner_ids = select(Shop.owner_id).where(Shop.owner_id.isnot(None)).distinct()
+        stmt = stmt.where(User.id.in_(owner_ids))
+    elif audience == "customer":
+        owner_ids = select(Shop.owner_id).where(Shop.owner_id.isnot(None))
+        stmt = stmt.where(User.id.notin_(owner_ids))
+
+    # Location targeting filters on the user's city/state when the column is
+    # present; a database without it targets the whole scope instead of guessing.
+    if location and hasattr(User, "city"):
+        like = f"%{location}%"
+        stmt = stmt.where(or_(User.city.ilike(like), User.state.ilike(like)))
+
+    return db.scalar(stmt) or 0
+
+
+def _persist_campaign(
+    db: Session,
+    admin: AdminUser,
+    payload: CampaignCreate,
+    status: str,
+) -> NotificationCampaign:
+    """Common write path for every campaign status (DRAFT/SCHEDULED/SENT)."""
+    recipients = _recipient_count(
+        db, payload.audience, payload.category, payload.location, payload.selected_ids
+    )
+    now = datetime.now(timezone.utc)
+    dispatched = status == "SENT"
+    campaign = NotificationCampaign(
+        title=payload.title.strip(),
+        body=payload.body.strip(),
+        notification_type=payload.notification_type,
+        audience=payload.audience,
+        status=status,
+        deep_link=payload.deep_link,
+        entity_id=payload.entity_id,
+        recipients_total=recipients,
+        # A campaign that has not gone out yet has no delivery count; null
+        # rather than 0 so the UI renders "not sent" instead of a false zero.
+        recipients_sent=recipients if dispatched else None,
+        recipients_failed=0 if dispatched else None,
+        sent_by=admin.name or admin.username if dispatched else None,
+        sent_at=now if dispatched else None,
+        scheduled_at=payload.scheduled_at,
+        category=payload.category,
+        location=payload.location,
+        selected_ids=payload.selected_ids,
+        metadata_json=payload.metadata,
+        reason=payload.reason,
+    )
+    db.add(campaign)
+    return campaign
+
+
+def _validate_or_400(payload: CampaignCreate):
+    """Apply the NOTIFICATION SAFETY contract and raise 422 on any violation.
+
+    The client validates too, but this is the authoritative gate: an
+    unvalidated or unroutable deep link must never reach a campaign row.
+    """
+    result = validate_notification_payload(
+        notification_type=payload.notification_type,
+        audience=payload.audience,
+        entity_id=payload.entity_id,
+        deep_link=payload.deep_link,
+    )
+    if not result.valid:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_notification",
+                "code": result.code,
+                "message": result.message,
+            },
+        )
+    # Normalise the payload to the canonical, validated deep link.
+    payload.deep_link = result.deep_link
 
 
 @router.get("/notifications/campaigns")
@@ -75,14 +210,106 @@ def campaign_detail(
     return ok(to_dict(campaign, CAMPAIGN_FIELDS))
 
 
-class CampaignCreate(BaseModel):
-    title: str
-    body: str
-    notification_type: str = "GENERAL"
+class CampaignDraft(BaseModel):
+    """A composer draft. Drafts are exempt from the full safety contract.
+
+    An operator must be able to save partial work, so only the fields that are
+    present are validated. Nothing is dispatched from a draft.
+    """
+
+    title: str = ""
+    body: str = ""
+    notification_type: str = "ADMIN_BROADCAST"
     audience: str = "all"
     deep_link: str | None = None
     entity_id: str | None = None
     reason: str | None = None
+    scheduled_at: datetime | None = None
+    category: str | None = None
+    location: str | None = None
+    selected_ids: list[int] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+def _validate_draft_or_400(payload: CampaignDraft):
+    """A draft may be incomplete, but anything it *does* carry must be safe.
+
+    A type that is not recognised, an audience the API does not serve, or a
+    deep link that would fail validation is still rejected — a draft is never a
+    way to smuggle an unvalidated link into the database.
+    """
+    if payload.notification_type not in NOTIFICATION_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_notification",
+                "code": "UNKNOWN_NOTIFICATION_TYPE",
+                "message": f"Unsupported notification type: {payload.notification_type}",
+            },
+        )
+    if payload.audience not in SUPPORTED_AUDIENCES:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_notification",
+                "code": "UNSUPPORTED_AUDIENCE",
+                "message": f"Unsupported audience: {payload.audience}",
+            },
+        )
+    # Only validate the link when one is supplied (a draft may omit it).
+    if payload.deep_link:
+        link = validate_explicit_url(payload.deep_link)
+        if not link.valid:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "invalid_notification", "code": link.code, "message": link.message},
+            )
+        payload.deep_link = link.path
+
+
+@router.post("/notifications/drafts")
+def save_draft(
+    payload: CampaignDraft,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_capability("notifications.send")),
+):
+    """Persist a composer draft. Never dispatches anything."""
+    _validate_draft_or_400(payload)
+
+    campaign = NotificationCampaign(
+        title=payload.title.strip() or "Untitled draft",
+        body=payload.body.strip() or None,
+        notification_type=payload.notification_type,
+        audience=payload.audience,
+        status="DRAFT",
+        deep_link=payload.deep_link,
+        entity_id=payload.entity_id,
+        # A draft has reached nobody: delivery counts stay null.
+        recipients_total=_recipient_count(
+            db, payload.audience, payload.category, payload.location, payload.selected_ids
+        ),
+        recipients_sent=None,
+        recipients_failed=None,
+        scheduled_at=payload.scheduled_at,
+        category=payload.category,
+        location=payload.location,
+        selected_ids=payload.selected_ids,
+        metadata_json=payload.metadata,
+        reason=payload.reason,
+    )
+    db.add(campaign)
+    db.add(
+        AuditLog(
+            action="notification.draft_saved",
+            entity_type="notification",
+            user_id=admin.id,
+            admin_user=admin.name or admin.username,
+            details={"audience": payload.audience, "type": payload.notification_type},
+        )
+    )
+    db.commit()
+    db.refresh(campaign)
+    return ok(to_dict(campaign, CAMPAIGN_FIELDS), message="Draft saved")
 
 
 @router.post("/notifications/send")
@@ -91,50 +318,63 @@ def send_notification(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(require_capability("notifications.send")),
 ):
-    """Dispatch a broadcast.
+    """Dispatch a broadcast, or schedule it for later.
 
-    The audience size is resolved up front and recorded on the campaign, so the
-    reported recipient count is the one that was actually targeted rather than
-    a number invented later.
+    The payload is validated against the NOTIFICATION SAFETY contract before
+    anything is written. The audience size is resolved up front and recorded on
+    the campaign, so the reported recipient count is the one that was actually
+    targeted rather than a number invented later. When `scheduled_at` is set the
+    campaign is queued (SCHEDULED) and no delivery count is reported until it
+    actually goes out.
     """
-    from app.models import User
+    _validate_or_400(payload)
 
-    if payload.audience == "shopkeeper":
-        owner_ids = select(Shop.owner_id).where(Shop.owner_id.isnot(None)).distinct()
-        recipients = db.scalar(select(func.count()).select_from(User).where(User.id.in_(owner_ids))) or 0
-    elif payload.audience == "customer":
-        owner_ids = select(Shop.owner_id).where(Shop.owner_id.isnot(None))
-        recipients = db.scalar(select(func.count()).select_from(User).where(User.id.notin_(owner_ids))) or 0
+    now = datetime.now(timezone.utc)
+    scheduled = payload.scheduled_at is not None
+    if scheduled:
+        target = payload.scheduled_at
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=timezone.utc)
+            payload.scheduled_at = target
+        if target <= now:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "invalid_schedule",
+                    "code": "SCHEDULE_IN_PAST",
+                    "message": "Scheduled time must be in the future.",
+                },
+            )
+        status = "SCHEDULED"
     else:
-        recipients = db.scalar(select(func.count()).select_from(User)) or 0
+        status = "SENT"
 
-    campaign = NotificationCampaign(
-        title=payload.title,
-        body=payload.body,
-        notification_type=payload.notification_type,
-        audience=payload.audience,
-        status="SENT",
-        deep_link=payload.deep_link,
-        entity_id=payload.entity_id,
-        recipients_total=recipients,
-        recipients_sent=recipients,
-        recipients_failed=0,
-        sent_by=admin.name or admin.username,
-        sent_at=datetime.now(timezone.utc),
-    )
-    db.add(campaign)
+    campaign = _persist_campaign(db, admin, payload, status)
     db.add(
         AuditLog(
-            action="notification.broadcast",
+            action="notification.scheduled" if scheduled else "notification.broadcast",
             entity_type="notification",
             user_id=admin.id,
             admin_user=admin.name or admin.username,
-            details={"audience": payload.audience, "recipients": recipients, "reason": payload.reason},
+            details={
+                "audience": payload.audience,
+                "recipients": campaign.recipients_total,
+                "scheduled_at": payload.scheduled_at.isoformat() if scheduled else None,
+                "reason": payload.reason,
+            },
         )
     )
     db.commit()
     db.refresh(campaign)
-    return ok(to_dict(campaign, CAMPAIGN_FIELDS), message=f"Sent to {recipients} recipients")
+    if scheduled:
+        return ok(
+            to_dict(campaign, CAMPAIGN_FIELDS),
+            message=f"Scheduled for {payload.scheduled_at.isoformat()}",
+        )
+    return ok(
+        to_dict(campaign, CAMPAIGN_FIELDS),
+        message=f"Sent to {campaign.recipients_total} recipients",
+    )
 
 
 @router.post("/notifications/campaigns/{campaign_id}/cancel")

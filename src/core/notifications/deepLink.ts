@@ -56,6 +56,79 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICA
 export const ALL_NOTIFICATION_TYPES = Object.values(NOTIFICATION_TYPES) as NotificationType[];
 
 /**
+ * Audience scopes the backend actually resolves.
+ *
+ * Targeting is deliberately narrow: only the dimensions the API can turn into a
+ * recipient list are exposed. Anything the backend cannot resolve is not shown,
+ * so the composer never promises a segment it cannot deliver to.
+ */
+export const NOTIFICATION_AUDIENCES = {
+  ALL: 'all',
+  CUSTOMER: 'customer',
+  SHOPKEEPER: 'shopkeeper',
+} as const;
+
+export type NotificationAudience = (typeof NOTIFICATION_AUDIENCES)[keyof typeof NOTIFICATION_AUDIENCES];
+
+export const ALL_NOTIFICATION_AUDIENCES = Object.values(
+  NOTIFICATION_AUDIENCES
+) as NotificationAudience[];
+
+/**
+ * Targeting capability per audience scope.
+ *
+ * `category` and `location` are coarse filters the backend applies on top of
+ * the audience scope; `selected` enables an explicit id list. The composer
+ * only renders a control when the corresponding flag is true here, so the UI is
+ * a faithful mirror of what the API supports. If the backend later grows a new
+ * dimension, it is added here once and the composer picks it up.
+ */
+export interface AudienceTargetingCapability {
+  label: string;
+  /** Coarse audience scope this capability describes. */
+  audience: NotificationAudience;
+  category: boolean;
+  location: boolean;
+  selected: boolean;
+}
+
+export const AUDIENCE_TARGETING: Record<NotificationAudience, AudienceTargetingCapability> = {
+  all: {
+    label: 'All Customers',
+    audience: 'all',
+    category: true,
+    location: true,
+    selected: false,
+  },
+  customer: {
+    label: 'Customers',
+    audience: 'customer',
+    category: true,
+    location: true,
+    selected: true,
+  },
+  shopkeeper: {
+    label: 'Shopkeepers',
+    audience: 'shopkeeper',
+    category: true,
+    location: true,
+    selected: true,
+  },
+};
+
+/** Ordered list of audience options for the composer dropdown. */
+export const NOTIFICATION_AUDIENCE_LIST: ReadonlyArray<AudienceTargetingCapability> = [
+  AUDIENCE_TARGETING.all,
+  AUDIENCE_TARGETING.customer,
+  AUDIENCE_TARGETING.shopkeeper,
+];
+
+/** True when an audience scope is one the backend accepts. */
+export function isNotificationAudience(value: string): value is NotificationAudience {
+  return (ALL_NOTIFICATION_AUDIENCES as ReadonlyArray<string>).includes(value);
+}
+
+/**
  * The entity ID shape a notification type expects.
  *
  * - `none`     → the type must NOT carry an entity id.
@@ -456,4 +529,62 @@ export function validateExplicitUrl(url: string): DeepLinkValidationResult {
   }
 
   return { valid: true, path: value };
+}/**
+ * NOTIFICATION COMPOSER — schedule validation.
+ *
+ * A schedule is only meaningful when it is a valid future instant. The same
+ * rule the backend enforces is applied here so the operator is told before the
+ * request is sent, not after it is rejected.
+ */
+export interface ScheduleValidationResult {
+  valid: boolean;
+  /** ISO-8601 string when valid. */
+  iso: string | null;
+  message?: string;
+}
+
+export function validateSchedule(
+  value: string | Date | null | undefined,
+  now: Date = new Date()
+): ScheduleValidationResult {
+  if (value === null || value === undefined || value === '') {
+    // No schedule is not an error — it means "send now".
+    return { valid: true, iso: null };
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { valid: false, iso: null, message: 'Enter a valid date and time.' };
+  }
+  if (date.getTime() <= now.getTime()) {
+    return { valid: false, iso: null, message: 'Scheduled time must be in the future.' };
+  }
+  return { valid: true, iso: date.toISOString() };
+}
+
+/**
+ * Metadata is an opaque key/value envelope attached to a notification. It is
+ * never used to build a route, but it is still bounded and must be valid JSON so
+ * the backend can store it verbatim.
+ */
+export interface MetadataValidationResult {
+  valid: boolean;
+  value: Record<string, unknown> | null;
+  message?: string;
+}
+
+export function validateMetadata(raw: string | null | undefined): MetadataValidationResult {
+  const text = (raw || '').trim();
+  if (!text) return { valid: true, value: null };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { valid: false, value: null, message: 'Metadata must be valid JSON.' };
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { valid: false, value: null, message: 'Metadata must be a JSON object.' };
+  }
+  return { valid: true, value: parsed as Record<string, unknown> };
 }
